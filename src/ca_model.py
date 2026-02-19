@@ -238,8 +238,8 @@ ax2.tick_params(axis='y', labelcolor=color)
 
 plt.title("Emergent Stability with Radiative Cooling")
 plt.tight_layout()
-plt.savefig("toy_model/ca_dynamics_cooling.png")
-print("Dynamics plot saved to toy_model/ca_dynamics_cooling.png")
+plt.savefig("src/ca_model_results/dynamics_cooling.png")
+print("Dynamics plot saved to src/ca_model_results/dynamics_cooling.png")
 
 # Animation of the Grid
 fig_anim, ax_anim = plt.subplots()
@@ -252,5 +252,5 @@ def update(frame):
     return [im]
 
 ani = animation.FuncAnimation(fig_anim, update, frames=len(frames), blit=True)
-ani.save('toy_model/ca_evolution_cooling.gif', writer='pillow', fps=10)
-print("Animation saved to toy_model/ca_evolution_cooling.gif")
+ani.save('src/ca_model_results/evolution_cooling.gif', writer='pillow', fps=10)
+print("Animation saved to src/ca_model_results/evolution_cooling.gif")

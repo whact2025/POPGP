@@ -141,8 +141,8 @@ plt.xlabel("Phase Order / Time")
 plt.ylabel("Avg Cell Entropy")
 plt.title("Stability Selection: Local vs Non-local Subsystems")
 plt.legend()
-plt.savefig("toy_model/entropy_growth.png")
-print("Entropy plot saved to toy_model/entropy_growth.png")
+plt.savefig("src/chain_1d_stability_results/entropy_growth.png")
+print("Entropy plot saved to src/chain_1d_stability_results/entropy_growth.png")
 
 
 # --- 4. Mutual Information ---
@@ -199,5 +199,5 @@ for i, txt in enumerate(range(num_cells)):
 plt.title("Recovered Geometry from Substrate Correlations")
 plt.yticks([])
 plt.xlabel("Emergent Dimension 1")
-plt.savefig("toy_model/embedding.png")
-print("Plot saved to toy_model/embedding.png")
+plt.savefig("src/chain_1d_stability_results/embedding.png")
+print("Plot saved to src/chain_1d_stability_results/embedding.png")

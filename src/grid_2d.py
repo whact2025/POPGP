@@ -255,8 +255,8 @@ for (i, j) in edges:
     p2 = coords_np[j]
     plt.plot([p1[0], p2[0]], [p1[1], p2[1]], 'k-', alpha=0.3)
 
-plt.savefig("toy_model/2d_grid_embedding.png")
-print("Plot saved to toy_model/2d_grid_embedding.png")
+plt.savefig("src/grid_2d_results/embedding.png")
+print("Plot saved to src/grid_2d_results/embedding.png")
 
 print("\nCoordinates:")
 print(coords_np)

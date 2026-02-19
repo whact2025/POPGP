@@ -25,12 +25,15 @@ This directory contains a computational prototype validating the core postulates
 ## How to Run
 
 ```bash
-python toy_model/main.py
+uv run src/chain_1d_stability.py
 ```
 
 ## Expected Output
 
 *   **Console:** Entropy increase metrics and recovered coordinates.
 *   **Plots:**
-    *   `toy_model/entropy_growth.png`: Shows that local subsystems are more stable (lower entropy production).
-    *   `toy_model/embedding.png`: Shows the reconstructed 1D geometry.
+    *   `src/chain_1d_stability_results/entropy_growth.png`: Shows that local subsystems are more stable (lower entropy production).
+    *   `src/chain_1d_stability_results/embedding.png`: Shows the reconstructed 1D geometry.
+
+![Entropy Growth](chain_1d_stability_results/entropy_growth.png)
+![1D Embedding](chain_1d_stability_results/embedding.png)
