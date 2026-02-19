@@ -9,7 +9,7 @@ This repository contains the conceptual framework and computational toy models f
 *   `docs/`: Contains the core theoretical documents.
     *   [`framework.md`](docs/framework.md): The principal definition of the framework (v0.8).
 *   `src/`: Computational toy models validating the postulates.
-    *   `main.py`: 1D geometry recovery.
+    *   `chain_1d_stability.py`: 1D geometry recovery.
     *   `grid_2d.py`: 2D geometry recovery.
     *   `ca_model.py`: Cellular Automata demonstrating stability selection and "cooling".
 *   `results/`: (To be created) Simulation outputs.
@@ -41,7 +41,7 @@ uv run src/grid_2d.py
 uv run src/ca_model.py
 
 # Run the 1D geometry validation
-uv run src/main.py
+uv run src/chain_1d_stability.py
 ```
 
 ## Status

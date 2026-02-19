@@ -1,14 +1,24 @@
+"""
+1D chain stability and geometry recovery (POPGP toy model).
+
+Implements stability selection (Section 4.4.2a), locality from mutual information
+(Section 4.4.3), and MDS embedding (Section 4.4.4) of docs/framework.md.
+"""
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-# Parameters
+# Parameters (fixed for reproducibility)
 N = 8  # Number of qubits
 dim = 2**N
 k = 2  # Block size for cells (N/k cells)
 num_cells = N // k
 
-device = torch.device('cpu') # Use CPU for small problem
+# Tunable hyperparameter: inverse temperature for thermal state
+beta = 1.0
+
+device = torch.device('cpu')  # Use CPU for small problem
 
 # --- 1. Define Substrate (Heisenberg Hamiltonian) ---
 # H = sum_i (Sx_i Sx_{i+1} + Sy_i Sy_{i+1} + Sz_i Sz_{i+1})
@@ -31,9 +41,7 @@ for i in range(N - 1):  # Open boundary conditions
           tensor_op(Sy, i, N) @ tensor_op(Sy, i+1, N) +
           tensor_op(Sz, i, N) @ tensor_op(Sz, i+1, N))
 
-# Thermal State
-beta = 1.0
-# torch.matrix_exp is available in newer torch versions
+# Thermal state (beta set above)
 # For stability, diagonalize H
 evals, evecs = torch.linalg.eigh(H)
 exp_H = torch.diag(torch.exp(-beta * evals)).to(dtype=torch.complex128)
@@ -101,6 +109,7 @@ def entropy(rho):
     if len(evals) == 0: return 0.0
     return -torch.sum(evals * torch.log(evals))
 
+# Tunable hyperparameters: phase-order step and number of steps
 dt = 0.1
 steps = 20
 U_dt = evecs @ torch.diag(torch.exp(-1j * evals * dt).to(dtype=torch.complex128)) @ evecs.conj().T
@@ -133,6 +142,7 @@ print(f"Entropy Increase (Valid): {slope_valid:.4f}")
 print(f"Entropy Increase (Invalid): {slope_invalid:.4f}")
 
 # Plot Entropy Growth
+Path("src/chain_1d_stability_results").mkdir(parents=True, exist_ok=True)
 plt.figure()
 t_axis = np.arange(steps) * dt
 plt.plot(t_axis, entropy_valid.mean(dim=1).numpy(), 'b-', label='Valid Cells (Local)')

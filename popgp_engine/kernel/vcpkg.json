@@ -1,0 +1,8 @@
+{
+  "name": "popgp-kernel",
+  "version": "0.1.0",
+  "dependencies": [
+    "fmt",
+    "cuda-api-wrappers" 
+  ]
+}

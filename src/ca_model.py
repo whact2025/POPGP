@@ -1,22 +1,31 @@
+"""
+Cellular automata stability selection and radiative cooling (POPGP toy model).
+
+Demonstrates stability selection (Section 4.4.2a) and emergent persistence:
+cells as effective subsystems, selection by entropy threshold, cooling as
+entropy export. See docs/framework.md.
+"""
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from pathlib import Path
 
-# --- Configuration ---
+# Reproducibility: fixed seed for deterministic dynamics
+np.random.seed(42)
+
+# --- Configuration (fixed for reproducibility) ---
 WIDTH = 10
 HEIGHT = 10
 N = WIDTH * HEIGHT
-dim = 2**N  # This is too large for explicit matrices (2^100)
-            # We must use a local tensor network or effective rules.
-            # Let's define the "Cells" directly as the fundamental objects.
+dim = 2**N  # Too large for explicit matrices; cells are the fundamental objects.
 
-# Simulation Parameters
+# Tunable hyperparameters
 NUM_CELLS = 100
 STEPS = 50
-LEAKAGE_THRESHOLD = 0.3  # Survival threshold
-REPLICATION_PROB = 0.05
-MUTATION_RATE = 0.02
+LEAKAGE_THRESHOLD = 0.4   # Survival threshold (high entropy → death)
+REPLICATION_PROB = 0.05    # Probability to replicate when pure
+MUTATION_RATE = 0.02      # Bloch-vector perturbation on replication
 
 # --- 1. Define Cell State ---
 # Each cell is a 2x2 density matrix (1 qubit effective)
@@ -114,22 +123,12 @@ def interact(c1, c2, dt=0.1):
     c2.ry += align_strength * (avg_y - c2.ry)
     c2.rz += align_strength * (avg_z - c2.rz)
 
-# Rule 2: Selection (Death)
-# Threshold for death (High Entropy = Low Purity)
-# Max Entropy = log(2) = 0.69
-LEAKAGE_THRESHOLD = 0.4 
-
-
-# Rule 2: Selection (Death)
-# If entropy > Threshold (or radius < Threshold), cell dies (dissolves into substrate).
+# Rule 2: Selection (Death): if entropy > LEAKAGE_THRESHOLD, cell dies.
 
 # Rule 3: Reproduction (Life)
 # If a cell is very stable (low entropy) and has space, it replicates.
 
-# Rule 3: Cooling (Stabilization)
-# Real matter sheds entropy via radiation.
-# Without this, closed systems heat up until death.
-# We implement a small probability to "cool" (reset to pure state).
+# Rule 3: Cooling (tunable): probability per step to reset to pure state (entropy export).
 COOLING_PROB = 0.02
 
 history_entropy = []
@@ -221,6 +220,7 @@ for step in range(STEPS):
     frames.append(frame)
 
 # --- 3. Visualization ---
+Path("src/ca_model_results").mkdir(parents=True, exist_ok=True)
 # Plot 1: Population Dynamics
 fig, ax1 = plt.subplots()
 

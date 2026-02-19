@@ -1,13 +1,21 @@
+"""
+2D grid emergent geometry (POPGP toy model).
+
+Implements locality from mutual information (Section 4.4.3) and embedding
+from correlation metric to emergent 3D geometry (Section 4.4.4) of docs/framework.md.
+"""
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-# --- Configuration ---
+# --- Configuration (fixed for reproducibility) ---
 WIDTH = 3
 HEIGHT = 3
 N = WIDTH * HEIGHT
 dim = 2**N
-beta = 2.0  # Lower temp to enhance correlations
+# Tunable hyperparameter: inverse temperature (lower enhances correlations)
+beta = 2.0
 
 device = torch.device('cpu')
 print(f"Simulating {WIDTH}x{HEIGHT} = {N} qubit grid on {device}")
@@ -231,6 +239,7 @@ coords = vecs[:, :2] @ torch.diag(torch.sqrt(torch.abs(vals[:2])))
 coords = coords.real
 
 # --- 5. Visualization ---
+Path("src/grid_2d_results").mkdir(parents=True, exist_ok=True)
 coords_np = coords.numpy()
 plt.figure(figsize=(6, 6))
 plt.scatter(coords_np[:, 0], coords_np[:, 1], c='blue', s=100)
@@ -239,7 +248,7 @@ plt.scatter(coords_np[:, 0], coords_np[:, 1], c='blue', s=100)
 for i in range(N):
     plt.annotate(str(i), (coords_np[i, 0], coords_np[i, 1]), xytext=(5, 5), textcoords='offset points')
 
-# Draw edges from Hamiltonian to check topology
+# Draw edges from Hamiltonian to verify grid topology
 for (i, j) in edges:
     p1 = coords_np[i]
     p2 = coords_np[j]
@@ -248,12 +257,6 @@ for (i, j) in edges:
 plt.title(f"Emergent 2D Geometry ({WIDTH}x{HEIGHT} Heisenberg)")
 plt.axis('equal')
 plt.grid(True, linestyle=':', alpha=0.6)
-
-# Highlight edges to verify grid structure
-for (i, j) in edges:
-    p1 = coords_np[i]
-    p2 = coords_np[j]
-    plt.plot([p1[0], p2[0]], [p1[1], p2[1]], 'k-', alpha=0.3)
 
 plt.savefig("src/grid_2d_results/embedding.png")
 print("Plot saved to src/grid_2d_results/embedding.png")
