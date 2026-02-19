@@ -26,12 +26,22 @@ This repository contains the conceptual framework and computational toy models f
 
 ## Running the Models
 
-Prerequisites: Python 3.8+, NumPy, PyTorch, Matplotlib.
+This project uses `uv` for dependency management.
+
+Prerequisites: [Install uv](https://github.com/astral-sh/uv).
 
 ```bash
-cd src
-python grid_2d.py  # Run the 2D emergent geometry simulation
-python ca_model.py # Run the stability/cooling simulation
+# Install dependencies
+uv sync
+
+# Run the 2D emergent geometry simulation
+uv run src/grid_2d.py
+
+# Run the stability/cooling simulation
+uv run src/ca_model.py
+
+# Run the 1D geometry validation
+uv run src/main.py
 ```
 
 ## Status
