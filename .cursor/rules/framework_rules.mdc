@@ -1,0 +1,34 @@
+---
+description: POPGP Framework Development Rules
+globs: **/*.py, **/*.md
+alwaysApply: true
+---
+
+# POPGP Framework Rules
+
+This project implements the Phase-Ordered Pre-Geometric Projection (POPGP) framework. All code and documentation must adhere to the core postulates defined in `docs/framework.md`.
+
+## 1. Theoretical Terminology
+*   **Do NOT** refer to "Time" as fundamental. Use "Phase Order" ($s$) for the substrate parameter and "Emergent Time" ($\tau$) for the projected observable.
+*   **Do NOT** refer to "Space" as a background container. Use "Emergent Geometry" or "Correlation Graph".
+*   **Do** refer to "Cells" as the fundamental units of the projection, selected by stability.
+*   **Do** refer to "Projection" ($\Pi$) as the constructive map from substrate to physics.
+
+## 2. Simulation Standards
+*   **Dependency Management:** Always use `uv` for package management (`uv add`, `uv run`).
+*   **Reproducibility:** All simulations must be deterministic where possible (set random seeds).
+*   **Artifacts:** Scripts should save plots to `src/` (or a dedicated `results/` folder) with descriptive names.
+*   **Performance:** For large matrix operations (N > 12 qubits), prefer `torch` (CPU/GPU) over `numpy`.
+
+## 3. Code-Theory Linking
+*   **Citation:** When implementing a mechanism, cite the relevant section of `docs/framework.md` in the docstring.
+    *   *Example:* `def calculate_leakage(rho): # Implements stability functional L_leak (Section 4.4.2a)`
+*   **Parameter Audit:** If a script introduces a free parameter (e.g., `coupling_strength`, `cooling_rate`), explicitly note whether it is a "universal constant" or a "tunable hyperparameter" in the comments.
+
+## 4. Visualization Guidelines
+*   **Plots:** Must include axis labels, titles, and legends.
+*   **Color Maps:** Use 'inferno' or 'viridis' for entropy/purity heatmaps (Dark=Mixed, Bright=Pure).
+*   **Validation:** When visualizing geometry, explicitly overlay the "ground truth" topology if known (e.g., draw grid lines between nearest neighbors).
+
+## 5. Documentation
+*   **Updates:** If the code disproves a postulate or requires a new parameter, update `docs/framework.md` immediately. Code and Theory must remain in sync.
