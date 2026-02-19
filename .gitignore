@@ -1,7 +1,25 @@
+
+# Python
 __pycache__/
-*.png
-*.gif
-.DS_Store
-.vscode/
-venv/
+*.py[cod]
+*$py.class
 .venv/
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# POPGP Engine Build
+popgp_engine/build/
+popgp_engine/vcpkg/
+popgp_engine/vcpkg_installed/
+popgp_engine/kernel/python/*.dll
+popgp_engine/kernel/python/*.so
+popgp_engine/kernel/python/*.dylib
+
+# Generated Configuration
+popgp_engine/vcpkg-configuration.json
