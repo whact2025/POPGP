@@ -7,7 +7,7 @@ This repository contains the conceptual framework and computational toy models f
 ## Repository Structure
 
 *   `docs/`: Contains the core theoretical documents.
-    *   `framework.md`: The principal definition of the framework (v0.8).
+    *   [`framework.md`](docs/framework.md): The principal definition of the framework (v0.8).
 *   `src/`: Computational toy models validating the postulates.
     *   `main.py`: 1D geometry recovery.
     *   `grid_2d.py`: 2D geometry recovery.
