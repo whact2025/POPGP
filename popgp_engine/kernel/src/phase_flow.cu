@@ -58,8 +58,6 @@ __global__ void __launch_bounds__(256) phase_flow_kernel_soa(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_active_edges) return;
 
-    if (idx == 0) printf("GPU DEBUG: Kernel Running! N=%d dt=%f\n", num_active_edges, dt);
-
     int s = edge_src[idx];
     int d = edge_dst[idx];
     Real w = edge_weights[idx];
@@ -89,12 +87,9 @@ extern "C" void launch_phase_flow_float(
     const int* src, const int* dst, const float* w,
     int n, float dt
 ) {
-    printf("CPU DEBUG: Launching Float Kernel N=%d dt=%f\n", n, dt);
     int block = 256;
     int grid = (n + block - 1) / block;
     phase_flow_kernel_soa<float><<<grid, block>>>(alphas, betas, src, dst, w, n, dt);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) printf("CPU DEBUG: Launch Failed: %s\n", cudaGetErrorString(err));
 }
 
 extern "C" void launch_phase_flow_double(
@@ -102,11 +97,8 @@ extern "C" void launch_phase_flow_double(
     const int* src, const int* dst, const double* w,
     int n, double dt
 ) {
-    printf("CPU DEBUG: Launching Double Kernel N=%d dt=%f\n", n, dt);
     int block = 256;
     int grid = (n + block - 1) / block;
     phase_flow_kernel_soa<double><<<grid, block>>>(alphas, betas, src, dst, w, n, dt);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) printf("CPU DEBUG: Launch Failed: %s\n", cudaGetErrorString(err));
 }
 

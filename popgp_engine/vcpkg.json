@@ -4,6 +4,7 @@
   "builtin-baseline": "501db0f17ef6f3760eb80fb5a222ee4147779fb3",
   "dependencies": [
     "fmt",
-    "gtest"
+    "gtest",
+    "eigen3"
   ]
 }

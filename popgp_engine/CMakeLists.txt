@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
-# Build for the Native GPU Architecture (Fixes silent launch failures)
-# Must be set BEFORE project()
+# Build for the Native GPU Architecture
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-    # Force Ampere (sm_86) for RTX A6000
     set(CMAKE_CUDA_ARCHITECTURES "86")
 endif()
 
@@ -17,10 +15,12 @@ find_package(fmt CONFIG REQUIRED)
 
 # Include Directories (Global)
 include_directories(kernel/include)
+include_directories(renderer/include)
 
-# Enable CTest at Root
+# Enable CTest
 enable_testing()
 
 # Components
 add_subdirectory(kernel)
-# add_subdirectory(renderer) # Uncomment when renderer is ready
+add_subdirectory(renderer)
+

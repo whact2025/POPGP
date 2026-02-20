@@ -1,12 +1,13 @@
 # Kernel Component
 
-# Find CUDA Toolkit for Runtime API (cudart)
+# Find CUDA Toolkit for Runtime API (cudart) and Solvers
 find_package(CUDAToolkit REQUIRED)
 
 # Kernel Library (Phase Flow) - Build as SHARED for Python/DLL usage
 add_library(phase_flow SHARED
     src/phase_flow.cu
     src/area_law.cu
+    src/clock.cu
 )
 
 # Export symbols for Windows/Linux
@@ -20,7 +21,8 @@ if(MSVC)
     )
 endif()
 
-target_link_libraries(phase_flow PRIVATE fmt::fmt)
+# Link CUDA Solvers
+target_link_libraries(phase_flow PRIVATE fmt::fmt CUDA::cusparse CUDA::cusolver)
 set_target_properties(phase_flow PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
 
 # Post-Build: Copy DLL/SO to python directory for easy import
@@ -61,3 +63,4 @@ target_link_libraries(popgp_tests PRIVATE phase_flow GTest::gtest GTest::gtest_m
 # Register Tests
 include(GoogleTest)
 gtest_discover_tests(popgp_tests)
+

@@ -32,6 +32,13 @@ extern "C" POPGP_API void launch_area_law_pruning(
     int num_edges, int num_nodes
 );
 
+extern "C" POPGP_API void solve_clock_potential(
+    const int* src, const int* dst, const double* w,
+    const double* rho, 
+    double* phi,
+    int num_edges, int num_nodes
+);
+
 // --- Original Structs (Internal / Host Logic) ---
 
 struct Cell {
@@ -44,3 +51,4 @@ struct Edge {
     int dst;
     double weight;
 };
+
