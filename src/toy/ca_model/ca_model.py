@@ -220,7 +220,8 @@ for step in range(STEPS):
     frames.append(frame)
 
 # --- 3. Visualization ---
-Path("src/ca_model_results").mkdir(parents=True, exist_ok=True)
+_results = Path(__file__).parent / "results"
+_results.mkdir(parents=True, exist_ok=True)
 # Plot 1: Population Dynamics
 fig, ax1 = plt.subplots()
 
@@ -238,8 +239,8 @@ ax2.tick_params(axis='y', labelcolor=color)
 
 plt.title("Emergent Stability with Radiative Cooling")
 plt.tight_layout()
-plt.savefig("src/ca_model_results/dynamics_cooling.png")
-print("Dynamics plot saved to src/ca_model_results/dynamics_cooling.png")
+plt.savefig(_results / "dynamics_cooling.png")
+print(f"Dynamics plot saved to {_results / 'dynamics_cooling.png'}")
 
 # Animation of the Grid
 fig_anim, ax_anim = plt.subplots()
@@ -252,5 +253,5 @@ def update(frame):
     return [im]
 
 ani = animation.FuncAnimation(fig_anim, update, frames=len(frames), blit=True)
-ani.save('src/ca_model_results/evolution_cooling.gif', writer='pillow', fps=10)
-print("Animation saved to src/ca_model_results/evolution_cooling.gif")
+ani.save(_results / "evolution_cooling.gif", writer='pillow', fps=10)
+print(f"Animation saved to {_results / 'evolution_cooling.gif'}")

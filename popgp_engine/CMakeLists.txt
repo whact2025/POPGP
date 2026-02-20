@@ -10,7 +10,7 @@ project(popgp_engine LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CUDA_STANDARD 20)
 
-# Dependencies (via vcpkg in root)
+# Dependencies (via vcpkg) -- header-only to avoid runtime DLL dependency
 find_package(fmt CONFIG REQUIRED)
 
 # Include Directories (Global)

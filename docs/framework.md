@@ -1,10 +1,10 @@
 # A Phase-Ordered Pre-Geometric Projection Framework
-*Conceptual framework draft (v0.8, AI-readable)*  
+*Conceptual framework draft (v0.10, AI-readable)*  
 Author: [Your Name]  
 Date: [YYYY-MM-DD]
 
 ## Abstract
-We propose an atemporal, pre-geometric substrate described purely by relational/algebraic structure. A compact internal SU(2)-like symmetry and a distinguished phase/action ordering generator are taken as primitive. A unique, necessary physical projection map yields effective three-dimensional space, objective time-order (as a metric on phase order), and a finite distinguishability bound that scales with boundary area via a relational encoding boundary. Quantum discreteness is treated as emergent from stable representation content under projection constraints, while gravitational geometry is treated as an effective constitutive response of the projected metric to bounded encoding-density distributions. In empirically accessed regimes the framework is required to recover standard General Relativity and quantum field theoretic predictions. Possible additional operational access to nonlocal substrate correlations (including any potential signaling via entanglement “junctions”) is formulated as a constrained open module rather than assumed a priori.
+We propose an atemporal, pre-geometric substrate described purely by relational/algebraic structure. A compact internal SU(2)-like symmetry and a distinguished phase/action ordering generator are taken as primitive. A unique, necessary physical projection map yields an emergent manifold-like spatial structure (with effective dimension `D*≈3` in our regime), objective time-order (as a metric on phase order), and a finite distinguishability bound expressed in terms of a boundary cut-capacity functional (expected to reproduce an area-law in low-distortion manifold regimes). Quantum discreteness is treated as emergent from stable representation content under projection constraints, while gravitational geometry is defined as the output of the projection’s correlation-based embedding and clock-rate reconstruction. In empirically accessed regimes the framework is required to recover standard General Relativity and quantum field theoretic predictions. Possible additional operational access to nonlocal substrate correlations (including any potential signaling via entanglement “junctions”) is formulated as a constrained open module rather than assumed a priori.
 
 ## Contents
 1. Motivation and scope  
@@ -67,15 +67,15 @@ Scope control: the present draft focuses on structural definitions, matching req
 
 ### 3.2 Projection postulates
 **P1 (Unique physical projection).** There exists a unique, necessary projection map `Π` from substrate structure to projection-level effective physics.  
-**P2 (Emergent 3D space).** `Π` yields an effective three-dimensional spatial structure `M³` with emergent locality.  
+**P2 (Emergent spatial structure; dimension as output).** `Π` yields an emergent metric space with a manifold-like realization of some effective dimension `D*`; in the empirically accessed regime of our universe, `D* ≈ 3` (treated as an output/matching condition rather than an assumed input).  
 **P3 (Emergent time-order).** `Π` yields an objective time-order in projection as a metric on phase/action order; non-conscious systems inherit this time-order.  
-**P4 (Area-law finite distinguishability).** For any finite projected region `R`, physically distinguishable information is bounded by an area-law capacity tied to a relational encoding boundary.  
+**P4 (Finite distinguishability; boundary-capacity scaling).** For any finite projected region `R`, physically distinguishable information is bounded by a boundary *cut-capacity* functional (defined on the correlation graph). In manifold-like regimes this scaling is expected to reproduce an area-law.  
 **P5 (Bounded intensities).** Projection-level densities and curvatures saturate rather than diverge; classical singularities indicate breakdown of the effective description.
 
 ### 3.3 Emergence postulates
 **E1 (Quantum discreteness from representations).** Discrete quantum types arise from stable representation content of the internal symmetry under projection constraints, not from fundamental substrate discreteness.  
-**E2 (Geometry as projection output).** The effective metric `g_{μν}` is constructed by the projection stages `Π_loc`, `Π_geom`, and `Π_time` (Section 4.4): correlation-derived distances define an emergent locality graph, an embedding procedure reconstructs the spatial metric `h_{ab}`, and phase/action ordering sets the time scaling `dτ = β(ρ)dS_act`. Encoding density `ρ(x)` is treated as a derived scalar summary of local capacity/coherence rather than a fundamental geometric primitive. Any apparent constitutive form `g ≈ F(ρ, …)` is understood as an emergent phenomenological approximation to the metric produced by the projection construction.
-**E3 (GR matching).** In empirically accessed regimes, `g_{μν}` must satisfy Einstein’s equation with effective stress-energy matching known matter to experimental precision.  
+**E2 (Geometry as projection output).** The effective metric `g_{μν}` is constructed by the projection stages `Π_loc`, `Π_geom`, and `Π_time` (Section 4.4): correlation-derived distances define an emergent locality graph; an embedding procedure reconstructs the spatial metric `h_{ab}`; and phase/action ordering sets the clock mapping via `dτ = β0·exp(Φ) dS_act`, where `Φ` is a smoothed/harmonically extended potential on the correlation graph sourced by an entropy-contrast field `δρ`. Encoding-density proxies are derived scalar summaries of local information/capacity structure and are not primitive geometric variables. Any apparent constitutive form `g ≈ F(·)` is understood as a phenomenological approximation to the reconstructed metric output by `Π`.  
+**E4 (Lorentz Protection via Custodial Symmetry).** The strict algebraic commutation of the projection maps with the internal SU(2) symmetry ($E_i \circ \alpha_g = \alpha_g \circ E_i$) enforces a "Custodial Symmetry" on the emergent effective field theory. This symmetry algebraically prohibits the generation of lower-dimensional Lorentz-violating operators (dimension-4 and dimension-5) that typically arise from lattice discreteness, ensuring that Lorentz invariance is preserved as an emergent symmetry to high precision (bounds < $10^{-14}$).
 **J (module) (Junction accessibility).** In all known regimes, operations available to agents obey no-signaling in local marginals. Additional junction access is treated as a constrained open module.
 
 ## 4. Mathematical primitives
@@ -158,34 +158,56 @@ Given `(A, ω)`, choose the GNS triple `(π_ω, H_ω, |Ω⟩)` such that:
 ```
 All projection-level quantities are ultimately defined from this representation, not from any prior notion of space.
 
-#### 4.4.2 `Π_res`: resolution-limited coarse-graining into effective local “cells”
-A projection must provide a notion of subsystems/regions, but subsystems are not substrate primitives.  
-We introduce an *emergent cell decomposition* by selecting a family of finite-dimensional effective subalgebras:
+#### 4.4.2 `Π_res`: resolution-limited coarse-graining via split-property funnels
+A projection must provide a notion of subsystems/regions, but subsystems are not substrate primitives. Furthermore, strict local algebras in Quantum Field Theory are typically **Type III factors** (entanglement is ubiquitous), meaning they do not admit pure states or density matrices, and cannot be factorized into tensor products `A_R ⊗ A_R^c`.
+
+To resolve this **Type III incompatibility** without abandoning the continuum, we define emergent "cells" explicitly as **split-property funnels** (Type I approximants across algebraic buffer zones).
+
+**The Funnel Definition.**
+Instead of a single algebra `A_i`, the projection selects a **funnel structure** for each emergent site `i`:
 ```text
-{A_i ⊂ π_ω(A)'' }_{i ∈ V},   with   A_i ≅ M_{d_i}(C),
+A_{i, inner} ⊂ N_i ⊂ A_{i, buffer} ⊂ A
+```
+where `N_i` is a **Type I factor** (isomorphic to `B(H)` or a finite matrix algebra `M_d(C)` in toy models) that acts as a local "distinguishable semantic shell" between the inner core and the buffer zone.
+
+The effective local algebra is identified with the Type I factor `N_i`. This guarantees the existence of well-defined local density matrices, entropies, and particle-like excitations, even if the underlying substrate algebra is Type III.
+
+**Coarse-Graining.**
+The coarse-graining maps `E_i` are conditional expectations onto these Type I factors:
+```text
+{A_i ⊂ π_ω(A)'' }_{i ∈ V},   with   A_i ≅ M_{d_i}(C)   (Type I approximants),
 ```
 together with conditional expectations (coarse-graining maps):
 ```text
 E_i : π_ω(A)'' → A_i
 ```
-that are completely positive, unital, and idempotent (E_i∘E_i = E_i).
+that are completely positive, unital, and idempotent (`E_i∘E_i = E_i`).
 
-For any finite set of cells `R ⊂ V`, define:
+For any finite set of cells `R ⊂ V`, define the induced effective algebra and reduced state:
 ```text
-A_R = ⊗_{i∈R} A_i,
-E_R = ⊗_{i∈R} E_i,
-ω_R = ω ∘ E_R .
+A_R  ≈  ⊗_{i∈R} A_i,        (exact in toy models; approximate “split” factorization in the continuum/QFT limit)
+E_R  := ⊗_{i∈R} E_i,
+ω_R  := ω ∘ E_R .
 ```
 
-**Finite distinguishability constraint (imposed here).**  
-The choice of `{A_i}` and `{E_i}` is restricted so that for all finite regions `R`:
-```text
-S(ω_R) ≤ η · A(∂R) / ℓ_*²,
-```
-where `S(ω_R)` is the von Neumann entropy of the density operator representing `ω_R` on `H_R`,
-and `A(∂R)` is a projection-level boundary area measure (defined in §4.4.4 via the locality graph / min-cut).
+### Finite distinguishability constraint (non-geometric form)
+To avoid circularity, the capacity bound is imposed **before** any geometric embedding.
 
-This is where “Planck-scale resolution” enters: the projection cannot resolve arbitrarily large `d_i` and cannot support arbitrarily fine-grained independent degrees of freedom in finite regions.
+Let `Cap(∂R)` denote a **cut-capacity** functional on the cell net:
+```text
+Cap(∂R) := Σ_{i∈R, j∉R} κ(I_{ij}),
+```
+where `I_{ij}` is the mutual information between cells `i` and `j`, and `κ` is a fixed monotone map to dimensionless edge capacities.
+
+**Finite distinguishability constraint (Araki-relative form).**
+For Type III compatibility, we eschew the naive von Neumann entropy. The bound is imposed on the **Araki relative entropy** of the region's state `\omega|_R` against the canonical **KMS vacuum baseline** `\omega^{vac}|_R` (defined by the global modular flow):
+```text
+S_{Araki}( \omega|_R || \omega^{vac}|_R ) ≤ η · Cap(∂R)   for all finite regions R ⊂ V.
+```
+
+This is where “Planck-scale resolution” enters operationally: the projection cannot support arbitrarily many independent degrees of freedom in finite regions relative to the vacuum. High-resolution structure is bounded by a cut-capacity rather than a geometric area.
+
+A geometric area scaling `Cap(∂R) ∝ A_geo(∂R)/ℓ_*²` is treated as an emergent behavior in the low-stress embedding regime (§4.4.4), not as an input constraint.
 
 #### 4.4.2a Selection Principle `E`: symmetry-commuting, phase-flow stable cell net
 
@@ -199,13 +221,17 @@ Let `α_g` denote the internal SU(2)-like symmetry action on `A` (or on `π_ω(A
 ```text
 A_i ≅ M_{d_i}(C),
 ```
-with either a fixed common dimension `d_i = d` for all cells (simplest), or an explicit local bound `d_i ≤ d_max` (bounded capacity). In all cases the area-law constraint in §4.4.2 is required to hold for all finite regions `R`.
+with either a fixed common dimension `d_i = d` for all cells (simplest), or an explicit local bound `d_i ≤ d_max` (bounded capacity). In all cases the finite distinguishability constraint in §4.4.2 is required to hold for all finite regions `R`.
 
 2) **Symmetry commutation (internal isotropy constraint).** Each coarse-graining map commutes with the SU(2)-like symmetry:
 ```text
 E_i ∘ α_g = α_g ∘ E_i    for all g ∈ SU(2) and all i.
 ```
-Equivalently (often easier to verify): the subalgebra `A_i` is invariant under `α_g`, and `E_i` is SU(2)-equivariant. This prevents the projection from introducing spurious preferred directions in the emergent 3D description.
+Equivalently (often easier to verify): the subalgebra `A_i` is invariant under `α_g`, and `E_i` is SU(2)-equivariant.
+
+**The "Custodial Symmetry" Mechanism (Lorentz Protection).**
+This constraint is the physical reason why the discrete graph does not break Lorentz symmetry at macroscopic scales. The internal SU(2) acts as a **Custodial Symmetry**. By forcing the local algebra of each funnel to transform as a singlet (or specific stable representation) under the internal group, any "lattice artifact" operator that would pick out a preferred direction in the emergent tangent space is algebraically forbidden.
+Specifically, dimension-4 and dimension-5 Lorentz-violating operators (e.g., $k^\mu k^\nu \Delta u_\mu u_\nu$) are not singlets under the induced rotation group of the tangent space and are thus projected to zero by the symmetry-commuting map $E_i$. This ensures that the emergent IR Effective Field Theory is locally isotropic to a precision protected by the full strength of the internal symmetry, satisfying the $10^{-14}$ experimental bounds.
 
 3) **Information retention (anti-triviality constraint).** The coarse-graining must not erase essentially all substrate information. Impose a global bound on relative-entropy loss:
 ```text
@@ -248,135 +274,173 @@ This implements a stability principle in the precise sense requested: emergent s
 
 
 
-**Variational interpretation (no “global computation” assumption).** The selection rule is a *definition* of the projection (analogous in spirit to least-action principles), not an assumption that any agent or physical subsystem explicitly solves an NP-hard optimization. In toy models one can compute or approximate `E*` directly. In a physical reading, the minimizer is interpreted as the stable fixed-point/attractor coarse-graining compatible with (i) phase-flow stability, (ii) SU(2)-equivariance, and (iii) bounded information loss under the finite-distinguishability constraints. The role of the minimization is to remove arbitrariness and expose a small, auditable freedom set (choice of norm, window weight, etc.), not to posit an explicit algorithm executed by nature.
+
+
+
+
+
+**Variational interpretation (Thermodynamic, not Computational).** The selection rule is a *definition* of the projection (analogous in spirit to least-action principles), not an assumption that any agent or physical subsystem explicitly solves an NP-hard optimization.
+Physically, we treat the minimization of $L_{leak}$ as a **thermodynamic relaxation process**. The updates to the coarse-graining maps $E_i$ are restricted to **Lieb-Robinson bounded local unitary operations**. This ensures that the emergent spatial graph evolves causally: no instantaneous global optimization is performed. The "optimal" net is the fixed point of this local relaxation flow, not the output of a magic global solver.
 
 **Implementation notes (default choices for toy models).**
 - Weight `w(s)`: choose a finite phase-order window of width `Δs` and set `w(s)=1/Δs` on that window (and `0` outside), or use a Gaussian centered at `s0`. `Δs` should be small enough that the selected cell net is approximately stable across the window.
 - Norm `||·||`: use a Hilbert–Schmidt / Frobenius norm in a fixed representation as a computational proxy in toy models; treat the diamond norm `||·||_⋄` as the operationally strongest target definition.
-- Retention budget `ε`: define the capacity of a reference region `R0` by `S_cap(R0):=η·A(∂R0)/ℓ_*²` and choose `ε = κ·S_cap(R0)` with `κ≪1` (or impose per-cell bounds). This prevents the trivial “erase everything” minimizer.
+- Retention budget `ε`: define the capacity of a reference region `R0` by `S_cap(R0):=η·Cap(∂R0)` and choose `ε = κ·S_cap(R0)` with `κ≪1` (or impose per-cell bounds). This prevents the trivial “erase everything” minimizer.
 - Drift step `δ`: choose `δ ≪ Δs` (e.g., `δ = Δs/N` with large `N`) so that `L_drift` approximates a local drift rate.
 - Optimization style: prefer the stated lexicographic minimization over weighted sums to avoid introducing arbitrary weight parameters.
 
 #### 4.4.3 `Π_loc`: locality from correlations (graph metric from mutual information)
-
 Given the effective cell net, define reduced density operators `ρ_R` from `ω_R` in the standard way
-(using the finite-dimensional representation of `A_R` on `H_R`).
+(using the finite-dimensional representation of `A_R` on `H_R` in toy models, or split-property approximants
+at finite resolution in the continuum/QFT limit).
 
 Define the mutual information between cells `i` and `j`:
 ```text
 I_{ij} = S(ρ_i) + S(ρ_j) - S(ρ_{ij}).
 ```
 
-Interpret `I_{ij}` as a *relational proximity kernel*: higher mutual information indicates tighter relational coupling.
+Interpret `I_{ij}` as a **relational coupling kernel**: higher mutual information indicates tighter relational dependence.
 
-Define an emergent distance between cells by a monotone decreasing map `f`:
+### Distance kernel
+Define an emergent pairwise distance by a fixed monotone decreasing map `f`:
 ```text
 d_{ij} = ℓ_* · f(I_{ij} / I_0),
 ```
-where `I_0` is a reference scale (e.g., typical nearest-neighbor mutual information),
-and `f` satisfies:
+where `I_0` is a reference mutual-information scale (e.g., typical strong-coupling value), and `f` satisfies:
 - `f(u) ≥ 0`,
 - `f'(u) < 0`,
-- `f(u→0) → +∞` (very weak correlation → far apart).
+- `f(u→0) → +∞` (very weak coupling → far apart).
 
-A simple low-parameter choice (often used because it turns products into sums) is:
+A simple low-parameter choice is:
 ```text
 f(u) = max{0, -log u }.
 ```
 
-Now build a weighted graph `G = (V, E, d)`:
-- vertices are cells `i ∈ V`,
-- edges `E` connect pairs with `I_{ij}` above a threshold (or k-nearest neighbors),
-- edge lengths are `d_{ij}`.
+### Weighted graph (avoid disconnection)
+Define a **continuous** edge weight kernel (no hard threshold):
+```text
+w_{ij} := κ(I_{ij})   with κ monotone increasing and κ(0)=0.
+```
+In principle this defines a fully connected weighted graph. For computational sparsification in toy models, use
+a connectivity-preserving rule (e.g., k-nearest neighbors by smallest `d_{ij}` **plus** a minimum-spanning-tree backbone)
+rather than a hard `I_{ij}` cutoff, to prevent “islands” created by rapid decay.
 
-Graph geodesic distance:
+### Graph geodesic distance
+With edge lengths `d_{ij}` (or equivalently weights `w_{ij}`), define graph-geodesic distance:
 ```text
 d_G(i,j) = inf_{paths i→j} Σ_{(a,b) in path} d_{ab}.
 ```
 
 This defines a metric space `(V, d_G)` without assuming any background geometry.
 
-#### 4.4.4 `Π_geom`: from correlation metric space to an emergent 3D geometry
+#### 4.4.4 `Π_geom`: emergent geometry via complexity-stress minimization
+The spatial manifold is not a background container. It is a compression scheme for the correlation graph.
 
-**Embedding (coordinate realization).**  
-Choose coordinates `x_i ∈ R³` by minimizing “stress” between graph distances and Euclidean distances:
+### 1. Dimension Selection (Derived, not assumed)
+We do not postulate `D=3`. Instead, the emergent dimension `D*` is the integer that minimizes a **Complexity-Stress Functional** `F(D)` that balances embedding fidelity against topological complexity:
 ```text
-min_{ {x_i} ⊂ R³ }  Σ_{i<j} w_{ij} ( ||x_i - x_j|| - d_G(i,j) )²,
+D* := argmin_{D \in \mathbb{N}} [ Stress(D) + \lambda_{dim} \cdot |D - D_S|^2 ]
 ```
-with weights `w_{ij}` (e.g., larger for near neighbors).
+where:
+- `Stress(D)` is the standard MDS stress (distortion of graph distances `d_G` vs Euclidean distances in `R^D`).
+- `D_S` is the **Spectral Dimension** of the graph (derived from the heat kernel trace `Tr(e^{-t \Delta}) ~ t^{-D_S/2}`), representing the graph's intrinsic diffusive topology.
+- `\lambda_{dim}` is a penalty weight ("topological inertia") that prevents "dimensional jitter" under phase flow.
 
-This yields an emergent point cloud in `R³`. In the continuum limit (many cells) this approximates a 3D manifold `M³`
-when the stress is small and local neighborhoods are well approximated by 3D charts.
+In the physical regime of our universe, we require `D* = 3` as a stable minimum. If `D*` diverges or collapses to 1, the framework predicts a non-geometric phase (see Falsifiers F1).
 
-**Local metric reconstruction.**  
-For each cell `i`, use a neighborhood `N(i)` (near neighbors) and fit a local metric tensor `h_ab(x_i)` by solving:
+### 2. Relational Embedding
+Given `D*`, the coordinates `{x_i}` are determined by the stress-minimizing configuration in `R^{D*}`. This embedding is unique only up to isometries; physical observables must be relational (diffeomorphism invariant).
+
+### 3. Local Metric Reconstruction with Relational SPD Regularization
+The emergent metric `h_{ab}(x)` is recovered by fitting the local embedding to the graph distances. To ensure the metric is strictly **Symmetric Positive-Definite (SPD)** without assuming a Euclidean background `\delta_{ab}`, we define the regularizer relationally.
+
+Solve for `h_{ab}(x_i)`:
 ```text
-d_G(i,j)² ≈ (x_j - x_i)^a h_ab(x_i) (x_j - x_i)^b   for j ∈ N(i).
+min_{h \succ 0} \sum_{j \in N(i)} ( d_G(i,j)^2 - \Delta x^T h \Delta x )^2  +  \lambda_{spd} || h - h_{cov}^{-1} ||_F^2
 ```
-This is a linear least-squares problem for the symmetric matrix `h_ab(x_i)`.
+where the reference matrix `h_{cov}^{-1}` is the **inverse local covariance** of the neighbor displacement vectors `{\Delta x_j}` in the tangent space, representing the "natural" geometry of the point cloud distribution. This strictly prevents "smuggling in" a flat background; if the point cloud is highly skewed, the regularizer respects that anisotropy.
 
-The result is an emergent spatial metric field `h_ab(x)` on `M³`.
-
-**Boundary area (needed for the area law).**  
-Given the graph, define the boundary “area” of a region `R ⊂ V` by a cut functional:
+### 4. Definition of Geometric Singularities (Horizons)
+Singularities are not infinities in curvature (which saturate, see P5), but **algebraic fractures** in the reconstruction map.
+A **Geometric Horizon/Singularity** is defined as a region where the condition number `\kappa` of the design matrix `M` for the metric fit diverges:
 ```text
-A(∂R) := ℓ_*² · Σ_{(i,j) crosses the cut} a_{ij},
+\kappa(M) \to \infty
 ```
-where `a_{ij}` is a dimensionless weight per edge (often taken proportional to `I_{ij}` or set to 1 for simplicity).
-This is a discrete surrogate for boundary area consistent with an area-law capacity bound.
+This indicates an **un-smoothable graph fracture** where the correlation topology cannot be mapped to a manifold of dimension `D*` without tearing.
 
-In a continuum limit, this cut definition becomes the area of a surface separating `R` from its complement.
 
-**Encoding density field.**  
-Define a local encoding density (one convenient operational choice) as entropy per minimal patch area:
+#### 4.4.5 `Π_time`: unified emergent time via non-local graph potential
+Time is not a local scalar. It is a **global potential** determined by the entire network's relational structure.
+
+### 1. The Clock-Rate Potential Equation
+We replace all local clock mappings `\beta(\rho)` with a **non-local Clock-Rate Potential** `\Phi` defined on the correlation graph. `\Phi_i` represents the local "gravitational depth" (redshift factor) at site `i`.
+
+`\Phi` is the unique solution to the **Weighted Graph-Laplacian** equation:
 ```text
-ρ(x_i) := S(ρ_i) / ℓ_*².
+(\Delta_w + \mu^2 I) \Phi = \delta\rho
 ```
-More refined choices use the derivative of entropy with respect to boundary area:
-```text
-ρ(x) := dS(R)/dA(∂R)   (evaluated locally in the continuum limit).
-```
+where:
+- `\Delta_w` is the graph Laplacian on the mutual-information weighted graph: `(\Delta_w \Phi)_i := \sum_j w_{ij} (\Phi_i - \Phi_j)`.
+- `\delta\rho` is the source term (defined below).
+- `\mu` is a screening mass. We set **`\mu = 0`** (massless) to enforce the standard GR `1/r` long-range behavior.
 
-#### 4.4.5 `Π_time`: time-order from phase/action ordering
-Let `σ_s` denote the phase/action ordering flow on `A` (generator form or canonical-flow form in §4.3).
-Define a monotone “unwrapped action length” along the flow, `S_act(s)`, so that:
+### 2. The Source Term: Temporal-Filtered Araki Contrast
+The source of the potential is not naive entropy, but the **informational contrast** between the local state and the global vacuum.
 ```text
-S_act(s2) > S_act(s1)  iff  s2 is later than s1 in phase-order.
+\delta\rho_i := \frac{1}{s_0} \left[ \bar{S}_{Araki}(\omega_{i} || \omega_{i}^{vac}) \right]
 ```
+where `\bar{S}_{Araki}` is a **temporal average** (over a short phase-order window) of the Araki relative entropy between the local reduced state `\omega_i` and the reference vacuum `\omega_i^{vac}`. This averaging ensures stability and prevents high-frequency phase noise from sourcing gravity.
 
-Projection-time is then defined by a local conversion from action-length to clock time:
+### 3. The Baseline Vacuum (Solving the Zero-Mode)
+For `\mu = 0`, the graph Laplacian has a kernel (zero mode) corresponding to constant shifts. To fix this mode without introducing instantaneous non-local spatial averaging (which would violate causality), we define the baseline vacuum `\omega^{vac}` strictly algebraically:
+
+**Definition:** `\omega^{vac}` is the **KMS (Kubo-Martin-Schwinger) thermal state** with respect to the **global modular automorphism group** of the substrate algebra `\mathcal{A}`.
+This provides a canonical, globally invariant reference state that is "always available" algebraically, removing the need for run-time spatial averaging.
+
+### 4. Emergent Proper Time
+The local proper time `\tau` along a phase trajectory is then constructed by integrating the **Laplacian-derived clock rate**:
 ```text
-dτ(x) = β(ρ(x)) · dS_act,
+d\tau(i) = \beta_0 \cdot \exp(\Phi_i) \cdot dS_{act}
 ```
-where `β(ρ) > 0` is a monotone response function (interpreted as a local clock-rate mapping).
+This unifies gravitational redshift, time dilation, and the "flow of time" into a single Laplacian-controlled mechanism.
 
-This is the native mechanism behind time dilation in the framework: different encoding density implies different
-conversion between phase-order advance and experienced/clock time.
-
-A minimal projection-level spacetime line element can then be written (in a comoving slicing) as:
+### Minimal emergent spacetime line element (preferred slicing)
+In the preferred foliation induced by phase/action order (a physically distinguished slicing, not assumed to be fundamental time),
+define:
 ```text
-ds² = -c² dτ² + h_ab(x) dx^a dx^b.
+ds² = -c² dτ² + h_ab(x) dx^a dx^b,
 ```
+where `a,b = 1..D*` and `D*` is the emergent embedding dimension from §4.4.4 (empirically `D*≈3` in our regime).
+
+**Lorentz covariance status (explicit).**  
+A preferred slicing exists at the projection-construction level because `σ_s` defines a distinguished order.
+Local Lorentz covariance is therefore treated as an **emergent IR symmetry**: in regimes `L ≫ ℓ_*`, predictions derived from
+`g^{(L)}_{μν}` must agree with locally Lorentz-invariant effective field theory to within experimental bounds.
+Any detectable Lorentz violation is constrained to be suppressed (e.g., by powers of `ℓ_*/L`) and is part of the falsification program (§11).
 
 #### 4.4.6 Summary: the projection map as output object
 With the above stages, the projection map can be summarized as:
 ```text
-Π(A, ω, α) = ( M³, h_ab(x), τ(x), ρ(x), {ρ_R}, A(∂R), … )
+Π(A, ω, α) = ( M^{D*}, {x_i}, h_ab(x), τ(x), Φ(x), {ρ_R}, Cap(∂R), … )
 ```
 with:
-- `M³, h_ab` from correlation-defined embedding and local metric reconstruction,
-- `ρ(x)` from entropy-per-area (or an equivalent capacity-density definition),
-- `τ(x)` from the phase/action-order → time conversion.
+- `D*` and `{x_i}` from stress-minimizing embedding of the correlation metric space (dimension selected by distortion/complexity),
+- `h_ab(x)` from SPD-constrained local metric reconstruction on the embedded point cloud,
+- `Cap(∂R)` from the MI-weighted graph cut functional (primitive “boundary size” for capacity bounds),
+- `δρ` (entropy-contrast) from local reduced states relative to a vacuum baseline,
+- `Φ` from graph-Laplacian smoothing / harmonic extension `(Δ_w + μ² I)Φ = δρ`,
+- `τ` from `dτ = β0·exp(Φ) dS_act` (phase/action order converted to clock time).
 
 **Where freedom remains (auditable).**  
-The main “degrees of freedom” that remain in this template are:
-- the selection principle for `{A_i, E_i}` (specified in §4.4.2a; remaining explicit tolerances include `ε`, the channel norm choice, and the weight `w(s)`),
-- the monotone map `f` from mutual information to distance,
-- the clock-rate function `β(ρ)`.
+The remaining degrees of freedom are explicit and constrained:
+- coarse-graining selection tolerances (`ε`, choice of channel norm, phase-window weight `w(s)`, drift step `δ`),
+- MI→distance map `f` and MI→weight map `κ` (both fixed monotone families, not fitted per region),
+- embedding criterion (`ε_embed` or `λ_dim`) and neighborhood rule `N(i)`,
+- SPD regularization strength `λ_spd`,
+- smoothing parameter `μ` (default `μ=0`; treated as an optional controlled IR-modification module).
 
-These are exactly the objects that must be constrained by universality, minimal functional freedom, and matching requirements
-to avoid parameter fitting (see §4.6.4).
-
+These are the only places “parameter fitting” could enter; the framework requires universality (same choices everywhere) and
+empirical matching constraints to keep them from becoming arbitrary.
 
 ### 4.5 Symbol glossary
 | Symbol | Meaning |
@@ -463,11 +527,31 @@ where `Φ` is a projection-accessible phase/order functional.
 ## 6. Finite distinguishability and Planck-scale resolution
 The framework adopts an analog substrate intuition while enforcing bounded physical realizability in projection. Planck-scale resolution is treated as a limit on physically distinguishable information, not necessarily as a lattice of spacetime points.
 
-### 6.1 Area-law capacity bound
-For any finite region `R` in projection:
+### 6.1 Finite distinguishability via algebraic cut-capacity
+To completely eliminate geometric circularity, we define the distinguishability bound using a strictly pre-geometric **algebraic cut-capacity** functional. This ensures that "area" is an output of the theory, not an input.
+
+**1. Algebraic Cut-Capacity.**
+Let `R ⊂ V` be a finite set of emergent funnels. Define the **cut-capacity** `Cap(∂R)` purely from the correlation graph weights:
 ```text
-S(R) ≤ η · A(∂R) / ℓ_*²
+Cap(∂R) := Σ_{i∈R, j∉R} κ(I_{ij})
 ```
+where `I_{ij}` is the mutual information between funnels `i` and `j`, and `κ` is the edge-weight kernel. This quantity measures the total "information flux" connecting `R` to its complement, with no reference to spatial geometry.
+
+**2. The Araki Entropy Bound.**
+For rigorous compatibility with Type III limits, we replace the naive von Neumann entropy with the **Araki relative entropy** evaluated on the buffer zones. Let `N_R = ⊗_{i∈R} N_i` be the composite Type I factor for region `R`.
+The bound requires that the distinguishable information content of `R` (measured relative to the vacuum state `ω_vac` on the buffer) is limited by the cut-capacity:
+```text
+S_{Araki}( ω |_R || ω_vac |_R ) ≤ η · Cap(∂R)
+```
+where `η` is a dimensionless constant (`O(1)`).
+
+**3. Theorem of Emergence (Not an Axiom).**
+The geometric Area Law is not an axiom. Instead, it is asserted as an **emergent theorem**:
+*   *Theorem (conjecture):* If the stability-selected correlation graph admits a low-distortion embedding into `R^3`, then `Cap(∂R)` will scale proportionally to the geometric surface area `A_{geo}(∂R)` defined in that embedding.
+    ```text
+    Cap(∂R) ∝ A_{geo}(∂R) / ℓ_*^2
+    ```
+This reverses the standard logic: we do not assume an Area Law to get geometry; we assume a Cut-Capacity Bound, and recover the Area Law only in regimes where a stable geometry emerges.
 
 ### 6.2 Finite distinguishability
 A useful operational translation is a bound on the effective Hilbert-space dimension associated with region `R`:
@@ -494,89 +578,65 @@ A derivation program (not completed in this draft) is to show that the trace-rul
 The effective spacetime metric `g_{μν}` is treated as a projection output, not a substrate primitive. Geometry is determined by projection-accessible fields including encoding density `ρ(x)`.
 
 ### 8.1 Metric definition as projection output (replacing an abstract constitutive law)
-In this framework the effective metric `g_{μν}` is not introduced by a separate primitive function `F`. Instead, `g_{μν}` is *defined* by the output of the explicit projection construction in Section 4.4.
+In this framework, we do not postulate a fundamental constitutive law of the form $g_{\mu\nu} = F(\rho, ...)$. Instead, the effective spacetime metric is the **output of the projection construction** defined in Section 4.4.
 
-**Definition (metric from embedding + phase-order clock mapping).** The projection defines:
+The projection pipeline replaces the role of a constitutive law by constructively generating geometry from correlation.
+1.  **Locality:** Defined by the stability-selected cell net and mutual information (Section 4.4.2–4.4.3).
+2.  **Spatial Metric:** Defined by the relational embedding and local SPD reconstruction (Section 4.4.4).
+3.  **Time & Lapse:** Defined by the Laplacian clock-rate potential $\Phi$ and phase-order integration (Section 4.4.5).
 
-1) **Correlation distances.** From the stability-selected cell net `{A_i, E_i}` (§4.4.2a), compute mutual informations `I_{ij}` and distances `d_{ij}`, and obtain the graph-geodesic distance `d_G(i,j)` (§4.4.3).
+Any apparent "law" connecting density to curvature (like Einstein's equations) is an **effective closure condition** on this reconstructed field, not a primitive input. Section 8.2 defines the rigorous testing of this closure via Discrete Regge Calculus.
 
-2) **Embedding into 3D.** Define an embedding `x: V → R^3` by minimizing the stress functional (§4.4.4a):
+### 8.2 GR matching as a discrete closure condition
+This framework does not postulate Einstein’s equation as a substrate law. Instead, **GR is imposed as a tested-regime closure condition** on the *reconstructed* effective metric field.
+
+To avoid ambiguity regarding smoothing commutators, we establish the **Discrete Route** as the primary definition of the matching condition.
+
+#### 8.2.1 Primary Definition: Discrete Regge Closure
+The comparison is performed natively on the discrete pre-geometric structure, before any continuum limit is taken.
+
+1.  **Discrete Geometry:** Construct the **Delaunay triangulation** `\mathcal{T}` of the embedded point cloud `{x_i} \subset \mathbb{R}^{D^*}`. This provides a canonical simplicial complex.
+2.  **Discrete Metric:** Assign edge squared-lengths `l_{ij}^2 = h_{ab}(x_i) \Delta x^a \Delta x^b` consistent with the reconstructed local metric.
+3.  **Discrete Curvature (Regge):** Compute the curvature using **Regge Calculus**. The curvature is concentrated on the `(D^*-2)`-dimensional bones (hinges). For `D^*=3`, these are edges. The deficit angle `\epsilon_h` at hinge `h` is:
+    ```text
+    \epsilon_h = 2\pi - \sum_{cell \supset h} \theta_{cell}(h)
+    ```
+    where `\theta_{cell}(h)` is the dihedral angle of the tetrahedron at hinge `h`.
+    This definition is chosen because **Regge Calculus strictly satisfies the exact discrete Bianchi identities** (conservation of geometry), ensuring that the geometric side of the equation is structurally sound even at finite resolution.
+
+#### 8.2.2 The Closure Mismatch Functional
+We define the macroscopic closure mismatch `M_L` by comparing the discrete Regge Einstein tensor `G_{Regge}` against the coarse-grained stress-energy proxy on the graph.
+
+Define the **discrete Regge Einstein tensor** `G_h` on each hinge `h`:
 ```text
-x* ∈ argmin_{x_i ∈ R^3}  Σ_{i<j} w_{ij} ( ||x_i - x_j|| - d_G(i,j) )^2 .
+G_h \cdot l_h := \epsilon_h - \Lambda V_h
 ```
+(normalized appropriately by Voronoi dual volumes).
 
-3) **Spatial metric reconstruction.** Reconstruct the local spatial metric `h_{ab}(x_i)` from neighbor distances (§4.4.4b):
+Define the **closure mismatch** `M(L)` over a region `V_L`:
 ```text
-d_G(i,j)^2 ≈ (x_j - x_i)^a · h_{ab}(x_i) · (x_j - x_i)^b    for j ∈ N(i).
+M(L) := \left\| G_{Regge} - 8\pi G \, \Pi_{graph}(T_{\mu\nu}^{eff}) \right\|_L
 ```
+where `\Pi_{graph}` projects the effective field theory stress-energy `T_{\mu\nu}^{eff}` onto the discrete graph structure (integrating over dual volumes).
 
-4) **Encoding density as a derived scalar.** Define encoding density as a derived scalar summary of local capacity/coherence (§4.4.4d), e.g.
-```text
-ρ(x_i) := S(ρ_i)/ℓ_*^2     (cell-entropy proxy),
-```
-or, in a continuum limit,
-```text
-ρ(x) := dS(R)/dA(∂R)       (local capacity density).
-```
+**Matching Requirement:**
+In empirically accessed regimes, `M(L)` must be bounded by experimental precision `\varepsilon_{GR}(L)`. This ensures that the discrete geometry "shadows" a solution to Einstein's equations, converging to it in the continuum limit where applicable.
 
-5) **Emergent proper time.** Construct emergent proper time from phase/action order (§4.4.5):
-```text
-dτ(x) = β(ρ(x)) · dS_act .
-```
+#### 8.2.3 Weak-field (Newtonian) consistency via discrete diagnostics
+A minimal reviewer-facing check is the weak-field limit. This is evaluated directly on the discrete graph structure.
 
-Given the preferred slicing induced by phase/action ordering, the emergent spacetime line element in coordinates `(τ, x^a)` is then:
-```text
-ds^2 = -c^2 dτ^2 + h_{ab}(x) dx^a dx^b .
-```
-
-This *is* the constitutive content of the framework: `g_{μν}` is the metric implied by (i) stability-selected correlation geometry (graph → embedding → `h_{ab}`) and (ii) the local phase-order-to-clock-time mapping (`dτ = β(ρ)dS_act`). Any effective low-parameter relationship of the schematic form `g_{μν} ≈ F_{μν}(ρ, ∂ρ, …)` should be understood as a phenomenological approximation to this construction (e.g., weak-field expansion), not as an independent defining postulate.
-
-### 8.2 GR matching as an effective closure on reconstructed metric fields
-This framework does not postulate Einstein’s equation as a substrate law. Instead, **GR is imposed as a tested-regime closure condition** on the *reconstructed* effective metric field produced by the projection construction.
-
-#### 8.2.1 Continuum reconstruction and smoothing
-The correlation-derived geometry is defined initially on a discrete cell set `V` (a weighted graph with embedded coordinates `{x_i}` and local spatial metric estimates `h_ab(x_i)`). To compare with continuum GR, introduce a coarse-graining/smoothing operator at scale `L ≫ ℓ_*`:
-
-- Construct an interpolated spatial metric field `h_ab^{(L)}(x)` (e.g., via kernel regression or finite-element/triangulation on the point cloud).
-- Construct the emergent proper time field `τ^{(L)}(x)` via `dτ = β(ρ^{(L)}(x)) dS_act`, with `ρ^{(L)}` the correspondingly smoothed encoding-density proxy.
-
-This yields an effective 3+1 metric (in the preferred slicing induced by phase/action order):
-```text
-g^{(L)}_{μν} dx^μ dx^ν := -c^2 dτ^{(L)}(x)^2 + h^{(L)}_{ab}(x) dx^a dx^b .
-```
-
-#### 8.2.2 Matching criterion
-Let `T^{(L)}_{μν}` denote the effective stress-energy tensor used to describe projection-level excitations at scale `L` (in the simplest matching program this may be taken from standard effective field theory in curved space at that scale). Define the **closure mismatch**:
-```text
-M(L) := || G_{μν}[g^{(L)}] + Λ g^{(L)}_{μν} - 8πG T^{(L)}_{μν} ||_L
-```
-where `||·||_L` is a norm appropriate for comparison on the coarse-grained region (e.g., an `L^2` norm over a domain or a maximum norm on selected observables).
-
-**GR matching requirement (tested regime).**
-In empirically accessed regimes and at scales `L` where continuum physics is valid,
-```text
-M(L) ≤ ε_GR(L)
-```
-for a tolerance `ε_GR(L)` set by the precision of the relevant experimental tests.
-
-This formulation makes the empirical requirement explicit and checkable without introducing a new primitive “constitutive law.”
-
-#### 8.2.3 Weak-field (Newtonian) consistency check
-A minimal reviewer-facing check is the weak-field limit. For slowly varying fields, one demands that there exists a scalar potential `Φ(x)` such that, after an appropriate coordinate choice within the preferred slicing,
-```text
-g_{00} ≈ -(1 + 2Φ/c^2),     h_{ab} ≈ (1 - 2Φ/c^2) δ_{ab},
-```
-and `Φ` satisfies (to leading order) the Poisson equation with the effective mass density derived from projection-level excitations:
-```text
-∇^2 Φ ≈ 4πG ρ_mass .
-```
-
-In this framework, `Φ` is not fundamental; it is a diagnostic extracted from `g^{(L)}`. The key demand is that the projection construction admits regimes where the reconstructed metric yields the observed Newtonian limit and standard post-Newtonian corrections.
+1.  **Discrete Scalar Potential:** The clock-rate potential $\Phi_i$ is already defined on the graph (via the Laplacian). In the weak-field limit, this identifies with the Newtonian potential.
+2.  **Effective Mass Density:** We extract an effective mass density $\rho_{mass}$ from the discrete potential using the **discrete Poisson equation** on the Delaunay dual:
+    ```text
+    4\pi G \rho_i \approx (\Delta_{Delaunay} \Phi)_i
+    ```
+    where $\Delta_{Delaunay}$ is the cotan-weighted Laplacian on the triangulation.
+3.  **Consistency:** The key demand is that the recovered $\rho_i$ matches the coarse-grained source distribution $\delta\rho$ projected onto the nodes.
 
 #### 8.2.4 Parameter calibration versus parameter fitting
 Matching GR introduces *scale-setting* constants (analogous to `c`, `G`, `Λ`) through:
 - the unit choice `ℓ_*` (minimal encoding patch scale),
-- the clock mapping `β(ρ)` (controls gravitational time dilation in the preferred slicing),
+- the clock-rate field coupling $\beta_0$ and potential $\Phi_i$ (controlling gravitational time dilation),
 - the distance mapping `f(I/I0)` (sets correlation-to-distance conversion).
 
 To avoid unconstrained fitting, the framework treats these as:
@@ -590,11 +650,36 @@ Any additional freedom beyond this limited set should be declared explicitly as 
 A full embedding of the Standard Model is not derived in this draft. However, an algebraic route is identified that is compatible with a pre-geometric substrate.
 
 ### 9.1 Candidate internal algebra
-A commonly studied finite algebra capable of yielding the Standard Model gauge group via its unitary structure is:
+This framework treats Standard Model unification as a **programmatic module** that should not alter the core projection machinery
+(cells → correlations → geometry → clock-rate). The role of an internal finite algebra is to supply a compact representation structure
+for gauge/charge degrees of freedom that can be attached to the already-defined emergent cell net.
+
+A commonly studied finite algebra whose unitary structure can realize the Standard Model gauge group is:
 ```text
-A_F = C ⊕ H ⊕ M_3(C)
+A_F = C ⊕ H ⊕ M_3(C).
 ```
-Under appropriate unimodularity conditions on its unitary group action, this can reproduce `SU(3)×SU(2)×U(1)` as an effective gauge symmetry. Anomaly cancellation can be imposed as a projection admissibility constraint on allowed chiral representations.
+
+### How this integrates non-ad-hoc with the projection
+A natural integration point is at the cell level: treat each effective cell as carrying an internal factor,
+schematically:
+```text
+A_i  ≈  M_{d_i}(C) ⊗ A_F,
+```
+(with the same “approximate split” caveats as in §4.4.2 for continuum/QFT limits).
+
+- The compact SU(2)-like structure is naturally supported by the quaternionic component `H`.
+- `M_3(C)` supports `SU(3)`-type color structure.
+- `C` supports a `U(1)`-type phase.
+
+Gauge structure then appears as **internal automorphisms** (unitaries) acting on the `A_F` factor that
+(i) commute with the symmetry-commuting constraints of the projection and
+(ii) can be promoted to edge data (a connection) on the emergent locality graph if desired.
+Matter excitations correspond to stable representation labels of the internal algebra across the cell net.
+
+**Status.**  
+- This section is not required for the GR/QM recovery claims of the core draft.
+- It provides a concrete place to attach Standard Model degrees of freedom *once* the geometry/clock pipeline is fixed,
+so it is not “bolted on” to define spacetime itself.
 
 ## 10. Entanglement and junction accessibility (open module)
 Entanglement is treated as a non-factorizable relational structure that may be naturally nonlocal at the substrate level. Operationally, however, currently observed physics obeys no-signaling: local marginals do not depend on distant choices.
@@ -627,7 +712,39 @@ The following are hard requirements for viability:
 - **Universality:** scale-setting constants and response functions (e.g., `f`, `β`) must be global (not tuned region-by-region).
 - **Continuum regime:** at scales `L ≫ ℓ_*`, the reconstructed metric must admit smooth limits sufficient to compute curvature and compare with GR tests.
 
-### 11.3 Internal validation tests (toy-model / simulation tests of Π)
+### 11.3 Mathematical status table (definition / theorem / conjecture / matching)
+
+The table below classifies the framework’s most important claims by **mathematical status**. This is intended to make reviewer evaluation precise and to prevent “definition vs prediction” ambiguity.
+
+**Legend**
+- **Definition:** fixed by the construction; not an empirical claim by itself.
+- **Theorem (toy model):** provable/verifyable in finite-dimensional approximations and explicit numerical realizations.
+- **Conjecture / open:** plausibly true but not yet proven in generality; may require additional technical assumptions.
+- **Matching condition:** required to hold in empirically accessed regimes; falsified if it cannot be satisfied without ad hoc tuning.
+
+| Item | Status | What it asserts | Validation route / failure mode |
+|---|---|---|---|
+| Substrate triple \((\mathcal A,\omega,\alpha)\) | Definition | The substrate is specified as an atemporal, pre-geometric relational algebra with a compact internal symmetry action. | Pure definition; failure only if later steps implicitly add substrate spacetime structure. |
+| Phase/action ordering flow \(\sigma_s\) | Definition (if postulated) / Conjecture (if derived) | A distinguished ordering flow exists; \(s\) is an order parameter, not time. | If derived (canonical/modular flow): show existence conditions on \((\mathcal A,\omega)\). If postulated: keep minimal and symmetry-compatible. |
+| Cell net \(\{\mathcal A_i,E_i\}\) at finite distinguishability | Definition | Projection-resolution stage outputs effective “cells” (Type I approximants / toy matrix factors) and coarse-graining maps. | Toy models: explicit construction. General AQFT: implement via split-property funnels; failure if no consistent finite-resolution approximation exists. |
+| Symmetry-commutation of coarse-graining | Definition / constraint | \(E_i\circ\alpha_g=\alpha_g\circ E_i\) for all \(g\in SU(2)\). | Check directly in constructions; failure if recovered physics requires symmetry-breaking at the projection-selection level. |
+| Stability selection via leakage minimization \(\mathcal L_{\text{leak}}\) | Definition | Among admissible coarse-grainings, select those minimizing phase-flow leakage across cell boundaries (optionally tie-break by drift). | Toy models: compute minimizers numerically; failure if the minimizer is always trivial (information-destroying) despite retention constraints. |
+| Existence of minimizers for \(\mathcal L_{\text{leak}}\) under constraints | Theorem (toy model) / Conjecture (general) | Minimizers exist for finite toy systems and well-posed admissible sets; general operator-algebraic existence is open. | Toy models: compactness/finite search; general case: requires technical assumptions on admissible channel set and topology. |
+| Capacity bound using algebraic cut capacity \(\mathrm{Cap}(\partial R)\) | Definition | Finite distinguishability is bounded by a non-geometric boundary-capacity functional computed from correlation weights. | Pure definition; failure only if it cannot be made compatible with recovered continuum behavior. |
+| Emergent “area law” scaling | Matching output (and/or theorem in restricted classes) | In manifold-like regimes, \(\mathrm{Cap}(\partial R)\propto A_{\text{geo}}(\partial R)/\ell_*^2\). | Validate in toy models that yield low-stress embeddings; falsified if scaling is generically volume-like even in 3D-like regimes. |
+| Emergent locality via mutual information \(I_{ij}\) and graph metric \(d_G\) | Definition | Locality is defined from correlations and multi-hop routing on weighted graphs (no geometric inputs). | Definition is checkable; failure mode is pathological graphs (disconnectedness, non-manifold structure) for physically relevant states. |
+| Dimension \(D^*\) from embedding distortion | Definition + matching output | \(D^*\) is selected by a distortion/complexity criterion; empirically we require \(D^*\approx 3\) in the stable regime. | Compute \(D^*\) across toy ensembles; falsified if \(D^*\) is unstable or consistently far from 3 in GR/QFT-like toy states. |
+| Spatial metric \(h_{ab}(x)\) from SPD-constrained local fit | Definition | The emergent spatial metric is reconstructed from neighbor distances with explicit positive-definiteness constraints. | Validate numerically (SPD fit succeeds and is stable under smoothing); failure if SPD enforcement destroys the ability to match observables. |
+| Clock-rate field \(\beta\) and proper time \(d\tau=\beta\,dS_{\text{act}}\) | Definition | Emergent time is defined as a conversion from phase-order length to clock time, with \(\beta\) sourced by an entropy-contrast potential (graph-Laplacian extension). | Validate weak-field behaviors in worked examples; falsified if exterior/vacuum tails cannot reproduce redshift/Shapiro-like effects without tuning. |
+| Spacetime metric \(g_{\mu\nu}\) | Definition | \(g\) is defined by the embedding-derived \(h\) plus the clock mapping \(\tau\) (no separate constitutive law \(g=F(\rho)\)). | Pure definition; key is whether the reconstructed \(g\) admits a continuum regime enabling curvature tests. |
+| GR closure mismatch functional \(M(L)\) | Definition + matching condition | At scales \(L\gg\ell_*\), reconstructed \(g^{(L)}\) must satisfy Einstein closure within tolerance. | Falsified if no small-parameter instantiation yields small \(M(L)\) across standard tests. |
+| Born-rule statistics in accessible regimes | Matching condition (derivation open) | Outcome statistics must match standard QM in all currently tested regimes. | Falsified by any predicted deviation already excluded; derivation from projection-limited inference is an open program item. |
+| Operational no-signaling in accessible regimes | Matching condition | Local marginals must not depend on distant choices (junction gate \(\gamma\approx 0\)). | Falsified by any proposal that enables controllable signaling in ordinary Bell-test regimes. |
+| Junction-access deviations \(\gamma(\cdot)>0\) | Open module | Whether additional operational access exists in extreme regimes is left open and parameterized. | Must remain consistent with existing constraints; becomes testable if a concrete activation regime is specified. |
+| Local Lorentz covariance | Matching condition | Despite a preferred phase-order foliation in the construction, local Lorentz symmetry must emerge as an excellent IR symmetry. | Constrained by precision Lorentz-violation bounds; falsified if implied violations exceed limits. |
+
+
+### 11.4 Internal validation tests (toy-model / simulation tests of Π)
 These tests do not require new physics; they evaluate whether the projection map is well-defined and non-arbitrary.
 
 **T1 — Geometry recovery from known relational states.**
@@ -641,30 +758,33 @@ Show that reconstructed large-scale geometry is stable when varying the smoothin
 
 These tests are “reviewer-proof” because they are algorithmic and can be implemented in controlled toy models.
 
-### 11.4 Empirical compatibility checks (must reproduce known physics)
+### 11.5 Empirical compatibility checks (must reproduce known physics)
 A minimal set of comparisons that any instantiation must pass:
 - **Newtonian limit / weak field:** recover standard gravitational acceleration and redshift behavior from extracted `Φ` diagnostics (§8.2.3).
 - **Light bending and time delay:** compute null geodesics of `g^{(L)}` and compare with standard lensing and Shapiro-delay phenomenology in weak field.
-- **Consistency of clock mapping:** `β(ρ)` must reproduce observed gravitational time dilation in weak-field regimes without ad hoc spatial dependence.
+- **Consistency of clock mapping:** `β(x)` must reproduce observed gravitational time dilation in weak-field regimes without ad hoc spatial dependence.
 - **Quantum statistics:** for laboratory-scale systems, projection must reproduce standard interference and entanglement statistics (Born-rule form at the operational level).
 - **No-singularity claims (if asserted):** if the model claims bounded curvature universally, it must not conflict with any observed high-density astrophysical phenomena.
 
-### 11.5 Distinctive empirical commitments and falsifiers
-The framework becomes more falsifiable as you elevate additional commitments from “interpretation” to “prediction.” Examples:
+### 11.6 Distinctive empirical commitments and lethal falsifiers
+The framework becomes strictly falsifiable when it asserts universal constraints that can be violated by specific mathematical or empirical counterexamples. The following are **severe, lethal falsifiers**:
 
-**C1 — Universal area-law capacity (strong).**
-If the area-law distinguishability bound is claimed to apply universally (not only in special gravitational regimes), then any demonstrated **volume-scaling maximum capacity** for generic finite regions would falsify the claim.
+**F1 — Dimensional Collapse.**
+The framework is falsified if ground states of topological lattice toy models globally minimize complexity-stress at $D^* \to \infty$ (expander graphs) or $D^* = 1$ (trees).
 
-**C2 — Bounded encoding density / saturation (moderate).**
-If the framework asserts a maximum effective encoding density (hence maximum curvature) rather than true singularities, then evidence requiring unbounded curvature/density (not merely extreme values) would falsify that assertion.
+**F2 — Volume-Law Saturation.**
+Falsified if numerical simulations of split-property funnels show cut-capacity scaling with volume rather than boundary cuts in low-distortion regimes.
 
-**C3 — Junction accessibility (open module).**
+**F3 — Lorentz-Violation Bound Breach.**
+Discrete spatial graphs inherently break Lorentz symmetry. Require that the internal SU(2) symmetry acts as a 'Custodial Symmetry' that algebraically cancels dimension-4 and dimension-5 Lorentz-violating operators. The framework is falsified if predicted energy-dependent photon speeds exceed the $10^{-14}$ experimental bound.
+
+**F4 — The Two-Potential Disconnect.**
+Falsified if matching the Shapiro delay ($\Phi_t$) and spatial lensing ($\Phi_s$) for the exact same source requires fundamentally different parameter calibrations.
+
+**F5 — Junction Accessibility (Open Module).**
 If `γ(regime)` is asserted nonzero in any accessible regime, then it predicts detectable signaling via marginal shifts. Conversely, existing no-signaling constraints imply `γ ≈ 0` in all currently accessed regimes; any model variant predicting otherwise is excluded.
 
-**C4 — Correlation geometry as the unique source of spatial metric (strong).**
-If the spatial metric is claimed to be fully determined by correlation distances, then persistent empirical signatures of geometry that cannot be reproduced by any admissible correlation-geometry reconstruction (without breaking the selection principles) would falsify the reconstruction hypothesis.
-
-### 11.6 A practical “test matrix” (what to measure and what would count as failure)
+### 11.7 A practical “test matrix” (what to measure and what would count as failure)
 | Target claim/module | Observable proxy | What must hold | What would disprove it |
 |---|---|---|---|
 | Stability-selected locality | Leakage/drift metrics | `L_leak` small, drift small at fixed capacity | No stable decomposition exists without collapsing capacity |
@@ -673,9 +793,9 @@ If the spatial metric is claimed to be fully determined by correlation distances
 | Finite distinguishability (area law) | Scaling of `S(R)` with boundary cut | `S(R)` bounded by area scaling (operationally) | Demonstrated generic violation of area scaling at fixed regime |
 | Junction module (γ) | Marginal dependence tests | No measurable marginal dependence in known regimes | Robust marginal dependence without classical side-channel explanation |
 
-### 11.7 Parameter discipline as a falsifier (anti–overfitting rule)
+### 11.8 Parameter discipline as a falsifier (anti–overfitting rule)
 A reviewer-proof stance is to treat **excess functional freedom** as a failure mode. Concretely:
-- If matching GR/QFT requires `β(ρ)` or `f(I)` to vary by environment beyond a small universal parameter family, the model is overfit.
+- If matching GR/QFT requires `β(x)` or `f(I)` to vary by environment beyond a small universal parameter family, the model is overfit.
 - If matching requires replacing the stability selection rule with ad hoc, state-dependent exceptions, the “unique projection” postulate is violated.
 
 
@@ -698,241 +818,127 @@ This draft is intended as a stable conceptual reference for these developments: 
 
 ## 13. Worked examples (operational extraction of standard observables)
 
-This section adds three worked examples that show how the framework is *used* to extract familiar observables (redshift, bending angles, time delay, expansion rate) from the reconstructed metric. These examples are intended to be **reviewer-proof** in the following sense:
+This section adds three worked examples that show how the framework is *used* to extract familiar observables (redshift, bending angles, time delay, expansion rate) from the **discrete reconstructed metric**. These examples are intended to be **reviewer-proof** in the following sense:
 
 - they do not introduce new postulates;
-- they use only objects already defined in Sections 4–8 (`{E_i}`, `I_{ij}`, `d_G`, embedding `x_i`, reconstructed `h_ab`, and clock mapping `β(ρ)`); and
-- they produce explicit comparison targets (GR weak-field formulas, lens equation structure, FLRW diagnostics).
+- they use only objects already defined in Sections 4–8 (`{E_i}`, `I_{ij}`, `d_G`, embedding `x_i`, Delaunay triangulation, discrete clock $\Phi_i$); and
+- they produce explicit comparison targets (Regge-consistent lensing, simplicial volumes).
 
-Throughout, the guiding rule is: **`g^{(L)}` is whatever the projection construction produces**; GR enters only as the *closure condition* and comparison standard (§8.2).
+Throughout, the guiding rule is: **We do not smooth to a continuum.** We compute observables by shooting geodesics through the discrete simplicial complex.
 
-### 13.0 Slicing, coordinate gauge, and “what is being compared”
-To compare reconstructed metrics to standard weak-field and cosmological diagnostics, we fix two kinds of gauge freedom that are inherent in the projection construction:
+### 13.0 Slicing, gauge, and the Shift Vector via Optimal Transport
+To extract dynamic observables (redshift, expansion, gravitational waves) from a sequence of reconstructed discrete geometries, we must rigorously define the "identity" of a point across time. We do not use Procrustes alignment, as there is no ambient Euclidean background to align *in*.
 
-1) **Preferred slicing (time coordinate).**  
-Use the global phase-order parameter as the preferred coordinate time:
-```text
-t := S_act   (up to an overall constant scale).
-```
-The local proper-time mapping is:
-```text
-dτ(x) = β(ρ(x)) dt .
-```
-So in the preferred slicing the reconstructed coarse-grained metric can be written as:
-```text
-ds^2 = -c^2 β(ρ(x))^2 dt^2 + h_ab(x) dx^a dx^b .
-```
-In weak-field language, `β(ρ)` acts as a **lapse-like clock-rate factor**, while `h_ab` is the reconstructed spatial metric produced by correlation geometry.
+Instead, we use **intrinsic Gromov-Wasserstein Optimal Transport** to construct the map between successive phase slices.
 
-2) **Embedding gauge (spatial coordinates).**  
-The embedding `x: V → R^3` produced by stress minimization is unique only up to global Euclidean isometries (translations, rotations, and reflections). This is not a problem for single-slice observables (distances, geodesics), but it matters when comparing multiple slices (e.g., cosmology). To compare slices at different `t`, fix the gauge by aligning embeddings using a rigid Procrustes transform on a chosen reference subset of cells (e.g., a background patch), so that `x_i(t)` can be compared across `t` without spurious coordinate drift.
+#### 13.0.1 The Shift Vector from Intrinsic Optimal Transport
+To rigorously extract the ADM Shift Vector $N^a$ without "Euclidean smuggling" (subtracting coordinates from distinct spaces), we use **discrete differential geometry** to map the transport plan directly into the local tangent bundle.
 
-### 13.0.1 Weak-field diagnostic potentials extracted from g^(L)
-Given a reconstructed and smoothed metric `g^{(L)}` (Section 8.2.1), define weak-field **diagnostic** potentials from `g_00` and the isotropic part of `h_ab`. These are not assumed fundamental; they are extracted from the projection output for comparison to GR.
+1.  **Transport Plan:** Compute the Gromov-Wasserstein optimal transport plan $\gamma^*$ between the discrete metric measure spaces $\mathcal{X}_s$ and $\mathcal{X}_{s+\Delta s}$.
+2.  **Tangent Space Projection:** For each site $i \in \mathcal{X}_s$, the plan defines a target distribution over $\{j\} \in \mathcal{X}_{s+\Delta s}$. We map each target $j$ into the local tangent space $T_i \mathcal{X}_s$ (defined by the reconstructed metric $h_{ab}$) via the **Discrete Logarithmic Map**:
+    ```text
+    v_{ij}^a \approx \text{Log}_{x_i}(x_j)
+    ```
+    This vector is constructed relationally: it is the unique vector $v^a \in T_{x_i}$ such that flowing along the geodesic generated by $v^a$ matches the distances $d(i, k)$ to the mapped distances $d(j, k')$ in the target slice, minimizing local distortion.
+3.  **The Intrinsic Shift:** The shift vector $N^a$ is the expectation value of these tangent vectors under the transport plan:
+    ```text
+    N^a(x_i) \Delta s := \sum_j \frac{\gamma_{ij}^*}{\mu_i} v_{ij}^a
+    ```
+    This ensures that $N^a$ represents the **intrinsic geometric flow** of the coordinate system required to track the evolving correlation structure, satisfying diffeomorphism invariance without assuming any ambient background.
+
+#### 13.0.2 Discrete Weak-field diagnostic potentials
+We define the diagnostic potentials directly on the nodes of the graph.
 
 **Background normalization.**  
-Choose a reference region `B` (far from an isolated mass, or an average over a homogeneous patch) and define:
-```text
-β_B := ⟨β(ρ(x))⟩_B,
-h_B := ⟨h_ab(x)⟩_B .
-```
-Use `h_B` to define the local “flat” reference metric for normalization within the patch (i.e., treat `δ_ab` as the normalized form of `h_B`).
+Choose a reference region `B` (far from mass) and define $\Phi_B = \langle \Phi_i \rangle_B$.
 
-**Time potential** `Φ_t(x)` from `g_00 = -c^2 β(x)^2`:
+**Time potential** $\Phi_t$ at node $i$:
 ```text
-Φ_t(x) := (c^2/2) ( (β(x)^2 / β_B^2) - 1 )
-       ≈ c^2 ( (β(x)/β_B) - 1 )    (weak field).
+\Phi_t(i) := \Phi_i - \Phi_B
 ```
+This is exact; the Laplacian-derived $\Phi_i$ *is* the gravitational potential.
 
-**Space potential** `Φ_s(x)` from the isotropic (conformal) part of `h_ab`:
-define a local conformal factor relative to background:
+**Space potential** $\Phi_s$ from discrete conformal factors:
+For each node $i$, compute the local volume distortion relative to the background reference metric $h_{flat}$:
 ```text
-a_s(x) := ( det(h_ab(x)) / det(h_B) )^(1/6) .
+a_s(i) := \left( \frac{\det(h_{ab}(i))}{\det(h_{flat})} \right)^{1/6}
 ```
-In a near-isotropic weak-field regime, `a_s(x) ≈ 1 - Φ_s(x)/c^2`, so define:
-```text
-Φ_s(x) := c^2 ( 1 - a_s(x) )   (weak field diagnostic).
-```
+Then $\Phi_s(i) := c^2 (1 - a_s(i))$.
 
-**GR closure check.**  
-In the GR weak-field limit (in standard gauge), one expects `Φ_t ≈ Φ_s ≡ Φ` up to post-Newtonian corrections and coordinate choices. This framework does not assume that; it is a check implied by the GR matching requirement (§8.2.3). When possible, the most robust test is to compute observables directly from geodesics of `g^{(L)}` (coordinate-invariant), and treat `(Φ_t, Φ_s)` as interpretable diagnostics.
+**GR closure check:** In the weak field, we require $\Phi_t(i) \approx \Phi_s(i)$ across the graph.
 
 ---
 
 ### 13.1 Worked example A — isolated spherical mass (weak-field, static)
-**Purpose.** Demonstrate how a localized persistent encoding-density footprint (interpreted as “matter” in projection) yields:
-- gravitational time dilation (redshift),
-- light bending (lensing),
-- and Shapiro time delay,
-using only the reconstructed metric.
+**Purpose.** Demonstrate how a localized persistent encoding-density footprint yields gravitational time dilation, lensing, and Shapiro delay using **discrete graph geodesics**.
 
-#### 13.1.1 Setup (what you assume, minimally)
-- Choose a phase-order window where the system is approximately stationary (a static regime): correlations and `ρ(x)` are approximately time-independent under the preferred slicing.
-- Choose a region in the emergent space containing a compact “source” region `R_M` where `ρ(x)` (or the local entropy proxy `S(ρ_i)`) exceeds background.
+#### 13.1.1 Setup
+- Identify a "source" region $R_M$ where the entropy contrast $\delta\rho_i$ is high.
+- The reconstruction produces a densified mesh near $R_M$ with a deep clock-rate potential well $\Phi_i < 0$.
 
-No spherical symmetry is imposed at the substrate level; “spherical” here is an emergent statement about the reconstructed geometry at scales `L ≫ ℓ_*`.
+#### 13.1.2 Discrete Geodesic Shooting
+We do not integrate differential equations. We compute **shortest paths on the weighted graph/simplicial complex**.
 
-#### 13.1.2 Reconstruction procedure (algorithmic)
-1) Use the stability-selected cell net `{E_i}` (Section 4.4.2a).
-2) Compute `I_{ij}` and convert to graph distances `d_G(i,j)` (Section 4.4.3).
-3) Embed into `R^3` via stress minimization to obtain coordinates `{x_i}` (Section 4.4.4a).
-4) Reconstruct `h_ab(x)` from neighbor distances (Section 4.4.4b), and smooth to `h_ab^{(L)}(x)` (Section 8.2.1).
-5) Compute `ρ^{(L)}(x)` (entropy or capacity-density proxy) and thus `β(ρ^{(L)}(x))`.
-6) Assemble the coarse-grained metric:
-```text
-g_00^{(L)}(x) = -c^2 β(ρ^{(L)}(x))^2,     g_ab^{(L)}(x) = h_ab^{(L)}(x).
-```
+1.  **Null Geodesics:** A light ray is a path of graph edges $\{e_1, e_2, \dots\}$ that minimizes the **optical length**:
+    ```text
+    L_{opt} = \sum_{edge=(i,j)} \frac{\ell_{ij}}{\beta_{avg}(i,j)}
+    ```
+    where $\ell_{ij}$ is the proper length from the reconstructed $h_{ab}$, and $\beta_{avg}$ is the clock rate. The factor $1/\beta$ accounts for the effective refractive index $n \approx 1 - 2\Phi/c^2$ of the gravitational field.
 
-#### 13.1.3 Observable extraction
-**(A) Gravitational redshift / time dilation.**  
-For two stationary observers at radii `r1, r2` (defined with respect to the reconstructed spatial metric), the predicted redshift is:
-```text
-1 + z ≈ β(ρ(r_emit)) / β(ρ(r_obs))     (weak field, static).
-```
-Compare to GR’s weak-field redshift `1+z ≈ 1 + (Φ(r1)-Φ(r2))/c^2`.
+2.  **Redshift:** For a signal sent from node $A$ to node $B$:
+    ```text
+    1+z = \frac{\beta(A)}{\beta(B)} = \frac{e^{\Phi_A}}{e^{\Phi_B}}
+    ```
+    This is exact on the graph.
 
-**(B) Light bending.**  
-Compute null geodesics of `g^{(L)}` numerically, or (in weak field) use the standard lensing integral in terms of diagnostic potentials:
-```text
-α(b) ≈ (2/c^2) ∫ ∇_⊥ (Φ_t + Φ_s) dz .
-```
-For GR-like closure (`Φ_t ≈ Φ_s`), this reduces to:
-```text
-α(b) ≈ (4/c^2) ∫ ∇_⊥ Φ dz .
-```
-If the reconstructed geometry is approximately Schwarzschild in weak field, the result should approach:
-```text
-α(b) ≈ 4 G M_eff / (c^2 b) .
-```
+3.  **Lensing Angle:** Shoot two geodesics: one through the potential well (impact parameter $b$), one far away (reference).
+    Measure the angular deviation of the final velocity vectors in the asymptotic region using the **discrete parallel transport** defined by the Delaunay connection.
+    *Check:* Does the deflection vector $\vec{\alpha}$ scale as $4GM/b$?
 
-**Operational definition of M_eff in this framework.**  
-Because “mass” is not a primitive here, define an effective enclosed mass from the reconstructed potential:
-```text
-M_eff(r) := (r^2 / G) dΦ_t/dr    (spherical approximation diagnostic).
-```
-A reviewer-proof check is that `M_eff(r)` is approximately constant outside the source region.
-
-**(C) Shapiro delay.**  
-For a null path passing near the mass, the excess coordinate time relative to the same endpoints in flat space is (weak field):
-```text
-Δt ≈ (2/c^3) ∫ (Φ_t + Φ_s) dz ,
-```
-and the corresponding proper-time delay for distant clocks follows from `dτ = β(ρ) dt`.
-
-#### 13.1.4 What would count as failure (specific falsifiers)
-- No stable reconstruction yields a near-spherically symmetric `h_ab^{(L)}` and `β(ρ)` profile from any admissible `{E_i}` (violates viability of `Π` for this regime).
-- Extracted redshift ratios cannot be made consistent with weak-field gravitational time dilation using any **universal** `β(ρ)` within the allowed minimal family.
-- Lensing angle scaling with impact parameter does not match observed `~1/b` behavior in weak field (after universal calibration).
+4.  **Shapiro Delay:** Compare the arrival time $t_{arrival} = \int dS_{act}$ of the ray passing through the potential vs. the reference ray.
+    ```text
+    \Delta \tau \approx \sum_{edges} \ell_{ij} (1 - e^{\Phi_{avg}})
+    ```
+    (Note: $\Phi < 0$ implies $\beta < 1$, so "light slows down").
 
 ---
 
-### 13.2 Worked example B — two-body lensing (binary mass distribution)
-**Purpose.** Show how the framework produces the standard *qualitative* and *quantitative* structure of gravitational lensing by multiple masses: superposition in the weak field, shear, and image multiplicity.
+### 13.2 Worked example B — two-body lensing (binary mass)
+**Purpose.** Show discrete superposition.
 
-#### 13.2.1 Setup
-- Identify two localized high-`ρ` regions `R_M1` and `R_M2` separated by distance `D` in the reconstructed 3D embedding.
-- Work in a quasi-static regime (geometry changes slowly compared to light transit across the region), so a “snapshot” metric is meaningful.
-
-#### 13.2.2 Reconstruction procedure
-Use the same pipeline as in §13.1 to obtain `g^{(L)}` for the region containing both masses. The only difference is that the reconstructed potentials will exhibit two centers.
-
-Define weak-field diagnostic potentials `Φ_t(x), Φ_s(x)` as in §13.0.1.
-
-#### 13.2.3 Lensing observables (weak field)
-**Deflection field.** The deflection angle vector at impact parameter `b` in the lens plane is:
-```text
-α⃗(θ⃗) ≈ (2/c^2) ∫ ∇_⊥ (Φ_t + Φ_s) dz
-```
-evaluated along an unperturbed (Born-approximation) path, or by full geodesic integration in `g^{(L)}`.
-
-**Lens equation structure.** For a source angle `β⃗` and observed image angle `θ⃗`, the standard weak-lensing form is:
-```text
-β⃗ = θ⃗ - (D_LS/D_S) α⃗(θ⃗) .
-```
-In this framework, `α⃗(θ⃗)` is computed from the reconstructed metric; the distance ratios use reconstructed geometric distances in the smoothed `h_ab^{(L)}`.
-
-**Shear and convergence.** If you define a projected lensing potential `ψ(θ⃗)` from `(Φ_t+Φ_s)`, the convergence `κ` and shear `γ` are derived from second derivatives of `ψ`. Operationally, compute them from the Jacobian of the mapping `β⃗(θ⃗)` derived from the geodesic shooting map.
-
-#### 13.2.4 Reviewer-proof checks (what you demand)
-- **Weak-field linearity:** In regimes where GR predicts approximate superposition, the reconstructed deflection field should be approximately the sum of the two single-lens fields:
-```text
-α⃗_total ≈ α⃗_1 + α⃗_2    (within tolerance).
-```
-- **Symmetry:** In the equal-mass case, the lensing map should display the expected reflection symmetries in the reconstructed embedding.
-- **Scaling:** Deflection should scale approximately with the inferred effective masses `M_eff` extracted by the diagnostic in §13.1.
-
-#### 13.2.5 Failure modes
-- Deflection field fails to approximate superposition in the weak field without invoking non-universal tuning of `β(ρ)` or `f(I)`.
-- Image multiplicity/shear behavior cannot be reproduced in any admissible reconstruction, indicating that correlation geometry is insufficient to represent the known lensing degrees of freedom.
+1.  **Setup:** Two high-density regions.
+2.  **Potentials:** The Laplacian is linear. If $\delta\rho \approx \delta\rho_1 + \delta\rho_2$, then $\Phi \approx \Phi_1 + \Phi_2$.
+3.  **Ray Tracing:** The optical path minimization naturally probes the sum of the potentials.
+    We verify that the discrete deflection field $\vec{\alpha}(\vec{\theta})$ exhibits the shear and magnification of a binary lens without any continuum smoothing.
 
 ---
 
-### 13.3 Worked example C — homogeneous cosmology patch (FLRW-like slice)
-**Purpose.** Show how an approximately homogeneous and isotropic expanding cosmology can be represented as a phase-ordered family of reconstructed 3D geometries, and how standard cosmological diagnostics (scale factor, Hubble rate) are extracted.
+### 13.3 Worked example C — homogeneous cosmology patch (FLRW-like)
+**Purpose.** Extract the scale factor $a(t)$ from the **discrete volume** of the Delaunay complex.
 
-#### 13.3.1 The key idea (dynamic geometry without substrate time)
-A cosmology is not a single static metric but a *family* of reconstructed metrics indexed by phase order. The substrate provides the phase/action ordering flow `σ_s`; projection maps it into a time parameter and evolving 3D geometry.
+#### 13.3.1 Discrete Scale Factor
+For a phase slice at $t_k$:
+1.  Compute the Delaunay triangulation $\mathcal{T}_k$ of the embedded points $\{x_i(t_k)\}$.
+2.  Sum the volumes of all tetrahedra $T \in \mathcal{T}_k$ in a large homogeneous patch $P$:
+    ```text
+    V_P(t_k) := \sum_{T \in P} \text{Vol}(T)
+    ```
+    where $\text{Vol}(T)$ is calculated using the Cayley-Menger determinant with the edge lengths $l_{ij}$ derived from the metric $h_{ab}$.
+3.  **Scale Factor:**
+    ```text
+    a(t_k) := \left( \frac{V_P(t_k)}{V_P(t_0)} \right)^{1/3}
+    ```
 
-There are two conceptually distinct implementations:
-
-- **Fixed cell net, evolving correlations (preferred in v0.7):** Choose a single stability-selected `{E_i}` over a broad phase-order window and reconstruct geometry from `ω_s := ω∘σ_s` at different `s`.
-- **Moving-window cell net (open problem):** Allow `{E_i}` itself to be re-optimized adiabatically as `s` advances, producing `E_i(s)` (see §12.3). This is not required to define cosmological expansion but may become important near “geometrogenesis” transitions.
-
-This worked example uses the **fixed cell net** method to avoid introducing new selection machinery.
-
-#### 13.3.2 Reconstruction as a function of phase order
-For a sequence of phase-order values `{s_k}` (or coordinate times `{t_k}`):
-1) Define the phase-shifted substrate state:
+#### 13.3.2 Hubble Rate
+Using the Laplacian-averaged proper time step $\Delta \bar{\tau}_k$ between slices:
 ```text
-ω_{s_k} := ω ∘ σ_{s_k}.
-```
-2) Compute reduced cell states and mutual informations `I_{ij}(s_k)` using the *same* `{E_i}`.
-3) Build distances `d_G(s_k)`, embed to `{x_i(s_k)}`, and reconstruct `h_ab^{(L)}(t_k, x)`.
-
-This yields a family:
-```text
-g^{(L)}(t_k) = -c^2 β(ρ^{(L)}(t_k,x))^2 dt^2 + h_ab^{(L)}(t_k,x) dx^a dx^b .
+H(t_k) \approx \frac{1}{a(t_k)} \frac{a(t_{k+1}) - a(t_k)}{\Delta \bar{\tau}_k}
 ```
 
-#### 13.3.3 Extracting an FLRW diagnostic (scale factor and Hubble rate)
-Choose a large patch `P` where the reconstructed geometry is approximately homogeneous and isotropic. Define a spatial average of the metric (or its volume element) over the patch.
+#### 13.3.3 Failure Modes (Falsification)
+- **Volume Collapse:** If the Delaunay complex degenerates (slivers, zero-volume tetrahedra) despite a growing $V_P$, the geometry is not manifold-like.
+- **Anisotropy:** If $a(t)$ differs significantly when measured along different graph axes (using discrete direction-dependent correlators), the emergent space is not FLRW.
 
-A robust scale-factor diagnostic uses the spatial volume element:
-- Let `V_P(t)` be the reconstructed spatial volume of `P` computed from `h_ab^{(L)}(t,x)`:
-```text
-V_P(t) := ∫_P sqrt(det(h^{(L)}(t,x))) d^3x .
-```
-- Define the scale factor (relative to a reference time `t0`) as:
-```text
-a(t) := ( V_P(t) / V_P(t0) )^{1/3} .
-```
-
-Convert to proper time using the averaged clock mapping:
-```text
-dτ̄ := ⟨β(ρ^{(L)}(t,x))⟩_P dt .
-```
-
-Then the Hubble rate diagnostic is:
-```text
-H(τ̄) := (1/a) da/dτ̄ .
-```
-
-#### 13.3.4 What to compare to observations (without claiming prediction yet)
-Even before deriving a full dynamical law for `a(t)`, the framework can be evaluated by whether it can *represent* the standard cosmological structure in an admissible reconstruction:
-
-- **Hubble law representation:** Whether comoving separations in the reconstructed metric scale approximately with `a(t)` in a homogeneous patch.
-- **Redshift mapping:** Whether redshift of photons between emission and observation follows the standard geometric relation:
-```text
-1+z ≈ a(t_obs)/a(t_emit)    (in a homogeneous regime),
-```
-with corrections computable from the reconstructed metric.
-
-- **CMB temporal interpretation (structural):** Whether the reconstructed family admits a consistent time-ordering and redshift history for free-streaming radiation.
-
-#### 13.3.5 Failure modes
-- The reconstruction cannot produce a stable approximately homogeneous/isotropic patch for any admissible `{E_i}` and realistic `ω_s`.
-- The derived `a(t)` is not robust under smoothing scale `L` (violating continuum stability).
-- The clock mapping `β(ρ)` must be tuned non-universally across the patch to reproduce consistent redshift/expansion diagnostics, violating parameter discipline.
 
 ---
 

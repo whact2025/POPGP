@@ -1,6 +1,4 @@
 #pragma once
-#include <vector>
-#include <Eigen/Dense>
 
 #if defined(_WIN32)
     #if defined(POPGP_RENDER_EXPORTS)

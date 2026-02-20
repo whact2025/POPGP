@@ -22,15 +22,18 @@ if(MSVC)
 endif()
 
 # Link CUDA Solvers
-target_link_libraries(phase_flow PRIVATE fmt::fmt CUDA::cusparse CUDA::cusolver)
+target_link_libraries(phase_flow PRIVATE CUDA::cusparse CUDA::cusolver)
 set_target_properties(phase_flow PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
 
-# Post-Build: Copy DLL/SO to python directory for easy import
+# Post-Build: Deploy shared library + runtime deps to the popgp Python package
+set(POPGP_PY_LIB_DIR "${CMAKE_SOURCE_DIR}/../popgp/_lib")
+
 add_custom_command(TARGET phase_flow POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${POPGP_PY_LIB_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:phase_flow>
-    ${CMAKE_CURRENT_SOURCE_DIR}/python/$<TARGET_FILE_NAME:phase_flow>
-    COMMENT "Deploying shared library to Python artifact folder"
+        $<TARGET_FILE:phase_flow>
+        "${POPGP_PY_LIB_DIR}/$<TARGET_FILE_NAME:phase_flow>"
+    COMMENT "Deploying kernel to popgp Python package"
 )
 
 # Simulation Executable (Benchmark/Test Harness)
@@ -41,11 +44,10 @@ if(MSVC)
     target_compile_options(popgp_sim PRIVATE /utf-8)
 endif()
 
-# Link against phase_flow, fmt, and CUDA Runtime
-target_link_libraries(popgp_sim PRIVATE phase_flow fmt::fmt CUDA::cudart)
+# Link against phase_flow, fmt (header-only), and CUDA Runtime
+target_link_libraries(popgp_sim PRIVATE phase_flow fmt::fmt-header-only CUDA::cudart)
 
 # Unit Tests
-enable_testing()
 find_package(GTest CONFIG REQUIRED)
 
 add_executable(popgp_tests 

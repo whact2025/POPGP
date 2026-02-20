@@ -17,9 +17,14 @@ venv/
 popgp_engine/build/
 popgp_engine/vcpkg/
 popgp_engine/vcpkg_installed/
-popgp_engine/kernel/python/*.dll
-popgp_engine/kernel/python/*.so
-popgp_engine/kernel/python/*.dylib
+
+# Native libraries deployed to Python package by CMake
+popgp/_lib/*.dll
+popgp/_lib/*.so
+popgp/_lib/*.dylib
+
+# Generated results from simulation scripts
+src/**/results/
 
 # Generated Configuration
 popgp_engine/vcpkg-configuration.json

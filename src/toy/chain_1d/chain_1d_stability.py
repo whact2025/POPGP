@@ -142,7 +142,8 @@ print(f"Entropy Increase (Valid): {slope_valid:.4f}")
 print(f"Entropy Increase (Invalid): {slope_invalid:.4f}")
 
 # Plot Entropy Growth
-Path("src/chain_1d_stability_results").mkdir(parents=True, exist_ok=True)
+_results = Path(__file__).parent / "results"
+_results.mkdir(parents=True, exist_ok=True)
 plt.figure()
 t_axis = np.arange(steps) * dt
 plt.plot(t_axis, entropy_valid.mean(dim=1).numpy(), 'b-', label='Valid Cells (Local)')
@@ -151,8 +152,8 @@ plt.xlabel("Phase Order / Time")
 plt.ylabel("Avg Cell Entropy")
 plt.title("Stability Selection: Local vs Non-local Subsystems")
 plt.legend()
-plt.savefig("src/chain_1d_stability_results/entropy_growth.png")
-print("Entropy plot saved to src/chain_1d_stability_results/entropy_growth.png")
+plt.savefig(_results / "entropy_growth.png")
+print(f"Entropy plot saved to {_results / 'entropy_growth.png'}")
 
 
 # --- 4. Mutual Information ---
@@ -209,5 +210,5 @@ for i, txt in enumerate(range(num_cells)):
 plt.title("Recovered Geometry from Substrate Correlations")
 plt.yticks([])
 plt.xlabel("Emergent Dimension 1")
-plt.savefig("src/chain_1d_stability_results/embedding.png")
-print("Plot saved to src/chain_1d_stability_results/embedding.png")
+plt.savefig(_results / "embedding.png")
+print(f"Plot saved to {_results / 'embedding.png'}")

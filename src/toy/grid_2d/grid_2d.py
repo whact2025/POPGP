@@ -239,7 +239,8 @@ coords = vecs[:, :2] @ torch.diag(torch.sqrt(torch.abs(vals[:2])))
 coords = coords.real
 
 # --- 5. Visualization ---
-Path("src/grid_2d_results").mkdir(parents=True, exist_ok=True)
+_results = Path(__file__).parent / "results"
+_results.mkdir(parents=True, exist_ok=True)
 coords_np = coords.numpy()
 plt.figure(figsize=(6, 6))
 plt.scatter(coords_np[:, 0], coords_np[:, 1], c='blue', s=100)
@@ -258,8 +259,8 @@ plt.title(f"Emergent 2D Geometry ({WIDTH}x{HEIGHT} Heisenberg)")
 plt.axis('equal')
 plt.grid(True, linestyle=':', alpha=0.6)
 
-plt.savefig("src/grid_2d_results/embedding.png")
-print("Plot saved to src/grid_2d_results/embedding.png")
+plt.savefig(_results / "embedding.png")
+print(f"Plot saved to {_results / 'embedding.png'}")
 
 print("\nCoordinates:")
 print(coords_np)
