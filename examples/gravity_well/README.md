@@ -1,0 +1,156 @@
+# Gravity Well — Localized Source on a 2D Grid
+
+## Purpose
+
+This example answers the critical question: **does the POPGP clock potential
+behave like a gravitational field?**
+
+The framework's clock equation (Section 4.4.5 of `docs/framework.md`),
+
+$$(\Delta_w + \mu^2 I) \, \Phi \;=\; \delta\rho$$
+
+is structurally identical to the **screened Poisson equation** that governs
+the Newtonian gravitational potential in linearized GR.  If the mapping is
+physical, then injecting a localized source $\delta\rho$ at one cell and
+solving on the MI-weighted graph Laplacian $\Delta_w$ should produce a
+potential $\Phi$ that:
+
+1. Peaks at the source (highest clock rate at the "mass").
+2. Decays monotonically with graph distance.
+3. In the continuum limit ($N \to \infty$), reproduces the 2D Green's
+   function $\Phi \sim -\frac{1}{2\pi}\ln r$ (for $\mu = 0$).
+4. Preserves the full symmetry of the underlying lattice.
+
+This is the **first observable extraction** from the projection pipeline.
+
+## What It Does
+
+| Step | Description |
+|------|-------------|
+| Standard pipeline | Runs $\Pi_{\mathrm{res}} \to \Pi_{\mathrm{loc}} \to \Pi_{\mathrm{geom}} \to \Pi_{\mathrm{time}}$ on a $3 \times 3$ Heisenberg grid to obtain the MI weight matrix $w_{ij}$ and embedded coordinates. |
+| Point source injection | Sets $\delta\rho = +1$ at the center cell (cell 4) and zero elsewhere. |
+| Poisson solve | Builds the graph Laplacian $L = D - W$ and solves $(L + \mu^2 I)\Phi = \delta\rho$ with $\mu = 0.1$. |
+| Radial analysis | Groups cells by graph distance from center (BFS) and tests monotonic decay. |
+| Symmetry check | Verifies that cells equidistant from center have equal $\Phi$ (lattice symmetry). |
+| Redshift | Computes the gravitational redshift $1 + z = \exp(\Phi_{\mathrm{source}} - \Phi_{\mathrm{boundary}})$. |
+
+## Run
+
+```
+uv run python -m examples.gravity_well
+```
+
+## Framework Sections Validated
+
+| Section | Mechanism | Status |
+|---------|-----------|--------|
+| 4.4.5   | Clock equation $(\Delta_w + \mu^2)\Phi = \delta\rho$ | Tested |
+| 4.4.5   | Proper time $d\tau = \beta_0 e^{\Phi} \, dS_{\mathrm{act}}$ | Tested |
+| 5.1     | Newtonian limit of emergent gravity | **First test** |
+
+## Parameters
+
+| Parameter | Value | Classification | Notes |
+|-----------|-------|---------------|-------|
+| `WIDTH x HEIGHT` | 3 x 3 | Hyperparameter | Grid dimensions |
+| `beta` | 2.0 | Hyperparameter | Inverse temperature |
+| `cell_dim` | 1 | Hyperparameter | 1 qubit per cell (trivial partition) |
+| `I_0` | 1.0 | Universal | Theoretical MI upper bound |
+| `mu` | 0.1 | Universal | Screening mass; small $\mu > 0$ regularizes the zero mode while preserving the Newtonian regime ($\mu r \ll 1$) |
+
+## Results
+
+### Gravitational Potential
+
+![Gravitational Potential](results/gravity_well.png)
+
+Left panel: heatmap of $\Phi$ on the $3 \times 3$ grid.  The cyan star marks
+the mass source at center.  Right panel: $\Phi$ vs graph distance with error
+bars and a $\log(d)$ fit.
+
+**Success criteria:**
+
+- **Monotonic falloff** — $\Phi(d=0) > \Phi(d=1) > \Phi(d=2)$.  The
+  potential must decrease at every step away from the source.  A reversal
+  would mean the clock equation fails to reproduce attractive gravity.
+- **Grid symmetry** — all cells at the same graph distance should have
+  $\Phi$ values within 5% of each other.  The MI weights inherit the
+  lattice symmetry of the Heisenberg Hamiltonian; if $\Phi$ breaks this
+  symmetry, the pipeline has introduced an artifact.
+- The $\log(d)$ fit is informational only.  With only 2 radial shells
+  (d=1, d=2) any line fits perfectly (R$^2$=1 is trivially guaranteed).
+  A meaningful $\log(r)$ test requires $N \gg 9$.
+
+### Gravity Embedding
+
+![Gravity Embedding](results/gravity_embedding.png)
+
+The clock potential $\Phi$ painted onto the MDS-recovered 2D embedding.
+Warmer colors correspond to higher $\Phi$ (faster clocks).  The mass source
+is at the cyan star.  The color gradient should be radially symmetric around
+the source, with warm center fading to cool boundary.
+
+### Source Comparison
+
+![Source Comparison](results/source_comparison.png)
+
+Side-by-side comparison of:
+
+- **Framework source** — $\delta\rho_i = S(\rho_i)$ (von Neumann entropy
+  of each cell's reduced state).  This is the "natural" source the pipeline
+  produces.  On a translationally-invariant grid, all cells have similar
+  entropy, so $\Phi$ is nearly flat.
+- **Localized point source** — $\delta\rho = \delta_{i,\mathrm{center}}$.
+  This deliberately breaks translational invariance to isolate the
+  gravitational response.
+
+The contrast between the two panels illustrates that the clock equation
+can produce both regimes: a "vacuum" ($\Phi \approx$ const when
+$\delta\rho$ is uniform) and a "gravity well" ($\Phi$ peaked at a mass
+concentration).
+
+## Physics Interpretation
+
+### Why mu > 0?
+
+With $\mu = 0$, the graph Laplacian $L$ has a zero eigenvalue (the constant
+mode).  Solving $L\Phi = \delta\rho$ requires gauge-fixing: pinning
+$\Phi[i_0] = 0$ at some cell $i_0$.  This breaks lattice symmetry and
+distorts the radial profile.  Using $\mu > 0$ (screening mass) yields a
+unique solution without gauge artifacts.  For $\mu r \ll 1$ the screened
+potential is indistinguishable from the Coulomb/Newtonian potential.
+
+### Clock rate and gravitational time dilation
+
+In the POPGP framework, proper time is $d\tau = \beta_0 e^{\Phi} \, dS$.
+Higher $\Phi$ means faster clocks.  With a point-source $\delta\rho > 0$ at
+the center, $\Phi$ is maximal there — so clocks at the "mass" tick
+**faster** than clocks far away.
+
+This is the **opposite** sign from GR's gravitational time dilation, where
+clocks slow down near a mass.  The resolution: the framework's $\delta\rho$
+(entropy density) maps to $-4\pi G \rho_{\mathrm{mass}}$ in the Newtonian
+limit (Section 5.1).  A physical mass concentration corresponds to a
+**negative** $\delta\rho$ perturbation (entropy deficit), which would make
+$\Phi$ minimal at the source — matching GR.  This sign convention is
+examined in Phase 4.
+
+### What this test proves
+
+Even at the minimal scale of 9 cells, the clock equation on the MI-weighted
+graph Laplacian produces:
+
+1. A potential that is monotonically attracted toward the source.
+2. A symmetric solution respecting the lattice invariance.
+3. A well-defined redshift observable between cells.
+
+These are the necessary (though not sufficient) conditions for the POPGP
+clock potential to serve as the Newtonian gravitational potential in the
+continuum limit.
+
+### What it does NOT prove (yet)
+
+- **$\log(r)$ falloff**: requires a larger grid ($N \geq 25$, i.e. $5 \times 5$).
+- **Correct sign convention**: requires the full Araki source term (Phase 4).
+- **GR matching**: requires local metric reconstruction, Regge curvature,
+  and the Einstein closure test (Phase 3).

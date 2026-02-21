@@ -25,6 +25,13 @@ import numpy as np
 import torch
 
 from popgp.backend import Backend, _I2, _SX, _SY, _SZ, create_backend
+from popgp.coarse_grain import (
+    check_su2_equivariance,
+    compute_leakage,
+    compute_retention_loss,
+    count_partitions,
+    optimize_cells,
+)
 from popgp.config import SimulatorConfig
 
 log = logging.getLogger(__name__)
@@ -185,119 +192,81 @@ class Simulator:
         L_leak under admissibility constraints (SU(2) equivariance,
         retention bound, finite capacity).
 
-        At toy scale: enumerates partitions and computes the exact
-        leakage functional.
+        At toy scale (exact backend): performs full combinatorial search
+        over all equal-size partitions of N qubits into cells of size k.
+        Lexicographic selection: minimize L_leak (primary), then L_drift
+        (secondary tie-breaker), subject to SU(2) equivariance and
+        retention bound constraints.
+
         At GPU scale: uses heuristic (contiguous blocks along the graph).
         """
         cfg_res = self.config.pi_res
-        N = self.config.substrate.n_qubits
+        cfg_sub = self.config.substrate
+        N = cfg_sub.n_qubits
         k = cfg_res.cell_dim
-        n_cells = N // k
 
         if N % k != 0:
             raise ValueError(
                 f"n_qubits ({N}) must be divisible by cell_dim ({k})."
             )
 
-        if self.config.use_exact_backend:
-            cells, leakage = self._pi_res_exact(state, n_cells, k)
+        if k == 1:
+            cells = [[i] for i in range(N)]
+            result = {
+                "cells": cells,
+                "leakage": 0.0,
+                "drift": None,
+                "retention_loss": 0.0,
+                "su2_equivariant": True,
+            }
+        elif self.config.use_exact_backend:
+            result = self._pi_res_exact(state)
         else:
+            n_cells = N // k
             cells = [list(range(i * k, (i + 1) * k)) for i in range(n_cells)]
-            leakage = float("nan")
+            result = {
+                "cells": cells,
+                "leakage": float("nan"),
+                "drift": None,
+                "retention_loss": None,
+                "su2_equivariant": None,
+            }
 
         log.info(
-            "Π_res: %d cells of size %d, L_leak=%.6f",
-            len(cells), k, leakage,
+            "Π_res: %d cells of size %d, L_leak=%.6e",
+            len(result["cells"]), k, result["leakage"],
         )
-        return PiResResult(cells=cells, leakage=leakage)
+        return PiResResult(
+            cells=result["cells"],
+            leakage=result["leakage"],
+            drift=result.get("drift"),
+            retention_loss=result.get("retention_loss"),
+            su2_equivariant=result.get("su2_equivariant"),
+        )
 
-    def _pi_res_exact(
-        self, state: object, n_cells: int, k: int
-    ) -> tuple[list[list[int]], float]:
-        """
-        Exact leakage-minimizing cell selection (§4.4.2a).
+    def _pi_res_exact(self, state: object) -> dict:
+        """Full variational cell selection via combinatorial search (§4.4.2a).
 
-        For small systems, evaluates contiguous-block partitions
-        and selects the one with minimal L_leak.  Full combinatorial
-        search over all partitions is deferred to Phase 1 implementation;
-        this provides the contiguous-block baseline that matches the
-        existing chain_1d_stability.py demonstration.
+        Delegates to :func:`popgp.coarse_grain.optimize_cells`, which
+        enumerates all equal-size partitions, filters by admissibility,
+        and applies lexicographic (L_leak, L_drift) optimization.
         """
-        N = self.config.substrate.n_qubits
         cfg_res = self.config.pi_res
+        cfg_sub = self.config.substrate
 
-        contiguous_cells = [
-            list(range(i * k, (i + 1) * k)) for i in range(n_cells)
-        ]
-
-        s_center = cfg_res.phase_window_center
-        s_width = cfg_res.phase_window_width
-        n_samples = cfg_res.phase_window_samples
-        dt_sample = s_width / n_samples
-
-        leakage = 0.0
-        rho_s = state
-        for step in range(n_samples):
-            if step > 0:
-                rho_s = self.backend.evolve(rho_s, dt_sample)
-
-            for cell in contiguous_cells:
-                rho_cell_before = self.backend.reduced_state(rho_s, cell)
-                rho_evolved = self.backend.evolve(rho_s, dt_sample)
-                rho_cell_after_evolve = self.backend.reduced_state(
-                    rho_evolved, cell
-                )
-                rho_before_then_trace = rho_cell_after_evolve
-                rho_trace_then_evolve = self._evolve_reduced(
-                    rho_cell_before, cell, dt_sample
-                )
-
-                diff = rho_before_then_trace - rho_trace_then_evolve
-                leakage += torch.sum(torch.abs(diff) ** 2).item()
-
-        leakage *= dt_sample / s_width
-
-        return contiguous_cells, leakage
-
-    def _evolve_reduced(
-        self, rho_cell: torch.Tensor, cell_indices: list[int], dt: float
-    ) -> torch.Tensor:
-        """Evolve a reduced density matrix under the cell's local Hamiltonian.
-
-        This is an approximation: the true local evolution would require
-        the full Hamiltonian restricted to the cell.  For the leakage
-        functional, what matters is the *difference* between
-        'evolve-then-trace' and 'trace-then-evolve'.
-        """
-        d = rho_cell.shape[0]
-        H_local = torch.zeros((d, d), dtype=torch.complex128)
-        N = self.config.substrate.n_qubits
-        edges = self.backend.build_edges()
-        J = self.config.substrate.coupling_J
-
-        local_map = {q: i for i, q in enumerate(cell_indices)}
-        for qi, qj in edges:
-            if qi in local_map and qj in local_map:
-                li, lj = local_map[qi], local_map[qj]
-                k = len(cell_indices)
-                def _local_site_op(op: torch.Tensor, site: int) -> torch.Tensor:
-                    parts = [_I2] * k
-                    parts[site] = op
-                    result = parts[0]
-                    for p in parts[1:]:
-                        result = torch.kron(result, p)
-                    return result
-
-                H_local += J * (
-                    _local_site_op(_SX, li) @ _local_site_op(_SX, lj)
-                    + _local_site_op(_SY, li) @ _local_site_op(_SY, lj)
-                    + _local_site_op(_SZ, li) @ _local_site_op(_SZ, lj)
-                )
-
-        evals, evecs = torch.linalg.eigh(H_local)
-        phases = torch.exp(-1j * evals * dt).to(dtype=torch.complex128)
-        U = evecs @ torch.diag(phases) @ evecs.conj().T
-        return U @ rho_cell @ U.conj().T
+        return optimize_cells(
+            state=state,
+            backend=self.backend,
+            n_qubits=cfg_sub.n_qubits,
+            cell_dim=cfg_res.cell_dim,
+            edges=self.backend.build_edges(),
+            coupling_J=cfg_sub.coupling_J,
+            phase_window_width=cfg_res.phase_window_width,
+            phase_window_samples=cfg_res.phase_window_samples,
+            drift_delta=cfg_res.drift_delta,
+            retention_epsilon=cfg_res.retention_epsilon,
+            leakage_tie_tolerance=1e-8,
+        )
 
     # ── Π_loc: locality from correlations ────────────────────────────
 

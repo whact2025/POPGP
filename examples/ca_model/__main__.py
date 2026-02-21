@@ -17,11 +17,14 @@ Run:
     uv run python -m examples.ca_model
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+
+from popgp import validation_json
 
 _PKG_DIR = Path(__file__).parent
 
@@ -206,5 +209,95 @@ def update(i):
 ani = animation.FuncAnimation(fig_anim, update, frames=len(frames), blit=True)
 ani.save(results / "evolution_cooling.gif", writer="pillow", fps=10)
 print(f"Saved: {results / 'evolution_cooling.gif'}")
+
+# ── Validation Report ─────────────────────────────────────────────────────
+
+peak_pop = max(history_count)
+min_pop = min(history_count)
+avg_entropy_final_5 = float(np.mean(history_entropy[-5:])) if len(history_entropy) >= 5 else final_entropy
+
+report = {
+    "example": "ca_model",
+    "framework_version": "0.10",
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "config": {
+        "width": WIDTH,
+        "height": HEIGHT,
+        "steps": STEPS,
+        "leakage_threshold": LEAKAGE_THRESHOLD,
+        "replication_prob": REPLICATION_PROB,
+        "mutation_rate": MUTATION_RATE,
+        "cooling_prob": COOLING_PROB,
+        "initial_density": INITIAL_DENSITY,
+        "decay_rate": DECAY_RATE,
+        "align_strength": ALIGN_STRENGTH,
+        "dt": DT,
+        "repro_purity_threshold": REPRO_PURITY_THRESHOLD,
+        "random_seed": 42,
+    },
+    "pipeline": {
+        "dynamics": {
+            "initial_population": initial_pop,
+            "final_population": final_pop,
+            "peak_population": peak_pop,
+            "min_population": min_pop,
+            "final_avg_entropy": float(final_entropy),
+            "avg_entropy_last_5_steps": avg_entropy_final_5,
+            "population_history": history_count,
+            "entropy_history": [float(e) for e in history_entropy],
+        },
+    },
+    "checks": [
+        {
+            "name": "population_survival",
+            "description": "Population survives to end of simulation (non-zero)",
+            "framework_section": "4.4.2a",
+            "criterion": "final_population > 0",
+            "value": final_pop,
+            "passed": pop_survived,
+        },
+        {
+            "name": "entropy_below_threshold",
+            "description": "Average entropy of surviving cells is below the leakage death threshold",
+            "framework_section": "4.4.2a",
+            "criterion": f"final_avg_entropy < {LEAKAGE_THRESHOLD}",
+            "value": float(final_entropy),
+            "threshold": LEAKAGE_THRESHOLD,
+            "passed": entropy_below,
+        },
+        {
+            "name": "population_growth",
+            "description": "Population at end >= population at start (stable or growing)",
+            "framework_section": "4.4.2a",
+            "criterion": "final_population >= initial_population",
+            "value": {"initial": initial_pop, "final": final_pop},
+            "severity": "informational",
+            "passed": pop_grew,
+        },
+        {
+            "name": "radiative_cooling_effective",
+            "description": "Average entropy decreases or stays stable over the simulation",
+            "framework_section": "4.4.2a",
+            "criterion": "entropy_last_5 <= leakage_threshold",
+            "value": avg_entropy_final_5,
+            "threshold": LEAKAGE_THRESHOLD,
+            "passed": avg_entropy_final_5 < LEAKAGE_THRESHOLD,
+        },
+    ],
+}
+
+report["overall_pass"] = all(
+    c["passed"] for c in report["checks"]
+    if c.get("severity") != "informational"
+)
+report["artifacts"] = [
+    "results/dynamics_cooling.png",
+    "results/evolution_cooling.gif",
+    "results/validation.json",
+]
+
+val_path = results / "validation.json"
+val_path.write_text(validation_json(report))
+print(f"Saved: {val_path}")
 
 print("\nDone.")

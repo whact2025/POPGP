@@ -14,7 +14,10 @@ mean-field dynamics and Sz-correlation proxies.
 
 | Principle | Framework Reference | What this script tests |
 |---|---|---|
-| Stability Selection | Section 4.4.2a | "Valid" (contiguous) 2-qubit cells accumulate less entropy than "invalid" (scattered) cells under phase-flow evolution. Locality **emerges** from stability. |
+| Variational Cell Selection | Section 4.4.2a | Full combinatorial search over all 105 equal-size partitions of 8 qubits into 2-qubit cells. The optimizer selects contiguous blocks `[[0,1],[2,3],[4,5],[6,7]]` as the unique leakage minimizer — locality **emerges** from the stability principle, not from assumptions. |
+| SU(2) Equivariance | Section 4.4.2a, E4 | Each admissible partition is checked for `E_i ∘ α_g = α_g ∘ E_i`. For partial-trace coarse-graining with tensor-product SU(2) actions, equivariance is automatically satisfied (proven analytically, verified numerically). |
+| Retention Bound | Section 4.4.2a | The multi-information `D(ω ‖ ω∘E) = Σ S(ρ_i) − S(ρ)` is computed for each partition. Partitions exceeding the retention threshold ε are filtered out before leakage evaluation. |
+| Stability Comparison | Section 4.4.2a | Separate dynamic test: evolve a Neel state under phase-flow and compare entropy growth of valid (contiguous) vs invalid (scattered) cells. Invalid cells reach higher entropy faster. |
 | Correlation-Based Locality | Section 4.4.3 | Mutual information between cells in a thermal state defines a distance metric d(i,j) = -log(I_ij / I_0). Neighbours have small d; distant cells have large d. |
 | Geometry Recovery (MDS) | Section 4.4.4 | Classical MDS applied to the graph-geodesic distance matrix recovers the correct 1D ordering of the cells. |
 | Dimension Selection | Section 4.4.4 | The complexity-stress functional selects D* = 1 as the optimal embedding dimension. |
@@ -36,7 +39,7 @@ mean-field dynamics and Sz-correlation proxies.
 ### Phase 2 — Full Projection Pipeline (Π_res → Π_loc → Π_geom → Π_time)
 
 1. Prepare a thermal state ρ = exp(-βH)/Z at inverse temperature β.
-2. **Π_res**: Select contiguous cell decomposition; compute leakage functional.
+2. **Π_res** (variational): Enumerate all 105 equal-size partitions of 8 qubits into 4 cells of 2 qubits. For each partition: (a) check SU(2) equivariance, (b) check retention bound D(ω ‖ ω∘E) ≤ ε, (c) if admissible, compute L_leak using Hilbert-Schmidt channel norm approximated via random probe states with pre-computed unitaries. Select the partition with minimal L_leak. If tied, break ties by L_drift (Araki relative entropy drift).
 3. **Π_loc**: Compute mutual information I(i,j) for all cell pairs; apply canonical distance kernel d = -log(I/I_0); build weighted graph with k-NN + MST; compute graph-geodesic distances.
 4. **Π_geom**: Estimate spectral dimension D_S; select D* via complexity-stress; embed via MDS.
 5. **Π_time**: Build graph Laplacian from MI weights; solve (Δ_w + μ²I)Φ = δρ; compute proper time dτ.
@@ -45,11 +48,15 @@ mean-field dynamics and Sz-correlation proxies.
 
 | Parameter | Value | Role |
 |---|---|---|
-| N (qubits) | 8 | System size (full Hilbert space 2^8 = 256) |
-| k (block size) | 2 | Qubits per cell → 4 cells |
+| N (qubits) | 8 | System size (full Hilbert space 2^8 = 256) [STRUCTURAL_CHOICE] |
+| k (block size) | 2 | Qubits per cell → 4 cells, 105 partitions to search [TUNABLE_HYPERPARAMETER] |
 | β (temperature) | 1.0 | Inverse temperature for thermal state [TUNABLE_HYPERPARAMETER] |
 | dt | 0.1 | Phase-order step size [TUNABLE_HYPERPARAMETER] |
 | steps | 20 | Evolution steps for stability measurement [TUNABLE_HYPERPARAMETER] |
+| phase_window_width | 2.0 | Width of the phase-order window for L_leak integration [TUNABLE_HYPERPARAMETER] |
+| phase_window_samples | 5 | Quadrature points in the integration window [TUNABLE_HYPERPARAMETER] |
+| retention_epsilon | 10.0 | Maximum retention loss D(ω ‖ ω∘E); set permissively [TUNABLE_HYPERPARAMETER] |
+| n_probe_states | 8 | Haar-random probes for channel-norm approximation [TUNABLE_HYPERPARAMETER] |
 
 ## How to Run
 
@@ -80,6 +87,9 @@ the corner.
   blue curve (local). This means non-local subsystems leak more information to
   their environment. Locality is not assumed — it **emerges** from stability.
 - The green shaded gap should persist across most of the time axis.
+- The "valid" cells plotted here are the cells *selected by the variational
+  optimizer* (which searches all 105 partitions), not hand-picked. The optimizer
+  independently recovers contiguous blocks as the leakage minimizer.
 
 **FAIL indicators**:
 - The curves overlap throughout, or the blue curve rises above the red.
@@ -88,6 +98,9 @@ the corner.
 - A small or transient gap that disappears at late times may indicate the
   system has thermalized and the distinction has been erased — not necessarily
   a failure, but the gap should be present during early-to-mid evolution.
+- The optimizer selecting non-contiguous cells as the leakage minimizer would
+  indicate the stability principle does not prefer spatially local decompositions
+  for this Hamiltonian.
 
 ---
 

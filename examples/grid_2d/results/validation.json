@@ -1,0 +1,172 @@
+{
+  "example": "grid_2d",
+  "framework_version": "0.10",
+  "timestamp": "2026-02-21T20:08:07.127566+00:00",
+  "config": {
+    "width": 3,
+    "height": 3,
+    "n_qubits": 9,
+    "topology": "grid",
+    "beta": 2.0,
+    "coupling_J": 1.0,
+    "cell_dim": 1,
+    "I_0": 1.0,
+    "lambda_dim": 0.01,
+    "use_exact_backend": true
+  },
+  "pipeline": {
+    "pi_res": {
+      "n_cells": 9,
+      "cells": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ],
+        [
+          6
+        ],
+        [
+          7
+        ],
+        [
+          8
+        ]
+      ]
+    },
+    "pi_loc": {
+      "mi_matrix_shape": [
+        9,
+        9
+      ],
+      "mi_min_positive": 0.021809229627251625,
+      "mi_max": 0.2687913179397583
+    },
+    "pi_geom": {
+      "D_spectral": 1.0,
+      "D_star": 2,
+      "stress": 0.10806721838779144,
+      "coords": [
+        [
+          -1.6344387531280518,
+          1.5827159881591797
+        ],
+        [
+          -1.4553123712539673,
+          -9.230741852661595e-05
+        ],
+        [
+          -1.6342376470565796,
+          -1.582923173904419
+        ],
+        [
+          -0.06227228790521622,
+          1.5533883571624756
+        ],
+        [
+          0.017898984253406525,
+          1.0717637906054733e-06
+        ],
+        [
+          -0.06207481399178505,
+          -1.553396463394165
+        ],
+        [
+          1.592000126838684,
+          1.6415871381759644
+        ],
+        [
+          1.6462267637252808,
+          0.00010445799853187054
+        ],
+        [
+          1.5922091007232666,
+          -1.6413853168487549
+        ]
+      ]
+    },
+    "pi_time": {
+      "phi": [
+        0.0,
+        6.008162975311279,
+        7.277210235595703,
+        6.0081634521484375,
+        6.99064302444458,
+        7.679549217224121,
+        7.277210235595703,
+        7.679549217224121,
+        8.022126197814941
+      ],
+      "phi_min": 0.0,
+      "phi_max": 8.022126197814941,
+      "phi_range": 8.022126197814941,
+      "phi_mean": 6.3269572257995605
+    }
+  },
+  "checks": [
+    {
+      "name": "dimension_selection",
+      "description": "Complexity-stress functional selects D* = 2 for a 2D grid",
+      "framework_section": "4.4.4",
+      "criterion": "D_star == 2",
+      "value": 2,
+      "passed": true
+    },
+    {
+      "name": "topology_preservation",
+      "description": "In the MDS embedding, graph neighbors of the center node are closer than non-neighbors",
+      "framework_section": "4.4.4",
+      "criterion": "avg_dist_neighbors < avg_dist_non_neighbors",
+      "value": {
+        "center_node": 4,
+        "avg_dist_neighbors": 1.5531121492385864,
+        "avg_dist_non_neighbors": 2.281196117401123,
+        "separation_pct": 31.916765213012695
+      },
+      "passed": true
+    },
+    {
+      "name": "spectral_dimension",
+      "description": "Spectral dimension D_S is near 2.0 for a 2D lattice (finite-size effects expected at N=9)",
+      "framework_section": "4.4.4",
+      "criterion": "0.5 <= D_spectral <= 3.0",
+      "value": 1.0,
+      "passed": true
+    },
+    {
+      "name": "mds_stress",
+      "description": "MDS stress is low, indicating faithful embedding",
+      "framework_section": "4.4.4",
+      "criterion": "stress < 0.5",
+      "value": 0.10806721838779144,
+      "passed": true
+    },
+    {
+      "name": "clock_potential_computed",
+      "description": "Clock potential Phi was successfully computed",
+      "framework_section": "4.4.5",
+      "criterion": "pi_time is not None",
+      "value": true,
+      "passed": true
+    }
+  ],
+  "overall_pass": true,
+  "artifacts": [
+    "results/embedding.png",
+    "results/clock_potential.png",
+    "results/validation.json"
+  ]
+}

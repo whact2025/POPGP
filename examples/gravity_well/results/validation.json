@@ -1,0 +1,152 @@
+{
+  "example": "gravity_well",
+  "framework_version": "0.10",
+  "timestamp": "2026-02-21T19:18:39.104363+00:00",
+  "config": {
+    "width": 3,
+    "height": 3,
+    "n_qubits": 9,
+    "topology": "grid",
+    "beta": 2.0,
+    "cell_dim": 1,
+    "I_0": 1.0,
+    "lambda_dim": 0.01,
+    "mu": 0.1,
+    "center_cell": 4,
+    "use_exact_backend": true
+  },
+  "pipeline": {
+    "pi_geom": {
+      "D_spectral": 1.0,
+      "D_star": 2,
+      "stress": 0.10806721838779144
+    },
+    "pi_time_natural": {
+      "phi": [
+        0.0,
+        6.008162975311279,
+        7.277210235595703,
+        6.0081634521484375,
+        6.99064302444458,
+        7.679549217224121,
+        7.277210235595703,
+        7.679549217224121,
+        8.022126197814941
+      ],
+      "phi_min": 0.0,
+      "phi_max": 8.022126197814941
+    },
+    "gravity_test": {
+      "phi_point": [
+        11.005647659301758,
+        11.0614652633667,
+        11.005648612976074,
+        11.061464309692383,
+        11.731260299682617,
+        11.061463356018066,
+        11.005648612976074,
+        11.061464309692383,
+        11.005646705627441
+      ],
+      "phi_min": 11.005646705627441,
+      "phi_max": 11.731260299682617,
+      "phi_at_source": 11.731260299682617,
+      "graph_distances": [
+        2,
+        1,
+        2,
+        1,
+        0,
+        1,
+        2,
+        1,
+        2
+      ],
+      "radial_profile": {
+        "distances": [
+          0.0,
+          1.0,
+          2.0
+        ],
+        "phi_avg": [
+          11.731260299682617,
+          11.061464309692383,
+          11.005647659301758
+        ],
+        "phi_std": [
+          0.0,
+          6.743495646333031e-07,
+          8.259061701210157e-07
+        ]
+      },
+      "log_fit": {
+        "slope": -0.08052640471758965,
+        "intercept": 11.06146430969238,
+        "r_squared": 1.0
+      },
+      "redshift": {
+        "phi_source": 11.731260299682617,
+        "phi_boundary": 11.005647659301758,
+        "z": 1.0659964084625244,
+        "one_plus_z": 2.0659964084625244
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "monotonic_falloff",
+      "description": "Phi decreases monotonically with graph distance from the mass source",
+      "framework_section": "4.4.5 / 5.1",
+      "criterion": "Phi(d) > Phi(d+1) for all consecutive shells",
+      "value": {
+        "d=0": 11.731260299682617,
+        "d=1": 11.061464309692383,
+        "d=2": 11.005647659301758
+      },
+      "passed": true
+    },
+    {
+      "name": "grid_symmetry",
+      "description": "Cells equidistant from source have equal Phi (lattice symmetry preserved)",
+      "framework_section": "4.4.5",
+      "criterion": "max asymmetry < 5%",
+      "value": 1.7330634364043362e-05,
+      "threshold": 5.0,
+      "passed": true
+    },
+    {
+      "name": "phi_peaked_at_source",
+      "description": "Clock potential is maximal at the mass source cell",
+      "framework_section": "5.1",
+      "criterion": "argmax(phi) == center",
+      "value": {
+        "argmax": 4,
+        "center": 4
+      },
+      "passed": true
+    },
+    {
+      "name": "redshift_positive",
+      "description": "Gravitational redshift z > 0 (source clocks tick faster than boundary)",
+      "framework_section": "5.1",
+      "criterion": "z > 0",
+      "value": 1.0659964084625244,
+      "passed": true
+    },
+    {
+      "name": "dimension_selection_2d",
+      "description": "Complexity-stress selects D* = 2 for the 2D grid",
+      "framework_section": "4.4.4",
+      "criterion": "D_star == 2",
+      "value": 2,
+      "passed": true
+    }
+  ],
+  "overall_pass": true,
+  "artifacts": [
+    "results/gravity_well.png",
+    "results/gravity_embedding.png",
+    "results/source_comparison.png",
+    "results/validation.json"
+  ]
+}

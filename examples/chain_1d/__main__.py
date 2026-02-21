@@ -11,13 +11,14 @@ Run:
     uv run python -m examples.chain_1d
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from popgp import Simulator, SimulatorConfig
+from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
 
 _PKG_DIR = Path(__file__).parent
@@ -26,7 +27,10 @@ _PKG_DIR = Path(__file__).parent
 
 cfg = SimulatorConfig.for_chain(n=8, beta=1.0)
 cfg.pi_res = PiResConfig(
-    cell_dim=2, phase_window_width=2.0, phase_window_samples=20,
+    cell_dim=2,
+    phase_window_width=2.0,
+    phase_window_samples=5,
+    retention_epsilon=10.0,  # permissive; framework says set relative to Cap(∂R)
 )
 cfg.simulation.dt = 0.1
 cfg.simulation.n_steps = 20
@@ -43,7 +47,14 @@ n_cells = len(result.pi_res.cells)
 print(f"Substrate: {cfg.substrate.n_qubits}-qubit Heisenberg chain "
       f"(beta={cfg.substrate.beta})")
 print(f"Cells: {n_cells} blocks of {cfg.pi_res.cell_dim} qubits")
-print(f"L_leak: {result.pi_res.leakage:.6f}")
+print(f"Selected cells: {result.pi_res.cells}")
+print(f"L_leak: {result.pi_res.leakage:.6e}")
+if result.pi_res.drift is not None:
+    print(f"L_drift: {result.pi_res.drift:.6e}")
+if result.pi_res.retention_loss is not None:
+    print(f"Retention loss: {result.pi_res.retention_loss:.4f}")
+if result.pi_res.su2_equivariant is not None:
+    print(f"SU(2) equivariant: {result.pi_res.su2_equivariant}")
 
 # ── Stability comparison: local vs non-local cells ──────────────────────
 
@@ -138,10 +149,10 @@ rank = np.zeros(n_cells, dtype=int)
 current_rank = 0
 order_by_rank = np.argsort(coords)
 rank[order_by_rank[0]] = 0
-for k in range(1, n_cells):
-    if diffs[k - 1] > tol:
+for ri in range(1, n_cells):
+    if diffs[ri - 1] > tol:
         current_rank += 1
-    rank[order_by_rank[k]] = current_rank
+    rank[order_by_rank[ri]] = current_rank
 
 is_monotonic = (
     all(rank[i] <= rank[i + 1] for i in range(n_cells - 1)) or
@@ -187,16 +198,137 @@ if result.pi_time is not None:
     is_flat = phi_range < 0.3 * abs(phi_mean) if abs(phi_mean) > 1e-6 else phi_range < 1e-3
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    bars = ax.bar(range(n_cells), phi, color="teal", edgecolor="black", linewidth=0.5)
+    colors = ["silver" if v == 0.0 else "teal" for v in phi]
+    bars = ax.bar(range(n_cells), phi, color=colors, edgecolor="black", linewidth=0.5)
     ax.axhline(phi_mean, color="orange", linestyle="--", linewidth=1.5,
                label=f"Mean = {phi_mean:.2f}")
     ax.set_xlabel("Cell Index")
     ax.set_ylabel("Phi (Clock-Rate Potential)")
     ax.set_title("Emergent Clock Potential (Sec 4.4.5)")
+    ax.set_xticks(range(n_cells))
+    for i, v in enumerate(phi):
+        ax.text(i, max(v, phi.max() * 0.02), f"{v:.1f}",
+                ha="center", va="bottom", fontsize=9)
     ax.legend()
 
     fig.tight_layout()
     fig.savefig(results / "clock_potential.png", dpi=150)
     print(f"Saved: {results / 'clock_potential.png'}")
+
+# ── Validation Report ─────────────────────────────────────────────────────
+
+phi = result.pi_time.phi.numpy() if result.pi_time is not None else None
+phi_range = float(phi.max() - phi.min()) if phi is not None else None
+phi_mean = float(phi.mean()) if phi is not None else None
+
+report = {
+    "example": "chain_1d",
+    "framework_version": "0.10",
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "config": {
+        "n_qubits": cfg.substrate.n_qubits,
+        "topology": cfg.substrate.topology,
+        "beta": cfg.substrate.beta,
+        "coupling_J": cfg.substrate.coupling_J,
+        "cell_dim": cfg.pi_res.cell_dim,
+        "phase_window_width": cfg.pi_res.phase_window_width,
+        "phase_window_samples": cfg.pi_res.phase_window_samples,
+        "retention_epsilon": cfg.pi_res.retention_epsilon,
+        "dt": cfg.simulation.dt,
+        "n_steps": cfg.simulation.n_steps,
+        "use_exact_backend": cfg.use_exact_backend,
+    },
+    "pipeline": {
+        "pi_res": {
+            "n_cells": n_cells,
+            "cell_dim": cfg.pi_res.cell_dim,
+            "cells": result.pi_res.cells,
+            "leakage": float(result.pi_res.leakage),
+            "drift": float(result.pi_res.drift) if result.pi_res.drift is not None else None,
+            "retention_loss": float(result.pi_res.retention_loss) if result.pi_res.retention_loss is not None else None,
+            "su2_equivariant": result.pi_res.su2_equivariant,
+        },
+        "pi_loc": {
+            "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
+            "mi_min_positive": float(result.pi_loc.mi_matrix[result.pi_loc.mi_matrix > 0].min().item()),
+            "mi_max": float(result.pi_loc.mi_matrix.max().item()),
+        },
+        "pi_geom": {
+            "D_spectral": float(result.pi_geom.D_spectral),
+            "D_star": int(result.pi_geom.D_star),
+            "stress": float(result.pi_geom.stress),
+            "coords": coords.tolist(),
+        },
+        "pi_time": {
+            "phi": phi.tolist() if phi is not None else None,
+            "phi_min": float(phi.min()) if phi is not None else None,
+            "phi_max": float(phi.max()) if phi is not None else None,
+            "phi_range": phi_range,
+            "phi_mean": phi_mean,
+        },
+    },
+    "checks": [
+        {
+            "name": "stability_selection",
+            "description": "Invalid (non-local) cells reach higher entropy than valid (local) cells",
+            "framework_section": "4.4.2a",
+            "criterion": "entropy_increase_invalid > entropy_increase_valid",
+            "value": {"valid": slope_valid, "invalid": slope_invalid},
+            "passed": stability_ok,
+        },
+        {
+            "name": "contiguous_cells",
+            "description": "Optimizer selects contiguous 2-qubit blocks",
+            "framework_section": "4.4.2a",
+            "criterion": "cells == [[0,1],[2,3],[4,5],[6,7]]",
+            "value": result.pi_res.cells,
+            "passed": result.pi_res.cells == [[0, 1], [2, 3], [4, 5], [6, 7]],
+        },
+        {
+            "name": "su2_equivariance",
+            "description": "Coarse-graining map commutes with SU(2) action",
+            "framework_section": "4.4.2a (E4)",
+            "criterion": "su2_equivariant == True",
+            "value": result.pi_res.su2_equivariant,
+            "passed": result.pi_res.su2_equivariant is True,
+        },
+        {
+            "name": "geometry_1d_ordering",
+            "description": "MDS embedding recovers monotonic 1D ordering of chain cells",
+            "framework_section": "4.4.4",
+            "criterion": "tolerance-ranked coords are monotonic",
+            "value": {"coords": coords.tolist(), "rank": rank.tolist(), "tolerance": tol},
+            "passed": is_monotonic,
+        },
+        {
+            "name": "dimension_selection",
+            "description": "Complexity-stress functional selects D* = 1",
+            "framework_section": "4.4.4",
+            "criterion": "D_star == 1",
+            "value": int(result.pi_geom.D_star),
+            "passed": result.pi_geom.D_star == 1,
+        },
+        {
+            "name": "clock_potential_nontrivial",
+            "description": "Clock potential Phi has non-trivial structure (not flat)",
+            "framework_section": "4.4.5",
+            "criterion": "phi_range > 0",
+            "value": phi_range,
+            "passed": phi_range is not None and phi_range > 0,
+        },
+    ],
+}
+
+report["overall_pass"] = all(c["passed"] for c in report["checks"])
+report["artifacts"] = [
+    "results/entropy_growth.png",
+    "results/embedding.png",
+    "results/clock_potential.png",
+    "results/validation.json",
+]
+
+val_path = results / "validation.json"
+val_path.write_text(validation_json(report))
+print(f"Saved: {val_path}")
 
 print("\nDone.")

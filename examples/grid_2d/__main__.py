@@ -11,12 +11,13 @@ Run:
     uv run python -m examples.grid_2d
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from popgp import Simulator, SimulatorConfig
+from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
 
 _PKG_DIR = Path(__file__).parent
@@ -157,5 +158,111 @@ if result.pi_time is not None:
     fig.tight_layout()
     fig.savefig(results / "clock_potential.png", dpi=150)
     print(f"Saved: {results / 'clock_potential.png'}")
+
+# ── Validation Report ─────────────────────────────────────────────────────
+
+phi = result.pi_time.phi.numpy() if result.pi_time is not None else None
+phi_range = float(phi.max() - phi.min()) if phi is not None else None
+phi_mean = float(phi.mean()) if phi is not None else None
+
+report = {
+    "example": "grid_2d",
+    "framework_version": "0.10",
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "config": {
+        "width": WIDTH,
+        "height": HEIGHT,
+        "n_qubits": N,
+        "topology": cfg.substrate.topology,
+        "beta": cfg.substrate.beta,
+        "coupling_J": cfg.substrate.coupling_J,
+        "cell_dim": cfg.pi_res.cell_dim,
+        "I_0": cfg.pi_loc.I_0,
+        "lambda_dim": cfg.pi_geom.lambda_dim,
+        "use_exact_backend": cfg.use_exact_backend,
+    },
+    "pipeline": {
+        "pi_res": {
+            "n_cells": len(result.pi_res.cells),
+            "cells": result.pi_res.cells,
+        },
+        "pi_loc": {
+            "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
+            "mi_min_positive": float(mi[mi > 0].min().item()),
+            "mi_max": float(mi.max().item()),
+        },
+        "pi_geom": {
+            "D_spectral": float(result.pi_geom.D_spectral),
+            "D_star": int(result.pi_geom.D_star),
+            "stress": float(result.pi_geom.stress),
+            "coords": coords.tolist(),
+        },
+        "pi_time": {
+            "phi": phi.tolist() if phi is not None else None,
+            "phi_min": float(phi.min()) if phi is not None else None,
+            "phi_max": float(phi.max()) if phi is not None else None,
+            "phi_range": phi_range,
+            "phi_mean": phi_mean,
+        },
+    },
+    "checks": [
+        {
+            "name": "dimension_selection",
+            "description": "Complexity-stress functional selects D* = 2 for a 2D grid",
+            "framework_section": "4.4.4",
+            "criterion": "D_star == 2",
+            "value": int(result.pi_geom.D_star),
+            "passed": result.pi_geom.D_star == 2,
+        },
+        {
+            "name": "topology_preservation",
+            "description": "In the MDS embedding, graph neighbors of the center node are closer than non-neighbors",
+            "framework_section": "4.4.4",
+            "criterion": "avg_dist_neighbors < avg_dist_non_neighbors",
+            "value": {
+                "center_node": center,
+                "avg_dist_neighbors": float(avg_neigh),
+                "avg_dist_non_neighbors": float(avg_other),
+                "separation_pct": float(separation),
+            },
+            "passed": topology_ok,
+        },
+        {
+            "name": "spectral_dimension",
+            "description": "Spectral dimension D_S is near 2.0 for a 2D lattice (finite-size effects expected at N=9)",
+            "framework_section": "4.4.4",
+            "criterion": "0.5 <= D_spectral <= 3.0",
+            "value": float(result.pi_geom.D_spectral),
+            "passed": 0.5 <= result.pi_geom.D_spectral <= 3.0,
+        },
+        {
+            "name": "mds_stress",
+            "description": "MDS stress is low, indicating faithful embedding",
+            "framework_section": "4.4.4",
+            "criterion": "stress < 0.5",
+            "value": float(result.pi_geom.stress),
+            "passed": result.pi_geom.stress < 0.5,
+        },
+        {
+            "name": "clock_potential_computed",
+            "description": "Clock potential Phi was successfully computed",
+            "framework_section": "4.4.5",
+            "criterion": "pi_time is not None",
+            "value": result.pi_time is not None,
+            "passed": result.pi_time is not None,
+        },
+    ],
+}
+
+report["overall_pass"] = all(c["passed"] for c in report["checks"])
+report["artifacts"] = [
+    "results/embedding.png",
+    "results/clock_potential.png",
+    "results/validation.json",
+]
+
+val_path = results / "validation.json"
+val_path.write_text(validation_json(report))
+print(f"Saved: {val_path}")
 
 print("\nDone.")

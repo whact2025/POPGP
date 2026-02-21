@@ -1,0 +1,168 @@
+{
+  "example": "chain_1d",
+  "framework_version": "0.10",
+  "timestamp": "2026-02-21T19:16:13.760696+00:00",
+  "config": {
+    "n_qubits": 8,
+    "topology": "chain",
+    "beta": 1.0,
+    "coupling_J": 1.0,
+    "cell_dim": 2,
+    "phase_window_width": 2.0,
+    "phase_window_samples": 5,
+    "retention_epsilon": 10.0,
+    "dt": 0.1,
+    "n_steps": 20,
+    "use_exact_backend": true
+  },
+  "pipeline": {
+    "pi_res": {
+      "n_cells": 4,
+      "cell_dim": 2,
+      "cells": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "leakage": 0.004860194018109187,
+      "drift": null,
+      "retention_loss": 0.31956630118864293,
+      "su2_equivariant": true
+    },
+    "pi_loc": {
+      "mi_matrix_shape": [
+        4,
+        4
+      ],
+      "mi_min_positive": 1.4244193380363868e-06,
+      "mi_max": 0.1065274104475975
+    },
+    "pi_geom": {
+      "D_spectral": 1.0,
+      "D_star": 1,
+      "stress": 7.7161633359739e-08,
+      "coords": [
+        0.0015101059107109904,
+        0.0,
+        1.4115752837440265e-11,
+        -0.0015101059107109904
+      ]
+    },
+    "pi_time": {
+      "phi": [
+        0.0,
+        36.04331588745117,
+        59.822471618652344,
+        71.72520446777344
+      ],
+      "phi_min": 0.0,
+      "phi_max": 71.72520446777344,
+      "phi_range": 71.72520446777344,
+      "phi_mean": 41.89774703979492
+    }
+  },
+  "checks": [
+    {
+      "name": "stability_selection",
+      "description": "Invalid (non-local) cells reach higher entropy than valid (local) cells",
+      "framework_section": "4.4.2a",
+      "criterion": "entropy_increase_invalid > entropy_increase_valid",
+      "value": {
+        "valid": 1.1124904155731201,
+        "invalid": 1.299808382987976
+      },
+      "passed": true
+    },
+    {
+      "name": "contiguous_cells",
+      "description": "Optimizer selects contiguous 2-qubit blocks",
+      "framework_section": "4.4.2a",
+      "criterion": "cells == [[0,1],[2,3],[4,5],[6,7]]",
+      "value": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "passed": true
+    },
+    {
+      "name": "su2_equivariance",
+      "description": "Coarse-graining map commutes with SU(2) action",
+      "framework_section": "4.4.2a (E4)",
+      "criterion": "su2_equivariant == True",
+      "value": true,
+      "passed": true
+    },
+    {
+      "name": "geometry_1d_ordering",
+      "description": "MDS embedding recovers monotonic 1D ordering of chain cells",
+      "framework_section": "4.4.4",
+      "criterion": "tolerance-ranked coords are monotonic",
+      "value": {
+        "coords": [
+          0.0015101059107109904,
+          0.0,
+          1.4115752837440265e-11,
+          -0.0015101059107109904
+        ],
+        "rank": [
+          2,
+          1,
+          1,
+          0
+        ],
+        "tolerance": 3.020212034243741e-06
+      },
+      "passed": true
+    },
+    {
+      "name": "dimension_selection",
+      "description": "Complexity-stress functional selects D* = 1",
+      "framework_section": "4.4.4",
+      "criterion": "D_star == 1",
+      "value": 1,
+      "passed": true
+    },
+    {
+      "name": "clock_potential_nontrivial",
+      "description": "Clock potential Phi has non-trivial structure (not flat)",
+      "framework_section": "4.4.5",
+      "criterion": "phi_range > 0",
+      "value": 71.72520446777344,
+      "passed": true
+    }
+  ],
+  "overall_pass": true,
+  "artifacts": [
+    "results/entropy_growth.png",
+    "results/embedding.png",
+    "results/clock_potential.png",
+    "results/validation.json"
+  ]
+}
