@@ -4,6 +4,11 @@ Python bindings for the POPGP C++/CUDA phase-flow kernel.
 Loads the native shared library (phase_flow.dll/.so/.dylib) and exposes
 it via the Engine class. See docs/framework.md Section 4.4.1 for the
 underlying phase-flow mechanism.
+
+Architecture Decision 2 (Python-first): the library is loaded **lazily**
+on first use, not at import time.  This allows ``import popgp`` to
+succeed even when the CUDA engine has not been compiled, so that the
+ExactBackend and all Python-only functionality remain available.
 """
 
 import ctypes
@@ -18,6 +23,8 @@ log = logging.getLogger(__name__)
 _LIB_DIR = Path(__file__).parent / "_lib"
 
 _ENGINE_ROOT = Path(__file__).resolve().parent.parent / "popgp_engine"
+
+_lib: ctypes.CDLL | None = None
 
 
 def _lib_filename() -> str:
@@ -89,19 +96,31 @@ def _load_library() -> ctypes.CDLL:
     raise RuntimeError(msg)
 
 
-_lib = _load_library()
+def _get_lib() -> ctypes.CDLL:
+    """Lazy-load the shared library on first call."""
+    global _lib
+    if _lib is None:
+        _lib = _load_library()
+        _lib.launch_phase_flow_float.argtypes = [
+            c_void_p, c_void_p,
+            c_void_p, c_void_p, c_void_p,
+            c_int, c_float,
+        ]
+        _lib.launch_phase_flow_double.argtypes = [
+            c_void_p, c_void_p,
+            c_void_p, c_void_p, c_void_p,
+            c_int, c_double,
+        ]
+    return _lib
 
-_lib.launch_phase_flow_float.argtypes = [
-    c_void_p, c_void_p,
-    c_void_p, c_void_p, c_void_p,
-    c_int, c_float,
-]
 
-_lib.launch_phase_flow_double.argtypes = [
-    c_void_p, c_void_p,
-    c_void_p, c_void_p, c_void_p,
-    c_int, c_double,
-]
+def is_engine_available() -> bool:
+    """Check whether the CUDA kernel library can be loaded."""
+    try:
+        _get_lib()
+        return True
+    except RuntimeError:
+        return False
 
 
 class Engine:
@@ -111,6 +130,9 @@ class Engine:
     Wraps the phase-flow shared library via ctypes.  All tensor arguments
     passed to :meth:`step` must reside on the GPU (PyTorch CUDA tensors
     or CuPy arrays).
+
+    The library is loaded lazily on first :meth:`step` call (Architecture
+    Decision 2).
     """
 
     def __init__(self, precision: str = "double"):
@@ -118,6 +140,8 @@ class Engine:
 
     def step(self, d_alphas, d_betas, d_src, d_dst, d_weights, dt: float):
         """Run one phase-order step of the kernel (Section 4.4.1)."""
+        lib = _get_lib()
+
         ptr_a = self._get_ptr(d_alphas)
         ptr_b = self._get_ptr(d_betas)
         ptr_s = self._get_ptr(d_src)
@@ -127,13 +151,13 @@ class Engine:
         num_edges = d_src.numel() if hasattr(d_src, "numel") else d_src.size
 
         if self.precision == "float":
-            _lib.launch_phase_flow_float(
+            lib.launch_phase_flow_float(
                 c_void_p(ptr_a), c_void_p(ptr_b),
                 c_void_p(ptr_s), c_void_p(ptr_d), c_void_p(ptr_w),
                 c_int(num_edges), c_float(dt),
             )
         else:
-            _lib.launch_phase_flow_double(
+            lib.launch_phase_flow_double(
                 c_void_p(ptr_a), c_void_p(ptr_b),
                 c_void_p(ptr_s), c_void_p(ptr_d), c_void_p(ptr_w),
                 c_int(num_edges), c_double(dt),
