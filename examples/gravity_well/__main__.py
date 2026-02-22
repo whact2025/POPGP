@@ -172,7 +172,7 @@ if fit_mask.sum() >= 2:
     print(f"R-squared: {r_squared:.4f}")
     print(f"Expected: negative slope (Phi decays with distance)")
     print(f"Note: only {int(fit_mask.sum())} radial shells -- "
-          f"continuum log(r) requires N >> 9")
+          f"log(r) convergence requires N >> 9")
 else:
     slope, intercept, r_squared = 0, 0, 0
     print("Not enough radial shells for fit.")

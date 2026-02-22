@@ -25,7 +25,7 @@ At toy scale, the `ExactBackend` performs exact diagonalization of the full
    couplings (12 edges: 6 horizontal + 6 vertical).
 2. Diagonalise the 512×512 Hamiltonian and prepare the thermal state ρ = exp(-βH)/Z.
 3. **Π_res**: Each qubit is its own cell (cell_dim = 1).
-4. **Π_loc**: Compute single-site Von Neumann entropies S_i and pair entropies S_{ij}
+4. **Π_loc**: Compute single-site entropies S_i and pair entropies S_{ij}
    via partial traces for all 36 pairs. Build MI matrix, apply canonical distance
    kernel d = -log(I/I_0), construct weighted graph with k-NN + MST, compute
    graph-geodesic distances.

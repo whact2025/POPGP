@@ -17,7 +17,7 @@ potential $\Phi$ that:
 
 1. Peaks at the source (highest clock rate at the "mass").
 2. Decays monotonically with graph distance.
-3. In the continuum limit ($N \to \infty$), reproduces the 2D Green's
+3. Under graph refinement ($N \to \infty$), approaches the 2D Green's
    function $\Phi \sim -\frac{1}{2\pi}\ln r$ (for $\mu = 0$).
 4. Preserves the full symmetry of the underlying lattice.
 
@@ -96,9 +96,9 @@ the source, with warm center fading to cool boundary.
 
 Side-by-side comparison of:
 
-- **Framework source** — $\delta\rho_i = S(\rho_i)$ (von Neumann entropy
-  of each cell's reduced state).  This is the "natural" source the pipeline
-  produces.  On a translationally-invariant grid, all cells have similar
+- **Framework source** — $\delta\rho_i = S(\rho_i)$ (entropy of each cell's
+  reduced state, the toy-model proxy for the Araki contrast of §4.4.5).
+  This is the "natural" source the pipeline produces.  On a translationally-invariant grid, all cells have similar
   entropy, so $\Phi$ is nearly flat.
 - **Localized point source** — $\delta\rho = \delta_{i,\mathrm{center}}$.
   This deliberately breaks translational invariance to isolate the
@@ -145,8 +145,8 @@ graph Laplacian produces:
 3. A well-defined redshift observable between cells.
 
 These are the necessary (though not sufficient) conditions for the POPGP
-clock potential to serve as the Newtonian gravitational potential in the
-continuum limit.
+clock potential to serve as the Newtonian gravitational potential under
+graph refinement.
 
 ### What it does NOT prove (yet)
 

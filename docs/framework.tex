@@ -1,0 +1,590 @@
+\documentclass[reprint, amsmath, amssymb, aps, prd]{revtex4-2}
+
+% --- PACKAGES ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx} 
+\usepackage{hyperref} 
+\usepackage{bm}       
+\usepackage{booktabs} 
+
+\begin{document}
+
+\title{A Phase-Ordered Pre-Geometric Projection Framework}
+\author{Richard Fuoco}
+\affiliation{Independent Researcher, Saint-Basile-le-Grand, QC, Canada}
+\date{February 21, 2026}
+
+\begin{abstract}
+We propose an atemporal, pre-geometric substrate described purely by relational/algebraic structure. A compact internal SU(2)-like symmetry and a distinguished phase/action ordering generator are taken as primitive. A unique, necessary physical projection map yields an emergent manifold-like spatial structure (with effective dimension $D^*\approx 3$ in our regime), objective time-order (as a metric on phase order), and a finite distinguishability bound expressed in terms of a boundary cut-capacity functional (expected to reproduce an area-law in low-distortion manifold regimes). Quantum discreteness is treated as emergent from stable representation content under projection constraints, while gravitational geometry is defined as the output of the projection’s correlation-based embedding and clock-rate reconstruction. In empirically accessed regimes the framework is required to recover standard General Relativity and quantum field theoretic predictions. Possible additional operational access to nonlocal substrate correlations (including any potential signaling via entanglement ``junctions'') is formulated as a constrained open module rather than assumed a priori.
+\end{abstract}
+
+\maketitle
+
+% ----------------------------------------------------------------
+\section{Reviewer-facing summary}
+% ----------------------------------------------------------------
+\subsection{What this framework commits to}
+\begin{itemize}
+    \item \textbf{Substrate:} an atemporal, pre-geometric relational/algebraic structure $(\mathcal{A}, \omega)$ with a compact internal symmetry and a preferred \textbf{phase/action ordering flow} $\sigma_s$ (order parameter $s$, not time).
+    \item \textbf{Projection:} a \textbf{unique and necessary} physical map $\Pi$ from substrate to effective descriptions. $\Pi$ is defined operationally by (i) a stability-selected coarse-graining into finite-capacity ``cells'', (ii) correlation-defined locality, (iii) an embedding procedure into 3D, and (iv) a phase-order-to-clock-time mapping.
+    \item \textbf{Finite distinguishability:} any finite projected region has bounded distinguishable information, scaling with \textbf{boundary area} (Planck-area-like scale $\ell_*^2$), interpreted as a \textbf{relational encoding boundary} rather than a geometric boundary in the substrate.
+    \item \textbf{Emergence:} discrete quantum ``types'' arise from stable representation content under projection constraints; effective geometry arises from correlation structure and the clock mapping, not from substrate curvature.
+\end{itemize}
+
+\subsection{What this framework does \textit{not} claim (yet)}
+\begin{itemize}
+    \item It does \textbf{not} assume a complete derivation of the Standard Model spectrum, coupling constants, or cosmological parameters in this draft.
+    \item It does \textbf{not} assert superluminal signaling. ``Junction access'' is defined as a constrained open module with parameters required to match existing no-signaling constraints in all empirically accessed regimes.
+    \item It does \textbf{not} claim a closed-form fundamental ``constitutive law'' $g = F(\rho, \ldots)$; the effective metric is defined by the explicit projection construction (graph distances $\rightarrow$ embedding $\rightarrow$ reconstructed $h_{ab}$ and $d\tau$ mapping).
+\end{itemize}
+
+\subsection{Scientific status and evaluation}
+\begin{itemize}
+    \item The framework is \textbf{empirically anchored} by matching requirements: in accessible regimes, the induced effective description must reproduce (to stated tolerance) standard GR tests and standard quantum statistics.
+    \item The framework becomes \textbf{strictly falsifiable} when it asserts: (i) universal area-law capacity bounds outside their known domain, (ii) saturation/no-singularity behavior in regimes where GR predicts divergence, or (iii) any nonzero operational ``junction access'' parameter in regimes already constrained by experiment.
+    \item Absent additional predictive commitments, the framework is evaluated by: (a) internal consistency (no hidden time/geometry in substrate), (b) uniqueness/minimality of $\Pi$ under stated selection principles, and (c) whether GR/QFT emerge as stable effective closures with a small, auditable parameter budget.
+\end{itemize}
+
+% ----------------------------------------------------------------
+\section{Motivation and scope}
+% ----------------------------------------------------------------
+This document introduces a conceptual framework intended for comprehensive evaluation and iterative refinement. The goal is to provide a minimal set of primitives and postulates from which (i) an effective 3+1 spacetime description, (ii) quantum statistical behavior, and (iii) General Relativity in tested regimes can be recovered as projection-level physics. The framework is explicitly pre-geometric at the substrate level and treats time as emergent from a phase/action ordering structure.
+
+Scope control: the present draft focuses on structural definitions, matching requirements, and evaluation criteria. It does not claim a completed derivation of the Standard Model or the Born rule; instead it identifies the minimal mathematical objects needed to attempt such derivations.
+
+% ----------------------------------------------------------------
+\section{Design constraints}
+% ----------------------------------------------------------------
+\begin{itemize}
+    \item \textbf{No substrate time:} the substrate admits no fundamental temporal parameter.
+    \item \textbf{No substrate spatial geometry:} the substrate is not a manifold with metric/curvature; geometric notions are projection outputs.
+    \item \textbf{Analog intuition with bounded physics:} continuous symmetry/phase structure is allowed as an idealization, but no unbounded physical observables (no divergent densities; no infinite recursion depth).
+    \item \textbf{Unique and necessary projection:} the mapping from substrate to projection is physical and not contingent among many alternatives.
+    \item \textbf{Finite distinguishability:} any finite projected region has a bounded number of distinguishable states; capacity scales with boundary area (area law) via a relational encoding boundary.
+    \item \textbf{Empirical recovery:} in currently tested regimes the framework must reproduce standard GR and quantum predictions to within experimental bounds.
+    \item \textbf{FTL signaling remains an open module:} the existence of operational superluminal channels is not assumed; it is parameterized and constrained.
+\end{itemize}
+
+% ----------------------------------------------------------------
+\section{Core postulates (axioms)}
+% ----------------------------------------------------------------
+
+\subsection{Substrate postulates}
+\textbf{S1 (Atemporal substrate).} There exists a substrate $\mathcal{S}$ that is not spacetime and has no intrinsic time parameter.  
+
+\textbf{S2 (Pre-geometric substrate).} The substrate carries relational/algebraic structure but no spatial metric, curvature, or geometric topology in the usual sense.  
+
+\textbf{S3 (Compact internal symmetry).} The substrate admits a compact internal SU(2)-like symmetry acting on its relational degrees of freedom.  
+
+\textbf{S4 (Phase/action ordering generator).} A distinguished generator induces an ordering structure (phase/action order) that is not time but is used by projection to construct time-order.
+
+\subsection{Projection postulates}
+\textbf{P1 (Unique physical projection).} There exists a unique, necessary projection map $\Pi$ from substrate structure to projection-level effective physics.  
+
+\textbf{P2 (Emergent spatial structure; dimension as output).} $\Pi$ yields an emergent metric space with a manifold-like realization of some effective dimension $D^*$; in the empirically accessed regime of our universe, $D^* \approx 3$ (treated as an output/matching condition rather than an assumed input).  
+
+\textbf{P3 (Emergent time-order).} $\Pi$ yields an objective time-order in projection as a metric on phase/action order; non-conscious systems inherit this time-order.  
+
+\textbf{P4 (Finite distinguishability; boundary-capacity scaling).} For any finite projected region $R$, physically distinguishable information is bounded by a boundary \textit{cut-capacity} functional (defined on the correlation graph). In manifold-like regimes this scaling is expected to reproduce an area-law.  
+
+\textbf{P5 (Bounded intensities).} Projection-level densities and curvatures saturate rather than diverge; classical singularities indicate breakdown of the effective description.
+
+\subsection{Emergence postulates}
+\textbf{E1 (Quantum discreteness from representations).} Discrete quantum types arise from stable representation content of the internal symmetry under projection constraints, not from fundamental substrate discreteness.  
+
+\textbf{E2 (Geometry as projection output).} The effective metric $g_{\mu\nu}$ is constructed by the projection stages $\Pi_{\text{loc}}$, $\Pi_{\text{geom}}$, and $\Pi_{\text{time}}$: correlation-derived distances define an emergent locality graph; an embedding procedure reconstructs the spatial metric $h_{ab}$; and phase/action ordering sets the clock mapping via $d\tau = \beta_0 \cdot \exp(\Phi)\, dS_{\text{act}}$, where $\Phi$ is a Laplacian-derived potential on the correlation graph sourced by an entropy-contrast field $\delta\rho$. Encoding-density proxies are derived scalar summaries of local information/capacity structure and are not primitive geometric variables. Any apparent constitutive form $g \approx F(\cdot)$ is understood as a phenomenological approximation to the reconstructed metric output by $\Pi$.  
+
+\textbf{E4 (Lorentz Symmetry as IR Fixed Point).} The algebraic commutation of the projection maps with the internal SU(2) symmetry ($E_i \circ \alpha_g = \alpha_g \circ E_i$) enforces a \textbf{Custodial Symmetry} on the emergent effective field theory. This symmetry suppresses the tree-level generation of dangerous dimension-4 Lorentz-violating operators that generically arise from lattice discreteness. With these leading artifacts eliminated, perfect continuous Lorentz invariance emerges as a highly stable \textbf{Infrared (IR) Fixed Point} of the Renormalization Group (RG) flow --- analogous to the emergence of relativistic dispersion relations in discrete condensed-matter systems (e.g., graphene, Weyl semimetals). The framework therefore predicts that microscopic Lorentz violations persist at the extreme UV scale (of order $\ell_*$), but are RG-irrelevant and suppressed by powers of $(\ell_*/L)^n$ at observable scales $L \gg \ell_*$. These residual violations constitute a falsifiable prediction.
+
+\textbf{J (module) (Junction accessibility).} In all known regimes, operations available to agents obey no-signaling in local marginals. Additional junction access is treated as a constrained open module.
+
+% ----------------------------------------------------------------
+\section{Mathematical primitives}
+% ----------------------------------------------------------------
+
+\subsection{Substrate representation (analog-friendly)}
+Represent the substrate as a pair:
+\begin{equation}
+\mathcal{S} = (\mathcal{A}, \omega)
+\end{equation}
+where $\mathcal{A}$ is an algebra of relational observables and $\omega$ is a state on $\mathcal{A}$. No manifold, metric, or time parameter is assumed at this level.
+
+\textbf{Analog-friendly choice.} To support continuous internal symmetry/phase structure while preserving \textit{finite physical realizability} (via projection-level finite distinguishability), take $\mathcal{A}$ to be a separable operator algebra that is well-approximated by finite matrix algebras at any finite resolution. A convenient template is:
+\begin{equation}
+\mathcal{A} = \mathcal{A}_{\text{rel}} \otimes \mathcal{A}_F
+\end{equation}
+where $\mathcal{A}_{\text{rel}}$ is the ``relational bulk'' algebra (pre-geometric), chosen so that it can be approximated by an increasing sequence of finite-dimensional matrix algebras:
+\begin{equation}
+\mathcal{A}_{\text{rel}} \approx \text{closure}\left( \bigcup_n M_{k_n}(\mathbb{C}) \right)
+\end{equation}
+This supports the \textbf{analog} intuition (continuous symmetry/phase) while remaining compatible with the principle that \textit{only a finite number of states are physically distinguishable in any finite projected region} (Section 6).
+
+$\mathcal{A}_F$ is an optional finite ``internal'' algebra used to encode gauge/representation structure in a purely algebraic way. A minimal candidate that naturally contains $U(1)$, $SU(2)$, and $SU(3)$-type unitary structure is:
+\begin{equation}
+\mathcal{A}_F = \mathbb{C} \oplus \mathbb{H} \oplus M_3(\mathbb{C})
+\end{equation}
+with $\mathbb{H}$ the quaternions.
+
+\textbf{Remark (no infinities physically instantiated).} Continuous groups and infinite-dimensional algebras are treated as \textit{idealized descriptions}: the framework’s finiteness claim is that no \textit{projection-level observable} diverges and that any finite region has finite operational capacity (area-law distinguishability), not that the descriptive mathematics cannot employ limits.
+
+\subsection{Internal symmetry action}
+Let $\alpha$ be an action of the internal symmetry group on $\mathcal{A}$ as *-automorphisms:
+\begin{equation}
+\alpha: SU(2) \to \text{Aut}(\mathcal{A})
+\end{equation}
+Symmetry invariants are quantities unchanged under $\alpha_U$ for all $U \in SU(2)$.
+
+\subsection{Phase/action ordering generator}
+The substrate has no time, but it provides an \textbf{ordering structure} that projection uses to construct time-order.
+
+\textbf{(i) Generator form (working placeholder).} Let $H \in \mathcal{A}$ be a distinguished self-adjoint element ($H = H^\dagger$) defining a one-parameter family of inner automorphisms:
+\begin{equation}
+\mathcal{A} \mapsto e^{isH} \mathcal{A} e^{-isH}
+\end{equation}
+The parameter $s$ is a phase/action \textbf{order parameter}, not substrate time.
+
+\textbf{(ii) Canonical-flow form (parameter-reducing option).} Impose that the pair $(\mathcal{A}, \omega)$ determines a canonical one-parameter automorphism flow $\sigma_s$ on $\mathcal{A}$. Projection-time is then constructed from monotone ``distance'' along this flow. In this view, $H$ is not chosen freely; it is the generator associated with the canonical flow in a suitable representation.
+
+\subsection{Projection map (explicit construction template)}
+In this framework, the projection map $\Pi$ is not treated as an arbitrary ``fit function.'' Instead it is defined as a \textit{constrained construction} that turns substrate relational structure into:
+\begin{itemize}
+    \item an emergent 3D locality structure,
+    \item an effective spatial metric,
+    \item an objective time-order (from phase/action order),
+    \item an encoding-density field and finite distinguishability bounds,
+    \item effective subsystem states used for quantum predictions.
+\end{itemize}
+
+Mathematically, it is useful to write $\Pi$ as a composition of four stages:
+\begin{equation}
+\Pi = \Pi_{\text{time}} \circ \Pi_{\text{geom}} \circ \Pi_{\text{loc}} \circ \Pi_{\text{res}}
+\end{equation}
+
+\subsubsection{Stage 0: represent the substrate state (GNS representation)}
+Given $(\mathcal{A}, \omega)$, choose the GNS triple $(\pi_\omega, \mathcal{H}_\omega, |\Omega\rangle)$ such that:
+\begin{equation}
+\omega(a) = \langle\Omega | \pi_\omega(a) | \Omega\rangle \quad \text{for all } a \in \mathcal{A}.
+\end{equation}
+
+\subsubsection{\texorpdfstring{$\Pi_{\text{res}}$}{Pi\_res}: resolution-limited coarse-graining via split-property funnels}
+A projection must provide a notion of subsystems/regions, but subsystems are not substrate primitives. Furthermore, strict local algebras in Quantum Field Theory are typically \textbf{Type III factors} (entanglement is ubiquitous), meaning they do not admit pure states or density matrices, and cannot be factorized into tensor products $\mathcal{A}_R \otimes \mathcal{A}_R^c$.
+
+To resolve this \textbf{Type III incompatibility} without abandoning the continuum, we define emergent ``cells'' explicitly as \textbf{split-property funnels} (Type I approximants across algebraic buffer zones).
+
+\textbf{The Funnel Definition.}
+Instead of a single algebra $\mathcal{A}_i$, the projection selects a \textbf{funnel structure} for each emergent site $i$:
+\begin{equation}
+\mathcal{A}_{i, \text{inner}} \subset N_i \subset \mathcal{A}_{i, \text{buffer}} \subset \mathcal{A}
+\end{equation}
+where $N_i$ is a \textbf{Type I factor} (isomorphic to $\mathcal{B}(\mathcal{H})$ or a finite matrix algebra $M_d(\mathbb{C})$ in toy models) that acts as a local ``distinguishable semantic shell'' between the inner core and the buffer zone.
+
+The effective local algebra is identified with the Type I factor $N_i$. This guarantees the existence of well-defined local density matrices, entropies, and particle-like excitations.
+
+\textbf{Coarse-Graining.}
+The coarse-graining maps $E_i$ are conditional expectations onto these Type I factors:
+\begin{equation}
+\{\mathcal{A}_i \subset \pi_\omega(\mathcal{A})'' \}_{i \in V}, \quad \text{with} \quad \mathcal{A}_i \cong M_{d_i}(\mathbb{C}),
+\end{equation}
+together with conditional expectations (coarse-graining maps):
+\begin{equation}
+E_i : \pi_\omega(\mathcal{A})'' \to \mathcal{A}_i
+\end{equation}
+that are completely positive, unital, and idempotent ($E_i \circ E_i = E_i$).
+
+For any finite set of cells $R \subset V$, define the induced effective algebra and reduced state:
+\begin{equation}
+\mathcal{A}_R \approx \bigotimes_{i\in R} \mathcal{A}_i, \quad E_R := \bigotimes_{i\in R} E_i, \quad \omega_R := \omega \circ E_R.
+\end{equation}
+
+\textbf{Finite distinguishability constraint (non-geometric form).}
+To avoid circularity, the capacity bound is imposed \textbf{before} any geometric embedding. Let $\mathrm{Cap}(\partial R)$ denote a \textbf{cut-capacity} functional on the cell net:
+\begin{equation}
+\mathrm{Cap}(\partial R) := \sum_{i\in R, j\notin R} \kappa(I_{ij}),
+\end{equation}
+where $I_{ij}$ is the mutual information between cells $i$ and $j$, and $\kappa$ is a fixed monotone map to dimensionless edge capacities.
+
+\textbf{Finite distinguishability constraint (Araki-relative form).}
+For Type III compatibility, we eschew the naive von Neumann entropy. The bound is imposed on the \textbf{Araki relative entropy} of the region's state $\omega|_R$ against the canonical \textbf{KMS vacuum baseline} $\omega^{\text{vac}}|_R$:
+\begin{equation}
+S_{\text{Araki}}( \omega|_R \| \omega^{\text{vac}}|_R ) \leq \eta \cdot \mathrm{Cap}(\partial R)
+\end{equation}
+A geometric area scaling $\mathrm{Cap}(\partial R) \propto A_{\text{geo}}(\partial R)/\ell_*^2$ is treated as an emergent behavior in the low-stress embedding regime (\S 4.4.4), not as an input constraint.
+
+\subsubsection*{Selection Principle \texorpdfstring{$E$}{E}: symmetry-commuting, phase-flow stable cell net}
+The choice of the effective cell algebras $\{\mathcal{A}_i\}$ and coarse-graining maps $\{E_i\}$ is fixed by a \textit{stability principle} tied to the phase/action ordering flow $\sigma_s$. Intuitively: the correct decomposition is the one for which phase/action ordering does not continually ``slosh'' information across emergent cell boundaries.
+
+Let $\alpha_g$ denote the internal SU(2)-like symmetry action on $\mathcal{A}$. Let $\sigma_s$ denote the phase/action ordering flow. Define $\mathfrak{E}_{\text{adm}}$ as the set of families $\{E_i\}$ (and their associated cell algebras $\{\mathcal{A}_i\}$) satisfying all of:
+
+1) \textbf{Finite-capacity cells.} Each cell algebra is finite-dimensional $\mathcal{A}_i \cong M_{d_i}(\mathbb{C})$, with either a fixed common dimension $d_i = d$ for all cells, or an explicit local bound $d_i \leq d_{\max}$. 
+
+2) \textbf{Symmetry commutation (internal isotropy constraint).} Each coarse-graining map commutes with the SU(2)-like symmetry:
+\begin{equation}
+E_i \circ \alpha_g = \alpha_g \circ E_i \quad \text{for all } g \in SU(2) \text{ and all } i.
+\end{equation}
+
+\textbf{The ``Custodial Symmetry'' Mechanism (Lorentz Protection).}
+By forcing the local algebra of each funnel to transform as a singlet under the internal group, the most dangerous ``lattice artifact'' operators --- specifically, the tree-level dimension-4 Lorentz-violating operators that are not singlets under the induced rotation group of the tangent space --- are suppressed by the symmetry-commuting map $E_i$. With these leading artifacts eliminated, continuous Lorentz invariance becomes a highly stable \textbf{IR fixed point} of the RG flow governing the emergent effective field theory. 
+
+3) \textbf{Information retention (anti-triviality constraint).} Impose a global bound on relative-entropy loss:
+\begin{equation}
+D( \omega \| \omega \circ E ) \leq \varepsilon,
+\end{equation}
+
+\textbf{Primary stability functional (phase-flow leakage).} For each admissible $\{E_i\}$, define the phase-flow leakage:
+\begin{equation}
+\mathcal{L}_{\text{leak}}(E) := \int ds \, w(s) \sum_i \| E_i \circ \sigma_s - \sigma_s \circ E_i \|^2,
+\end{equation}
+where $w(s) \geq 0$ is a weight over a chosen phase-order interval. Exact co-motion corresponds to $\mathcal{L}_{\text{leak}} = 0$.
+
+\textbf{Optional tie-breaker (local information drift).} Define $\omega_s := \omega \circ \sigma_s$, and let $\rho_i(s)$ be the density operator corresponding to the reduced state $\omega_s \circ E_i$. For a small step $\delta$, define:
+\begin{equation}
+\mathcal{L}_{\text{drift}}(E) := \int ds \, w(s) \sum_i \frac{1}{\delta^2} D( \rho_i(s+\delta) \| \rho_i(s) ).
+\end{equation}
+
+\textbf{Cell selection as causal gradient flow.}
+The cell net $E^* = \{E_i^*\}$ is \textbf{not} defined by a global argmin. Instead, it is defined as the \textbf{stable fixed-point (attractor)} of a local, causally-bounded gradient flow on the space of admissible coarse-grainings.
+
+\textbf{Local update channel.} For each cell $i$, define the local leakage gradient:
+\begin{equation}
+\delta_i \mathcal{L}_{\text{leak}} := \left. \frac{\partial \mathcal{L}_{\text{leak}}}{\partial E_i} \right|_{E_{j \neq i} \text{ fixed}}
+\end{equation}
+It depends only on $E_j$ for cells $j$ in the \textbf{Lieb-Robinson neighborhood} $N_{\text{LR}}(i)$ of cell $i$:
+\begin{equation}
+N_{\text{LR}}(i) := \{ j \in V : d_G(i,j) \leq v_{\text{LR}} \cdot \Delta s \}
+\end{equation}
+
+\textbf{Causal flow.} The coarse-graining maps evolve under a local descent:
+\begin{equation}
+\partial_s E_i = -\eta_{\text{flow}} \cdot \Pi_{\text{adm}} \left[ \delta_i \mathcal{L}_{\text{leak}} + \lambda_{\text{drift}} \cdot \delta_i \mathcal{L}_{\text{drift}} \right]
+\end{equation}
+
+\textbf{Causality guarantee.} Because $\delta_i \mathcal{L}_{\text{leak}}$ depends only on $E_j$ for $j \in N_{\text{LR}}(i)$, updates at cells $i$ and $k$ with non-overlapping Lieb-Robinson neighborhoods \textbf{strictly commute}:
+\begin{equation}
+[ \partial_s E_i , \partial_s E_k ] = 0 \quad \text{whenever } N_{\text{LR}}(i) \cap N_{\text{LR}}(k) = \emptyset.
+\end{equation}
+
+\textbf{Definition of the selected cell net.} The projection-level cell net is the fixed point of this flow:
+\begin{equation}
+E^* := \lim_{s \to \infty} E(s), \quad \text{where } \left. \partial_s E_i \right|_{E=E^*} = 0 \quad \text{for all } i.
+\end{equation}
+
+\textbf{Variational interpretation (Thermodynamic, not Computational).} The causal gradient flow defined above is a \textit{physical relaxation process}, not an algorithmic instruction. Crucially, this relaxation requires the substrate to act as an \textbf{open thermodynamic system}: interaction-induced decoherence continually drives cell entropies toward the leakage death-threshold, so the flow can only converge to a stable fixed point if cells are capable of \textbf{exporting excess phase-flow entropy to the environment} (a mechanism analogous to radiative cooling).
+
+\subsubsection{\texorpdfstring{$\Pi_{\text{loc}}$}{Pi\_loc}: locality from correlations (graph metric from mutual information)}
+Define the mutual information between cells $i$ and $j$ via \textbf{Araki relative entropy}:
+\begin{equation}
+I_{ij} = S_{\text{Araki}}(\omega_{i \cup j} \| \omega_i \otimes \omega_j)
+\end{equation}
+
+\textbf{Distance kernel.} Define an emergent pairwise distance by a fixed monotone decreasing map $f$:
+\begin{equation}
+d_{ij} = \ell_* \cdot f(I_{ij} / I_0),
+\end{equation}
+
+\textbf{Weighted graph \& Graph geodesic distance.} Define a \textbf{continuous} edge weight kernel $w_{ij} := \kappa(I_{ij})$. With edge lengths $d_{ij}$, define graph-geodesic distance:
+\begin{equation}
+d_G(i,j) = \inf_{\text{paths } i\to j} \sum_{(a,b) \in \text{path}} d_{ab}.
+\end{equation}
+
+\subsubsection{\texorpdfstring{$\Pi_{\text{geom}}$}{Pi\_geom}: emergent geometry via complexity-stress minimization}
+\textbf{Ontic vs. Epistemic distinction.} The physical (ontic) reality in this framework is solely the \textbf{discrete correlation graph} $(V, d_G)$. The embedding into $\mathbb{R}^{D^*}$ described below is strictly an \textbf{epistemic coordinate chart}: a lossy compression constructed by macroscopic observers to extract the effective dimension $D^*$. 
+
+\textbf{1. Dimension Selection (Derived, not assumed).} The emergent dimension $D^*$ is the integer that minimizes a \textbf{Complexity-Stress Functional} $F(D)$ that balances embedding fidelity against topological complexity:
+\begin{equation}
+D^* := \underset{D \in \mathbb{N}}{\text{argmin}} \left[ \text{Stress}(D) + \lambda_{\text{dim}} |D - D_S|^2 \right]
+\end{equation}
+
+\textbf{2. Relational Embedding (Epistemic Coordinates).} Given $D^*$, the coordinates $\{x_i\}$ are determined by the stress-minimizing configuration in $\mathbb{R}^{D^*}$. 
+\textbf{Local flatness as the Einstein Equivalence Principle.} MDS inherently seeks the lowest-stress Euclidean embedding, which means it tends to ``flatten'' local neighborhoods into Euclidean patches. This is the framework's \textbf{native realization of the Einstein Equivalence Principle (EEP)}. 
+
+\textbf{Curvature bypasses the flat coordinates.} The true non-linear curvature of the emergent geometry is \textbf{not} computed from the MDS embedding coordinates. Instead, it is computed intrinsically on the raw, un-flattened graph distances via Discrete Regge Calculus.
+
+\textbf{3. Local Metric Reconstruction with Relational SPD Regularization.} 
+\begin{equation}
+\min_{h \succ 0} \sum_{j \in N(i)} \left( d_G(i,j)^2 - \Delta x^T h \Delta x \right)^2  +  \lambda_{\text{spd}} \| h - h_{\text{cov}}^{-1} \|_F^2
+\end{equation}
+
+\textbf{4. Definition of Geometric Singularities (Horizons).} A \textbf{Geometric Horizon/Singularity} is defined as a region where the condition number $\kappa$ of the design matrix $M$ for the metric fit diverges: $\kappa(M) \to \infty$.
+
+\subsubsection{\texorpdfstring{$\Pi_{\text{time}}$}{Pi\_time}: unified emergent time via non-local graph potential}
+\textbf{1. The Clock-Rate Potential Equation.} 
+\begin{equation}
+(\Delta_w + \mu^2 I) \Phi = \delta\rho
+\end{equation}
+where $\Delta_w$ is the graph Laplacian on the mutual-information weighted graph, $\delta\rho$ is the source term, and $\mu$ is a screening mass (IR regulator).
+
+\textbf{2. The Source Term: Temporal-Filtered Araki Contrast.} 
+\begin{equation}
+\delta\rho_i := -\frac{1}{s_0} \left[ \bar{S}_{\text{Araki}}(\omega_{i} \| \omega_{i}^{\text{vac}}) \right]
+\end{equation}
+\textbf{Physical interpretation: Relative Entropy Duality.} Any physical excitation, regardless of its internal structure, yields a positive relative entropy and therefore a \textbf{negative source} $\delta\rho_i < 0$. This creates a universal duality between highly ordered matter (particles) and maximally mixed concentrations (black holes). Because $\delta\rho < 0$ \textbf{universally}, the screened Poisson equation natively generates \textbf{attractive gravity wells} ($\Phi < 0$). Clocks slow down, natively reproducing gravitational redshift, Shapiro delay, and the Newtonian $\Phi \sim -GM/r$ potential.
+
+\textbf{3. The Baseline Vacuum.} $\omega^{\text{vac}}$ is defined as the \textbf{KMS (Kubo-Martin-Schwinger) thermal state}.
+
+\textbf{4. Emergent Proper Time.} 
+\begin{equation}
+d\tau(i) = \beta_0 \cdot \exp(\Phi_i) \, dS_{\text{act}}
+\end{equation}
+
+\textbf{Minimal emergent spacetime line element (preferred slicing).}
+\begin{equation}
+ds^2 = -c^2 d\tau^2 + h_{ab}(x) dx^a dx^b,
+\end{equation}
+
+\subsection{Symbol glossary}
+\begin{table}[htbp]
+\caption{Symbol glossary}
+\begin{ruledtabular}
+\begin{tabular}{p{0.15\linewidth} p{0.8\linewidth}}
+\textbf{Symbol} & \textbf{Meaning} \\
+\colrule
+$\mathcal{S}$ & Substrate object \\
+$\mathcal{A}$ & Substrate algebra of relational observables \\
+$\mathcal{A}_{\text{rel}}$ & Relational ``bulk'' algebra (pre-geometric) \\
+$\mathcal{A}_F$ & Finite internal algebra encoding gauge/representation structure \\
+$\omega$ & State on $\mathcal{A}$ \\
+$\alpha$ & Internal symmetry action on $\mathcal{A}$ \\
+$H$ & Phase/action ordering generator (not substrate time) \\
+$\Pi$ & Unique physical projection map \\
+$M^3$ & Emergent 3D spatial structure \\
+$g_{\mu\nu}$ & Emergent spacetime metric in projection \\
+$t$ & Emergent time coordinate/order metric in projection \\
+$\rho(x)$ & Encoding density field in projection \\
+$\ell_*$ & Minimal encoding resolution scale (Planck-like) \\
+$\eta$ & Dimensionless coefficient in the area-law capacity bound \\
+$\gamma$ & Junction-access gating parameter (open module) \\
+$\Delta$ & Junction-access correction functional (open module) \\
+\end{tabular}
+\end{ruledtabular}
+\end{table}
+
+\subsection{Substrate algebra and parameter budget}
+\textbf{Substrate data.} The substrate is specified by: $\mathcal{S} = (\mathcal{A}, \omega, \alpha)$. Continuous symmetry and continuous phase/action order are treated as idealized descriptions. Physical finiteness is enforced at the projection level via the area-law bound and bounded intensities.
+
+\subsection{Parameter budget (what must be fixed or fitted)}
+\begin{description}
+    \item[\textbf{Structural (discrete) choices}] (Architecture decisions) Choice of algebra class for $\mathcal{A}_{\text{rel}}$; choice of internal algebra $\mathcal{A}_F$; compact internal symmetry group; uniqueness of projection postulate. \textit{Must be defended by conceptual minimality and consistency.}
+    \item[\textbf{Empirical scale-setting constants}] (Expected to be measured) $\ell_*$ (minimal encoding patch); $\eta$ (area-law coefficient); effective constants matching $(c, \hbar, G, \Lambda)$. 
+    \item[\textbf{Projection response functions}] (Primary risk of ``parameter fitting'') Mapping from encoding density to metric scaling; mapping from phase-order to clock time. \textit{Must be restricted to minimal families with clear constraints and matching requirements.}
+    \item[\textbf{Substrate state selection}] Choice/characterization of $\omega$. \textit{Must be constrained by a selection principle (symmetry, equilibrium relative to canonical flow, minimal information, etc.) to avoid embedding arbitrary structure by hand.}
+    \item[\textbf{Open junction module}] $\gamma(\text{regime})$ and $\Delta(\ldots)$. \textit{Must satisfy $\gamma \approx 0$ in all tested regimes; left open otherwise, but constrained by normalization/positivity and by compatibility with known no-signaling bounds.}
+\end{description}
+
+% ----------------------------------------------------------------
+\section{Projection outputs and emergent time}
+% ----------------------------------------------------------------
+Time does not exist at the substrate level. Instead, projection constructs an objective time-order by mapping phase/action order to a temporal metric: $t = f(\Phi)$ with $f' > 0$.
+
+% ----------------------------------------------------------------
+\section{Finite distinguishability and Planck-scale resolution}
+% ----------------------------------------------------------------
+\textbf{1. Algebraic Cut-Capacity.} Let $R \subset V$ be a finite set of emergent funnels. Define the \textbf{cut-capacity} $\mathrm{Cap}(\partial R)$ purely from the correlation graph weights:
+\begin{equation}
+\mathrm{Cap}(\partial R) := \sum_{i\in R, j\notin R} \kappa(I_{ij})
+\end{equation}
+
+\textbf{2. The Araki Entropy Bound.} The distinguishable information content of $R$ is limited by the cut-capacity:
+\begin{equation}
+S_{\text{Araki}}( \omega|_R \| \omega_{\text{vac}}|_R ) \leq \eta \cdot \mathrm{Cap}(\partial R)
+\end{equation}
+
+\textbf{3. Theorem of Emergence (Not an Axiom).} If the correlation graph admits a low-distortion embedding into $\mathbb{R}^3$, then: $\mathrm{Cap}(\partial R) \propto A_{\text{geo}}(\partial R) / \ell_*^2$.
+
+The operational consequence of the capacity bound is a limit on the effective dimension of the Type I funnel factor $N_R$:
+\begin{equation}
+\dim(N_R) \lesssim \exp\big( \eta \cdot \mathrm{Cap}(\partial R) \big)
+\end{equation}
+
+% ----------------------------------------------------------------
+\section{Quantum statistics as projection-limited inference}
+% ----------------------------------------------------------------
+Measurement outcomes are computed by the Born-rule form in empirically accessed regimes: $P(i) = \text{Tr}(\rho_R E_i)$.
+% ----------------------------------------------------------------
+\section{Emergent geometry and GR matching}
+% ----------------------------------------------------------------
+
+\subsection{Metric definition as projection output}
+The projection pipeline replaces the role of a constitutive law by constructively generating geometry from correlation.
+
+\textbf{Entanglement Shear: the kinematic bridge from $\Phi$ to $h_{ab}$.} Because $\Phi$ governs the local rate of temporal evolution (clock dilation), adjacent nodes $i, j$ sitting at different gravitational depths ($\Phi_i \neq \Phi_j$) evolve at \textbf{differential rates} under the phase-order flow $\sigma_s$. This actively \textbf{shears} the bipartite quantum state $\omega_{ij}$, altering the mutual information $I_{ij}$. Since the spatial metric $h_{ab}$ is reconstructed from these graph distances, any gradient in $\Phi$ continuously warps $h_{ab}$ through the quantum substrate itself, providing a strictly \textbf{kinematic quantum mechanism} for the non-linear tensor curvature of General Relativity.
+
+\subsection{GR matching as a discrete closure condition}
+\textbf{1. Discrete Regge Closure.} Compute the curvature using \textbf{Regge Calculus}. The deficit angle $\epsilon_h$ at hinge $h$ is:
+\begin{equation}
+\epsilon_h = 2\pi - \sum_{\text{cell} \supset h} \theta_{\text{cell}}(h)
+\end{equation}
+Define the \textbf{discrete Regge Einstein tensor} $G_h$ on each hinge $h$:
+\begin{equation}
+G_h \cdot l_h := \epsilon_h - \Lambda V_h
+\end{equation}
+
+\textbf{2. The Closure Mismatch Functional.}
+\begin{equation}
+M(L) := \left\| G_{\text{Regge}} - 8\pi G \, \Pi_{\text{graph}}(T_{\mu\nu}^{\text{eff}}) \right\|_L
+\end{equation}
+
+\textbf{3. Weak-field consistency via discrete diagnostics.} We extract an effective mass density $\rho_{\text{mass}}$ from the discrete potential using the \textbf{discrete Poisson equation}:
+\begin{equation}
+4\pi G \rho_i \approx (\Delta_{\text{Delaunay}} \Phi)_i
+\end{equation}
+
+% ----------------------------------------------------------------
+\section{Standard Model compatibility (program)}
+% ----------------------------------------------------------------
+A commonly studied finite algebra whose unitary structure can realize the Standard Model gauge group is: $\mathcal{A}_F = \mathbb{C} \oplus \mathbb{H} \oplus M_3(\mathbb{C})$. Treat each effective cell as carrying an internal factor: $\mathcal{A}_i \approx M_{d_i}(\mathbb{C}) \otimes \mathcal{A}_F$.
+
+% ----------------------------------------------------------------
+\section{Entanglement and junction accessibility (open module)}
+% ----------------------------------------------------------------
+For accessible operations and regimes: $P(b | x, y) = P(b | x)$ (within experimental bounds).
+To keep the possibility of additional operational access open without asserting it, introduce a gating parameter $\gamma(\text{regime}) \in [0, 1]$ and write:
+\begin{equation}
+P(b | x, y) = \text{Tr}(\rho_B E_b^{(x)}) + \gamma \cdot \Delta_b(x, y; \rho_{AB})
+\end{equation}
+
+% ----------------------------------------------------------------
+\section{Evaluation, falsification, and test program}
+% ----------------------------------------------------------------
+
+\subsection{Mathematical status (definition / theorem / conjecture / matching)}
+
+\begin{description}
+    \item[\textbf{Substrate triple} $(\mathcal{A},\omega,\alpha)$] \textit{(Definition)} The substrate is specified as an atemporal, pre-geometric relational algebra with a compact internal symmetry action. \textbf{Failure mode:} Pure definition; failure only if later steps implicitly add substrate spacetime structure.
+    \item[\textbf{Phase/action ordering flow} $\sigma_s$] \textit{(Definition / Conjecture)} A distinguished ordering flow exists; $s$ is an order parameter, not time. \textbf{Failure mode:} If derived (canonical/modular flow): show existence conditions on $(\mathcal{A},\omega)$. If postulated: keep minimal and symmetry-compatible.
+    \item[\textbf{Cell net} $\{\mathcal{A}_i,E_i\}$] \textit{(Definition)} Projection-resolution stage outputs effective ``cells'' (Type I approximants / toy matrix factors) and coarse-graining maps. \textbf{Failure mode:} Toy models: explicit construction. General AQFT: implement via split-property funnels; failure if no consistent finite-resolution approximation exists.
+    \item[\textbf{Symmetry-commutation}] \textit{(Constraint)} $E_i\circ\alpha_g=\alpha_g\circ E_i$ for all $g\in \text{SU}(2)$. \textbf{Failure mode:} Check directly in constructions; failure if recovered physics requires symmetry-breaking at the projection-selection level.
+    \item[\textbf{Stability selection} $\mathcal{L}_{\text{leak}}$] \textit{(Definition)} Among admissible coarse-grainings, select those minimizing phase-flow leakage across cell boundaries. \textbf{Failure mode:} Toy models: compute minimizers numerically; failure if the minimizer is always trivial (information-destroying) despite retention constraints.
+    \item[\textbf{Existence of minimizers}] \textit{(Theorem / Conjecture)} Minimizers exist for finite toy systems and well-posed admissible sets; general operator-algebraic existence is open. \textbf{Failure mode:} Toy models: compactness/finite search; general case: requires technical assumptions on admissible channel set and topology.
+    \item[\textbf{Capacity bound} $\mathrm{Cap}(\partial R)$] \textit{(Definition)} Finite distinguishability is bounded by a non-geometric boundary-capacity functional computed from correlation weights. \textbf{Failure mode:} Pure definition; failure only if it cannot be made compatible with recovered continuum behavior.
+    \item[\textbf{Emergent ``area law'' scaling}] \textit{(Matching output)} In manifold-like regimes, $\mathrm{Cap}(\partial R)\propto A_{\text{geo}}(\partial R)/\ell_*^2$. \textbf{Failure mode:} Validate in toy models that yield low-stress embeddings; falsified if scaling is generically volume-like even in 3D-like regimes.
+    \item[\textbf{Emergent locality} $I_{ij}, d_G$] \textit{(Definition)} Locality is defined from correlations and multi-hop routing on weighted graphs (no geometric inputs). \textbf{Failure mode:} Definition is checkable; failure mode is pathological graphs (disconnectedness, non-manifold structure) for physically relevant states.
+    \item[\textbf{Dimension} $D^*$] \textit{(Theorem + Matching)} $D^*$ is selected by a distortion/complexity criterion. \textbf{Validated:} correctly recovers $D^*=1$ for exact 1D Heisenberg chain and $D^*=2$ for exact 2D Heisenberg grid. \textbf{Failure mode:} Falsified if $D^*$ is unstable or consistently far from the intrinsic dimension in GR/QFT-like toy states.
+    \item[\textbf{Spatial metric} $h_{ab}(x)$] \textit{(Definition)} The emergent spatial metric is reconstructed from neighbor distances with explicit positive-definiteness constraints. \textbf{Failure mode:} Validate numerically; failure if SPD enforcement destroys the ability to match observables.
+    \item[\textbf{Clock-rate field} $\beta$ \textbf{and time} $\tau$] \textit{(Definition)} Emergent time is defined as a conversion from phase-order length to clock time, with $\beta$ sourced by an entropy-contrast potential. \textbf{Failure mode:} Validate weak-field behaviors in worked examples; falsified if exterior/vacuum tails cannot reproduce redshift/Shapiro-like effects without tuning.
+    \item[\textbf{Spacetime metric} $g_{\mu\nu}$] \textit{(Definition)} $g$ is defined by the embedding-derived $h$ plus the clock mapping $\tau$ (no separate constitutive law $g=F(\rho)$). \textbf{Failure mode:} Pure definition; key is whether the reconstructed discrete geometry (Delaunay complex + Regge curvature) satisfies GR closure natively.
+    \item[\textbf{GR closure mismatch} $M(L)$] \textit{(Definition + Matching)} The discrete Regge Einstein tensor $G_{\text{Regge}}$ on the Delaunay simplicial complex must satisfy Einstein closure within tolerance. \textbf{Failure mode:} Falsified if no small-parameter instantiation yields small $M(L)$ across standard tests.
+    \item[\textbf{Born-rule statistics}] \textit{(Matching)} Outcome statistics must match standard QM in all currently tested regimes. \textbf{Failure mode:} Falsified by any predicted deviation already excluded; derivation from projection-limited inference is an open program item.
+    \item[\textbf{Operational no-signaling}] \textit{(Matching)} Local marginals must not depend on distant choices (junction gate $\gamma\approx 0$). \textbf{Failure mode:} Falsified by any proposal that enables controllable signaling in ordinary Bell-test regimes.
+    \item[\textbf{Junction-access deviations}] \textit{(Open module)} Whether additional operational access exists in extreme regimes is left open and parameterized. \textbf{Failure mode:} Must remain consistent with existing constraints; becomes testable if a concrete activation regime is specified.
+    \item[\textbf{Local Lorentz covariance}] \textit{(Matching)} Despite a preferred phase-order foliation in the construction, local Lorentz symmetry must emerge as an excellent IR symmetry. \textbf{Failure mode:} Constrained by precision Lorentz-violation bounds; falsified if implied violations exceed limits.
+\end{description}
+
+\subsection{Internal validation tests (toy-model / simulation tests)}
+\textbf{T1 --- Geometry recovery from known relational states. [COMPLETED]}
+Two exact quantum simulations validate the full $\Pi_{\text{loc}} \to \Pi_{\text{geom}} \to \Pi_{\text{time}}$ pipeline.
+\begin{itemize}
+    \item \textbf{T1a --- 1D Chain ($N = 8$ qubits).} MDS flawlessly recovered the \textbf{monotonic 1D spatial ordering} of the chain, natively selecting $D^* = 1$.
+    \item \textbf{T1b --- 2D Grid ($N = 9$ qubits, $3 \times 3$).} The pipeline successfully recovered the \textbf{exact 2D grid topology}, dynamically selecting emergent dimension $D^* = 2$.
+\end{itemize}
+
+\textbf{T2 --- Stability under phase-flow (locality from leakage minimization). [COMPLETED]}
+An exhaustive search evaluated \textbf{all 105 possible 4-cell coarse-graining partitions}. The $\mathcal{L}_{\text{leak}}$ minimization \textbf{independently and uniquely recovered the contiguous 1D local blocks}. Locality was derived entirely from quantum correlations.
+
+\textbf{T4 --- Emergent Gravity Well and Redshift. [COMPLETED]}
+A localized \textbf{entropy-deficit source} ($\delta\rho_i < 0$) was injected into a 2D MI-weighted correlation graph. The resulting clock-rate potential $\Phi$ exhibited monotonic radial falloff and exact discrete gravitational redshift.
+
+\textbf{T5 --- Phenomenological Stability and Radiative Cooling. [COMPLETED]}
+CA models demonstrated \textbf{emergent spatial clustering} (``purity shields''). Disabling the cooling channel caused \textbf{total population extinction}, confirming that emergent geometry requires an open thermodynamic substrate.
+
+\subsection{Distinctive empirical commitments and lethal falsifiers}
+\textbf{F1 --- Dimensional Collapse.} Falsified if states globally minimize complexity-stress at $D^* \to \infty$ or $D^* = 1$ when they shouldn't. \\
+\textbf{F3 --- Lorentz-Violation Bound Breach.} The framework predicts residual violations of order $(\ell_*/L)^n$ at the extreme UV scale. Falsified if predicted violations exceed the $10^{-14}$ experimental bound.
+
+\begin{table*}[htbp]
+\caption{A practical test matrix}
+\begin{ruledtabular}
+\begin{tabular}{llp{4.5cm}p{4.5cm}}
+\textbf{Target claim/module} & \textbf{Observable proxy} & \textbf{What must hold} & \textbf{What would disprove it} \\
+\colrule
+Stability-selected locality & Leakage/drift metrics & $\mathcal{L}_{\text{leak}}$ small, drift small at fixed capacity & No stable decomposition exists without collapsing capacity \\
+Emergent 3D space & Dimensionality & Best-fit embedding dimension $\approx 3$ across scales & No stable low-dimensional embedding; dimension drifts wildly \\
+GR closure in weak field & Extracted $\Phi$, redshift, lensing & Matches standard weak-field phenomenology & Systematic mismatch not removable by universal calibration \\
+Finite distinguishability & Scaling of $S(R)$ with boundary cut & $S(R)$ bounded by area scaling (operationally) & Demonstrated generic violation of area scaling at fixed regime \\
+Junction module ($\gamma$) & Marginal dependence tests & No measurable marginal dependence in known regimes & Robust marginal dependence without classical side-channel explanation \\
+\end{tabular}
+\end{ruledtabular}
+\end{table*}
+
+% ----------------------------------------------------------------
+\section{Discussion and open problems}
+% ----------------------------------------------------------------
+Open problems include:
+\begin{enumerate}
+    \item \textbf{Toy-model realizations of $\Pi$.} Scaling the tensor networks and GPUs to $D^* \approx 3$.
+    \item \textbf{GR matching as an emergent closure.}
+    \item \textbf{Dynamic cell net / dynamic spacetime (``geometrogenesis'').}
+\end{enumerate}
+
+% ----------------------------------------------------------------
+\section{Worked examples (operational extraction of standard observables)}
+% ----------------------------------------------------------------
+
+\subsection{Slicing, gauge, and the Shift Vector via Optimal Transport}
+\subsubsection{The Shift Vector from Intrinsic Optimal Transport}
+\begin{equation}
+v_{ij}^a \approx \text{Log}_{x_i}(x_j)
+\end{equation}
+\begin{equation}
+N^a(x_i) \Delta s := \sum_j \frac{\gamma_{ij}^*}{\mu_i} v_{ij}^a
+\end{equation}
+
+\subsubsection{Discrete Weak-field diagnostic potentials}
+\textbf{Time potential} $\Phi_t$ at node $i$: $\Phi_t(i) := \Phi_i - \Phi_B$. 
+The discrete gravitational redshift:
+\begin{equation}
+1 + z = \exp(\Phi_A - \Phi_B)
+\end{equation}
+
+\textbf{Space potential} $\Phi_s$ from discrete conformal factors:
+\begin{equation}
+a_s(i) := \left( \frac{\det(h_{ab}(i))}{\det(h_B)} \right)^{1/6}
+\end{equation}
+
+\subsection{Worked example A --- isolated spherical mass (weak-field, static)}
+\subsubsection{Discrete Geodesic Shooting}
+\begin{enumerate}
+    \item \textbf{Null Geodesics:}
+    \begin{equation}
+    L_{\text{opt}} = \sum_{\text{edge}=(i,j)} \frac{\ell_{ij}}{\beta_{\text{avg}}(i,j)}
+    \end{equation}
+    \item \textbf{Redshift:}
+    \begin{equation}
+    1+z = \frac{\beta(A)}{\beta(B)} = \frac{\exp(\Phi_A)}{\exp(\Phi_B)}
+    \end{equation}
+    \item \textbf{Shapiro Delay:}
+    \begin{equation}
+    \Delta \tau \approx \sum_{\text{edges}} \ell_{ij} \big(1 - \exp(\Phi_{\text{avg}})\big)
+    \end{equation}
+\end{enumerate}
+
+\subsection{Worked example C --- homogeneous cosmology patch (FLRW-like)}
+\subsubsection{Discrete Scale Factor}
+\begin{equation}
+V_P(t_k) := \sum_{T \in P} \text{Vol}(T)
+\end{equation}
+\begin{equation}
+a(t_k) := \left( \frac{V_P(t_k)}{V_P(t_0)} \right)^{1/3}
+\end{equation}
+
+\subsubsection{Hubble Rate}
+\begin{equation}
+H(t_k) \approx \frac{1}{a(t_k)} \frac{a(t_{k+1}) - a(t_k)}{\Delta \bar{\tau}_k}
+\end{equation}
+
+\subsubsection{Failure Modes (Falsification)}
+\begin{itemize}
+    \item \textbf{Volume Collapse:} If the Delaunay complex degenerates (slivers, zero-volume tetrahedra) despite a growing $V_P$, the geometry is not manifold-like.
+    \item \textbf{Anisotropy:} If $a(t)$ differs significantly when measured along different graph axes (using discrete direction-dependent correlators), the emergent space is not FLRW.
+\end{itemize}
+
+\subsection{How these worked examples connect to falsification}
+These examples define \textit{what to compute} from a candidate instantiation $(\mathcal{A}, \omega)$ and the specified selection rule $E$. The framework is disfavored if, under its own constraints (symmetry commutation, retention, area capacity, and stability), it cannot realize:
+\begin{itemize}
+    \item a weak-field isolated-mass regime reproducing redshift and lensing;
+    \item multi-lens weak-field behavior with approximate superposition and shear;
+    \item a homogeneous expanding patch with robust scale-factor diagnostics.
+\end{itemize}
+In other words: these examples translate ``emergent geometry'' from a slogan into a set of explicit computational tests.
+
+\end{document}

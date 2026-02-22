@@ -44,7 +44,7 @@
 
 This document serves two functions:
 
-1. **Analysis.** A recursive, line-level audit of every file in the POPGP codebase against the strict requirements of `docs/framework.md` (v0.10). For each of the four projection stages (Π_res, Π_loc, Π_geom, Π_time), it records what the framework demands, what the code implements, what is approximated, and what is missing entirely.
+1. **Analysis.** A recursive, line-level audit of every file in the POPGP codebase against the strict requirements of `docs/framework.md` (v1.0). For each of the four projection stages (Π_res, Π_loc, Π_geom, Π_time), it records what the framework demands, what the code implements, what is approximated, and what is missing entirely.
 
 2. **Plan.** A phased implementation roadmap for a simulator that satisfies every requirement of the framework without shortcuts, proxies, or hard-coded dimensions. Each phase has explicit deliverables, acceptance criteria tied to framework sections, and dependency ordering.
 
@@ -190,14 +190,14 @@ E_i : π_ω(A)'' → A_i     (completely positive, unital, idempotent)
 | SU(2) equivariance | ❌ Not checked | Not checked | Not checked |
 | `L_leak` functional | ✅ Channel-norm via random probe states in `coarse_grain.compute_leakage()` | `chain_1d`: L_leak=4.86e-3 | N/A |
 | `L_drift` functional | ✅ Araki RE drift in `coarse_grain.compute_drift()` | Available as tie-breaker | N/A |
-| Lexicographic optimization | ✅ `coarse_grain.optimize_cells()` — full combinatorial search | `chain_1d`: selects contiguous from 105 partitions | N/A |
+| Causal flow attractor (toy-model: exhaustive search) | ✅ `coarse_grain.optimize_cells()` — full combinatorial search locates the flow fixed point | `chain_1d`: selects contiguous from 105 partitions | N/A |
 | Retention bound | ✅ `coarse_grain.compute_retention_loss()` — total correlation D(ω‖ω∘E) | `chain_1d`: 0.32 (passes) | N/A |
 | Araki relative entropy | ✅ Implemented in both backends (`Backend.araki_relative_entropy()`) | Used in drift and capacity | N/A |
 | Cut-capacity bound | ✅ `capacity.cut_capacity()` and `capacity.check_capacity_bound()` | Infrastructure ready | `area_law.cu` computes `Σ w_ij` |
 
 #### Gap Assessment: **LOW** (downgraded from MODERATE)
 
-The full variational cell-selection mechanism is implemented. `Simulator.run_pi_res()` now performs combinatorial search over all equal-size partitions, filters by admissibility (SU(2) equivariance, retention bound), and applies lexicographic optimization (L_leak primary, L_drift tie-breaker). For the 8-qubit Heisenberg chain, the optimizer correctly recovers contiguous 2-qubit blocks as the unique leakage minimizer.
+The full variational cell-selection mechanism is implemented. The framework (v1.0, §4.4.2a) defines the selected cell net E* as the stable fixed-point of a causal gradient flow driven by L_leak; for toy models, exhaustive combinatorial search locates this attractor directly. `Simulator.run_pi_res()` enumerates all equal-size partitions, filters by admissibility (SU(2) equivariance, retention bound), and minimizes L_leak with L_drift as tie-breaker. For the 8-qubit Heisenberg chain, the optimizer correctly recovers contiguous 2-qubit blocks as the unique leakage minimizer.
 
 Key finding: SU(2) equivariance is automatically satisfied for partial-trace coarse-graining with tensor-product group actions — this is a mathematical fact verified numerically.
 
@@ -499,7 +499,7 @@ The Simulator already contains baseline implementations of every pipeline stage,
 
 | Stage | Baseline in Simulator | What remains for strict compliance |
 |-------|-----------------------|------------------------------------|
-| **Π_res** | Contiguous-block cell decomposition; leakage measured as `‖E∘σ − σ∘E‖²_F` via numerical quadrature (exact backend only). | Combinatorial / variational search over all partitions; SU(2) equivariance check; retention bound enforcement; lexicographic optimization with drift tie-breaker. |
+| **Π_res** | Contiguous-block cell decomposition; leakage measured as `‖E∘σ − σ∘E‖²_F` via numerical quadrature (exact backend only). | Exhaustive search locates the causal gradient flow attractor (§4.4.2a); SU(2) equivariance check; retention bound enforcement; L_leak primary with L_drift tie-breaker. |
 | **Π_loc** | Exact MI via `Backend.mutual_information()`; canonical distance kernel `−log(I/I_0)`; weighted graph with `κ(I)` edges; k-NN + MST connectivity; Floyd-Warshall graph geodesics. | Dijkstra (for efficiency); formal verification that graph-geodesic distances satisfy metric axioms on test cases. |
 | **Π_geom** | Spectral dimension from heat kernel trace on graph Laplacian eigenvalues; complexity-stress dimension selection `D* = argmin[Stress(D) + λ|D−D_S|²]`; classical MDS embedding. | Local metric `h_ab` reconstruction (SPD-constrained); Delaunay triangulation; Regge deficit angles; closure mismatch `M(L)`. |
 | **Π_time** | Graph Laplacian construction from weight matrix; sparse solve `(Δ_w + μ²I)Φ = δρ` with zero-mode pinning; proper time `dτ = β_0 · exp(Φ) · dS_act`. Source uses von Neumann entropy as placeholder. | Araki relative entropy for source term; KMS vacuum baseline; temporal averaging of the contrast. |
@@ -567,7 +567,7 @@ uv run python -m examples.ca_model
 - `compute_leakage()` evaluates the Hilbert-Schmidt channel norm of the commutator `E_i ∘ σ_s − σ_s ∘ E_i` by averaging over Haar-random probe states, with pre-computed unitaries for efficiency.
 - `compute_drift()` evaluates the Araki relative entropy drift functional.
 - `compute_retention_loss()` computes D(ω ‖ ω∘E) = Σ S(ρ_i) − S(ρ) (total correlation).
-- `optimize_cells()` performs full lexicographic optimization: enumerate → filter admissible → minimize L_leak → L_drift tie-breaker.
+- `optimize_cells()` locates the causal flow attractor via exhaustive search: enumerate → filter admissible → minimize L_leak → L_drift tie-breaker.
 
 **1.2 SU(2) equivariance checker**
 - `check_su2_equivariance(cells, state, backend, n_qubits, n_samples, tol)` verifies `‖E_i ∘ α_g − α_g ∘ E_i‖ < ε` for random SU(2) elements.
@@ -820,7 +820,7 @@ uv run python -m examples.ca_model
 **6.1 Validation suite (`tests/test_validation.py`)**
 - **T1 — Geometry recovery:** Run the full pipeline on a Heisenberg lattice ground state. Assert `D* ≈ D_expected` and check that neighbor distances in the embedding correlate with lattice distances.
 - **T2 — Stability under phase flow:** Verify `L_leak(E*) < L_leak(E_random)` for the selected decomposition vs. random decompositions.
-- **T3 — Robustness to coarse-graining scale:** Vary smoothing scale L and check that `h_ab` converges.
+- **T3 — Robustness of discrete geometry under refinement:** Show that the Delaunay triangulation, deficit angles, and discrete Regge Einstein tensor `G_Regge` are stable when the cell net is refined (increasing `|V|` while holding the physical source fixed). The integrated closure mismatch `M` (§8.2) must converge, and topological invariants (Euler characteristic, homology) must remain stable.
 
 **6.2 Falsifier checks (`tests/test_falsifiers.py`)**
 - **F1 — Dimensional collapse:** Run on known expander graphs and tree graphs. Assert `D*` does not diverge or collapse to 1.

@@ -192,11 +192,11 @@ class Simulator:
         L_leak under admissibility constraints (SU(2) equivariance,
         retention bound, finite capacity).
 
-        At toy scale (exact backend): performs full combinatorial search
-        over all equal-size partitions of N qubits into cells of size k.
-        Lexicographic selection: minimize L_leak (primary), then L_drift
-        (secondary tie-breaker), subject to SU(2) equivariance and
-        retention bound constraints.
+        The framework (v1.0, §4.4.2a) defines E* as the stable fixed-point
+        of a causal gradient flow.  At toy scale (exact backend), the
+        attractor is located via exhaustive search over all equal-size
+        partitions: minimize L_leak (primary), then L_drift (tie-breaker),
+        subject to SU(2) equivariance and retention bound constraints.
 
         At GPU scale: uses heuristic (contiguous blocks along the graph).
         """
@@ -245,11 +245,11 @@ class Simulator:
         )
 
     def _pi_res_exact(self, state: object) -> dict:
-        """Full variational cell selection via combinatorial search (§4.4.2a).
+        """Locate the causal flow attractor via combinatorial search (§4.4.2a).
 
         Delegates to :func:`popgp.coarse_grain.optimize_cells`, which
         enumerates all equal-size partitions, filters by admissibility,
-        and applies lexicographic (L_leak, L_drift) optimization.
+        and minimizes L_leak with L_drift as tie-breaker.
         """
         cfg_res = self.config.pi_res
         cfg_sub = self.config.substrate

@@ -102,7 +102,10 @@ class Backend(abc.ABC):
     def mutual_information(
         self, state: object, cell_i: list[int], cell_j: list[int]
     ) -> float:
-        """Mutual information I(i:j) = S(ρ_i) + S(ρ_j) − S(ρ_ij) (§4.4.3)."""
+        """Mutual information I(i:j) = S_Araki(ω_{i∪j} ‖ ω_i ⊗ ω_j) (§4.4.3).
+
+        For finite-dimensional toy models this reduces to
+        S(ρ_i) + S(ρ_j) − S(ρ_{ij})."""
 
     @abc.abstractmethod
     def araki_relative_entropy(
@@ -264,7 +267,7 @@ class ExactBackend(Backend):
     def mutual_information(
         self, state: torch.Tensor, cell_i: list[int], cell_j: list[int]
     ) -> float:
-        """I(i:j) = S(ρ_i) + S(ρ_j) − S(ρ_ij)  (§4.4.3)."""
+        """Toy-model reduction of I(i:j) = S_Araki(ω_{i∪j} ‖ ω_i ⊗ ω_j) (§4.4.3)."""
         rho_i = self.reduced_state(state, cell_i)
         rho_j = self.reduced_state(state, cell_j)
         rho_ij = self.reduced_state(state, cell_i + cell_j)

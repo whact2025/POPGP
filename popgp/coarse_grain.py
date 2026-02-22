@@ -1,14 +1,19 @@
 """
 Cell selection optimization for the Π_res projection stage (§4.4.2, §4.4.2a).
 
-Implements the full variational cell-selection mechanism:
+The framework (v1.0) defines the selected cell net E* as the stable
+fixed-point of a causal gradient flow driven by L_leak (§4.4.2a).
+For toy models (N ≤ 12 qubits), we locate this fixed point via
+exhaustive combinatorial search — a computational shortcut that
+finds the same attractor without running the continuous flow.
 
+Implements:
 - Enumeration of all equal-size partitions of N qubits into cells of size k
 - Leakage functional L_leak — commutator norm integral (§4.4.2a primary)
 - Drift functional L_drift — tie-breaker (§4.4.2a secondary)
 - SU(2) equivariance check (E4, §4.4.2a constraint 2)
 - Retention bound check (§4.4.2a constraint 3)
-- Lexicographic optimization: minimize L_leak, then L_drift
+- Lexicographic minimization: minimize L_leak, then L_drift
 """
 
 from __future__ import annotations
@@ -385,7 +390,7 @@ def check_su2_equivariance(
     return passes, max_violation
 
 
-# ── Lexicographic Optimizer ──────────────────────────────────────────────
+# ── Cell Selection (Causal Flow Attractor via Exhaustive Search) ─────────
 
 
 def optimize_cells(
@@ -403,7 +408,11 @@ def optimize_cells(
     su2_samples: int = 5,
     leakage_tie_tolerance: float = 1e-8,
 ) -> dict:
-    """Lexicographic cell selection optimization (§4.4.2a).
+    """Locate the causal gradient flow attractor via exhaustive search (§4.4.2a).
+
+    The framework defines E* as the fixed point of a local causal flow
+    (§4.4.2a).  For small toy systems this is equivalent to the global
+    minimizer, which we find by enumeration:
 
     1. Enumerate all equal-size partitions of N qubits into cells of size k
     2. Filter by admissibility:

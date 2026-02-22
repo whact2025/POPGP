@@ -31,7 +31,8 @@ mean-field dynamics and Sz-correlation proxies.
    H = Σ_i (Sx_i·Sx_{i+1} + Sy_i·Sy_{i+1} + Sz_i·Sz_{i+1})
 2. Initialise the system in the Neel state |01010101⟩.
 3. Evolve the full density matrix under U(dt) = exp(-iHdt) for multiple steps.
-4. At each step, compute the Von Neumann entropy S = -Tr(ρ log ρ) of:
+4. At each step, compute the entropy S = -Tr(ρ log ρ) of each cell's reduced state
+   (this is the finite-dimensional reduction of the Araki relative entropy, §4.4.3):
    - **Valid cells**: contiguous 2-qubit blocks [0,1], [2,3], [4,5], [6,7].
    - **Invalid cells**: scattered pairs [0,4], [1,5], [2,6], [3,7].
 5. **Result**: invalid cells reach higher entropy faster — they are less stable.
