@@ -97,7 +97,7 @@ class PiGeomResult:
     """Local metric tensors h_ab(x_i), one per node.  [D_star × D_star]."""
 
     simplices: Any = None
-    """Delaunay triangulation (scipy.spatial.Delaunay object or similar)."""
+    """Vietoris-Rips simplicial complex (or Delaunay proxy in toy models, §8.2.1)."""
 
     deficit_angles: dict | None = None
     """Regge deficit angles at each hinge."""
@@ -114,7 +114,9 @@ class PiTimeResult:
     """Source term δρ_i (temporal-averaged Araki contrast)."""
 
     dtau: torch.Tensor
-    """Proper time increment dτ_i = β_0 · exp(Φ_i) · dS_act."""
+    """Proper time increment dτ_i = β_0 · exp(Φ_i) · dS_act, where dS_act is
+    the incremental trace-distance advanced by the canonical flow σ_s (§4.4.5).
+    Current implementation uses dt (phase-order step) as a placeholder."""
 
 
 @dataclass
@@ -279,6 +281,12 @@ class Simulator:
         Computes pairwise mutual information between all cells, applies
         the canonical distance kernel, builds the weighted connectivity
         graph, and computes graph-geodesic distances.
+
+        Note: the framework specifies QCMI (Quantum Conditional Mutual
+        Information) Markovian Geometric Filtering to screen out long-range
+        topological entanglement from true geometric proximity.  This is
+        deferred to a future phase; the current implementation uses raw
+        pairwise MI as a placeholder.
         """
         cells = pi_res.cells
         n_cells = len(cells)
@@ -410,7 +418,7 @@ class Simulator:
         1. Compute spectral dimension D_S from the graph Laplacian.
         2. Select D* via the complexity-stress functional.
         3. Embed via classical MDS into ℝ^{D*}.
-        4. (Future phases: local metric, Delaunay, Regge.)
+        4. (Future phases: local metric, Vietoris-Rips complex, Regge curvature.)
         """
         cfg_geom = self.config.pi_geom
         d_G = pi_loc.distance_matrix
@@ -503,6 +511,9 @@ class Simulator:
         1. Compute the entropy-contrast source term δρ.
         2. Build the weighted graph Laplacian.
         3. Solve (Δ_w + μ²I)Φ = δρ for the clock-rate potential.
+           This acts as an elliptic constraint equation on the foliation
+           (analogous to the ADM Hamiltonian constraint), not as an
+           acausal dynamical propagator.
         4. Compute proper time dτ = β_0 · exp(Φ) · dS_act.
         """
         cfg_time = self.config.pi_time
@@ -541,11 +552,16 @@ class Simulator:
     ) -> torch.Tensor:
         """δρ_i = S(ρ_i) as a simple entropy proxy.
 
-        The full framework requires Araki relative entropy against a KMS
-        vacuum, temporally averaged.  This initial implementation uses
-        von Neumann entropy as a placeholder — the Araki computation
-        is deferred to Phase 4 of the implementation plan when the KMS
-        baseline construction is available.
+        The full framework (§4.4.5, §8.2.2) defines:
+            δρ_i := -(1/s₀) S_Araki(ω_i ‖ ω_i^vac)
+        with an explicit minus sign ensuring δρ < 0 for all physical
+        excitations.  In the GR matching (§8.2.2), δρ acts as the
+        effective energy density component T_00 driving the lapse Φ.
+
+        This initial implementation uses von Neumann entropy (always ≥ 0)
+        as a placeholder.  The sign inversion and KMS vacuum baseline
+        are deferred to Phase 4.  Examples that require δρ < 0 (gravity
+        wells) must override the source term manually.
         """
         n_cells = len(cells)
         delta_rho = torch.zeros(n_cells)

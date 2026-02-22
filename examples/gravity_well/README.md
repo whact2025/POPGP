@@ -27,9 +27,9 @@ This is the **first observable extraction** from the projection pipeline.
 
 | Step | Description |
 |------|-------------|
-| Standard pipeline | Runs $\Pi_{\mathrm{res}} \to \Pi_{\mathrm{loc}} \to \Pi_{\mathrm{geom}} \to \Pi_{\mathrm{time}}$ on a $3 \times 3$ Heisenberg grid to obtain the MI weight matrix $w_{ij}$ and embedded coordinates. |
-| Point source injection | Sets $\delta\rho = +1$ at the center cell (cell 4) and zero elsewhere. |
-| Poisson solve | Builds the graph Laplacian $L = D - W$ and solves $(L + \mu^2 I)\Phi = \delta\rho$ with $\mu = 0.1$. |
+| Standard pipeline | Runs $\Pi_{\mathrm{res}} \to \Pi_{\mathrm{loc}} \to \Pi_{\mathrm{geom}} \to \Pi_{\mathrm{time}}$ on a $3 \times 3$ Heisenberg grid (9 qubits) to obtain the MI weight matrix $w_{ij}$ and embedded coordinates. |
+| Point source injection | Sets $\delta\rho = +1$ at the center cell and zero elsewhere. |
+| Poisson solve | Builds the MI-weighted graph Laplacian $L = D - W$ and solves $(L + \mu^2 I)\Phi = \delta\rho$ with $\mu = 0.1$. |
 | Radial analysis | Groups cells by graph distance from center (BFS) and tests monotonic decay. |
 | Symmetry check | Verifies that cells equidistant from center have equal $\Phi$ (lattice symmetry). |
 | Redshift | Computes the gravitational redshift $1 + z = \exp(\Phi_{\mathrm{source}} - \Phi_{\mathrm{boundary}})$. |
@@ -52,7 +52,7 @@ uv run python -m examples.gravity_well
 
 | Parameter | Value | Classification | Notes |
 |-----------|-------|---------------|-------|
-| `WIDTH x HEIGHT` | 3 x 3 | Hyperparameter | Grid dimensions |
+| `WIDTH x HEIGHT` | 3 x 3 | Hyperparameter | Grid dimensions (9 qubits) |
 | `beta` | 2.0 | Hyperparameter | Inverse temperature |
 | `cell_dim` | 1 | Hyperparameter | 1 qubit per cell (trivial partition) |
 | `I_0` | 1.0 | Universal | Theoretical MI upper bound |
@@ -123,34 +123,32 @@ potential is indistinguishable from the Coulomb/Newtonian potential.
 ### Clock rate and gravitational time dilation
 
 In the POPGP framework, proper time is $d\tau = \beta_0 e^{\Phi} \, dS$.
-Higher $\Phi$ means faster clocks.  With a point-source $\delta\rho > 0$ at
-the center, $\Phi$ is maximal there — so clocks at the "mass" tick
-**faster** than clocks far away.
+Higher $\Phi$ means faster clocks; lower $\Phi$ means slower clocks.
 
-This is the **opposite** sign from GR's gravitational time dilation, where
-clocks slow down near a mass.  The resolution: the framework's $\delta\rho$
-(entropy density) maps to $-4\pi G \rho_{\mathrm{mass}}$ in the Newtonian
-limit (Section 5.1).  A physical mass concentration corresponds to a
-**negative** $\delta\rho$ perturbation (entropy deficit), which would make
-$\Phi$ minimal at the source — matching GR.  This sign convention is
-examined in Phase 4.
+A physical mass concentration corresponds to a **negative** entropy contrast
+$\delta\rho < 0$ (entropy deficit relative to the KMS vacuum, §4.4.5).
+The Laplacian then natively produces $\Phi < 0$ at the source — clocks at
+the "mass" tick **slower** than clocks at the vacuum boundary, exactly
+matching GR's gravitational time dilation.
 
 ### What this test proves
 
-Even at the minimal scale of 9 cells, the clock equation on the MI-weighted
-graph Laplacian produces:
-
-1. A potential that is monotonically attracted toward the source.
-2. A symmetric solution respecting the lattice invariance.
-3. A well-defined redshift observable between cells.
-
-These are the necessary (though not sufficient) conditions for the POPGP
-clock potential to serve as the Newtonian gravitational potential under
-graph refinement.
+1. **Monotonic radial falloff** — the clock equation on the quantum
+   MI-weighted graph Laplacian produces a potential monotonically attracted
+   toward the source (9-qubit exact simulation, 3 radial shells).
+2. **Perfect lattice symmetry** — cells equidistant from the source
+   have identical $\Phi$ to machine precision (0% asymmetry).
+3. **Well-defined redshift** — $1 + z = \exp(\Phi_A - \Phi_B)$ is
+   computable between any pair of cells.
 
 ### What it does NOT prove (yet)
 
-- **$\log(r)$ falloff**: requires a larger grid ($N \geq 25$, i.e. $5 \times 5$).
-- **Correct sign convention**: requires the full Araki source term (Phase 4).
+- **log(r) falloff**: requires a larger grid ($N \gg 9$) for a meaningful
+  multi-shell fit.  The 2-shell fit is trivially R$^2 = 1$.
+- **Correct GR sign convention**: the current test uses a positive source
+  $\delta\rho > 0$.  The full negative-source test ($\delta\rho < 0$,
+  entropy deficit) requires solving on a larger MI-weighted graph.
 - **GR matching**: requires local metric reconstruction, Regge curvature,
   and the Einstein closure test (Phase 3).
+- **Larger grids**: exact diagonalization is limited to $\leq 12$ qubits.
+  Scaling to $N \gg 100$ requires the mean-field GPU backend.

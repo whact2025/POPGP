@@ -4,11 +4,15 @@ Gravity Well: Does the clock potential behave like a gravitational field?
 This example tests the central claim that connects POPGP to Newtonian
 gravity.  On a 3x3 Heisenberg grid we:
 
-1. Run the standard pipeline to build the MI-weighted graph Laplacian.
-2. Inject a localized "mass" source: delta_rho = +1 at the center cell.
+1. Run the full quantum pipeline to build the MI-weighted graph Laplacian.
+2. Inject a localized source at the center cell.
 3. Solve (Delta_w + mu^2 I) Phi = delta_rho  with small mu > 0.
 4. Check whether Phi decreases monotonically with graph distance from
    the source (the discrete analog of the 2D gravitational potential).
+
+The 3D gravity-well visualization requires a larger grid (N >> 9) to
+produce a smooth surface.  It will be enabled once the mean-field GPU
+backend supports MI-weighted Laplacian construction at scale.
 
 Run:
     uv run python -m examples.gravity_well

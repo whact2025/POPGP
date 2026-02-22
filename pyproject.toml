@@ -16,6 +16,7 @@ dependencies = [
     "quimb",
     "autoray",
     "cotengra",
+    "pyvista",
 ]
 
 [tool.hatch.build.targets.wheel]

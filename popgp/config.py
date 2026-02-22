@@ -170,8 +170,11 @@ class PiGeomConfig:
 
     lambda_dim: float = 1.0
     """Penalty weight for dimension selection: topological inertia.
-    [TUNABLE_HYPERPARAMETER]  Prevents dimensional jitter
-    under phase flow (§4.4.4 step 1)."""
+    [TUNABLE_HYPERPARAMETER]  Evaluated in the degeneracy-breaking
+    limit (λ_dim → 0⁺); it breaks ties between equally low-stress
+    embeddings to prevent high-frequency quantum noise from causing
+    macroscopic dimensionality jitter, not to force D=3 (§4.4.4 step 1).
+    Default 1.0 is appropriate for toy models with few nodes."""
 
     D_max: int = 6
     """Maximum candidate embedding dimension.
