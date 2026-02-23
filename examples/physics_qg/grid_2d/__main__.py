@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 2D Grid: Emergent geometry from a scrambled algebra.
 
@@ -8,7 +11,7 @@ Uses the unified Simulator API to demonstrate:
   - Visualization: ground-truth topology overlay on the embedding
 
 Run:
-    uv run python -m examples.grid_2d
+    uv run python -m examples.physics_qg.grid_2d
 """
 
 from datetime import datetime, timezone
@@ -19,6 +22,7 @@ import numpy as np
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
+from popgp.simulator import Simulator as _Sim
 
 _PKG_DIR = Path(__file__).parent
 
@@ -62,7 +66,6 @@ print(f"Coordinates shape: {coords.shape}")
 
 if D_star < 2:
     print(f"WARNING: D* = {D_star} < 2; re-embedding with D=2 for visualization.")
-    from popgp.simulator import Simulator as _Sim
     coords = _Sim._classical_mds(result.pi_loc.distance_matrix, 2).numpy()
 
 edges = sim.backend.build_edges()

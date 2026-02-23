@@ -62,7 +62,7 @@ mean-field dynamics and Sz-correlation proxies.
 ## How to Run
 
 ```bash
-uv run python -m examples.chain_1d
+uv run python -m examples.physics_qg.chain_1d
 ```
 
 ## Results and How to Interpret

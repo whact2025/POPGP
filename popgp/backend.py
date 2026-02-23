@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 Backend abstraction for the POPGP simulator.
 
@@ -33,6 +36,8 @@ import torch
 
 if TYPE_CHECKING:
     from popgp.config import SimulatorConfig
+
+from popgp.engine import Engine
 
 log = logging.getLogger(__name__)
 
@@ -317,7 +322,6 @@ class GPUBackend(Backend):
 
     def _get_engine(self):
         if self._engine is None:
-            from popgp.engine import Engine
             self._engine = Engine(precision=self.config.backend.precision)
         return self._engine
 

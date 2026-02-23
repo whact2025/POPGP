@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 Python bindings for the POPGP C++/CUDA phase-flow kernel.
 

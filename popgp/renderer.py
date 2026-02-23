@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 3D PyVista renderer for POPGP projection outputs.
 
@@ -15,20 +18,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pyvista as pv
 from scipy.spatial import Delaunay
 
 if TYPE_CHECKING:
     from popgp.simulator import PiGeomResult, PiTimeResult
-
-
-def _require_pyvista():
-    try:
-        import pyvista as pv
-        return pv
-    except ImportError:
-        raise ImportError(
-            "pyvista is required for 3D rendering. Install with: uv add pyvista"
-        ) from None
 
 
 class POPGPRenderer:
@@ -121,8 +115,6 @@ class POPGPRenderer:
         window_size : tuple
             Render window dimensions in pixels.
         """
-        pv = _require_pyvista()
-
         assert self.D >= 2, "Gravity well surface requires D* >= 2"
 
         warped = self.points_3d.copy()
@@ -179,8 +171,6 @@ class POPGPRenderer:
 
         Useful for comparing against the warped gravity-well view.
         """
-        pv = _require_pyvista()
-
         faces = np.column_stack(
             (np.full(len(self.tri.simplices), 3), self.tri.simplices)
         ).flatten()
@@ -242,8 +232,6 @@ class POPGPRenderer:
         window_size : tuple
             Render window dimensions.
         """
-        pv = _require_pyvista()
-
         h_ab = np.asarray(h_ab)
         N = len(self.coords)
 

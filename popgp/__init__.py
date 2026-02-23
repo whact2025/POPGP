@@ -1,8 +1,12 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """POPGP: Phase-Ordered Pre-Geometric Projection framework."""
 
 import json
 
 import numpy as np
+import torch
 
 
 class _NumpyEncoder(json.JSONEncoder):
@@ -17,12 +21,8 @@ class _NumpyEncoder(json.JSONEncoder):
             return bool(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
-        try:
-            import torch
-            if isinstance(obj, torch.Tensor):
-                return obj.detach().cpu().numpy().tolist()
-        except ImportError:
-            pass
+        if isinstance(obj, torch.Tensor):
+            return obj.detach().cpu().numpy().tolist()
         return super().default(obj)
 
 

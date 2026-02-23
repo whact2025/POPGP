@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 Cellular Automata: Stability selection and radiative cooling.
 
@@ -14,7 +17,7 @@ Demonstrates:
   - Reproduction with mutation: stable cells replicate
 
 Run:
-    uv run python -m examples.ca_model
+    uv run python -m examples.physics_qg.ca_model
 """
 
 from datetime import datetime, timezone

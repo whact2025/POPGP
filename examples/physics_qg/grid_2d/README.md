@@ -46,7 +46,7 @@ At toy scale, the `ExactBackend` performs exact diagonalization of the full
 ## How to Run
 
 ```bash
-uv run python -m examples.grid_2d
+uv run python -m examples.physics_qg.grid_2d
 ```
 
 ## Results and How to Interpret

@@ -70,7 +70,7 @@ All parameters are labeled per docs/framework.md §4.6.3.
 ## How to Run
 
 ```bash
-uv run python -m examples.ca_model
+uv run python -m examples.physics_qg.ca_model
 ```
 
 ## Results and How to Interpret

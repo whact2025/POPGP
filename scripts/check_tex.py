@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """Quick validation of framework.tex for compilation readiness."""
 import re
 from collections import Counter

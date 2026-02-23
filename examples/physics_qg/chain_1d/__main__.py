@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 1D Chain: Stability selection and geometry recovery.
 
@@ -8,7 +11,7 @@ Uses the unified Simulator API to demonstrate:
   - Π_time: Clock potential from entropy contrast (§4.4.5)
 
 Run:
-    uv run python -m examples.chain_1d
+    uv run python -m examples.physics_qg.chain_1d
 """
 
 from datetime import datetime, timezone

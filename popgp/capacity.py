@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 Cut-capacity functional for the finite distinguishability constraint (§4.4.2).
 
@@ -13,6 +16,7 @@ cut-capacity on the cell net rather than a geometric boundary area.
 from __future__ import annotations
 
 import logging
+from itertools import combinations as _combs
 from typing import Callable
 
 import torch
@@ -68,8 +72,6 @@ def cut_capacity_all_regions(
     -------
     dict mapping frozenset of cell indices → capacity value.
     """
-    from itertools import combinations as _combs
-
     n = mi_matrix.shape[0]
     if max_region_size is None:
         max_region_size = n - 1

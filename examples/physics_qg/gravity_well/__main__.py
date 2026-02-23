@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 Gravity Well: Does the clock potential behave like a gravitational field?
 
@@ -15,7 +18,7 @@ produce a smooth surface.  It will be enabled once the mean-field GPU
 backend supports MI-weighted Laplacian construction at scale.
 
 Run:
-    uv run python -m examples.gravity_well
+    uv run python -m examples.physics_qg.gravity_well
 """
 
 from datetime import datetime, timezone
@@ -27,6 +30,7 @@ import torch
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
+from popgp.simulator import Simulator as _Sim
 
 _PKG_DIR = Path(__file__).parent
 
@@ -54,7 +58,6 @@ print(f"D* = {result.pi_geom.D_star}")
 coords = result.pi_geom.coords.numpy()
 D_star = result.pi_geom.D_star
 if D_star < 2:
-    from popgp.simulator import Simulator as _Sim
     coords = _Sim._classical_mds(result.pi_loc.distance_matrix, 2).numpy()
 
 edges = sim.backend.build_edges()

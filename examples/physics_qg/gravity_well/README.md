@@ -37,7 +37,7 @@ This is the **first observable extraction** from the projection pipeline.
 ## Run
 
 ```
-uv run python -m examples.gravity_well
+uv run python -m examples.physics_qg.gravity_well
 ```
 
 ## Framework Sections Validated

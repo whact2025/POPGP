@@ -73,7 +73,7 @@ Files examined:
 |----------|-------|
 | Theory | `docs/framework.md` |
 | Simulator core | `popgp/config.py`, `popgp/backend.py`, `popgp/simulator.py`, `popgp/engine.py`, `popgp/__init__.py` |
-| Examples | `examples/chain_1d/__main__.py`, `examples/grid_2d/__main__.py`, `examples/ca_model/__main__.py` + READMEs |
+| Examples | `examples/physics_qg/chain_1d/__main__.py`, `examples/physics_qg/grid_2d/__main__.py`, `examples/physics_qg/ca_model/__main__.py` + READMEs |
 | Engine | `popgp_engine/kernel/src/phase_flow.cu`, `popgp_engine/kernel/src/area_law.cu`, `popgp_engine/kernel/src/clock.cu`, `popgp_engine/kernel/src/main.cpp`, `popgp_engine/kernel/include/types.cuh` |
 | Build | `popgp_engine/CMakeLists.txt`, `popgp_engine/kernel/CMakeLists.txt`, `pyproject.toml` |
 | Docs | `docs/simulation_engine_whitepaper.md`, `docs/tasks_engine.md`, `docs/validation_report_v0.12.md` |
@@ -101,19 +101,19 @@ The old separate `src/toy/` and `src/native/` directories have been **deleted an
 
 | Example | File | Lines | Pipeline Coverage | Framework Sections |
 |---------|------|-------|-------------------|--------------------|
-| **1D Chain** | `examples/chain_1d/__main__.py` | 203 | Π_res ✅ Π_loc ✅ Π_geom ✅ Π_time ✅ | §4.4.2a, §4.4.3, §4.4.4, §4.4.5 |
-| **2D Grid** | `examples/grid_2d/__main__.py` | 162 | Π_res (identity) Π_loc ✅ Π_geom ✅ Π_time ✅ | §4.4.3, §4.4.4, §4.4.5 |
-| **CA Model** | `examples/ca_model/__main__.py` | 211 | Stability selection + radiative cooling | §4.4.2a |
-| **Gravity Well** | `examples/gravity_well/__main__.py` | ~220 | Π_loc ✅ Π_geom ✅ Π_time (custom source) ✅ | §4.4.5, §5.1 |
+| **1D Chain** | `examples/physics_qg/chain_1d/__main__.py` | 203 | Π_res ✅ Π_loc ✅ Π_geom ✅ Π_time ✅ | §4.4.2a, §4.4.3, §4.4.4, §4.4.5 |
+| **2D Grid** | `examples/physics_qg/grid_2d/__main__.py` | 162 | Π_res (identity) Π_loc ✅ Π_geom ✅ Π_time ✅ | §4.4.3, §4.4.4, §4.4.5 |
+| **CA Model** | `examples/physics_qg/ca_model/__main__.py` | 211 | Stability selection + radiative cooling | §4.4.2a |
+| **Gravity Well** | `examples/physics_qg/gravity_well/__main__.py` | ~220 | Π_loc ✅ Π_geom ✅ Π_time (custom source) ✅ | §4.4.5, §5.1 |
 
 Each example has a companion `README.md` with algorithm description, parameter table, result images, and detailed PASS/FAIL interpretation criteria.
 
 | README | Lines | Content |
 |--------|-------|---------|
-| `examples/chain_1d/README.md` | 168 | Entropy growth, 1D embedding (tolerance-ranked monotonicity), clock potential |
-| `examples/grid_2d/README.md` | 137 | 2D embedding, spectral dimension D_S, clock potential |
-| `examples/ca_model/README.md` | 120 | Population dynamics, death threshold, survival badge |
-| `examples/gravity_well/README.md` | ~140 | Localized source, monotonic falloff, symmetry, redshift |
+| `examples/physics_qg/chain_1d/README.md` | 168 | Entropy growth, 1D embedding (tolerance-ranked monotonicity), clock potential |
+| `examples/physics_qg/grid_2d/README.md` | 137 | 2D embedding, spectral dimension D_S, clock potential |
+| `examples/physics_qg/ca_model/README.md` | 120 | Population dynamics, death threshold, survival badge |
+| `examples/physics_qg/gravity_well/README.md` | ~140 | Localized source, monotonic falloff, symmetry, redshift |
 
 ### 3.3 Legacy Files (DELETED)
 
@@ -440,7 +440,7 @@ The following violations were identified in the original `src/toy/` and `src/nat
 | **State preparation** — toy vs native used different states | ✅ Both `ExactBackend` and `GPUBackend` implement `prepare_state()` with thermal Boltzmann `exp(−βH)/Z` at the configured `β`. The backend is auto-selected; the state preparation logic is canonical. |
 | **Cell granularity** — inconsistent cell definitions | ✅ `SubstrateConfig.k` (qubits per cell) is a single `STRUCTURAL_CHOICE` parameter. `chain_1d` uses `k=2`, `grid_2d` uses `k=1`. The choice is explicit and documented, not implicit. |
 | **Dead imports / variables** | ✅ Old files deleted. New examples have no dead code. |
-| **Interaction double-counting** | ✅ Old `ca_model.py` deleted. New `examples/ca_model/__main__.py` uses a clean implementation. |
+| **Interaction double-counting** | ✅ Old `ca_model.py` deleted. New `examples/physics_qg/ca_model/__main__.py` uses a clean implementation. |
 | **Comment errors** | ✅ Old files deleted. |
 
 ### 8.2 Remaining (By Design)
@@ -513,7 +513,7 @@ All old model scripts (`src/toy/`, `src/native/`) have been deleted and replaced
 **What was done:**
 
 1. **Deleted** 6 old scripts and 6 accompanying `.md` docs from `src/toy/` and `src/native/`.
-2. **Created** `examples/chain_1d/`, `examples/grid_2d/`, `examples/ca_model/` as Python packages (each with `__main__.py` + `README.md`).
+2. **Created** `examples/physics_qg/chain_1d/`, `examples/physics_qg/grid_2d/`, `examples/physics_qg/ca_model/` as Python packages (each with `__main__.py` + `README.md`).
 3. **All examples** use `popgp.Simulator` and `popgp.SimulatorConfig` — zero ad-hoc physics code outside the framework.
 4. **Fixed** Windows console Unicode encoding (`β` → "beta", `Φ` → "Phi").
 5. **Fixed** `grid_2d` D* selection: set `I_0 = 1.0` (theoretical max for MI) to prevent distance degeneracy when `I_0 = max(I_ij)` collapsed nearest-neighbor distances to zero.
@@ -525,19 +525,19 @@ All old model scripts (`src/toy/`, `src/native/`) have been deleted and replaced
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `examples/chain_1d/__main__.py` | 203 | 8-qubit Heisenberg chain — Π_res + Π_loc + Π_geom + Π_time. Validates stability selection, 1D geometry recovery, clock potential. |
-| `examples/chain_1d/README.md` | 169 | Algorithm, parameters, PASS/FAIL criteria for entropy growth / embedding / clock. |
-| `examples/grid_2d/__main__.py` | 162 | 9-qubit 3×3 Heisenberg grid — Π_loc + Π_geom + Π_time. Validates 2D geometry recovery, D_S spectral dimension. |
-| `examples/grid_2d/README.md` | 137 | Algorithm, parameters, PASS/FAIL criteria for 2D embedding / clock. |
-| `examples/ca_model/__main__.py` | 211 | 10×10 Bloch-sphere cellular automaton — stability selection + radiative cooling. Population dynamics animation. |
-| `examples/ca_model/README.md` | 120 | Algorithm, parameters, PASS/FAIL criteria for survival dynamics. |
+| `examples/physics_qg/chain_1d/__main__.py` | 203 | 8-qubit Heisenberg chain — Π_res + Π_loc + Π_geom + Π_time. Validates stability selection, 1D geometry recovery, clock potential. |
+| `examples/physics_qg/chain_1d/README.md` | 169 | Algorithm, parameters, PASS/FAIL criteria for entropy growth / embedding / clock. |
+| `examples/physics_qg/grid_2d/__main__.py` | 162 | 9-qubit 3×3 Heisenberg grid — Π_loc + Π_geom + Π_time. Validates 2D geometry recovery, D_S spectral dimension. |
+| `examples/physics_qg/grid_2d/README.md` | 137 | Algorithm, parameters, PASS/FAIL criteria for 2D embedding / clock. |
+| `examples/physics_qg/ca_model/__main__.py` | 211 | 10×10 Bloch-sphere cellular automaton — stability selection + radiative cooling. Population dynamics animation. |
+| `examples/physics_qg/ca_model/README.md` | 120 | Algorithm, parameters, PASS/FAIL criteria for survival dynamics. |
 
 **Run commands:**
 
 ```bash
-uv run python -m examples.chain_1d
-uv run python -m examples.grid_2d
-uv run python -m examples.ca_model
+uv run python -m examples.physics_qg.chain_1d
+uv run python -m examples.physics_qg.grid_2d
+uv run python -m examples.physics_qg.ca_model
 ```
 
 **Validation results (last run):**
@@ -614,7 +614,7 @@ uv run python -m examples.ca_model
 
 **Implementation:**
 
-1. New example `examples/gravity_well/` (Python package).
+1. New example `examples/physics_qg/gravity_well/` (Python package).
 2. Runs the standard pipeline on a 3×3 Heisenberg grid to obtain MI-weighted graph Laplacian.
 3. Injects a localized point source $\delta\rho = +1$ at the center cell.
 4. Solves $(\Delta_w + \mu^2 I)\Phi = \delta\rho$ with $\mu = 0.1$ (regularized, no gauge pinning needed).
@@ -890,10 +890,10 @@ Architecture Decisions (✅ COMPLETE)
         │
 Examples Consolidation (✅ COMPLETE)
     │
-    ├── examples/chain_1d/ ── 8-qubit chain: Π_res→Π_loc→Π_geom→Π_time  PASS
-    ├── examples/grid_2d/ ─── 3×3 grid: Π_loc→Π_geom→Π_time            PASS
-    ├── examples/ca_model/ ── 10×10 CA: stability + radiative cooling   PASS
-    └── examples/gravity_well/ ── 3×3 grid: point source → Φ falloff   PASS
+    ├── examples/physics_qg/chain_1d/ ── 8-qubit chain: Π_res→Π_loc→Π_geom→Π_time  PASS
+    ├── examples/physics_qg/grid_2d/ ─── 3×3 grid: Π_loc→Π_geom→Π_time            PASS
+    ├── examples/physics_qg/ca_model/ ── 10×10 CA: stability + radiative cooling   PASS
+    └── examples/physics_qg/gravity_well/ ── 3×3 grid: point source → Φ falloff   PASS
         │
         │ (baseline Π_res, Π_loc, Π_geom, Π_time already in simulator.py)
         │
@@ -904,8 +904,8 @@ Phase 1: Strict Π_res (✅ COMPLETE)           NEW FILES
         │
 Gravity Well Test (✅ COMPLETE)               NEW FILES
     │                                          ──────────
-    ├── examples/gravity_well/__main__.py ── localized source, Poisson solve
-    ├── examples/gravity_well/README.md ──── physics interpretation
+    ├── examples/physics_qg/gravity_well/__main__.py ── localized source, Poisson solve
+    ├── examples/physics_qg/gravity_well/README.md ──── physics interpretation
     └── simulator.py (fix) ─────────────── cell_dim=1 short-circuit
         │
 Phase 2: Strict Π_loc                         MODIFICATIONS

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 WHACT. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 """
 Cell selection optimization for the Π_res projection stage (§4.4.2, §4.4.2a).
 
@@ -20,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from itertools import combinations
+from math import comb, factorial
 from typing import Generator
 
 import torch
@@ -72,7 +76,6 @@ def count_partitions(n: int, k: int) -> int:
     """Number of equal-size partitions without enumeration (for diagnostics)."""
     if n % k != 0 or n == 0:
         return 0
-    from math import comb, factorial
     m = n // k
     numerator = factorial(n)
     denominator = (factorial(k) ** m) * factorial(m)
