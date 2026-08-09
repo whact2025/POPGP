@@ -20,7 +20,7 @@ Run:
     uv run python -m examples.physics_qg.ca_model
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.animation as animation
@@ -44,7 +44,7 @@ REPLICATION_PROB = 0.05         # [TUNABLE_HYPERPARAMETER] reproduction probabil
 MUTATION_RATE = 0.02            # [TUNABLE_HYPERPARAMETER] Bloch-vector noise on replication
 COOLING_PROB = 0.02             # [TUNABLE_HYPERPARAMETER] probability of radiative cooling per step
 INITIAL_DENSITY = 0.4           # [TUNABLE_HYPERPARAMETER] fraction of grid initially occupied
-DECAY_RATE = 0.3                # [TUNABLE_HYPERPARAMETER] purity-decay coupling from neighbor mismatch
+DECAY_RATE = 0.3                # [TUNABLE_HYPERPARAMETER] neighbor-mismatch decay
 ALIGN_STRENGTH = 0.1            # [TUNABLE_HYPERPARAMETER] alignment force between neighbors
 DT = 0.1                        # [TUNABLE_HYPERPARAMETER] interaction timestep
 REPRO_PURITY_THRESHOLD = 0.1    # [TUNABLE_HYPERPARAMETER] max entropy for reproduction eligibility
@@ -83,9 +83,15 @@ def _interact(b1, b2):
     rx2, ry2, rz2 = rx2 * decay, ry2 * decay, rz2 * decay
 
     a = ALIGN_STRENGTH * DT
-    ax = 0.5 * (rx1 + rx2); ay = 0.5 * (ry1 + ry2); az = 0.5 * (rz1 + rz2)
-    rx1 += a * (ax - rx1); ry1 += a * (ay - ry1); rz1 += a * (az - rz1)
-    rx2 += a * (ax - rx2); ry2 += a * (ay - ry2); rz2 += a * (az - rz2)
+    ax = 0.5 * (rx1 + rx2)
+    ay = 0.5 * (ry1 + ry2)
+    az = 0.5 * (rz1 + rz2)
+    rx1 += a * (ax - rx1)
+    ry1 += a * (ay - ry1)
+    rz1 += a * (az - rz1)
+    rx2 += a * (ax - rx2)
+    ry2 += a * (ay - ry2)
+    rz2 += a * (az - rz2)
 
     return (rx1, ry1, rz1), (rx2, ry2, rz2)
 
@@ -217,12 +223,18 @@ print(f"Saved: {results / 'evolution_cooling.gif'}")
 
 peak_pop = max(history_count)
 min_pop = min(history_count)
-avg_entropy_final_5 = float(np.mean(history_entropy[-5:])) if len(history_entropy) >= 5 else final_entropy
+avg_entropy_final_5 = (
+    float(np.mean(history_entropy[-5:]))
+    if len(history_entropy) >= 5
+    else final_entropy
+)
 
 report = {
     "example": "ca_model",
-    "framework_version": "0.10",
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "scientific_status": "phenomenological_analogy",
+    "framework_version": "1.0-submission-draft",
+    "package_version": "0.1.0",
+    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -261,7 +273,9 @@ report = {
         },
         {
             "name": "entropy_below_threshold",
-            "description": "Average entropy of surviving cells is below the leakage death threshold",
+            "description": (
+                "Average entropy of surviving cells is below the leakage death threshold"
+            ),
             "framework_section": "4.4.2a",
             "criterion": f"final_avg_entropy < {LEAKAGE_THRESHOLD}",
             "value": float(final_entropy),

@@ -1,5 +1,11 @@
 Here is the complete strategic playbook formatted as a professional, actionable document. You can save this as a PDF or Markdown file to use as your publication and outreach roadmap.
 
+> **Historical outreach document, not scientific evidence.** Statements about
+> gravity, scaling, or validation below must be checked against
+> `docs/scientific_hardening/CLAIMS_MATRIX.md`. The gravity-well example solves a
+> chosen graph constraint with a manually injected diagnostic source; it does not
+> derive a Newtonian field from a validated physical source law.
+
 ---
 
 # The "Computational Trojan Horse" Playbook

@@ -8,13 +8,13 @@ Uses the unified Simulator API to demonstrate:
   - Π_loc: Mutual information between all qubit pairs (§4.4.3)
   - Π_geom: Dimension selection (D*=2) and MDS embedding (§4.4.4)
   - Π_time: Clock potential on the 2D grid (§4.4.5)
-  - Visualization: ground-truth topology overlay on the embedding
+  - Blind inferred-edge validation against held-out Hamiltonian edges
 
 Run:
     uv run python -m examples.physics_qg.grid_2d
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -22,6 +22,7 @@ import numpy as np
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
+from popgp.diagnostics import edge_recovery_metrics
 from popgp.simulator import Simulator as _Sim
 
 _PKG_DIR = Path(__file__).parent
@@ -68,11 +69,17 @@ if D_star < 2:
     print(f"WARNING: D* = {D_star} < 2; re-embedding with D=2 for visualization.")
     coords = _Sim._classical_mds(result.pi_loc.distance_matrix, 2).numpy()
 
-edges = sim.backend.build_edges()
+edges = result.pi_loc.edges
+reference_edges = {tuple(sorted(edge)) for edge in sim.backend.build_edges()}
+recovery = edge_recovery_metrics(set(edges), reference_edges)
 
 # ── Topology Validation (compute before plotting) ────────────────────────
 
 print("\n--- Topology Validation ---")
+print(f"Blind edge precision: {recovery.precision:.3f}")
+print(f"Blind edge recall:    {recovery.recall:.3f}")
+print(f"MI gap ratio:         {result.pi_loc.connectivity_gap_ratio:.3f}")
+print(f"MI spectrum separable: {result.pi_loc.connectivity_separable}")
 center = (HEIGHT // 2) * WIDTH + (WIDTH // 2)
 neighbor_set = set()
 for i, j in edges:
@@ -170,8 +177,10 @@ phi_mean = float(phi.mean()) if phi is not None else None
 
 report = {
     "example": "grid_2d",
-    "framework_version": "0.10",
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "scientific_status": "finite_exact_benchmark",
+    "framework_version": "1.0-submission-draft",
+    "package_version": "0.1.0",
+    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -193,22 +202,55 @@ report = {
             "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
             "mi_min_positive": float(mi[mi > 0].min().item()),
             "mi_max": float(mi.max().item()),
+            "connectivity_method": result.pi_loc.connectivity_method,
+            "connectivity_threshold": result.pi_loc.connectivity_threshold,
+            "connectivity_gap_ratio": result.pi_loc.connectivity_gap_ratio,
+            "connectivity_separable": result.pi_loc.connectivity_separable,
+            "inferred_edges": result.pi_loc.edges,
+            "held_out_reference_edges": sorted(reference_edges),
+            "edge_precision": recovery.precision,
+            "edge_recall": recovery.recall,
         },
         "pi_geom": {
             "D_spectral": float(result.pi_geom.D_spectral),
+            "spectral_diagnostic": "finite_graph_peak",
+            "spectral_peak_time": result.pi_geom.spectral_peak_time,
             "D_star": int(result.pi_geom.D_star),
             "stress": float(result.pi_geom.stress),
+            "objective": float(result.pi_geom.objective),
+            "embedding_status": result.pi_geom.embedding_status,
+            "selection_margin": result.pi_geom.selection_margin,
+            "metric_diagnostics": result.pi_geom.metric_diagnostics,
+            "complex_status": result.pi_geom.complex_status,
+            "simplices": result.pi_geom.simplices,
+            "deficit_angles": result.pi_geom.deficit_angles,
             "coords": coords.tolist(),
         },
         "pi_time": {
+            "source_model": result.pi_time.source_model,
+            "source_status": result.pi_time.source_status,
             "phi": phi.tolist() if phi is not None else None,
             "phi_min": float(phi.min()) if phi is not None else None,
             "phi_max": float(phi.max()) if phi is not None else None,
             "phi_range": phi_range,
             "phi_mean": phi_mean,
+            "constraint_residual": result.pi_time.constraint_residual,
         },
     },
     "checks": [
+        {
+            "name": "blind_edge_recovery",
+            "description": "MI-only inference is compared with held-out Hamiltonian edges",
+            "framework_section": "4.4.3",
+            "criterion": "edge precision == 1 and edge recall == 1",
+            "value": {
+                "precision": recovery.precision,
+                "recall": recovery.recall,
+                "false_positives": recovery.false_positives,
+                "false_negatives": recovery.false_negatives,
+            },
+            "passed": recovery.precision == 1.0 and recovery.recall == 1.0,
+        },
         {
             "name": "dimension_selection",
             "description": "Complexity-stress functional selects D* = 2 for a 2D grid",
@@ -219,7 +261,10 @@ report = {
         },
         {
             "name": "topology_preservation",
-            "description": "In the MDS embedding, graph neighbors of the center node are closer than non-neighbors",
+            "description": (
+                "Held-out graph neighbors of the center are closer in the embedding "
+                "than held-out non-neighbors"
+            ),
             "framework_section": "4.4.4",
             "criterion": "avg_dist_neighbors < avg_dist_non_neighbors",
             "value": {
@@ -231,12 +276,15 @@ report = {
             "passed": topology_ok,
         },
         {
-            "name": "spectral_dimension",
-            "description": "Spectral dimension D_S is near 2.0 for a 2D lattice (finite-size effects expected at N=9)",
+            "name": "finite_graph_spectral_peak",
+            "description": (
+                "The scale-dependent heat-kernel dimension has a finite-size peak; "
+                "this is not a continuum spectral-dimension estimate"
+            ),
             "framework_section": "4.4.4",
-            "criterion": "0.5 <= D_spectral <= 3.0",
+            "criterion": "1.0 <= finite_graph_peak <= 2.0",
             "value": float(result.pi_geom.D_spectral),
-            "passed": 0.5 <= result.pi_geom.D_spectral <= 3.0,
+            "passed": 1.0 <= result.pi_geom.D_spectral <= 2.0,
         },
         {
             "name": "mds_stress",
@@ -247,12 +295,15 @@ report = {
             "passed": result.pi_geom.stress < 0.5,
         },
         {
-            "name": "clock_potential_computed",
-            "description": "Clock potential Phi was successfully computed",
+            "name": "placeholder_clock_constraint_solved",
+            "description": (
+                "The non-physical entropy placeholder produced a low-residual "
+                "clock-constraint solution"
+            ),
             "framework_section": "4.4.5",
-            "criterion": "pi_time is not None",
-            "value": result.pi_time is not None,
-            "passed": result.pi_time is not None,
+            "criterion": "constraint_residual < 1e-10",
+            "value": result.pi_time.constraint_residual,
+            "passed": result.pi_time.constraint_residual < 1e-10,
         },
     ],
 }

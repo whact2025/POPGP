@@ -16,8 +16,8 @@ cut-capacity on the cell net rather than a geometric boundary area.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from itertools import combinations as _combs
-from typing import Callable
 
 import torch
 

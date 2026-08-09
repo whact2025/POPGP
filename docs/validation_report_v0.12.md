@@ -3,6 +3,12 @@
 **Date:** February 2026
 **Status:** Partial Alignment
 
+> **Superseded historical report.** Its “fully implemented” and PASS labels were
+> code-presence assessments, not scientific validation. The native clock solver is
+> an identity stub, native curvature is not integrated, and the scalable mean-field
+> backend cannot compute MI. Use `docs/scientific_hardening/` and regenerated example
+> JSON for the current audit.
+
 This report analyzes the alignment between the **POPGP Engine Codebase** (`popgp_engine`, `src`) and the **Updated Framework Document** (v0.12).
 
 ---

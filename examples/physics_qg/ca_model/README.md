@@ -12,13 +12,13 @@ dynamics are fundamentally different from the exact density-matrix pipeline
 conceptual illustration of the stability selection principle, not a strict
 framework implementation.
 
-## Framework Sections Validated
+## Framework analogies illustrated
 
-| Principle | Framework Reference | What this script tests |
+| Principle | Framework Reference | Programmed behavior |
 |---|---|---|
-| Stability Selection | Section 4.4.2a | Cells with entropy above `LEAKAGE_THRESHOLD` are eliminated. |
-| Emergent Persistence | Section 4.4.2a | Populations of stable cells self-organise and persist over time. |
-| Radiative Cooling | Section 4.4.2a | Entropy export ("cooling") is necessary for dense, stable populations. |
+| Stability Selection | Section 4.4.2a | The update rule explicitly eliminates cells above `LEAKAGE_THRESHOLD`. |
+| Persistence | Section 4.4.2a | Selected update rules can produce persistent populations. |
+| Radiative Cooling analogy | Section 4.4.2a | A programmed stochastic reset exports the model entropy. |
 
 ## Cell Representation
 

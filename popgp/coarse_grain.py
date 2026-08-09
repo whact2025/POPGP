@@ -22,13 +22,13 @@ Implements:
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from itertools import combinations
-from math import comb, factorial
-from typing import Generator
+from math import factorial
 
 import torch
 
-from popgp.backend import Backend, _I2, _SX, _SY, _SZ
+from popgp.backend import _I2, _SX, _SY, _SZ, Backend
 
 log = logging.getLogger(__name__)
 
@@ -146,6 +146,7 @@ def compute_leakage(
     phase_window_samples: int,
     n_probe_states: int = 8,
     unitaries: list[torch.Tensor] | None = None,
+    probe_vecs: list[torch.Tensor] | None = None,
 ) -> float:
     r"""Compute L_leak(E) = ∫ ds w(s) · Σ_i ‖E_i∘σ_s − σ_s∘E_i‖²_HS (§4.4.2a).
 
@@ -172,7 +173,9 @@ def compute_leakage(
         for i, cell in enumerate(cells)
     }
 
-    probe_vecs = _generate_probe_vectors(d_full, n_probe_states)
+    if probe_vecs is None:
+        probe_vecs = _generate_probe_vectors(d_full, n_probe_states)
+    n_probe_states = len(probe_vecs)
 
     if unitaries is None:
         unitaries = precompute_unitaries(backend, phase_window_samples, dt_sample)
@@ -227,13 +230,15 @@ def precompute_unitaries(
 
 
 def _generate_probe_vectors(
-    dim: int, n_probes: int
+    dim: int,
+    n_probes: int,
+    generator: torch.Generator | None = None,
 ) -> list[torch.Tensor]:
     """Generate Haar-random state vectors for channel norm estimation."""
     vecs = []
     for _ in range(n_probes):
-        real = torch.randn(dim, dtype=torch.float64)
-        imag = torch.randn(dim, dtype=torch.float64)
+        real = torch.randn(dim, dtype=torch.float64, generator=generator)
+        imag = torch.randn(dim, dtype=torch.float64, generator=generator)
         psi = torch.complex(real, imag)
         psi /= psi.norm()
         vecs.append(psi)
@@ -252,6 +257,7 @@ def compute_drift(
     drift_delta: float,
     n_probe_states: int = 4,
     unitaries: list[torch.Tensor] | None = None,
+    probe_vecs: list[torch.Tensor] | None = None,
 ) -> float:
     r"""Compute L_drift(E) = ∫ ds w(s) · Σ_i (1/δ²) · D(ρ_i(s+δ) ‖ ρ_i(s)) (§4.4.2a).
 
@@ -262,7 +268,9 @@ def compute_drift(
     dt_sample = phase_window_width / phase_window_samples
     inv_delta_sq = 1.0 / (drift_delta ** 2)
     d_full = state.shape[0]
-    probe_vecs = _generate_probe_vectors(d_full, n_probe_states)
+    if probe_vecs is None:
+        probe_vecs = _generate_probe_vectors(d_full, n_probe_states)
+    n_probe_states = len(probe_vecs)
 
     if unitaries is None:
         unitaries = precompute_unitaries(backend, phase_window_samples, dt_sample)
@@ -319,10 +327,10 @@ def compute_retention_loss(
 # ── SU(2) Equivariance Check ────────────────────────────────────────────
 
 
-def _random_su2() -> torch.Tensor:
+def _random_su2(generator: torch.Generator | None = None) -> torch.Tensor:
     """Sample a Haar-random SU(2) element."""
-    a = torch.randn(2, dtype=torch.float64)
-    b = torch.randn(2, dtype=torch.float64)
+    a = torch.randn(2, dtype=torch.float64, generator=generator)
+    b = torch.randn(2, dtype=torch.float64, generator=generator)
     z1 = torch.complex(a[0], a[1])
     z2 = torch.complex(b[0], b[1])
     norm = torch.sqrt(z1.abs() ** 2 + z2.abs() ** 2)
@@ -362,6 +370,7 @@ def check_su2_equivariance(
     n_qubits: int,
     n_samples: int = 10,
     tolerance: float = 1e-6,
+    su2_elements: list[torch.Tensor] | None = None,
 ) -> tuple[bool, float]:
     """Check E_i ∘ α_g = α_g ∘ E_i for random SU(2) elements (§4.4.2a constraint 2).
 
@@ -376,8 +385,10 @@ def check_su2_equivariance(
     max_violation = 0.0
     k = len(cells[0])
 
-    for _ in range(n_samples):
-        g = _random_su2()
+    if su2_elements is None:
+        su2_elements = [_random_su2() for _ in range(n_samples)]
+
+    for g in su2_elements:
         alpha_g_state = _apply_su2_global(state, g, n_qubits)
 
         for cell in cells:
@@ -410,6 +421,9 @@ def optimize_cells(
     su2_tolerance: float = 1e-6,
     su2_samples: int = 5,
     leakage_tie_tolerance: float = 1e-8,
+    leakage_probe_states: int = 8,
+    drift_probe_states: int = 4,
+    probe_seed: int = 42,
 ) -> dict:
     """Locate the causal gradient flow attractor via exhaustive search (§4.4.2a).
 
@@ -439,6 +453,17 @@ def optimize_cells(
     unitaries = precompute_unitaries(backend, phase_window_samples, dt_sample)
     log.info("Pre-computed %d unitary matrices for phase window.", len(unitaries))
 
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(probe_seed)
+    d_full = state.shape[0]
+    leakage_probes = _generate_probe_vectors(
+        d_full, leakage_probe_states, generator=generator
+    )
+    drift_probes = _generate_probe_vectors(
+        d_full, drift_probe_states, generator=generator
+    )
+    su2_elements = [_random_su2(generator=generator) for _ in range(su2_samples)]
+
     results: list[dict] = []
     n_admissible = 0
 
@@ -446,6 +471,7 @@ def optimize_cells(
         su2_ok, su2_max_viol = check_su2_equivariance(
             cells, state, backend, n_qubits,
             n_samples=su2_samples, tolerance=su2_tolerance,
+            su2_elements=su2_elements,
         )
         if not su2_ok:
             log.debug("Partition %d: SU(2) FAIL (max_viol=%.2e)", idx, su2_max_viol)
@@ -464,6 +490,7 @@ def optimize_cells(
             cells, state, backend, edges, coupling_J,
             phase_window_width, phase_window_samples,
             unitaries=unitaries,
+            probe_vecs=leakage_probes,
         )
 
         results.append({
@@ -509,6 +536,7 @@ def optimize_cells(
             r["drift"] = compute_drift(
                 r["cells"], state, backend,
                 phase_window_width, phase_window_samples, drift_delta,
+                probe_vecs=drift_probes,
             )
         tied.sort(key=lambda r: r["drift"])
     else:

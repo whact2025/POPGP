@@ -5,6 +5,11 @@
 **Status:** Architecture Complete / Baseline Pipeline Operational / Examples Validated / Gravity Well Tested  
 **Scope:** Recursive audit of theory–code alignment and phased build plan for a framework-strict simulator
 
+> **Historical planning snapshot.** Headline status and validation claims in this
+> document predate the scientific-hardening audit. Current source-law,
+> topology-recovery, backend, and geometry limitations are authoritative in
+> `docs/scientific_hardening/`.
+
 ---
 
 ## Table of Contents

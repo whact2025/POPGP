@@ -2,16 +2,17 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 """
-Gravity Well: Does the clock potential behave like a gravitational field?
+Clock constraint: localized Green-function sign test.
 
-This example tests the central claim that connects POPGP to Newtonian
-gravity.  On a 3x3 Heisenberg grid we:
+This example validates the finite-graph constraint solver and the proposed
+clock/redshift sign convention. It does not validate a physical source law
+or derive a Newtonian limit. On a 3x3 Heisenberg grid we:
 
 1. Run the full quantum pipeline to build the MI-weighted graph Laplacian.
-2. Inject a localized source at the center cell.
+2. Inject a small negative localized diagnostic source at the center cell.
 3. Solve (Delta_w + mu^2 I) Phi = delta_rho  with small mu > 0.
-4. Check whether Phi decreases monotonically with graph distance from
-   the source (the discrete analog of the 2D gravitational potential).
+4. Check that Phi is most negative at the source, clocks there are slower,
+   and the emitter-to-boundary redshift is positive.
 
 The 3D gravity-well visualization requires a larger grid (N >> 9) to
 produce a smooth surface.  It will be enabled once the mean-field GPU
@@ -21,7 +22,7 @@ Run:
     uv run python -m examples.physics_qg.gravity_well
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -60,7 +61,7 @@ D_star = result.pi_geom.D_star
 if D_star < 2:
     coords = _Sim._classical_mds(result.pi_loc.distance_matrix, 2).numpy()
 
-edges = sim.backend.build_edges()
+edges = result.pi_loc.edges
 w = result.pi_loc.weight_matrix
 
 # ── Graph distances from center (BFS) ───────────────────────────────────
@@ -83,12 +84,12 @@ while queue:
             queue.append(nb)
 graph_dist = np.array(graph_dist, dtype=float)
 
-print(f"\nCenter cell (mass source): {center}")
+print(f"\nCenter cell (diagnostic source): {center}")
 print(f"Graph distances: {dict(enumerate(graph_dist.astype(int).tolist()))}")
 
 # ── Natural source: Phi from the framework's entropy-contrast delta_rho ──
 
-print("\n=== Test 1: Framework Source (entropy contrast) ===")
+print("\n=== Test 1: Non-physical pipeline placeholder ===")
 if result.pi_time is not None:
     phi_natural = result.pi_time.phi.numpy()
     print(f"Phi range: [{phi_natural.min():.4f}, {phi_natural.max():.4f}]")
@@ -98,20 +99,29 @@ else:
 
 # ── Localized source: inject a point mass at the center ──────────────────
 
-print("\n=== Test 2: Localized Point Source (gravity test) ===")
-
-L = torch.diag(w.sum(dim=1)) - w
+print("\n=== Test 2: Negative localized Green-function source ===")
 
 delta_rho_point = torch.zeros(N)
-delta_rho_point[center] = 1.0
+POINT_SOURCE_STRENGTH = -0.01
+delta_rho_point[center] = POINT_SOURCE_STRENGTH
 
 MU = 0.1
-A = L + MU**2 * torch.eye(N)
-phi_point = torch.linalg.solve(A, delta_rho_point).numpy()
+phi_point_tensor, effective_source, source_background, constraint_residual = (
+    Simulator._solve_clock_constraint(
+        w,
+        delta_rho_point,
+        mu=MU,
+        zero_mode_policy="subtract_mean",
+        normalize_potential=True,
+    )
+)
+phi_point = phi_point_tensor.numpy()
 
 print(f"mu (mass parameter): {MU}")
+print(f"source strength: {POINT_SOURCE_STRENGTH}")
 print(f"Phi range: [{phi_point.min():.4f}, {phi_point.max():.4f}]")
 print(f"Phi at center (source): {phi_point[center]:.4f}")
+print(f"constraint residual: {constraint_residual:.3e}")
 
 # ── Radial profile by graph distance ─────────────────────────────────────
 
@@ -137,9 +147,9 @@ radial_std = np.array(radial_std)
 # ── Monotonicity test ────────────────────────────────────────────────────
 
 print("\n--- Monotonicity Test ---")
-monotonic = all(radial_phi[i] > radial_phi[i+1]
+monotonic = all(radial_phi[i] < radial_phi[i+1]
                 for i in range(len(radial_phi) - 1))
-print(f"Phi decreases monotonically with graph distance: "
+print(f"Phi increases monotonically away from the negative well: "
       f"{'PASS' if monotonic else 'FAIL'}")
 
 # ── Symmetry test ────────────────────────────────────────────────────────
@@ -150,7 +160,8 @@ for d_val in unique_d:
     mask = graph_dist == d_val
     vals = phi_point[mask]
     if len(vals) > 1:
-        spread = (vals.max() - vals.min()) / abs(vals.mean()) * 100
+        scale = max(float(np.max(np.abs(vals))), 1e-12)
+        spread = (vals.max() - vals.min()) / scale * 100
         max_asymmetry = max(max_asymmetry, spread)
         print(f"  d={int(d_val)}: spread = {spread:.2f}% of mean")
 
@@ -177,7 +188,7 @@ if fit_mask.sum() >= 2:
 
     print(f"Fit: Phi = {slope:.4f} * log(d) + {intercept:.4f}")
     print(f"R-squared: {r_squared:.4f}")
-    print(f"Expected: negative slope (Phi decays with distance)")
+    print("Expected: positive slope (Phi rises away from a negative source)")
     print(f"Note: only {int(fit_mask.sum())} radial shells -- "
           f"log(r) convergence requires N >> 9")
 else:
@@ -189,17 +200,21 @@ else:
 print("\n--- Gravitational Redshift ---")
 phi_at_source = phi_point[center]
 phi_at_boundary = radial_phi[-1]
-z = np.exp(phi_at_source - phi_at_boundary) - 1
+z = Simulator.gravitational_redshift(
+    phi_emitter=phi_at_source,
+    phi_observer=phi_at_boundary,
+)
 print(f"Phi(source) = {phi_at_source:.4f},  Phi(boundary) = {phi_at_boundary:.4f}")
-print(f"Redshift factor: 1+z = exp(Delta Phi) = {1+z:.4f}  (z = {z:.4f})")
-print(f"Clocks at center tick {z*100:.1f}% faster than at boundary.")
+print(f"Redshift factor: 1+z = exp(Phi_obs-Phi_emit) = {1+z:.4f}  (z = {z:.4f})")
+clock_ratio = np.exp(phi_at_source - phi_at_boundary)
+print(f"Source clock rate / boundary clock rate: {clock_ratio:.4f} (slower).")
 
 # ── Summary verdict ──────────────────────────────────────────────────────
 
 overall_pass = monotonic and symmetric
 print(f"\n{'='*50}")
 print(f"OVERALL: {'PASS' if overall_pass else 'FAIL'}")
-print(f"  Monotonic falloff: {'PASS' if monotonic else 'FAIL'}")
+print(f"  Monotonic recovery from well: {'PASS' if monotonic else 'FAIL'}")
 print(f"  Grid symmetry:     {'PASS' if symmetric else 'FAIL'}")
 print(f"{'='*50}")
 
@@ -213,10 +228,10 @@ phi_grid = phi_point.reshape(HEIGHT, WIDTH)
 fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
 
 ax1 = axes[0]
-im1 = ax1.imshow(phi_grid, cmap="inferno", origin="lower",
+im1 = ax1.imshow(phi_grid, cmap="viridis", origin="lower",
                   interpolation="bilinear")
 fig.colorbar(im1, ax=ax1, label="Phi (Clock-Rate Potential)")
-ax1.set_title("Emergent Gravitational Potential (Point Source)")
+ax1.set_title("Clock Potential (Negative Diagnostic Source)")
 for iy in range(HEIGHT):
     for ix in range(WIDTH):
         val = phi_grid[iy, ix]
@@ -277,7 +292,7 @@ for i, j in edges:
     ax3.plot([coords[i, 0], coords[j, 0]], [coords[i, 1], coords[j, 1]],
              "k-", alpha=0.3, linewidth=1)
 
-sc = ax3.scatter(coords[:, 0], coords[:, 1], c=phi_point, cmap="inferno",
+sc = ax3.scatter(coords[:, 0], coords[:, 1], c=phi_point, cmap="viridis",
                  s=200, zorder=5, edgecolors="black", linewidths=1)
 fig2.colorbar(sc, ax=ax3, label="Phi (Clock-Rate Potential)")
 ax3.scatter(coords[center, 0], coords[center, 1], marker="*", s=300,
@@ -297,7 +312,7 @@ ax3.text(
     bbox=dict(boxstyle="round,pad=0.4", fc=verdict_color_emb, alpha=0.9),
 )
 
-ax3.set_title("Gravitational Potential on Emergent Geometry")
+ax3.set_title("Clock Constraint on Inferred Correlation Geometry")
 ax3.axis("equal")
 ax3.grid(True, linestyle=":", alpha=0.5)
 fig2.tight_layout()
@@ -312,17 +327,17 @@ if phi_natural is not None:
     im4 = ax4.imshow(phi_natural.reshape(HEIGHT, WIDTH), cmap="inferno",
                       origin="lower", interpolation="bilinear")
     fig3.colorbar(im4, ax=ax4, label="Phi")
-    ax4.set_title("Framework Source (entropy contrast)")
+    ax4.set_title("Pipeline Placeholder (von Neumann entropy)")
     for iy in range(HEIGHT):
         for ix in range(WIDTH):
             val = phi_natural[iy * WIDTH + ix]
             ax4.text(ix, iy, f"{val:.1f}", ha="center", va="center",
                      fontsize=9, fontweight="bold", color="white")
 
-    im5 = ax5.imshow(phi_grid, cmap="inferno", origin="lower",
+    im5 = ax5.imshow(phi_grid, cmap="viridis", origin="lower",
                       interpolation="bilinear")
     fig3.colorbar(im5, ax=ax5, label="Phi")
-    ax5.set_title("Localized Point Source")
+    ax5.set_title("Negative Diagnostic Source")
     for iy in range(HEIGHT):
         for ix in range(WIDTH):
             val = phi_grid[iy, ix]
@@ -331,7 +346,7 @@ if phi_natural is not None:
     ax5.scatter([center % WIDTH], [center // WIDTH], marker="*", s=200,
                 color="cyan", edgecolors="white", linewidths=1, zorder=5)
 
-    fig3.suptitle("Clock Potential: Distributed vs Localized Source", fontsize=13)
+    fig3.suptitle("Clock Potential: Placeholder vs Green-Function Test", fontsize=13)
     fig3.tight_layout()
     fig3.savefig(results / "source_comparison.png", dpi=150)
     print(f"Saved: {results / 'source_comparison.png'}")
@@ -340,8 +355,10 @@ if phi_natural is not None:
 
 report = {
     "example": "gravity_well",
-    "framework_version": "0.10",
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "scientific_status": "numerical_green_function_diagnostic",
+    "framework_version": "1.0-submission-draft",
+    "package_version": "0.1.0",
+    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -352,6 +369,7 @@ report = {
         "I_0": cfg.pi_loc.I_0,
         "lambda_dim": cfg.pi_geom.lambda_dim,
         "mu": MU,
+        "point_source_strength": POINT_SOURCE_STRENGTH,
         "center_cell": int(center),
         "use_exact_backend": cfg.use_exact_backend,
     },
@@ -360,6 +378,9 @@ report = {
             "D_spectral": float(result.pi_geom.D_spectral),
             "D_star": int(result.pi_geom.D_star),
             "stress": float(result.pi_geom.stress),
+            "embedding_status": result.pi_geom.embedding_status,
+            "metric_diagnostics": result.pi_geom.metric_diagnostics,
+            "complex_status": result.pi_geom.complex_status,
         },
         "pi_time_natural": {
             "phi": phi_natural.tolist() if phi_natural is not None else None,
@@ -367,6 +388,11 @@ report = {
             "phi_max": float(phi_natural.max()) if phi_natural is not None else None,
         },
         "gravity_test": {
+            "scientific_status": "numerical_green_function_diagnostic",
+            "physical_source_law_validated": False,
+            "effective_source": effective_source.tolist(),
+            "source_background": float(source_background),
+            "constraint_residual": float(constraint_residual),
             "phi_point": phi_point.tolist(),
             "phi_min": float(phi_point.min()),
             "phi_max": float(phi_point.max()),
@@ -393,15 +419,18 @@ report = {
     "checks": [
         {
             "name": "monotonic_falloff",
-            "description": "Phi decreases monotonically with graph distance from the mass source",
+            "description": "Phi rises monotonically away from the negative diagnostic source",
             "framework_section": "4.4.5 / 5.1",
-            "criterion": "Phi(d) > Phi(d+1) for all consecutive shells",
+            "criterion": "Phi(d) < Phi(d+1) for all consecutive shells",
             "value": {f"d={int(d)}": float(p) for d, p in zip(radial_d, radial_phi)},
             "passed": monotonic,
         },
         {
             "name": "grid_symmetry",
-            "description": "Cells equidistant from source have equal Phi (lattice symmetry preserved)",
+            "description": (
+                "Cells equidistant from source have equal Phi "
+                "(lattice symmetry preserved)"
+            ),
             "framework_section": "4.4.5",
             "criterion": "max asymmetry < 5%",
             "value": float(max_asymmetry),
@@ -409,16 +438,16 @@ report = {
             "passed": symmetric,
         },
         {
-            "name": "phi_peaked_at_source",
-            "description": "Clock potential is maximal at the mass source cell",
+            "name": "negative_well_at_source",
+            "description": "Clock potential is minimal at the negative source cell",
             "framework_section": "5.1",
-            "criterion": "argmax(phi) == center",
-            "value": {"argmax": int(np.argmax(phi_point)), "center": int(center)},
-            "passed": int(np.argmax(phi_point)) == int(center),
+            "criterion": "argmin(phi) == center",
+            "value": {"argmin": int(np.argmin(phi_point)), "center": int(center)},
+            "passed": int(np.argmin(phi_point)) == int(center),
         },
         {
             "name": "redshift_positive",
-            "description": "Gravitational redshift z > 0 (source clocks tick faster than boundary)",
+            "description": "Emitter in the negative well is redshifted at the boundary",
             "framework_section": "5.1",
             "criterion": "z > 0",
             "value": float(z),

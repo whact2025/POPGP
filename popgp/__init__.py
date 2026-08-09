@@ -8,6 +8,20 @@ import json
 import numpy as np
 import torch
 
+from popgp.capacity import check_capacity_bound, cut_capacity
+from popgp.coarse_grain import enumerate_partitions, optimize_cells
+from popgp.config import (
+    BackendConfig,
+    PiGeomConfig,
+    PiLocConfig,
+    PiResConfig,
+    PiTimeConfig,
+    SimulationConfig,
+    SimulatorConfig,
+    SubstrateConfig,
+)
+from popgp.simulator import Simulator, SimulatorResult
+
 
 class _NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy/torch scalar types."""
@@ -30,22 +44,6 @@ def validation_json(report: dict) -> str:
     """Serialize a validation report to JSON, handling numpy/torch types."""
     return json.dumps(report, indent=2, cls=_NumpyEncoder)
 
-
-from popgp.config import (
-    BackendConfig,
-    PiGeomConfig,
-    PiLocConfig,
-    PiResConfig,
-    PiTimeConfig,
-    SimulationConfig,
-    SimulatorConfig,
-    SubstrateConfig,
-)
-from popgp.simulator import Simulator, SimulatorResult
-
-# Phase 1 modules
-from popgp.coarse_grain import optimize_cells, enumerate_partitions
-from popgp.capacity import cut_capacity, check_capacity_bound
 
 __all__ = [
     # Primary API

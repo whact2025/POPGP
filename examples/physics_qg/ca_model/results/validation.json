@@ -1,7 +1,9 @@
 {
   "example": "ca_model",
-  "framework_version": "0.10",
-  "timestamp": "2026-02-21T20:08:12.125883+00:00",
+  "scientific_status": "phenomenological_analogy",
+  "framework_version": "1.0-submission-draft",
+  "package_version": "0.1.0",
+  "timestamp": "2026-08-09T12:36:27.380938+00:00",
   "config": {
     "width": 10,
     "height": 10,

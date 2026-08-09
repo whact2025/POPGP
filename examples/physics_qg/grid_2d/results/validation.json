@@ -1,7 +1,9 @@
 {
   "example": "grid_2d",
-  "framework_version": "0.10",
-  "timestamp": "2026-02-21T20:08:07.127566+00:00",
+  "scientific_status": "finite_exact_benchmark",
+  "framework_version": "1.0-submission-draft",
+  "package_version": "0.1.0",
+  "timestamp": "2026-08-09T12:49:19.647020+00:00",
   "config": {
     "width": 3,
     "height": 3,
@@ -52,71 +54,332 @@
         9,
         9
       ],
-      "mi_min_positive": 0.021809229627251625,
-      "mi_max": 0.2687913179397583
+      "mi_min_positive": 0.021809228783130852,
+      "mi_max": 0.26879132520316396,
+      "connectivity_method": "adaptive_gap",
+      "connectivity_threshold": 0.15056630839132806,
+      "connectivity_gap_ratio": 2.0483561704524287,
+      "connectivity_separable": true,
+      "inferred_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          8
+        ]
+      ],
+      "held_out_reference_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          8
+        ]
+      ],
+      "edge_precision": 1.0,
+      "edge_recall": 1.0
     },
     "pi_geom": {
-      "D_spectral": 1.0,
+      "D_spectral": 1.4994570653658537,
+      "spectral_diagnostic": "finite_graph_peak",
+      "spectral_peak_time": 2.9885938981756235,
       "D_star": 2,
-      "stress": 0.10806721838779144,
+      "stress": 0.16817254462090145,
+      "objective": 0.1706779769150231,
+      "embedding_status": "geometric_candidate",
+      "selection_margin": 0.05141281373338655,
+      "metric_diagnostics": [
+        {
+          "condition_number": 1867.3289374319597,
+          "relative_residual": 0.0007977093616932065,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "is_proxy_boundary": 1
+        },
+        {
+          "condition_number": 47.11110763820884,
+          "relative_residual": 0.0004373264494968317,
+          "design_rank": 3,
+          "n_constraints": 3
+        },
+        {
+          "condition_number": 1867.3289844156343,
+          "relative_residual": 0.0007977094180027315,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "is_proxy_boundary": 1
+        },
+        {
+          "condition_number": 47.111326617230056,
+          "relative_residual": 0.00043732721930175606,
+          "design_rank": 3,
+          "n_constraints": 3
+        },
+        {
+          "condition_number": 2471.704031769688,
+          "relative_residual": 0.00013621616007478357,
+          "design_rank": 3,
+          "n_constraints": 4
+        },
+        {
+          "condition_number": 47.11142292634852,
+          "relative_residual": 0.0004373252902237734,
+          "design_rank": 3,
+          "n_constraints": 3
+        },
+        {
+          "condition_number": 1867.3313401288144,
+          "relative_residual": 0.0007977092918088511,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "is_proxy_boundary": 1
+        },
+        {
+          "condition_number": 47.11131264489813,
+          "relative_residual": 0.0004373244048844544,
+          "design_rank": 3,
+          "n_constraints": 3
+        },
+        {
+          "condition_number": 1867.3295471477554,
+          "relative_residual": 0.0007977094841717164,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "is_proxy_boundary": 1
+        }
+      ],
+      "complex_status": "embedding_delaunay_proxy",
+      "simplices": [
+        [
+          0,
+          3,
+          6
+        ],
+        [
+          6,
+          7,
+          8
+        ],
+        [
+          5,
+          7,
+          8
+        ],
+        [
+          4,
+          5,
+          7
+        ],
+        [
+          3,
+          6,
+          7
+        ],
+        [
+          3,
+          4,
+          7
+        ],
+        [
+          1,
+          4,
+          5
+        ],
+        [
+          0,
+          1,
+          3
+        ],
+        [
+          1,
+          3,
+          4
+        ],
+        [
+          2,
+          5,
+          8
+        ],
+        [
+          1,
+          2,
+          5
+        ],
+        [
+          0,
+          1,
+          2
+        ]
+      ],
+      "deficit_angles": {
+        "0": 1.5707962270776255,
+        "1": 0.0,
+        "2": 1.5707962564142084,
+        "3": 0.0,
+        "4": 0.0,
+        "5": 0.0,
+        "6": 1.5707965965854358,
+        "7": 0.0,
+        "8": 1.5707962271023166
+      },
       "coords": [
         [
-          -1.6344387531280518,
-          1.5827159881591797
+          -2.4531495571136475,
+          -1.051138997077942
         ],
         [
-          -1.4553123712539673,
-          -9.230741852661595e-05
+          -0.6318334937095642,
+          -1.5792516469955444
         ],
         [
-          -1.6342376470565796,
-          -1.582923173904419
+          1.051138997077942,
+          -2.4531493186950684
         ],
         [
-          -0.06227228790521622,
-          1.5533883571624756
+          -1.5792523622512817,
+          0.6318339109420776
         ],
         [
-          0.017898984253406525,
-          1.0717637906054733e-06
+          -5.7230110428463377e-08,
+          -1.4855297081339813e-07
         ],
         [
-          -0.06207481399178505,
-          -1.553396463394165
+          1.5792522430419922,
+          -0.6318337917327881
         ],
         [
-          1.592000126838684,
-          1.6415871381759644
+          -1.0511393547058105,
+          2.4531502723693848
         ],
         [
-          1.6462267637252808,
-          0.00010445799853187054
+          0.6318337917327881,
+          1.5792523622512817
         ],
         [
-          1.5922091007232666,
-          -1.6413853168487549
+          2.4531495571136475,
+          1.0511391162872314
         ]
       ]
     },
     "pi_time": {
+      "source_model": "von_neumann_placeholder",
+      "source_status": "placeholder",
       "phi": [
-        0.0,
-        6.008162975311279,
-        7.277210235595703,
-        6.0081634521484375,
-        6.99064302444458,
-        7.679549217224121,
-        7.277210235595703,
-        7.679549217224121,
-        8.022126197814941
+        2.2316189743620526e-17,
+        9.104798662627574e-17,
+        1.3694162316904747e-16,
+        -1.3820288022457818e-16,
+        5.04502822212276e-18,
+        9.104798662627574e-17,
+        -9.230924368180644e-17,
+        -1.3820288022457816e-16,
+        2.231618974362056e-17
       ],
-      "phi_min": 0.0,
-      "phi_max": 8.022126197814941,
-      "phi_range": 8.022126197814941,
-      "phi_mean": 6.3269572257995605
+      "phi_min": -1.3820288022457818e-16,
+      "phi_max": 1.3694162316904747e-16,
+      "phi_range": 2.7514450339362562e-16,
+      "phi_mean": 3.0814879110195774e-33,
+      "constraint_residual": 7.401486830834378e-17
     }
   },
   "checks": [
+    {
+      "name": "blind_edge_recovery",
+      "description": "MI-only inference is compared with held-out Hamiltonian edges",
+      "framework_section": "4.4.3",
+      "criterion": "edge precision == 1 and edge recall == 1",
+      "value": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "passed": true
+    },
     {
       "name": "dimension_selection",
       "description": "Complexity-stress functional selects D* = 2 for a 2D grid",
@@ -127,23 +390,23 @@
     },
     {
       "name": "topology_preservation",
-      "description": "In the MDS embedding, graph neighbors of the center node are closer than non-neighbors",
+      "description": "Held-out graph neighbors of the center are closer in the embedding than held-out non-neighbors",
       "framework_section": "4.4.4",
       "criterion": "avg_dist_neighbors < avg_dist_non_neighbors",
       "value": {
         "center_node": 4,
-        "avg_dist_neighbors": 1.5531121492385864,
-        "avg_dist_non_neighbors": 2.281196117401123,
-        "separation_pct": 31.916765213012695
+        "avg_dist_neighbors": 1.7009559869766235,
+        "avg_dist_non_neighbors": 2.6688642501831055,
+        "separation_pct": 36.26667404174805
       },
       "passed": true
     },
     {
-      "name": "spectral_dimension",
-      "description": "Spectral dimension D_S is near 2.0 for a 2D lattice (finite-size effects expected at N=9)",
+      "name": "finite_graph_spectral_peak",
+      "description": "The scale-dependent heat-kernel dimension has a finite-size peak; this is not a continuum spectral-dimension estimate",
       "framework_section": "4.4.4",
-      "criterion": "0.5 <= D_spectral <= 3.0",
-      "value": 1.0,
+      "criterion": "1.0 <= finite_graph_peak <= 2.0",
+      "value": 1.4994570653658537,
       "passed": true
     },
     {
@@ -151,15 +414,15 @@
       "description": "MDS stress is low, indicating faithful embedding",
       "framework_section": "4.4.4",
       "criterion": "stress < 0.5",
-      "value": 0.10806721838779144,
+      "value": 0.16817254462090145,
       "passed": true
     },
     {
-      "name": "clock_potential_computed",
-      "description": "Clock potential Phi was successfully computed",
+      "name": "placeholder_clock_constraint_solved",
+      "description": "The non-physical entropy placeholder produced a low-residual clock-constraint solution",
       "framework_section": "4.4.5",
-      "criterion": "pi_time is not None",
-      "value": true,
+      "criterion": "constraint_residual < 1e-10",
+      "value": 7.401486830834378e-17,
       "passed": true
     }
   ],

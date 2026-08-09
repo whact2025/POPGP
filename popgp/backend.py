@@ -16,8 +16,9 @@ implementations are provided:
 
 * **GPUBackend** — mean-field per-cell amplitudes via the CUDA engine.
   Used when n_qubits > exact_threshold.  Phase-flow is a Trotterized
-  Heisenberg mean-field interaction on the GPU.  MI is approximated
-  by time-averaged Sz correlations.
+  Heisenberg mean-field interaction on the GPU.  Product-state mean field
+  cannot represent entanglement, so mutual information is unsupported and
+  the end-to-end projection pipeline stops explicitly at Π_loc.
 
 Architecture Decision 1: both backends expose the same interface so the
 Simulator class needs no conditional logic.
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from popgp.config import SimulatorConfig
 
 from popgp.engine import Engine
+from popgp.information import quantum_relative_entropy, von_neumann_entropy
 
 log = logging.getLogger(__name__)
 
@@ -166,14 +168,21 @@ class ExactBackend(Backend):
                 result = torch.kron(result, p)
             return result
 
+        if self.config.substrate.hamiltonian not in {"heisenberg", "ising"}:
+            raise NotImplementedError(
+                f"Hamiltonian family {self.config.substrate.hamiltonian!r} is not implemented."
+            )
+
         H = torch.zeros((dim, dim), dtype=torch.complex128)
         J = self.config.substrate.coupling_J
         for i, j in self.build_edges():
-            H += J * (
-                _site_op(_SX, i) @ _site_op(_SX, j)
-                + _site_op(_SY, i) @ _site_op(_SY, j)
-                + _site_op(_SZ, i) @ _site_op(_SZ, j)
-            )
+            interaction = _site_op(_SZ, i) @ _site_op(_SZ, j)
+            if self.config.substrate.hamiltonian == "heisenberg":
+                interaction += (
+                    _site_op(_SX, i) @ _site_op(_SX, j)
+                    + _site_op(_SY, i) @ _site_op(_SY, j)
+                )
+            H += J * interaction
         self._H = H
         return H
 
@@ -263,11 +272,7 @@ class ExactBackend(Backend):
 
     def entropy(self, rho: torch.Tensor) -> float:
         """S(ρ) = −Tr(ρ log ρ)  via eigendecomposition."""
-        evals = torch.linalg.eigvalsh(rho).real
-        evals = evals[evals > 1e-15]
-        if len(evals) == 0:
-            return 0.0
-        return -torch.sum(evals * torch.log(evals)).item()
+        return von_neumann_entropy(rho)
 
     def mutual_information(
         self, state: torch.Tensor, cell_i: list[int], cell_j: list[int]
@@ -283,18 +288,9 @@ class ExactBackend(Backend):
     ) -> float:
         """S(ρ ‖ σ) = Tr[ρ(log ρ − log σ)]  (§6.1).
 
-        Uses eigendecomposition for matrix logarithm.  Eigenvalues are
-        clamped to avoid log(0).
+        Uses eigendecomposition with an exact support-containment check.
         """
-        def _matrix_log(m: torch.Tensor) -> torch.Tensor:
-            evals, evecs = torch.linalg.eigh(m)
-            evals = evals.real.clamp(min=1e-30)
-            return evecs @ torch.diag(torch.log(evals).to(dtype=torch.complex128)) @ evecs.conj().T
-
-        log_rho = _matrix_log(rho)
-        log_sigma = _matrix_log(sigma)
-        result = torch.trace(rho @ (log_rho - log_sigma))
-        return result.real.item()
+        return quantum_relative_entropy(rho, sigma)
 
 
 # ── GPU Backend ─────────────────────────────────────────────────────────
@@ -305,9 +301,9 @@ class GPUBackend(Backend):
     Mean-field GPU backend for N > 12 cells.
 
     Each cell is a single qubit (α, β) evolved by the CUDA phase-flow
-    kernel.  MI is approximated by time-averaged Sz Pearson correlations.
-    This is a pragmatic approximation documented in the analysis —
-    not framework-strict, but necessary for scalability.
+    kernel. Product states contain no entanglement and cannot supply quantum
+    mutual information; this is an experimental dynamics path rather than a
+    scalable implementation of the full projection.
     """
 
     def __init__(self, config: SimulatorConfig) -> None:
@@ -321,6 +317,16 @@ class GPUBackend(Backend):
         )
 
     def _get_engine(self):
+        if self._device.type != "cuda":
+            raise RuntimeError(
+                "GPUBackend evolution requires backend.device='cuda' and a built "
+                "native CUDA engine."
+            )
+        if self.config.substrate.hamiltonian != "heisenberg":
+            raise NotImplementedError(
+                "The native mean-field backend currently implements only "
+                "Heisenberg dynamics."
+            )
         if self._engine is None:
             self._engine = Engine(precision=self.config.backend.precision)
         return self._engine
@@ -335,11 +341,15 @@ class GPUBackend(Backend):
         """Initialize per-cell qubit amplitudes near |0⟩ with perturbation."""
         torch.manual_seed(self.config.substrate.seed)
         N = self._N
-        perturbation = 0.15  # [TUNABLE_HYPERPARAMETER] symmetry-breaking amplitude
-        alphas = torch.ones(N, dtype=torch.complex128, device=self._device)
-        betas = torch.zeros(N, dtype=torch.complex128, device=self._device)
+        perturbation = self.config.backend.initial_perturbation
+        complex_dtype = (
+            torch.complex64 if self.config.backend.precision == "float" else torch.complex128
+        )
+        real_dtype = torch.float32 if self.config.backend.precision == "float" else torch.float64
+        alphas = torch.ones(N, dtype=complex_dtype, device=self._device)
+        betas = torch.zeros(N, dtype=complex_dtype, device=self._device)
         betas += perturbation * torch.randn(
-            N, dtype=torch.float64, device=self._device
+            N, dtype=real_dtype, device=self._device
         )
         norms = torch.sqrt(
             alphas.real**2 + alphas.imag**2 + betas.real**2 + betas.imag**2
@@ -355,6 +365,8 @@ class GPUBackend(Backend):
         if cfg.topology == "chain":
             for i in range(N - 1):
                 edges.append((i, i + 1))
+            if cfg.boundary == "periodic" and N > 2:
+                edges.append((N - 1, 0))
         elif cfg.topology == "grid":
             W = cfg.grid_width or int(np.sqrt(N))
             H = cfg.grid_height or (N // W)
@@ -365,17 +377,49 @@ class GPUBackend(Backend):
                         edges.append((k, y * W + x + 1))
                     if y + 1 < H:
                         edges.append((k, (y + 1) * W + x))
+                    if cfg.boundary == "periodic":
+                        if x == W - 1 and W > 2:
+                            edges.append((k, y * W))
+                        if y == H - 1 and H > 2:
+                            edges.append((k, x))
+        else:
+            raise ValueError(f"Unknown topology: {cfg.topology}")
         return edges
 
     def evolve(self, state: dict, dt: float) -> dict:
-        """One Trotterized mean-field Heisenberg step via CUDA kernel."""
+        """One edge-colored mean-field Heisenberg step via CUDA.
+
+        Edges in a batch never share a node. Launching all lattice edges in a
+        single kernel would race on cell amplitudes and make evolution
+        nondeterministic.
+        """
         engine = self._get_engine()
-        edges = self.build_edges()
-        src = torch.tensor([e[0] for e in edges], dtype=torch.int32, device=self._device)
-        dst = torch.tensor([e[1] for e in edges], dtype=torch.int32, device=self._device)
-        weights = torch.ones(len(edges), dtype=torch.float64, device=self._device)
-        engine.step(state["alphas"], state["betas"], src, dst, weights, dt)
+        real_dtype = torch.float32 if self.config.backend.precision == "float" else torch.float64
+        for edges in self._edge_color_batches(self.build_edges()):
+            src = torch.tensor([e[0] for e in edges], dtype=torch.int32, device=self._device)
+            dst = torch.tensor([e[1] for e in edges], dtype=torch.int32, device=self._device)
+            weights = torch.ones(len(edges), dtype=real_dtype, device=self._device)
+            engine.step(state["alphas"], state["betas"], src, dst, weights, dt)
         return state
+
+    @staticmethod
+    def _edge_color_batches(
+        edges: list[tuple[int, int]],
+    ) -> list[list[tuple[int, int]]]:
+        """Greedily partition edges into node-disjoint launch batches."""
+        batches: list[list[tuple[int, int]]] = []
+        occupied: list[set[int]] = []
+        for edge in edges:
+            nodes = set(edge)
+            for batch, used in zip(batches, occupied, strict=True):
+                if nodes.isdisjoint(used):
+                    batch.append(edge)
+                    used.update(nodes)
+                    break
+            else:
+                batches.append([edge])
+                occupied.append(set(nodes))
+        return batches
 
     def reduced_state(
         self, state: dict, cell_indices: list[int]
@@ -392,34 +436,20 @@ class GPUBackend(Backend):
         return torch.outer(psi, psi.conj())
 
     def entropy(self, rho: torch.Tensor) -> float:
-        evals = torch.linalg.eigvalsh(rho).real
-        evals = evals[evals > 1e-15]
-        if len(evals) == 0:
-            return 0.0
-        return -torch.sum(evals * torch.log(evals)).item()
+        return von_neumann_entropy(rho)
 
     def mutual_information(
         self, state: dict, cell_i: list[int], cell_j: list[int]
     ) -> float:
-        """Approximate MI via Sz correlation (mean-field proxy, not framework-strict)."""
-        a_i, b_i = state["alphas"][cell_i[0]], state["betas"][cell_i[0]]
-        a_j, b_j = state["alphas"][cell_j[0]], state["betas"][cell_j[0]]
-        sz_i = (abs(a_i) ** 2 - abs(b_i) ** 2).item()
-        sz_j = (abs(a_j) ** 2 - abs(b_j) ** 2).item()
-        return abs(sz_i * sz_j)
+        raise NotImplementedError(
+            "GPUBackend evolves a product-state mean field and cannot compute mutual information. "
+            "A connected-correlation or tensor-network backend is required for Π_loc."
+        )
 
     def araki_relative_entropy(
         self, rho: torch.Tensor, sigma: torch.Tensor
     ) -> float:
-        def _matrix_log(m: torch.Tensor) -> torch.Tensor:
-            evals, evecs = torch.linalg.eigh(m)
-            evals = evals.real.clamp(min=1e-30)
-            return evecs @ torch.diag(torch.log(evals).to(dtype=torch.complex128)) @ evecs.conj().T
-
-        log_rho = _matrix_log(rho)
-        log_sigma = _matrix_log(sigma)
-        result = torch.trace(rho @ (log_rho - log_sigma))
-        return result.real.item()
+        return quantum_relative_entropy(rho, sigma)
 
 
 # ── Factory ─────────────────────────────────────────────────────────────

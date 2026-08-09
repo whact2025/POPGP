@@ -6,6 +6,12 @@
 **Date:** February 2026  
 **Status:** Conceptual Proposal
 
+> **Historical concept document.** Performance and physics statements below are
+> architectural goals, not measured results. In particular, O(area) scaling,
+> large-system MI geometry, and seamless multiscale behavior have not been
+> demonstrated. The mean-field CUDA backend cannot compute mutual information.
+> See `docs/scientific_hardening/` for current implementation status.
+
 ---
 
 ## Abstract

@@ -3,6 +3,17 @@
 Author: Richard Fuoco  
 Date: 2026-02-21
 
+> **Scientific-status note (2026-08-09):** This is a theoretical submission draft.
+> Its unique projection, 3+1-dimensional recovery, GR/QFT closure, Lorentz recovery,
+> and singularity claims are hypotheses or requirements, not completed results. The
+> companion code currently supports finite exact tests of partition ranking, blind
+> recovery of encoded chain/grid locality, MDS dimension selection, and a numerical
+> graph clock constraint, local SPD embedding fits, and a 2D angle-deficit proxy. It
+> does not implement QCMI filtering, intrinsic Regge/Einstein closure, or a validated
+> physical Araki/KMS source. Perturbative tests reject raw
+> relative entropy as a standalone linear source. See
+> `docs/scientific_hardening/CLAIMS_MATRIX.md` for the current evidence boundary.
+
 ## Abstract
 We propose an atemporal, pre-geometric substrate described purely by relational/algebraic structure. A compact internal SU(2)-like symmetry and a distinguished phase/action ordering generator are taken as primitive. A unique, necessary physical projection map yields an emergent manifold-like spatial structure (with effective dimension $D^*\approx 3$ in our regime), objective time-order (as a metric on phase order), and a finite distinguishability bound expressed in terms of a boundary cut-capacity functional (expected to reproduce an area-law in low-distortion manifold regimes). Quantum discreteness is treated as emergent from stable representation content under projection constraints, while gravitational geometry is defined as the output of the projection’s correlation-based embedding and clock-rate reconstruction. In empirically accessed regimes the framework is required to recover standard General Relativity and quantum field theoretic predictions. Possible additional operational access to nonlocal substrate correlations (including any potential signaling via entanglement “junctions”) is formulated as a constrained open module rather than assumed a priori.
 

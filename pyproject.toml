@@ -19,5 +19,25 @@ dependencies = [
     "pyvista",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.11",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "scientific: scientific regression or falsification tests",
+    "slow: tests that perform exact diagonalization or combinatorial search",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["popgp"]
