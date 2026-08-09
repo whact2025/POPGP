@@ -1,0 +1,1299 @@
+{
+  "example": "source_law_many_body",
+  "framework_version": "1.0-submission-draft",
+  "package_version": "0.1.0",
+  "scientific_status": "feasible_candidate_not_validated_physical_law",
+  "hypothesis": "For the non-affine family rho(epsilon) proportional to exp[-beta(H+epsilon V)], a localized finite-chain perturbation has nonzero first-order modular/energy susceptibility while relative entropy converges quadratically. The order is family-specific.",
+  "config": {
+    "n_sites": 5,
+    "hamiltonian": "heisenberg",
+    "topology": "chain",
+    "interaction_graph_supplied": true,
+    "boundary": "open",
+    "beta": 1.3,
+    "declared_sensitivity_beta_max": 3.0,
+    "center_site": 2,
+    "response_family": "non-affine finite KMS family of H + epsilon V",
+    "perturbation": "V = -h_center",
+    "dynamics_control": "full local Pauli-X quench",
+    "isospectral_control": "exp(-i theta X_center) rho exp(i theta X_center)",
+    "local_energy_convention": "split each pair term equally between endpoints",
+    "epsilons": [
+      1e-05,
+      1.778279410038923e-05,
+      3.1622776601683795e-05,
+      5.623413251903491e-05,
+      0.0001,
+      0.00017782794100389227,
+      0.00031622776601683794,
+      0.0005623413251903491,
+      0.001
+    ],
+    "diagnostic_source_epsilon": 0.01,
+    "evolution_times": [
+      0.0,
+      0.2,
+      0.5,
+      1.0,
+      2.0
+    ],
+    "clock_mu": 0.1,
+    "clock_zero_mode_policy": "subtract_mean"
+  },
+  "measurements": {
+    "relative_entropy": [
+      7.783995670251898e-12,
+      2.461542081277912e-11,
+      7.784306532698793e-11,
+      2.461622017335685e-10,
+      7.784390909648664e-10,
+      2.4616766403084966e-09,
+      7.784691558043733e-09,
+      2.461838333189803e-08,
+      7.78559492431441e-08
+    ],
+    "modular_energy": [
+      2.5690171597561048e-06,
+      4.568436834449669e-06,
+      8.123977759497304e-06,
+      1.444676752431389e-05,
+      2.569059524398254e-05,
+      4.568570801732711e-05,
+      8.124401393834249e-05,
+      0.00014448107120283317,
+      0.0002569483110954724
+    ],
+    "entropy_change": [
+      2.56900937545268e-06,
+      4.568412217853535e-06,
+      8.123899916334665e-06,
+      1.4446521361843878e-05,
+      2.5689816804508325e-05,
+      4.568324633913434e-05,
+      8.123622924660623e-05,
+      0.0001444564528187975,
+      0.0002568704551455525
+    ],
+    "total_energy_change": [
+      1.9761670447988877e-06,
+      3.5141821794898442e-06,
+      6.249213659795423e-06,
+      1.1112898096526588e-05,
+      1.976199634326492e-05,
+      3.514285232065952e-05,
+      6.249539533607473e-05,
+      0.00011113928554089096,
+      0.00019765254699575553
+    ],
+    "local_energy_profiles": [
+      [
+        -1.0474925265331267e-07,
+        4.940417611875789e-07,
+        1.1975820276245372e-06,
+        4.94041761211865e-07,
+        -1.0474925257178067e-07
+      ],
+      [
+        -1.8627324163819278e-07,
+        8.785455448368992e-07,
+        2.129637573106743e-06,
+        8.785455449080229e-07,
+        -1.8627324172362791e-07
+      ],
+      [
+        -3.312452467275559e-07,
+        1.5623034149230518e-06,
+        3.787097323347619e-06,
+        1.5623034149746598e-06,
+        -3.3124524672235173e-07
+      ],
+      [
+        -5.89044628852755e-07,
+        2.7782245241554995e-06,
+        6.73453830600957e-06,
+        2.7782245241077946e-06,
+        -5.89044628893521e-07
+      ],
+      [
+        -1.0474796967991067e-06,
+        4.940499085751178e-06,
+        1.1975957565161285e-05,
+        4.940499085881282e-06,
+        -1.0474796967297178e-06
+      ],
+      [
+        -1.8626918488779277e-06,
+        8.78571308014428e-06,
+        2.1296809858069136e-05,
+        8.78571308018548e-06,
+        -1.8626918488614478e-06
+      ],
+      [
+        -3.312324167795578e-06,
+        1.5623848834035378e-05,
+        3.7872346003692704e-05,
+        1.5623848834001985e-05,
+        -3.3123241678597627e-06
+      ],
+      [
+        -5.8900405233836255e-06,
+        2.7784821385165928e-05,
+        6.734972381722748e-05,
+        2.7784821385279553e-05,
+        -5.890040523398371e-06
+      ],
+      [
+        -1.0473513530749384e-05,
+        4.941313674890549e-05,
+        0.00011977330055934921,
+        4.9413136748972276e-05,
+        -1.0473513530722062e-05
+      ]
+    ],
+    "potential_amplitudes": [
+      1.1632345137964148e-06,
+      2.068557739669324e-06,
+      3.678479185970124e-06,
+      6.541381343639807e-06,
+      1.1632459243208874e-05,
+      2.068593821651718e-05,
+      3.678593281005862e-05,
+      6.54174211097415e-05,
+      0.00011633599906902184
+    ],
+    "fits": {
+      "relative_entropy": {
+        "slope": 2.000037751119905,
+        "intercept": -2.5526820172339653,
+        "slope_standard_error": 5.7067375995714995e-06,
+        "r_squared": 0.9999999999430101
+      },
+      "modular_energy": {
+        "slope": 1.0000333334890334,
+        "intercept": -1.3587102650890377,
+        "slope_standard_error": 7.4563635203345425e-06,
+        "r_squared": 0.9999999996108444
+      },
+      "total_energy": {
+        "slope": 1.0000333335872473,
+        "intercept": -1.621074528753275,
+        "slope_standard_error": 7.456339007654057e-06,
+        "r_squared": 0.999999999610847
+      },
+      "potential_amplitude": {
+        "slope": 1.000019825843085,
+        "intercept": -2.151171572509784,
+        "slope_standard_error": 4.434503290352361e-06,
+        "r_squared": 0.9999999998623518
+      }
+    },
+    "relative_entropy_full_asymptote": {
+      "coefficient": 0.07784175639247233,
+      "coefficient_standard_error": 4.5733533859932914e-07,
+      "linear_correction": 0.014665688575294964,
+      "normalized_rmse": 1.211852135874599e-05
+    },
+    "relative_entropy_lower_asymptote": {
+      "coefficient": 0.07784097711986272,
+      "coefficient_standard_error": 6.766372559274278e-07,
+      "linear_correction": 0.02601823279384375,
+      "normalized_rmse": 1.1551797253615383e-05
+    },
+    "nonaffine_midpoint_deviation": 3.265862819235058e-07,
+    "evolved_local_energy_profiles": [
+      [
+        -1.3140530330524314e-16,
+        0.1699873464327822,
+        0.3399746928655647,
+        0.16998734643278218,
+        -1.7737547541862853e-16
+      ],
+      [
+        0.0018418707103957854,
+        0.1699873464327823,
+        0.336290951444773,
+        0.1699873464327822,
+        0.001841870710395749
+      ],
+      [
+        0.011231113761445265,
+        0.16998734643278224,
+        0.31751246534267397,
+        0.1699873464327822,
+        0.011231113761445217
+      ],
+      [
+        0.041062771239299356,
+        0.1699873464327822,
+        0.2578491503869658,
+        0.16998734643278215,
+        0.04106277123929931
+      ],
+      [
+        0.11163059844803253,
+        0.16998734643278224,
+        0.11671349596949952,
+        0.16998734643278224,
+        0.1116305984480325
+      ]
+    ],
+    "evolved_total_energy": [
+      0.6799493857311287,
+      0.6799493857311287,
+      0.6799493857311287,
+      0.6799493857311287,
+      0.6799493857311287
+    ],
+    "order_sensitivity": [
+      {
+        "n_sites": 5,
+        "hamiltonian": "heisenberg",
+        "beta": 0.3,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.004737795529920064,
+          "coefficient_standard_error": 9.411906820049276e-07,
+          "linear_correction": -0.0011525242033803321,
+          "normalized_rmse": 0.0004097592851076748
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.004738515146437267,
+          "coefficient_standard_error": 1.7175466138246775e-06,
+          "linear_correction": -0.012045670605046275,
+          "normalized_rmse": 0.000481690620381564
+        },
+        "coefficient_difference": 7.196165172033281e-07,
+        "three_sigma_coefficient_tolerance": 5.875564350339604e-06,
+        "modular_energy_fit": {
+          "slope": 0.9999963347196508,
+          "intercept": -3.9741409524484457,
+          "slope_standard_error": 8.197962333040276e-07,
+          "r_squared": 0.9999999999952955
+        },
+        "slope_deviation": 3.6652803492298602e-06,
+        "five_sigma_slope_tolerance": 4.098981166520138e-06,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "heisenberg",
+        "beta": 1.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.05172445706400744,
+          "coefficient_standard_error": 2.2066740409983086e-06,
+          "linear_correction": -0.0021888443768011273,
+          "normalized_rmse": 8.799738038351088e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.0517278797510951,
+          "coefficient_standard_error": 3.4477021560346066e-06,
+          "linear_correction": -0.052607866196276935,
+          "normalized_rmse": 8.85741499484292e-05
+        },
+        "coefficient_difference": 3.4226870876605253e-06,
+        "three_sigma_coefficient_tolerance": 1.2280250173326002e-05,
+        "modular_energy_fit": {
+          "slope": 1.0000149951213826,
+          "intercept": -1.681613348141522,
+          "slope_standard_error": 3.3540593136697336e-06,
+          "r_squared": 0.9999999999212543
+        },
+        "slope_deviation": 1.4995121382588295e-05,
+        "five_sigma_slope_tolerance": 1.677029656834867e-05,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "heisenberg",
+        "beta": 2.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.1242421512621763,
+          "coefficient_standard_error": 4.7510887481186643e-07,
+          "linear_correction": 0.05001697105087275,
+          "normalized_rmse": 7.887723507490936e-06
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.12424280340925538,
+          "coefficient_standard_error": 7.796582752192424e-07,
+          "linear_correction": 0.0404571276401264,
+          "normalized_rmse": 8.339403371537094e-06
+        },
+        "coefficient_difference": 6.521470790749051e-07,
+        "three_sigma_coefficient_tolerance": 2.739043486581689e-06,
+        "modular_energy_fit": {
+          "slope": 1.0000933341165075,
+          "intercept": -1.2244295310833713,
+          "slope_standard_error": 2.087899313946785e-05,
+          "r_squared": 0.9999999969490431
+        },
+        "slope_deviation": 9.333411650747081e-05,
+        "five_sigma_slope_tolerance": 0.00010439496569733925,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "heisenberg",
+        "beta": 3.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.1612711837883576,
+          "coefficient_standard_error": 8.117371955953594e-07,
+          "linear_correction": 0.09959476919497665,
+          "normalized_rmse": 1.0382123035765568e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.16127155194546802,
+          "coefficient_standard_error": 1.5209705790455753e-06,
+          "linear_correction": 0.09433645685908987,
+          "normalized_rmse": 1.25332868177633e-05
+        },
+        "coefficient_difference": 3.6815711040860677e-07,
+        "three_sigma_coefficient_tolerance": 5.1720807218485346e-06,
+        "modular_energy_fit": {
+          "slope": 1.000247965300423,
+          "intercept": -1.7983203091949826,
+          "slope_standard_error": 5.546633184236987e-05,
+          "r_squared": 0.9999999784750789
+        },
+        "slope_deviation": 0.00024796530042303644,
+        "five_sigma_slope_tolerance": 0.00027733165921184935,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "ising",
+        "beta": 0.3,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.001398905580817053,
+          "coefficient_standard_error": 4.945133218350999e-07,
+          "linear_correction": -0.0007969073959077679,
+          "normalized_rmse": 0.0007291503544991517
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.0013993654529742688,
+          "coefficient_standard_error": 8.835322451432318e-07,
+          "linear_correction": -0.0075734646612063096,
+          "normalized_rmse": 0.0008390603257350972
+        },
+        "coefficient_difference": 4.5987215721576824e-07,
+        "three_sigma_coefficient_tolerance": 3.0375243016512676e-06,
+        "modular_energy_fit": {
+          "slope": 1.0000005108932393,
+          "intercept": -5.186148651738906,
+          "slope_standard_error": 1.1426025575944137e-07,
+          "r_squared": 0.9999999999999086
+        },
+        "slope_deviation": 5.108932392694499e-07,
+        "five_sigma_slope_tolerance": 5.713012787972068e-07,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "ising",
+        "beta": 1.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.014687256262589609,
+          "coefficient_standard_error": 3.021971538698579e-07,
+          "linear_correction": 0.0013180508650623617,
+          "normalized_rmse": 4.244017789568905e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.014686831337538354,
+          "coefficient_standard_error": 4.920187056435811e-07,
+          "linear_correction": 0.007589385303685982,
+          "normalized_rmse": 4.4520028837199705e-05
+        },
+        "coefficient_difference": 4.249250512549513e-07,
+        "three_sigma_coefficient_tolerance": 1.7322383607898908e-06,
+        "modular_energy_fit": {
+          "slope": 1.0000055697564985,
+          "intercept": -2.8343893021909263,
+          "slope_standard_error": 1.2459685091854314e-06,
+          "r_squared": 0.999999999989133
+        },
+        "slope_deviation": 5.569756498458034e-06,
+        "five_sigma_slope_tolerance": 6.229842545927157e-06,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "ising",
+        "beta": 2.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.04915170830906474,
+          "coefficient_standard_error": 8.049668902310595e-07,
+          "linear_correction": 0.009469250673910804,
+          "normalized_rmse": 3.3780564217199876e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.04915066891289939,
+          "coefficient_standard_error": 1.3463516586947128e-06,
+          "linear_correction": 0.02466304575824653,
+          "normalized_rmse": 3.640248296633534e-05
+        },
+        "coefficient_difference": 1.0393961653518136e-06,
+        "three_sigma_coefficient_tolerance": 4.705922900892491e-06,
+        "modular_energy_fit": {
+          "slope": 1.0000210188957863,
+          "intercept": -1.6263006209152642,
+          "slope_standard_error": 4.702004719828421e-06,
+          "r_squared": 0.9999999998452446
+        },
+        "slope_deviation": 2.101889578631777e-05,
+        "five_sigma_slope_tolerance": 2.3510023599142104e-05,
+        "passed": true
+      },
+      {
+        "n_sites": 5,
+        "hamiltonian": "ising",
+        "beta": 3.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.08389369866039262,
+          "coefficient_standard_error": 4.943131940446944e-07,
+          "linear_correction": 0.028399582485033912,
+          "normalized_rmse": 1.2153471845886585e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.08389274419879303,
+          "coefficient_standard_error": 6.60670903273764e-07,
+          "linear_correction": 0.04232717411705304,
+          "normalized_rmse": 1.0465565736656415e-05
+        },
+        "coefficient_difference": 9.544615995893402e-07,
+        "three_sigma_coefficient_tolerance": 2.4753755646675415e-06,
+        "modular_energy_fit": {
+          "slope": 1.000043335267927,
+          "intercept": -1.091437081793879,
+          "slope_standard_error": 9.694440851791014e-06,
+          "r_squared": 0.9999999993421818
+        },
+        "slope_deviation": 4.3335267926991605e-05,
+        "five_sigma_slope_tolerance": 4.8472204258955066e-05,
+        "passed": true
+      },
+      {
+        "n_sites": 3,
+        "hamiltonian": "heisenberg",
+        "beta": 1.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.053668565182812746,
+          "coefficient_standard_error": 3.8758122648879363e-07,
+          "linear_correction": 0.00329072753496163,
+          "normalized_rmse": 1.4896019987837448e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.05366926474187731,
+          "coefficient_standard_error": 5.508211034567315e-07,
+          "linear_correction": -0.006944302913986421,
+          "normalized_rmse": 1.3639135866520714e-05
+        },
+        "coefficient_difference": 6.995590645653138e-07,
+        "three_sigma_coefficient_tolerance": 2.0205464251678655e-06,
+        "modular_energy_fit": {
+          "slope": 1.0000116098117244,
+          "intercept": -1.5385264046384464,
+          "slope_standard_error": 2.596702881261527e-06,
+          "r_squared": 0.9999999999528011
+        },
+        "slope_deviation": 1.1609811724433428e-05,
+        "five_sigma_slope_tolerance": 1.2983514406307636e-05,
+        "passed": true
+      },
+      {
+        "n_sites": 7,
+        "hamiltonian": "heisenberg",
+        "beta": 1.0,
+        "epsilons": [
+          1e-05,
+          1.778279410038923e-05,
+          3.1622776601683795e-05,
+          5.623413251903491e-05,
+          0.0001,
+          0.00017782794100389227,
+          0.00031622776601683794,
+          0.0005623413251903491,
+          0.001
+        ],
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.05183495475560951,
+          "coefficient_standard_error": 3.252632531930527e-07,
+          "linear_correction": 0.003518682657586167,
+          "normalized_rmse": 1.2943143790384716e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.05183511561945026,
+          "coefficient_standard_error": 6.080178642055069e-07,
+          "linear_correction": 0.0011515969596678523,
+          "normalized_rmse": 1.558813643237925e-05
+        },
+        "coefficient_difference": 1.6086384075492122e-07,
+        "three_sigma_coefficient_tolerance": 2.068655883330233e-06,
+        "modular_energy_fit": {
+          "slope": 1.0000144539491822,
+          "intercept": -1.6665613843917322,
+          "slope_standard_error": 3.2329810819809337e-06,
+          "r_squared": 0.999999999926837
+        },
+        "slope_deviation": 1.4453949182202663e-05,
+        "five_sigma_slope_tolerance": 1.616490540990467e-05,
+        "passed": true
+      }
+    ],
+    "isospectral_unitary_control": {
+      "amplitudes": [
+        0.0001,
+        0.00017782794100389227,
+        0.00031622776601683794,
+        0.0005623413251903491,
+        0.001,
+        0.0017782794100389228,
+        0.0031622776601683794,
+        0.005623413251903491,
+        0.01
+      ],
+      "relative_entropy": [
+        8.839342147126672e-09,
+        2.7952452352764112e-08,
+        8.839341569810699e-08,
+        2.795245079845188e-07,
+        8.83933907402934e-07,
+        2.795242430408962e-06,
+        8.839312549913103e-06,
+        2.7952159138422417e-05,
+        8.839047373454534e-05
+      ],
+      "modular_energy": [
+        8.839342062329517e-09,
+        2.795245335051541e-08,
+        8.839341716395787e-08,
+        2.7952450884225605e-07,
+        8.839339069111752e-07,
+        2.7952424316973248e-06,
+        8.839312549866213e-06,
+        2.7952159139401404e-05,
+        8.839047373287072e-05
+      ],
+      "entropy_change": [
+        0.0,
+        0.0,
+        4.440892098500626e-16,
+        8.881784197001252e-16,
+        0.0,
+        4.440892098500626e-16,
+        -8.881784197001252e-16,
+        0.0,
+        -1.7763568394002505e-15
+      ],
+      "relative_entropy_fit": {
+        "slope": 1.9999950091673147,
+        "intercept": -0.12341254823826886,
+        "slope_standard_error": 1.8471778695023438e-06,
+        "r_squared": 0.9999999999940289
+      },
+      "modular_energy_fit": {
+        "slope": 1.9999950061426943,
+        "intercept": -0.12341256405731237,
+        "slope_standard_error": 1.8469635416191172e-06,
+        "r_squared": 0.9999999999940302
+      }
+    },
+    "commuting_ising_control": {
+      "initial_profile": [
+        0.0,
+        0.061229665600927276,
+        0.12245933120185457,
+        0.061229665600927276,
+        0.0
+      ],
+      "t1_profile": [
+        6.938893903907228e-18,
+        0.06122966560092727,
+        0.12245933120185454,
+        0.06122966560092728,
+        8.239936510889834e-18
+      ],
+      "maximum_profile_change": 2.7755575615628914e-17
+    },
+    "pipeline_source_comparison": {
+      "reduced_modular_source": [
+        -4.2325137762141434e-16,
+        -3.4629658169024814e-16,
+        -3.078191837246651e-16,
+        -4.2325137762141434e-16,
+        -4.232513776214145e-16
+      ],
+      "kms_energy_density_source": [
+        0.00013598804968076086,
+        -0.0006434281482786988,
+        -0.0015588323959189712,
+        -0.0006434281482787569,
+        0.00013598804968075465
+      ],
+      "kms_density_match_error": 0.0
+    }
+  },
+  "checks": [
+    {
+      "name": "nonaffine_kms_response_orders",
+      "criterion": "D/epsilon^2 has a positive nested-window limit within three combined standard errors; linear-observable slopes contain 1 within five fit standard errors; family is detectably non-affine",
+      "value": {
+        "descriptive_power_law_fits": {
+          "relative_entropy": {
+            "slope": 2.000037751119905,
+            "intercept": -2.5526820172339653,
+            "slope_standard_error": 5.7067375995714995e-06,
+            "r_squared": 0.9999999999430101
+          },
+          "modular_energy": {
+            "slope": 1.0000333334890334,
+            "intercept": -1.3587102650890377,
+            "slope_standard_error": 7.4563635203345425e-06,
+            "r_squared": 0.9999999996108444
+          },
+          "total_energy": {
+            "slope": 1.0000333335872473,
+            "intercept": -1.621074528753275,
+            "slope_standard_error": 7.456339007654057e-06,
+            "r_squared": 0.999999999610847
+          },
+          "potential_amplitude": {
+            "slope": 1.000019825843085,
+            "intercept": -2.151171572509784,
+            "slope_standard_error": 4.434503290352361e-06,
+            "r_squared": 0.9999999998623518
+          }
+        },
+        "relative_entropy_full_asymptote": {
+          "coefficient": 0.07784175639247233,
+          "coefficient_standard_error": 4.5733533859932914e-07,
+          "linear_correction": 0.014665688575294964,
+          "normalized_rmse": 1.211852135874599e-05
+        },
+        "relative_entropy_lower_asymptote": {
+          "coefficient": 0.07784097711986272,
+          "coefficient_standard_error": 6.766372559274278e-07,
+          "linear_correction": 0.02601823279384375,
+          "normalized_rmse": 1.1551797253615383e-05
+        },
+        "coefficient_difference": 7.792726096078617e-07,
+        "three_sigma_coefficient_tolerance": 2.450090262085636e-06,
+        "nonaffine_midpoint_deviation": 3.265862819235058e-07
+      },
+      "passed": true
+    },
+    {
+      "name": "kms_and_local_decomposition_identities",
+      "criterion": "all identity residuals below 5e-13",
+      "value": {
+        "kms_identity_error": 2.2618591841074703e-15,
+        "first_law_identity_error": 1.5524623145184158e-15,
+        "local_decomposition_error": 0.0
+      },
+      "passed": true
+    },
+    {
+      "name": "localized_energy_is_conserved_and_spreads",
+      "criterion": "conservation drift below 1e-12, initial endpoint fraction below 1e-12, and t=1 endpoint fraction above 0.05",
+      "value": {
+        "conservation_drift": 0.0,
+        "initial_endpoint_fraction": 4.54123182112811e-16,
+        "t1_endpoint_fraction": 0.12078184671097476
+      },
+      "passed": true
+    },
+    {
+      "name": "nonaffine_kms_parameter_sensitivity",
+      "criterion": "nested-window quadratic coefficients agree within three combined standard errors and modular slopes contain 1 within five fit standard errors over the declared beta<=3 finite sweep",
+      "value": [
+        {
+          "n_sites": 5,
+          "hamiltonian": "heisenberg",
+          "beta": 0.3,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.004737795529920064,
+            "coefficient_standard_error": 9.411906820049276e-07,
+            "linear_correction": -0.0011525242033803321,
+            "normalized_rmse": 0.0004097592851076748
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.004738515146437267,
+            "coefficient_standard_error": 1.7175466138246775e-06,
+            "linear_correction": -0.012045670605046275,
+            "normalized_rmse": 0.000481690620381564
+          },
+          "coefficient_difference": 7.196165172033281e-07,
+          "three_sigma_coefficient_tolerance": 5.875564350339604e-06,
+          "modular_energy_fit": {
+            "slope": 0.9999963347196508,
+            "intercept": -3.9741409524484457,
+            "slope_standard_error": 8.197962333040276e-07,
+            "r_squared": 0.9999999999952955
+          },
+          "slope_deviation": 3.6652803492298602e-06,
+          "five_sigma_slope_tolerance": 4.098981166520138e-06,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "heisenberg",
+          "beta": 1.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.05172445706400744,
+            "coefficient_standard_error": 2.2066740409983086e-06,
+            "linear_correction": -0.0021888443768011273,
+            "normalized_rmse": 8.799738038351088e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.0517278797510951,
+            "coefficient_standard_error": 3.4477021560346066e-06,
+            "linear_correction": -0.052607866196276935,
+            "normalized_rmse": 8.85741499484292e-05
+          },
+          "coefficient_difference": 3.4226870876605253e-06,
+          "three_sigma_coefficient_tolerance": 1.2280250173326002e-05,
+          "modular_energy_fit": {
+            "slope": 1.0000149951213826,
+            "intercept": -1.681613348141522,
+            "slope_standard_error": 3.3540593136697336e-06,
+            "r_squared": 0.9999999999212543
+          },
+          "slope_deviation": 1.4995121382588295e-05,
+          "five_sigma_slope_tolerance": 1.677029656834867e-05,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "heisenberg",
+          "beta": 2.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.1242421512621763,
+            "coefficient_standard_error": 4.7510887481186643e-07,
+            "linear_correction": 0.05001697105087275,
+            "normalized_rmse": 7.887723507490936e-06
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.12424280340925538,
+            "coefficient_standard_error": 7.796582752192424e-07,
+            "linear_correction": 0.0404571276401264,
+            "normalized_rmse": 8.339403371537094e-06
+          },
+          "coefficient_difference": 6.521470790749051e-07,
+          "three_sigma_coefficient_tolerance": 2.739043486581689e-06,
+          "modular_energy_fit": {
+            "slope": 1.0000933341165075,
+            "intercept": -1.2244295310833713,
+            "slope_standard_error": 2.087899313946785e-05,
+            "r_squared": 0.9999999969490431
+          },
+          "slope_deviation": 9.333411650747081e-05,
+          "five_sigma_slope_tolerance": 0.00010439496569733925,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "heisenberg",
+          "beta": 3.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.1612711837883576,
+            "coefficient_standard_error": 8.117371955953594e-07,
+            "linear_correction": 0.09959476919497665,
+            "normalized_rmse": 1.0382123035765568e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.16127155194546802,
+            "coefficient_standard_error": 1.5209705790455753e-06,
+            "linear_correction": 0.09433645685908987,
+            "normalized_rmse": 1.25332868177633e-05
+          },
+          "coefficient_difference": 3.6815711040860677e-07,
+          "three_sigma_coefficient_tolerance": 5.1720807218485346e-06,
+          "modular_energy_fit": {
+            "slope": 1.000247965300423,
+            "intercept": -1.7983203091949826,
+            "slope_standard_error": 5.546633184236987e-05,
+            "r_squared": 0.9999999784750789
+          },
+          "slope_deviation": 0.00024796530042303644,
+          "five_sigma_slope_tolerance": 0.00027733165921184935,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "ising",
+          "beta": 0.3,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.001398905580817053,
+            "coefficient_standard_error": 4.945133218350999e-07,
+            "linear_correction": -0.0007969073959077679,
+            "normalized_rmse": 0.0007291503544991517
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.0013993654529742688,
+            "coefficient_standard_error": 8.835322451432318e-07,
+            "linear_correction": -0.0075734646612063096,
+            "normalized_rmse": 0.0008390603257350972
+          },
+          "coefficient_difference": 4.5987215721576824e-07,
+          "three_sigma_coefficient_tolerance": 3.0375243016512676e-06,
+          "modular_energy_fit": {
+            "slope": 1.0000005108932393,
+            "intercept": -5.186148651738906,
+            "slope_standard_error": 1.1426025575944137e-07,
+            "r_squared": 0.9999999999999086
+          },
+          "slope_deviation": 5.108932392694499e-07,
+          "five_sigma_slope_tolerance": 5.713012787972068e-07,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "ising",
+          "beta": 1.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.014687256262589609,
+            "coefficient_standard_error": 3.021971538698579e-07,
+            "linear_correction": 0.0013180508650623617,
+            "normalized_rmse": 4.244017789568905e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.014686831337538354,
+            "coefficient_standard_error": 4.920187056435811e-07,
+            "linear_correction": 0.007589385303685982,
+            "normalized_rmse": 4.4520028837199705e-05
+          },
+          "coefficient_difference": 4.249250512549513e-07,
+          "three_sigma_coefficient_tolerance": 1.7322383607898908e-06,
+          "modular_energy_fit": {
+            "slope": 1.0000055697564985,
+            "intercept": -2.8343893021909263,
+            "slope_standard_error": 1.2459685091854314e-06,
+            "r_squared": 0.999999999989133
+          },
+          "slope_deviation": 5.569756498458034e-06,
+          "five_sigma_slope_tolerance": 6.229842545927157e-06,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "ising",
+          "beta": 2.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.04915170830906474,
+            "coefficient_standard_error": 8.049668902310595e-07,
+            "linear_correction": 0.009469250673910804,
+            "normalized_rmse": 3.3780564217199876e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.04915066891289939,
+            "coefficient_standard_error": 1.3463516586947128e-06,
+            "linear_correction": 0.02466304575824653,
+            "normalized_rmse": 3.640248296633534e-05
+          },
+          "coefficient_difference": 1.0393961653518136e-06,
+          "three_sigma_coefficient_tolerance": 4.705922900892491e-06,
+          "modular_energy_fit": {
+            "slope": 1.0000210188957863,
+            "intercept": -1.6263006209152642,
+            "slope_standard_error": 4.702004719828421e-06,
+            "r_squared": 0.9999999998452446
+          },
+          "slope_deviation": 2.101889578631777e-05,
+          "five_sigma_slope_tolerance": 2.3510023599142104e-05,
+          "passed": true
+        },
+        {
+          "n_sites": 5,
+          "hamiltonian": "ising",
+          "beta": 3.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.08389369866039262,
+            "coefficient_standard_error": 4.943131940446944e-07,
+            "linear_correction": 0.028399582485033912,
+            "normalized_rmse": 1.2153471845886585e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.08389274419879303,
+            "coefficient_standard_error": 6.60670903273764e-07,
+            "linear_correction": 0.04232717411705304,
+            "normalized_rmse": 1.0465565736656415e-05
+          },
+          "coefficient_difference": 9.544615995893402e-07,
+          "three_sigma_coefficient_tolerance": 2.4753755646675415e-06,
+          "modular_energy_fit": {
+            "slope": 1.000043335267927,
+            "intercept": -1.091437081793879,
+            "slope_standard_error": 9.694440851791014e-06,
+            "r_squared": 0.9999999993421818
+          },
+          "slope_deviation": 4.3335267926991605e-05,
+          "five_sigma_slope_tolerance": 4.8472204258955066e-05,
+          "passed": true
+        },
+        {
+          "n_sites": 3,
+          "hamiltonian": "heisenberg",
+          "beta": 1.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.053668565182812746,
+            "coefficient_standard_error": 3.8758122648879363e-07,
+            "linear_correction": 0.00329072753496163,
+            "normalized_rmse": 1.4896019987837448e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.05366926474187731,
+            "coefficient_standard_error": 5.508211034567315e-07,
+            "linear_correction": -0.006944302913986421,
+            "normalized_rmse": 1.3639135866520714e-05
+          },
+          "coefficient_difference": 6.995590645653138e-07,
+          "three_sigma_coefficient_tolerance": 2.0205464251678655e-06,
+          "modular_energy_fit": {
+            "slope": 1.0000116098117244,
+            "intercept": -1.5385264046384464,
+            "slope_standard_error": 2.596702881261527e-06,
+            "r_squared": 0.9999999999528011
+          },
+          "slope_deviation": 1.1609811724433428e-05,
+          "five_sigma_slope_tolerance": 1.2983514406307636e-05,
+          "passed": true
+        },
+        {
+          "n_sites": 7,
+          "hamiltonian": "heisenberg",
+          "beta": 1.0,
+          "epsilons": [
+            1e-05,
+            1.778279410038923e-05,
+            3.1622776601683795e-05,
+            5.623413251903491e-05,
+            0.0001,
+            0.00017782794100389227,
+            0.00031622776601683794,
+            0.0005623413251903491,
+            0.001
+          ],
+          "relative_entropy_full_asymptote": {
+            "coefficient": 0.05183495475560951,
+            "coefficient_standard_error": 3.252632531930527e-07,
+            "linear_correction": 0.003518682657586167,
+            "normalized_rmse": 1.2943143790384716e-05
+          },
+          "relative_entropy_lower_asymptote": {
+            "coefficient": 0.05183511561945026,
+            "coefficient_standard_error": 6.080178642055069e-07,
+            "linear_correction": 0.0011515969596678523,
+            "normalized_rmse": 1.558813643237925e-05
+          },
+          "coefficient_difference": 1.6086384075492122e-07,
+          "three_sigma_coefficient_tolerance": 2.068655883330233e-06,
+          "modular_energy_fit": {
+            "slope": 1.0000144539491822,
+            "intercept": -1.6665613843917322,
+            "slope_standard_error": 3.2329810819809337e-06,
+            "r_squared": 0.999999999926837
+          },
+          "slope_deviation": 1.4453949182202663e-05,
+          "five_sigma_slope_tolerance": 1.616490540990467e-05,
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "isospectral_unitary_family_qualifier",
+      "criterion": "D and Delta<K> are equal and quadratic while DeltaS=0 for the declared local unitary family",
+      "value": {
+        "relative_entropy_fit": {
+          "slope": 1.9999950091673147,
+          "intercept": -0.12341254823826886,
+          "slope_standard_error": 1.8471778695023438e-06,
+          "r_squared": 0.9999999999940289
+        },
+        "modular_energy_fit": {
+          "slope": 1.9999950061426943,
+          "intercept": -0.12341256405731237,
+          "slope_standard_error": 1.8469635416191172e-06,
+          "r_squared": 0.9999999999940302
+        },
+        "max_D_minus_modular_energy": 1.674618018039642e-15,
+        "max_entropy_change": 1.7763568394002505e-15,
+        "dimension_scaled_float64_tolerance": 7.105427357601002e-15
+      },
+      "passed": true
+    },
+    {
+      "name": "spreading_requires_noncommuting_dynamics",
+      "criterion": "commuting Ising control profile change below 1e-12",
+      "value": {
+        "maximum_profile_change_at_t1": 2.7755575615628914e-17
+      },
+      "passed": true
+    },
+    {
+      "name": "pipeline_reduced_modular_blindness_and_density_repair",
+      "criterion": "reduced-state source norm below 1e-12, KMS energy-density source norm above 1e-3, and density implementation error below 1e-14",
+      "value": {
+        "reduced_modular_source": [
+          -4.2325137762141434e-16,
+          -3.4629658169024814e-16,
+          -3.078191837246651e-16,
+          -4.2325137762141434e-16,
+          -4.232513776214145e-16
+        ],
+        "reduced_modular_source_norm": 8.672365065739249e-16,
+        "kms_energy_density_source": [
+          0.00013598804968076086,
+          -0.0006434281482786988,
+          -0.0015588323959189712,
+          -0.0006434281482787569,
+          0.00013598804968075465
+        ],
+        "kms_energy_density_source_norm": 0.0018151979236086676,
+        "kms_density_match_error": 0.0
+      },
+      "passed": true
+    },
+    {
+      "name": "negative_energy_candidate_has_slower_source_clock",
+      "criterion": "center Phi below edge Phi, clock-rate ratio below 1, redshift positive",
+      "value": {
+        "phi": [
+          0.0004912266983312064,
+          -0.00015459160298922475,
+          -0.0006732701906838317,
+          -0.0001545916029892878,
+          0.0004912266983311377
+        ],
+        "effective_source": [
+          0.0006507305683037432,
+          -0.00012868562965571647,
+          -0.0010440898772959889,
+          -0.0001286856296557746,
+          0.0006507305683037369
+        ],
+        "source_background": -0.0005147425186229823,
+        "constraint_residual": 3.114133650677805e-19,
+        "center_to_edge_clock_rate_ratio": 0.9988361808743772,
+        "edge_observed_redshift": 0.0011651751787804532
+      },
+      "passed": true
+    }
+  ],
+  "overall_pass": true,
+  "conclusion": {
+    "raw_relative_entropy_linear_source": "falsified_in_tested_regime",
+    "affine_mixture_linear_response": "analytic_identity_not_a_test",
+    "nonaffine_kms_response": "first_order_in_declared_finite_beta_window",
+    "isospectral_unitary_response": "quadratic_with_D_equal_to_DeltaK",
+    "reduced_state_modular_localization": "blind_in_symmetric_kms_control",
+    "kms_energy_density_localization": "feasible_microscopic_candidate",
+    "profile_spreading": "dynamics_dependent_not_universal",
+    "remaining_requirements": [
+      "state-independent localization prescription",
+      "covariant conservation law",
+      "interaction-family and size robustness",
+      "continuum/refinement behavior",
+      "independent operational clock observable"
+    ]
+  },
+  "artifacts": [
+    "results/many_body_source.png",
+    "results/validation.json"
+  ]
+}

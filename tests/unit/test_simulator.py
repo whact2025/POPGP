@@ -188,9 +188,17 @@ def test_finite_graph_spectral_peak_ignores_float32_zero_mode() -> None:
     assert curve
 
 
-def test_candidate_source_requires_explicit_reference_state() -> None:
+@pytest.mark.parametrize(
+    "source_model",
+    [
+        "negative_relative_entropy_candidate",
+        "negative_modular_energy_candidate",
+        "negative_kms_energy_density_candidate",
+    ],
+)
+def test_candidate_source_requires_explicit_reference_state(source_model: str) -> None:
     config = SimulatorConfig.for_chain(n=2)
-    config.pi_time.source_model = "negative_modular_energy_candidate"
+    config.pi_time.source_model = source_model
     simulator = Simulator(config)
     state = simulator.prepare()
 
@@ -229,3 +237,58 @@ def test_negative_candidate_source_models_are_available_explicitly() -> None:
 
     assert torch.all(relative_source <= 0)
     assert torch.isfinite(modular_source).all()
+
+
+def test_kms_energy_density_candidate_aggregates_partitioned_sites() -> None:
+    config = SimulatorConfig.for_chain(n=4, beta=0.7)
+    config.pi_time.source_model = "negative_kms_energy_density_candidate"
+    simulator = Simulator(config)
+    reference = simulator.prepare()
+    pauli_x = torch.tensor([[0.0, 1.0], [1.0, 0.0]], dtype=torch.complex128)
+    local_unitary = simulator.backend.site_operator(pauli_x, site=1)
+    state = 0.99 * reference + 0.01 * (
+        local_unitary @ reference @ local_unitary.conj().T
+    )
+
+    source = simulator._compute_source_term(
+        state,
+        [[0, 1], [2, 3]],
+        config.pi_time,
+        reference_state=reference,
+    )
+    local_energy = simulator.backend.build_local_energy_operators()
+    expected = []
+    for cell in ([0, 1], [2, 3]):
+        cell_operator = sum(
+            (local_energy[site] for site in cell),
+            torch.zeros_like(local_energy[0]),
+        )
+        expected.append(
+            -config.substrate.beta
+            * torch.trace((state - reference) @ cell_operator).real.item()
+        )
+
+    assert torch.allclose(
+        source,
+        torch.tensor(expected, dtype=torch.float64),
+        atol=1e-14,
+        rtol=0.0,
+    )
+
+
+@pytest.mark.parametrize("cells", [[[0, 1], [2]], [[0, 1, 2, 3], []]])
+def test_kms_energy_density_candidate_requires_complete_partition(
+    cells: list[list[int]],
+) -> None:
+    config = SimulatorConfig.for_chain(n=4, beta=0.7)
+    config.pi_time.source_model = "negative_kms_energy_density_candidate"
+    simulator = Simulator(config)
+    reference = simulator.prepare()
+
+    with pytest.raises(ValueError, match="disjoint partition"):
+        simulator._compute_source_term(
+            reference,
+            cells,
+            config.pi_time,
+            reference_state=reference,
+        )

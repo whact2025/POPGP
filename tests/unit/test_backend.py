@@ -30,6 +30,26 @@ def test_unknown_hamiltonian_fails_explicitly() -> None:
         backend.build_hamiltonian()
 
 
+def test_local_energy_decomposition_sums_to_hamiltonian() -> None:
+    backend = ExactBackend(
+        SimulatorConfig(substrate=SubstrateConfig(n_qubits=4, hamiltonian="heisenberg"))
+    )
+
+    local_energy = backend.build_local_energy_operators()
+
+    assert len(local_energy) == 4
+    assert torch.allclose(torch.stack(local_energy).sum(dim=0), backend.build_hamiltonian())
+
+
+def test_site_operator_validates_shape_and_site() -> None:
+    backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=2)))
+
+    with pytest.raises(ValueError, match="2x2"):
+        backend.site_operator(torch.eye(3), 0)
+    with pytest.raises(IndexError, match="site"):
+        backend.site_operator(torch.eye(2), 2)
+
+
 def test_gpu_backend_does_not_mislabel_product_correlations_as_mi() -> None:
     config = SimulatorConfig(
         substrate=SubstrateConfig(n_qubits=13),

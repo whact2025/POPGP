@@ -3,22 +3,35 @@
 ## PR 2 — source law and linear response
 
 **Objective:** determine which vacuum-relative quantities can source a weak clock
-constraint with a first-order response not forced by the chosen state family.
+constraint, separating analytic affine-family identities from discriminating
+non-affine response tests.
 
 - Equations: finite `D(ρ||σ)`, `Δ⟨Kσ⟩`, `ΔS`, and `(L+μ²I)Φ=s`.
 - Implementation: information primitives, uncertainty-aware power-law fitting,
   KMS equal-energy controls, negative-source/redshift tests, and parameter sweeps.
-- Acceptance: analytic cases pass; slope estimates include standard errors; signs
-  agree across code/docs; manual Green-function tests are labeled non-physical.
+- Acceptance: analytic identities are labeled as such; quadratic response is verified
+  by nested-window coefficient convergence; slope estimates include standard errors;
+  signs agree across code/docs; manual Green-function tests are labeled non-physical.
 - Falsification: raw relative entropy is rejected as a standalone linear source if
   its Φ slope is quadratic or it changes the far-field source at fixed energy.
 - Artifact: JSON/CSV scaling data plus plots and a source-law decision record.
 - Out of scope: claiming Einstein closure or selecting a final law from one qubit.
 
-Pilot status: the affine-mixture tests reject raw relative entropy as a standalone
-linear source. Modular energy and the graph solve are exactly linear under that family
-by construction, so their unit slopes do not validate a candidate. A non-affine KMS
-response family and a spatially localized many-body experiment are still required.
+Status: raw relative entropy fails the linear-source criteria. Under affine mixing,
+modular energy, physical energy, and the linear clock solve are exactly proportional
+to the mixture amplitude; their unit slopes are identity regressions. The many-body
+experiment now uses `ρ(ε)∝exp[-β(H+εV)]`, verifies nested-window convergence of
+`D/ε²`, and finds a nonzero first-order modular/energy susceptibility through β=3 in
+the declared finite sweep. An isospectral unitary control instead gives
+`ΔS=0` and `D=Δ⟨K⟩=βΔ⟨H⟩=O(ε²)`, making the family qualifier explicit. A separate
+quench provides the audited conservation/spreading result, while a commuting Ising
+control shows that spreading is not universal. Scalable refinement, temporal
+averaging, covariant conservation, and an independently measured clock observable
+are still required.
+The pipeline comparison also falsifies naive one-site reduced modular energy as a
+local source in the symmetric KMS control. A separately named exact-backend
+`−βΔ⟨h_i⟩` candidate repairs that blindness while keeping its microscopic
+Hamiltonian dependence explicit.
 
 ## PR 3 — blind geometry, Regge, and closure foundations
 

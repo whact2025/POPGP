@@ -44,6 +44,33 @@ def _eigh_density(
     return evals, evecs
 
 
+def finite_gibbs_state(hamiltonian: torch.Tensor, beta: float) -> torch.Tensor:
+    """Return ``exp(-beta * H) / Z`` for a finite Hermitian Hamiltonian.
+
+    The eigenspectrum is shifted before exponentiation, which leaves the
+    normalized state unchanged and avoids overflow at large ``beta``.
+    """
+    hamiltonian = _as_complex128(hamiltonian)
+    if hamiltonian.ndim != 2 or hamiltonian.shape[0] != hamiltonian.shape[1]:
+        raise ValueError("hamiltonian must be a square matrix")
+    if not torch.isfinite(hamiltonian).all():
+        raise ValueError("hamiltonian must contain only finite values")
+    if not math.isfinite(beta):
+        raise ValueError("beta must be finite")
+    hermitian = 0.5 * (hamiltonian + hamiltonian.conj().T)
+    if torch.linalg.matrix_norm(hamiltonian - hermitian).item() > 1e-10:
+        raise ValueError("hamiltonian must be Hermitian")
+    eigenvalues, eigenvectors = torch.linalg.eigh(hermitian)
+    logits = -float(beta) * eigenvalues.real
+    weights = torch.exp(logits - logits.max())
+    weights /= weights.sum()
+    return (
+        eigenvectors
+        @ torch.diag(weights.to(torch.complex128))
+        @ eigenvectors.conj().T
+    )
+
+
 def von_neumann_entropy(rho: torch.Tensor, *, atol: float = 1e-15) -> float:
     """Return ``-Tr(rho log rho)`` while treating zero eigenvalues exactly."""
     evals, _ = _eigh_density(rho, name="rho")

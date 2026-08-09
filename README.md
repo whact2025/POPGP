@@ -55,6 +55,7 @@ uv run python -m examples.physics_qg.chain_1d
 uv run python -m examples.physics_qg.grid_2d
 uv run python -m examples.physics_qg.gravity_well
 uv run python -m examples.physics_qg.source_law
+uv run python -m examples.physics_qg.source_law_many_body
 uv run python -m examples.physics_qg.ca_model
 ```
 
@@ -91,15 +92,15 @@ attractor and its equivalence to this minimizer have not been established.
 
 The exact backend computes pairwise quantum mutual information. The default blind
 connectivity rule identifies the largest multiplicative gap in positive MI values,
-reports whether that gap clears a configured separability threshold, and unions the
-result with a minimum spanning tree to ensure connectivity. A fixed-k k-NN baseline is
+reports whether that gap clears a configured separability threshold, and adds a
+minimum spanning tree only if needed for connectivity. A fixed-k k-NN baseline is
 still available. Ground-truth Hamiltonian edges are used only after inference for
 validation metrics and plots.
 
-The controlled 3×3 grid recovers all held-out nearest-neighbor edges at the published
-parameters. The four-cell chain also matches its held-out cell edges, but this case is
-non-discriminating because the mandatory MST alone produces the same three edges.
-These results are not yet evidence of robustness to long-range models,
+The controlled 8-site chain and 3×3 grid are exactly recovered at the published
+parameters. The four-cell chain result is MST-degenerate: its three reference edges
+are exactly the minimum spanning tree and therefore provide no discrimination beyond
+connectivity. These results are not yet evidence of robustness to long-range models,
 non-geometric controls, larger lattices, or topological entanglement. The proposed
 QCMI/Markov filtering stage is not implemented.
 
@@ -133,18 +134,34 @@ to report only clock-rate contrasts. The redshift convention is
 
 The standard pipeline still defaults to local von Neumann entropy as an explicitly
 non-physical placeholder. Explicit negative relative-entropy and modular-energy
-candidate modes now accept a caller-supplied reference state, but temporal averaging,
-conservation, localization, and a validated physical KMS source remain open.
-Scientific regression tests establish a negative
-result important to the program: near a faithful reference, relative entropy and
-the resulting potential begin at second order in perturbation amplitude. Under the
-declared affine mixture, modular energy and the linear graph solve are exactly linear
-by construction; their fitted unit slopes are arithmetic regressions, not hypothesis
-tests. Equal-energy KMS controls also show
-that raw relative entropy changes with entropy at fixed energy. Raw relative entropy
-is therefore falsified as a standalone linear mass source in this regime. A
-non-affine response family is required before modular energy can pass a meaningful
-first-order test.
+candidate modes accept a caller-supplied reference state. Near a faithful reference,
+relative entropy and the resulting potential begin at second order in perturbation
+amplitude. Under an affine state mixture, modular energy, physical energy, and the
+linear graph solve are exactly proportional to the mixture amplitude by algebra; their
+unit slopes are identity regressions, not falsification tests. Equal-energy KMS controls
+also show that raw relative entropy changes with entropy at fixed energy.
+Raw relative entropy is therefore falsified as a standalone linear mass source in
+this regime. The original reduced-state modular-energy mode is also explicitly
+retained as a negative control: it is blind to the symmetric KMS-chain excitation
+because each one-site reference modular Hamiltonian is proportional to the identity.
+
+An exact five-site experiment now uses the genuinely non-affine family
+`rho(epsilon) proportional to exp[-beta(H + epsilon V)]` with localized
+`V = -h_center`. Nested-window fits find a positive quadratic relative-entropy
+coefficient and a nonzero first-order modular/energy susceptibility over the declared
+finite sweep (`beta <= 3`). The result is family-specific: for an isospectral local
+unitary family, `Delta S = 0` and `D = Delta<K> = beta Delta<E>` are all quadratic.
+A separate quench shows exact finite-system energy conservation and profile spreading
+under Heisenberg dynamics, while a commuting Ising control shows no spreading. This
+makes modular energy a feasible localized test object in those controlled models, not
+a final source law. Temporal averaging, covariant conservation, scalable/refinement
+behavior, and an independent operational clock observable remain open.
+
+For integration testing, the exact backend exposes a separate
+`negative_kms_energy_density_candidate`. It uses `−β Δ⟨h_i⟩` from the
+declared microscopic Hamiltonian split, sums to minus the global KMS modular-energy change,
+and is not interchangeable with the reduced-state candidate. Its dependence on the
+supplied interaction graph and energy-density convention is an explicit limitation.
 
 ## Repository map
 
@@ -167,7 +184,7 @@ first-order test.
 | Label-permutation invariance | Covered by scientific regression test |
 | Dimension selection | Passes selected chain/grid parameters; not a continuum result |
 | Finite graph clock constraint and redshift sign | Numerically validated |
-| Physical Araki/KMS source | Candidate APIs exist; raw RE linear source falsified |
+| Physical Araki/KMS source | Raw RE and naive reduced localization fail; microscopic KMS energy is a finite-model candidate |
 | QCMI filtering and non-geometric controls | Not implemented / incomplete |
 | Local metric / angle deficits | Embedding-space diagnostics; intrinsic Regge geometry open |
 | Newtonian/GR closure | Not demonstrated |

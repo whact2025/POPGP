@@ -29,10 +29,25 @@ spectral dimension.
 
 The pipeline von Neumann source is non-physical. A manually injected source is a
 Green-function diagnostic. Raw relative entropy is rejected as a standalone linear
-mass source in the tested perturbative regime. Modular energy is a candidate only;
-its affine-mixture unit slope is an algebraic identity, not a falsification test. No
-final source law is selected without a non-affine response, many-body localization,
-and conservation tests.
+mass source in the tested perturbative regime. Under an affine mixture, modular
+energy, physical energy, and the linear clock solve are exactly proportional to the
+mixture amplitude; record those legs as analytic-identity regressions, never as a
+falsification or robustness result. Modular energy remains a candidate after a
+genuinely non-affine five-site KMS family `ρ(ε)∝exp[-β(H+εV)]` shows a nonzero
+first-order susceptibility and nested-window convergence of `D/ε²` across the
+declared β≤3 finite sweep. An isospectral unitary family has `ΔS=0` and
+`D=Δ⟨K⟩=βΔ⟨H⟩=O(ε²)`, so response order must always carry its family qualifier.
+A separate quench verifies an exactly summing local-energy split, global conservation,
+and dynamics-dependent spreading. The split is a declared microscopic convention,
+not a covariant stress tensor. No final source law is selected without scalable
+refinement, temporal averaging, continuum, and covariant-conservation tests.
+
+Do not equate a cell's reduced-state modular Hamiltonian with a density of the global
+KMS modular charge. The former is identity-like and blind in the symmetric-chain
+control. Retain it as a negative control. Use the separately named exact-backend
+`−βΔ⟨h_i⟩` candidate only with explicit disclosure that the interaction graph and
+symmetric endpoint split are microscopic inputs and that its density sums to
+`−Δ⟨K⟩`, not `Δ⟨K⟩`.
 
 ## D006 — clock and redshift convention
 

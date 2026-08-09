@@ -40,9 +40,9 @@ This report analyzes the alignment between the **POPGP Engine Codebase** (`popgp
 *   **Verdict:** ❌ **FAIL**. The renderer needs a "Delaunay Triangulation + Regge Curvature" module.
 
 ### 2.2 Emergent Time (The "Clock" Gap)
-*   **Framework (v0.12 §4.4.5):** Proper time $d\tau = \beta(\rho) dt$ is derived from a **Graph Laplacian Potential** $\Phi$ sourced by relative entropy.
-*   **Code:** Simulations use raw "Phase Order" ($t$) steps. There is no calculation of $\Phi$ or local time dilation.
-*   **Verdict:** ❌ **FAIL**. The kernel needs a `compute_clock_potential` function (solving a sparse Poisson system).
+*   **Historical framework claim (v0.12 §4.4.5):** Proposed a graph potential sourced by relative entropy.
+*   **Current correction:** The Python simulator now solves the finite graph constraint, but the native kernel remains a stub. Raw relative entropy fails the tested first-order source criterion; a microscopic KMS-energy density is only a finite-system candidate.
+*   **Verdict:** ❌ **NOT SCIENTIFICALLY VALIDATED**. Temporal averaging, state-independent localization, refinement, a physical clock observable, and native implementation remain absent.
 
 ### 2.3 Dimension Selection
 *   **Framework (v0.12 §4.4.4):** Dimension $D^*$ is selected by **Spectral Inertia** (eigenvalues of Graph Laplacian).

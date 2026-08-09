@@ -270,8 +270,10 @@ class PiTimeConfig:
     """Clock source model. The default is an explicitly non-physical
     placeholder retained for pipeline diagnostics. Explicit experimental
     alternatives are ``negative_relative_entropy_candidate`` and
-    ``negative_modular_energy_candidate``; both require a reference state
-    passed to ``run_pi_time``. [STRUCTURAL_CHOICE]"""
+    ``negative_modular_energy_candidate`` (both reduced-state contrasts), and
+    ``negative_kms_energy_density_candidate`` (an exact-backend microscopic
+    Hamiltonian decomposition). All candidates require a reference state passed
+    to ``run_pi_time``. [STRUCTURAL_CHOICE]"""
 
     source_scale: float = 1.0
     """Multiplicative scale applied to the configured clock source.

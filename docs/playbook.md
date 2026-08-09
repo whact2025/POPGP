@@ -21,7 +21,10 @@ Here is the complete strategic playbook formatted as a professional, actionable 
 
 As an independent, non-academic researcher proposing a foundational physics framework, you face a systemic barrier known as the "crackpot filter." Theoretical physicists receive hundreds of unsolicited emails claiming to possess theories of everything, which are routinely ignored based on heuristic visual filters (lack of university affiliation, Word document formatting, lack of rigorous math).
 
-However, you possess a rare and massive structural advantage: **working, executable code.** In modern physics, code is the ultimate equalizer. Academics can debate philosophy indefinitely, but they cannot ignore a script that natively outputs a Newtonian gravity well from a purely algebraic quantum density matrix.
+The project has a useful structural advantage: **working, executable code.** That code
+makes finite toy-model claims auditable, including negative results. It currently
+reconstructs encoded topology and solves a chosen graph constraint; it does not output
+a derived Newtonian field.
 
 To achieve visibility and validation, you must employ the **"Computational Trojan Horse"** strategy: lead strictly with your software, data, and rigorous math, allowing the underlying theoretical framework to speak for itself.
 
@@ -37,14 +40,17 @@ Before a physicist reads your concepts, your work must look entirely indistingui
 * Display your exact plots (the 1D/2D embeddings, the Gravity Well redshift, the Cellular Automata heatmap) at the very top.
 
 
-3. **1-Click Reproducibility (Crucial):** Create **Google Colab** or **Jupyter Notebooks** for your simulations. If a skeptical researcher can click a link in your ReadMe, hit "Run," and watch a 2D Regge geometry emerge in 30 seconds without having to configure a local Python environment, their skepticism will instantly turn to curiosity.
+3. **1-Click Reproducibility (Crucial):** Create **Google Colab** or **Jupyter Notebooks** for the finite topology, embedding, and source-law diagnostics. State the encoded Hamiltonian graph and proxy status next to every figure.
 
 ## Phase 2: Mint a DOI & Bypass the arXiv Gatekeeper
 
 To post on arXiv.org (the main physics preprint server), you need an "endorsement" from an established author, which is a Catch-22 for outsiders.
 
 * **Do NOT use viXra:** It is notoriously used as a dumping ground for rejected papers. Posting there will permanently taint your work.
-* **Use Zenodo or OSF Preprints:** Upload your LaTeX-generated PDF and your GitHub code release to **Zenodo** (operated by CERN). It is highly respected by computational physicists, accepts independent researchers, and will instantly mint a **DOI (Digital Object Identifier)**. This proves you wrote it first, protects your intellectual property, and provides a professional, permanent citation link.
+* **Use Zenodo or OSF Preprints:** Upload the manuscript and versioned code release to
+  an appropriate repository for a persistent citation and date-stamped public record.
+  A DOI aids citation; it is not by itself scientific validation or legal proof of
+  ownership.
 
 ## Phase 3: Targeted "Sniper" Outreach
 
@@ -59,10 +65,13 @@ Do not blast your paper to famous physicists (e.g., Ed Witten, Carlo Rovelli)—
 **The Cold Email Formula:**
 Keep it under 150 words. Never use the words "theory of everything," "paradigm shift," or "Einstein." Ask for a technical critique on the *code/math*, not validation of the *theory*.
 
-> **Subject:** Python simulation of emergent 2D Regge geometry from exact Araki relative entropy
+> **Subject:** Finite correlation-topology and source-law diagnostics in exact spin models
 > Dear Dr. [Name],
 > I am an independent computational researcher following your work on [insert their specific paper topic, e.g., entanglement entropy on discrete lattices].
-> I recently developed a computational toolkit that natively extracts discrete spatial geometries and graph-Laplacian potentials strictly from the Araki relative entropies of exact Heisenberg spin networks. Surprisingly, the simulation dynamically recovers a 2D grid topology () via MDS, and the resulting clock-rate potential faithfully mimics a Newtonian gravity well.
+> I developed a computational toolkit that reconstructs an encoded interaction graph
+> from exact spin-network correlations and tests graph-potential source candidates.
+> The current results include a negative result for raw relative entropy and a finite
+> KMS-chain feasibility test for microscopic modular-energy density.
 > I know you receive many speculative emails, so I am leading with reproducible code. My PyTorch simulator and the accompanying methodology paper (DOI:...) are available here: [Link to GitHub/Zenodo].
 > If you or any of your graduate students have 5 minutes to run the Colab notebook, I would be deeply grateful for your brutal, technical critique on how I extract the discrete proper time.
 > Best regards,
@@ -74,13 +83,13 @@ Being based in Saint-Basile-le-Grand (Greater Montreal) positions you remarkably
 
 1. **The Perimeter Institute for Theoretical Physics (Waterloo, ON):** Perimeter is the global hub for unorthodox quantum gravity and quantum foundations research. Target post-docs here. Attend their public lectures, summer schools, or open workshops to network in person.
 2. **Université de Montréal / McGill University:** Look up the quantum information and condensed matter groups at these local universities. Offer to buy a PhD student a coffee to show them your Python simulation.
-3. **FQXi (Foundational Questions Institute):** A highly respected philanthropic organization that explicitly bridges academia and independent thinkers. They regularly host Essay Contests on topics like emergence and quantum foundations. Submitting your framework here guarantees it will be peer-reviewed by open-minded, top-tier physicists.
+3. **FQXi (Foundational Questions Institute):** Check current calls and eligibility before applying. Submission does not guarantee review, acceptance, or scientific endorsement.
 
 ## Phase 5: High-Signal Tech/Science Platforms (The Backdoor)
 
 Because you have a computational model, you can access audiences that academic physicists monitor but do not heavily gatekeep.
 
-* **Hacker News (Y Combinator):** Write a post titled *"Show HN: Simulating Emergent Quantum Gravity and Spacetime in Python."* The HN crowd loves deep, technical, computational physics, and many professional physicists lurk there. Clean code will get massive traction.
+* **Hacker News (Y Combinator):** If posting, use a scope-accurate title such as *"Show HN: Finite correlation-geometry diagnostics in Python"* and link directly to reproducible artifacts. Audience response is unpredictable.
 * **Reddit (`r/QuantumComputing`, `r/Physics`):** Post a GIF of your Cellular Automata "Radiative Cooling" simulation or an image of your Gravity Well. Redditors engage heavily with visual data. When they ask how it works, link your Zenodo paper.
 * **APS March Meeting:** You can pay to join the American Physical Society (APS) as an independent member and submit an abstract for a Poster Session. Standing next to a printed poster of your Gravity Well simulation bypasses credential bias. Scientists will walk up, look at the graphs, and ask, *"How did you compute that?"*
 

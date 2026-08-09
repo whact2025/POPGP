@@ -150,41 +150,76 @@ class ExactBackend(Backend):
             self._H = H
             self._evals, self._evecs = torch.linalg.eigh(H)
 
+    def site_operator(self, operator: torch.Tensor, site: int) -> torch.Tensor:
+        """Embed a one-qubit operator at ``site`` in the full Hilbert space."""
+        if operator.shape != (2, 2):
+            raise ValueError("operator must be a 2x2 one-qubit matrix")
+        if not 0 <= site < self._N:
+            raise IndexError(f"site must lie in [0, {self._N})")
+        parts = [_I2] * self._N
+        parts[site] = operator.to(dtype=torch.complex128)
+        result = parts[0]
+        for part in parts[1:]:
+            result = torch.kron(result, part)
+        return result
+
+    def build_interaction_terms(
+        self,
+    ) -> list[tuple[tuple[int, int], torch.Tensor]]:
+        """Return the pair terms whose sum is the configured Hamiltonian.
+
+        The associated edges are microscopic inputs, not inferred geometry. Exposing
+        the decomposition makes localized-energy experiments auditable without
+        silently reconstructing a different Hamiltonian in example code.
+        """
+        family = self.config.substrate.hamiltonian
+        if family not in {"heisenberg", "ising"}:
+            raise NotImplementedError(
+                f"Hamiltonian family {family!r} is not implemented."
+            )
+
+        terms = []
+        coupling = self.config.substrate.coupling_J
+        for i, j in self.build_edges():
+            interaction = self.site_operator(_SZ, i) @ self.site_operator(_SZ, j)
+            if family == "heisenberg":
+                interaction += (
+                    self.site_operator(_SX, i) @ self.site_operator(_SX, j)
+                    + self.site_operator(_SY, i) @ self.site_operator(_SY, j)
+                )
+            terms.append(((i, j), coupling * interaction))
+        return terms
+
+    def build_local_energy_operators(self) -> list[torch.Tensor]:
+        """Split each pair interaction equally between its endpoint sites.
+
+        The operators sum exactly to the microscopic Hamiltonian. This symmetric
+        split is a declared finite-chain convention for localization diagnostics;
+        it is not a unique covariant stress-energy density.
+        """
+        local_terms = [
+            torch.zeros((self._dim, self._dim), dtype=torch.complex128)
+            for _ in range(self._N)
+        ]
+        for (i, j), interaction in self.build_interaction_terms():
+            local_terms[i] += 0.5 * interaction
+            local_terms[j] += 0.5 * interaction
+        return local_terms
+
     # ── substrate ────────────────────────────────────────────────────
 
     def build_hamiltonian(self) -> torch.Tensor:
-        """Heisenberg Hamiltonian H = Σ_{<ij>} S_i · S_j  (§4.3)."""
+        """Build the configured nearest-neighbor pair Hamiltonian (§4.3)."""
         if self._H is not None:
             return self._H
 
-        N = self._N
-        dim = self._dim
-
-        def _site_op(op: torch.Tensor, site: int) -> torch.Tensor:
-            parts = [_I2] * N
-            parts[site] = op
-            result = parts[0]
-            for p in parts[1:]:
-                result = torch.kron(result, p)
-            return result
-
-        if self.config.substrate.hamiltonian not in {"heisenberg", "ising"}:
-            raise NotImplementedError(
-                f"Hamiltonian family {self.config.substrate.hamiltonian!r} is not implemented."
-            )
-
-        H = torch.zeros((dim, dim), dtype=torch.complex128)
-        J = self.config.substrate.coupling_J
-        for i, j in self.build_edges():
-            interaction = _site_op(_SZ, i) @ _site_op(_SZ, j)
-            if self.config.substrate.hamiltonian == "heisenberg":
-                interaction += (
-                    _site_op(_SX, i) @ _site_op(_SX, j)
-                    + _site_op(_SY, i) @ _site_op(_SY, j)
-                )
-            H += J * interaction
-        self._H = H
-        return H
+        hamiltonian = torch.zeros(
+            (self._dim, self._dim), dtype=torch.complex128
+        )
+        for _, interaction in self.build_interaction_terms():
+            hamiltonian += interaction
+        self._H = hamiltonian
+        return hamiltonian
 
     def prepare_state(self) -> torch.Tensor:
         """Thermal state ρ = exp(−βH)/Z  (§4.4.1 GNS representation)."""

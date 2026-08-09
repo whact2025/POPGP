@@ -18,6 +18,16 @@ class PowerLawFit:
 
 
 @dataclass(frozen=True)
+class QuadraticAsymptoteFit:
+    """Fit of ``response / amplitude**2`` to a finite intercept."""
+
+    coefficient: float
+    coefficient_standard_error: float
+    linear_correction: float
+    normalized_rmse: float
+
+
+@dataclass(frozen=True)
 class EdgeRecoveryMetrics:
     """Blind inferred-edge comparison against held-out reference edges."""
 
@@ -59,6 +69,43 @@ def fit_power_law(amplitudes: np.ndarray, responses: np.ndarray) -> PowerLawFit:
         intercept=float(intercept),
         slope_standard_error=standard_error,
         r_squared=r_squared,
+    )
+
+
+def fit_quadratic_asymptote(
+    amplitudes: np.ndarray,
+    responses: np.ndarray,
+) -> QuadraticAsymptoteFit:
+    """Fit ``response / amplitude**2 = c0 + c1 * amplitude``.
+
+    A finite positive ``c0`` is the asymptotic statement that the response is
+    quadratic.  Comparing ``c0`` across nested windows tests convergence
+    without imposing an arbitrary band on a log-log slope.
+    """
+    x = np.asarray(amplitudes, dtype=float)
+    y = np.asarray(responses, dtype=float)
+    if x.shape != y.shape or x.ndim != 1 or x.size < 3:
+        raise ValueError("amplitudes and responses must be equal 1D arrays of length >= 3")
+    if np.any(~np.isfinite(x)) or np.any(~np.isfinite(y)):
+        raise ValueError("quadratic-asymptote inputs must be finite")
+    if np.any(x <= 0) or np.any(y <= 0):
+        raise ValueError("quadratic-asymptote inputs must be strictly positive")
+
+    scaled = y / x**2
+    design = np.column_stack([np.ones_like(x), x])
+    coefficient, linear_correction = np.linalg.lstsq(design, scaled, rcond=None)[0]
+    residual = scaled - design @ np.asarray([coefficient, linear_correction])
+    degrees_of_freedom = x.size - 2
+    residual_variance = float(np.sum(residual**2) / degrees_of_freedom)
+    covariance = residual_variance * np.linalg.inv(design.T @ design)
+    standard_error = float(np.sqrt(max(covariance[0, 0], 0.0)))
+    scale = max(abs(float(coefficient)), np.finfo(float).tiny)
+    normalized_rmse = float(np.sqrt(np.mean(residual**2)) / scale)
+    return QuadraticAsymptoteFit(
+        coefficient=float(coefficient),
+        coefficient_standard_error=standard_error,
+        linear_correction=float(linear_correction),
+        normalized_rmse=normalized_rmse,
     )
 
 

@@ -15,6 +15,8 @@ Audit date: 2026-08-09 (America/New_York).
 
 The absent CUDA and TeX toolchains prevent native compilation/tests and a fresh PDF
 build in this environment. GitHub CLI access was verified against pull request #1.
+`docs/framework.tex` is authoritative for the revised manuscript; the committed PDF
+predates the claims audit and must be rebuilt when a TeX toolchain is available.
 
 ## Commands
 
@@ -26,6 +28,7 @@ uv run python -m examples.physics_qg.chain_1d
 uv run python -m examples.physics_qg.grid_2d
 uv run python -m examples.physics_qg.gravity_well
 uv run python -m examples.physics_qg.source_law
+uv run python -m examples.physics_qg.source_law_many_body
 uv run python -m examples.physics_qg.ca_model
 ```
 
@@ -36,30 +39,41 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | 4 s | 50 passed |
+| `pytest -q` | 4 s | 76 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
 | source-law example | 7 s | RE slope≈1.9997; modular slope=1.0; negative result retained |
+| many-body source-law example | 9 s | non-affine KMS: converged `D/ε²`, nonzero linear susceptibility through β=3; isospectral control quadratic |
 | CA analogy | 9 s | population declined 33 to 27; overall check fails; PNG/GIF/JSON regenerated |
 
 All examples regenerated their committed `validation.json` artifacts. Wall-clock
-timestamps have been removed so repeated runs are deterministic under the locked
-toolchain. PNG metadata remains environment-dependent, so cross-environment artifacts
-should be compared by structured metrics rather than binary hashes.
+timestamps have been removed, and every result artifact was byte-identical across two
+consecutive runs in the locked environment. PNG metadata remains environment-dependent,
+so cross-environment artifacts should be compared by structured metrics.
 
 ## Negative and sensitivity results
 
 - Relative entropy and its induced potential have fitted perturbative slope ≈2.
-- Modular-energy variation and its induced potential have slope ≈1 under the affine
-  mixture by exact linearity in the state; these are identity regressions, not evidence
-  for a source law.
+- Under an affine mixture, modular energy, physical energy, and the linear clock solve
+  are exactly proportional to ε. Their unit slopes are analytic identities and are
+  excluded from the robustness claim.
+- In an exact five-site non-affine KMS family `ρ(ε)∝exp[-β(H+εV)]`, nested-window
+  fits of `D/ε²` converge and modular/energy susceptibility is nonzero across the
+  declared Heisenberg/Ising, β≤3, and three-size finite sweep. An isospectral unitary
+  control instead has `ΔS=0` and quadratic `D=Δ⟨K⟩=βΔ⟨H⟩`. A separate quench
+  conserves and spreads the audited profile under Heisenberg dynamics; the commuting
+  Ising profile remains stationary. This is a family-dependent feasibility result.
+- The one-site reduced modular-energy mode is numerically blind in the symmetric KMS
+  chain. The separately named exact-backend `−βΔ⟨h_i⟩` candidate reproduces the
+  audited local profile and sums to minus the global modular-energy change; its microscopic
+  decomposition dependence is retained as a limitation.
 - Equal-energy states relative to a KMS reference have different entropy and raw
   relative entropy, exposing an entropy confound for a mass-source interpretation.
 - The old fixed 3-nearest-neighbor grid inference had precision 0.75 and recall 1.0
   (16 inferred edges versus 12 reference edges).
-- The new MI-gap rule recovers the selected grid exactly and passes label permutation
-  equivariance. The four-cell chain result is MST-degenerate. Uniform and disjoint-Bell
+- The new MI-gap rule recovers the selected chain/grid and passes label permutation
+  equivariance. The four-cell chain is MST-degenerate. Uniform and disjoint-Bell
   correlations are marked non-separable, but the Bell control still receives a false
   D*=1 `geometric_candidate` declaration.
 - A Petersen expander selects D*=4 at the weak default penalty, but λ=1 can force

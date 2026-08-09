@@ -27,7 +27,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from popgp.backend import Backend, create_backend
+from popgp.backend import Backend, ExactBackend, create_backend
 from popgp.coarse_grain import (
     compute_retention_loss,
     optimize_cells,
@@ -960,21 +960,51 @@ class Simulator:
     ) -> torch.Tensor:
         """Compute an explicitly classified placeholder or candidate source.
 
-        The full framework (§4.4.5, §8.2.2) defines:
-            δρ_i := -(1/s₀) S_Araki(ω_i ‖ ω_i^vac)
-        with an explicit minus sign ensuring δρ < 0 for all physical
-        excitations.  In the GR matching (§8.2.2), δρ acts as the
-        effective energy density component T_00 driving the lapse Φ.
-
         The default remains von Neumann entropy (always ≥ 0), explicitly
-        classified as a placeholder. Negative relative-entropy and modular-
-        energy candidates are available only when the caller supplies an
-        explicit reference state. Their availability is not validation of a
-        physical law; raw relative entropy fails the tested linear-response
-        criterion.
+        classified as a pipeline placeholder. Negative relative-entropy and
+        reduced-state modular-energy candidates are available only when the caller
+        supplies an explicit reference state. The exact backend also exposes a
+        microscopic KMS energy-density candidate using the declared Hamiltonian
+        decomposition. Availability is not validation of a physical law: raw
+        relative entropy fails linear response, reduced-state modular energy is
+        blind in the symmetric KMS-chain control, and the microscopic candidate has
+        only passed finite-system diagnostics. None is an established local
+        stress-energy component.
         """
         n_cells = len(cells)
         delta_rho = torch.zeros(n_cells, dtype=torch.float64)
+        if cfg_time.source_model == "negative_kms_energy_density_candidate":
+            if reference_state is None:
+                raise ValueError(
+                    f"Source model {cfg_time.source_model!r} requires a reference_state"
+                )
+            if not isinstance(self.backend, ExactBackend):
+                raise NotImplementedError(
+                    "The KMS energy-density candidate requires the exact backend "
+                    "and an explicit microscopic Hamiltonian."
+                )
+            flattened_cells = [site for cell in cells for site in cell]
+            expected_sites = list(range(self.config.substrate.n_qubits))
+            if any(not cell for cell in cells) or sorted(flattened_cells) != expected_sites:
+                raise ValueError(
+                    "cells must form a nonempty disjoint partition of all microscopic sites"
+                )
+            beta_kms = (
+                cfg_time.beta_kms
+                if cfg_time.beta_kms is not None
+                else self.config.substrate.beta
+            )
+            local_energy = self.backend.build_local_energy_operators()
+            state_delta = state - reference_state
+            for i, cell in enumerate(cells):
+                cell_energy = torch.zeros_like(local_energy[0])
+                for site in cell:
+                    cell_energy += local_energy[site]
+                delta_rho[i] = -beta_kms * torch.trace(
+                    state_delta @ cell_energy
+                ).real.item()
+            return cfg_time.source_scale * delta_rho
+
         for i, cell in enumerate(cells):
             rho_i = self.backend.reduced_state(state, cell)
             if cfg_time.source_model == "von_neumann_placeholder":

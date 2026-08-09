@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from popgp.information import (
+    finite_gibbs_state,
     mix_states,
     modular_energy_delta,
     quantum_relative_entropy,
@@ -76,3 +77,21 @@ def test_modular_energy_affine_mixture_linearity_identity() -> None:
     second = modular_energy_delta(mix_states(sigma, excitation, 2e-3), sigma)
 
     assert second == pytest.approx(2.0 * first, rel=1e-10, abs=1e-14)
+
+
+def test_finite_gibbs_state_matches_two_level_closed_form() -> None:
+    hamiltonian = _diag(0.0, 2.0)
+    state = finite_gibbs_state(hamiltonian, beta=0.7)
+    excited_weight = math.exp(-1.4) / (1.0 + math.exp(-1.4))
+
+    assert state[1, 1].real.item() == pytest.approx(excited_weight, abs=1e-14)
+    assert torch.trace(state).real.item() == pytest.approx(1.0, abs=1e-14)
+
+
+def test_finite_gibbs_state_rejects_nonhermitian_hamiltonian() -> None:
+    hamiltonian = torch.tensor(
+        [[0.0, 1.0], [0.0, 0.0]], dtype=torch.complex128
+    )
+
+    with pytest.raises(ValueError, match="Hermitian"):
+        finite_gibbs_state(hamiltonian, beta=1.0)
