@@ -40,6 +40,24 @@ def test_relative_entropy_matches_commuting_closed_form() -> None:
     assert quantum_relative_entropy(rho, sigma) == pytest.approx(expected, abs=1e-13)
 
 
+def test_relative_entropy_clamps_distributed_kernel_roundoff() -> None:
+    dimension = 200
+    kernel_dimension = 100
+    leaked_weight = 9.9e-13
+    sigma_values = torch.zeros(dimension, dtype=torch.complex128)
+    sigma_values[: dimension - kernel_dimension] = 1.0 / (
+        dimension - kernel_dimension
+    )
+    rho_values = (1.0 - leaked_weight) * sigma_values
+    rho_values[dimension - kernel_dimension :] = leaked_weight / kernel_dimension
+
+    result = quantum_relative_entropy(
+        torch.diag(rho_values), torch.diag(sigma_values)
+    )
+
+    assert result == 0.0
+
+
 def test_entropy_treats_zero_eigenvalues_exactly() -> None:
     assert von_neumann_entropy(_diag(1.0, 0.0)) == pytest.approx(0.0)
 

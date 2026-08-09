@@ -36,10 +36,10 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | 4 s | 45 passed |
+| `pytest -q` | 4 s | 50 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
-| grid example | 6 s | 12/12 edges, P=R=1, D*=2, finite spectral peak≈1.50 |
-| gravity diagnostic | 7 s | negative well, slower source clock, z≈0.0123, residual<1e-17 |
+| grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
+| gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
 | source-law example | 7 s | RE slope≈1.9997; modular slope=1.0; negative result retained |
 | CA analogy | 9 s | population declined 33 to 27; overall check fails; PNG/GIF/JSON regenerated |
 
@@ -65,8 +65,12 @@ should be compared by structured metrics rather than binary hashes.
 - A Petersen expander selects D*=4 at the weak default penalty, but λ=1 can force
   D*=2 with more than twice the stress; the embedding gate reports that result as
   `poor_fit` rather than a geometric candidate.
-- Local metric fits now report rank, condition, and residual. The 3×3 grid has
-  underdetermined boundary fits; its 2D Delaunay deficits are explicitly proxy-only.
+- Local metric fits use a Frobenius-orthonormal symmetric basis, report an explicit
+  underdetermined flag with fixed rank tolerance, and are invariant under rotations
+  of the MDS frame. The canonical MDS frame removes arbitrary orientation changes
+  from serialized tensors. Earlier regularized scalar diagnostics could shift by
+  roughly 30–60% under a rotation of the degenerate 2D eigenspace. The 3×3 grid still
+  has underdetermined boundary fits; its 2D Delaunay deficits are proxy-only.
 - Chain partition selection is unchanged for probe seeds 0, 1, 2, 42, and 99, while
   leakage estimates vary by roughly 19% across that small sweep.
 - The 3×3 grid provides only two nonzero radial shells; its log-distance fit cannot

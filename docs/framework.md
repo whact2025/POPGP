@@ -303,7 +303,12 @@ This implements a stability principle in the precise sense requested: emergent s
 
 **Variational interpretation (Thermodynamic, not Computational).** The causal gradient flow defined above is a *physical relaxation process*, not an algorithmic instruction. No agent or physical subsystem solves an NP-hard global optimization. The flow is analogous in spirit to the least-action principle: the cell net that "exists" at projection level is the one that the local thermodynamic relaxation has converged to. In toy-model simulations (where $N \leq 12$ qubits), the fixed point may be located by exhaustive enumeration as a computational shortcut; this does not alter the physical definition, which remains the causal flow attractor.
 
-Crucially, this relaxation requires the emergent subsystems to act as **effectively open thermodynamic systems**. The "environment" here is not an external physical universe, but rather the highly entangled, non-local UV degrees of freedom (the deep Type III commutant and algebraic buffer zones) explicitly traced out by the Type I funnels. The macroscopic geometric cells survive by shedding interaction-induced phase-flow entropy into this unobservable, short-scale quantum vacuum. Without this mechanism, decoherence universally shatters the geometric condition number $\kappa(M) \to \infty$, triggering spatial collapse. The open-system requirement is therefore not an auxiliary modelling choice but a mathematical precondition for the existence of the projection's spatial output (see T5 and §11.4.1 for simulation evidence).
+Effective openness is one possible stabilization hypothesis: UV degrees of freedom
+traced out by the Type I funnels may act as an environment for coarse cells. The
+current CA analogy configures a cooling rule but has no matched no-cooling control,
+so it establishes neither a cooling effect nor a universal thermodynamic requirement,
+a Type III mechanism, or spatial collapse. Those stronger implications remain open
+questions rather than consequences of the present calculation.
 
 **Implementation notes (default choices for toy models).**
 - Weight $w(s)$: choose a finite phase-order window of width $\Delta s$ and set $w(s) = 1/\Delta s$ on that window (and $0$ outside), or use a Gaussian centered at $s_0$. $\Delta s$ should be small enough that the selected cell net is approximately stable across the window.

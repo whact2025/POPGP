@@ -269,6 +269,20 @@ report = {
     },
     "checks": [
         {
+            "name": "pi_res_admissibility",
+            "description": (
+                "The singleton resolution must satisfy the configured retention bound"
+            ),
+            "framework_section": "4.4.2a",
+            "criterion": "pi_res.admissible == true",
+            "value": {
+                "admissible": result.pi_res.admissible,
+                "retention_loss": result.pi_res.retention_loss,
+                "retention_epsilon": cfg.pi_res.retention_epsilon,
+            },
+            "passed": result.pi_res.admissible is True,
+        },
+        {
             "name": "blind_edge_recovery",
             "description": "MI-only inference is compared with held-out Hamiltonian edges",
             "framework_section": "4.4.3",

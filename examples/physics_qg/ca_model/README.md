@@ -79,8 +79,9 @@ uv run python -m examples.physics_qg.ca_model
 
 ![Population Dynamics](results/dynamics_cooling.png)
 
-**What you see**: A dual-axis line chart over time steps. A **PASS/FAIL** badge
-is in the corner. A blue dashed horizontal line marks the entropy death threshold.
+**What you see**: A dual-axis line chart over time steps. A **NEGATIVE** outcome
+badge is in the corner for the committed run. A blue dashed horizontal line marks
+the entropy death threshold.
 
 **Visual elements**:
 - **Red line (left y-axis)** = live cell count at each step.
@@ -130,9 +131,8 @@ using the 'inferno' colour map.
 - **Middle frames**: Clusters of bright cells begin expanding as stable cells
   replicate into neighbouring empty sites. The spatial clustering is emergent —
   no clustering rule was programmed.
-- **Late frames**: Large connected regions of stable (bright) cells filling
-  most of the grid, with occasional dark patches where local interactions are
-  driving entropy up.
+- **Late frames**: A sparse population fluctuates between roughly 26 and 36 occupied
+  sites in the committed trajectory; it does not fill most of the grid.
 
 **What indicates failure**:
 - The grid goes entirely black (all cells dead) — see population crash above.

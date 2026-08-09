@@ -16,16 +16,18 @@ class LocalMetricFit:
     relative_residual: float
     design_rank: int
     n_constraints: int
+    underdetermined: bool
 
 
 def _symmetric_design(displacements: torch.Tensor) -> torch.Tensor:
+    """Return the Frobenius-orthonormal basis for symmetric quadratic forms."""
     dimension = displacements.shape[1]
     columns = []
     for a in range(dimension):
         columns.append(displacements[:, a] ** 2)
     for a in range(dimension):
         for b in range(a + 1, dimension):
-            columns.append(2.0 * displacements[:, a] * displacements[:, b])
+            columns.append((2.0**0.5) * displacements[:, a] * displacements[:, b])
     return torch.stack(columns, dim=1)
 
 
@@ -42,7 +44,7 @@ def _parameters_to_metric(parameters: torch.Tensor, dimension: int) -> torch.Ten
     index = dimension
     for a in range(dimension):
         for b in range(a + 1, dimension):
-            metric[a, b] = metric[b, a] = parameters[index]
+            metric[a, b] = metric[b, a] = parameters[index] / (2.0**0.5)
             index += 1
     return metric
 
@@ -88,6 +90,7 @@ def reconstruct_local_metrics(
                     relative_residual=float("inf"),
                     design_rank=0,
                     n_constraints=0,
+                    underdetermined=True,
                 )
             )
             continue
@@ -116,7 +119,8 @@ def reconstruct_local_metrics(
             else float(residual.item())
         )
         condition_number = float(torch.linalg.cond(regularized_normal).item())
-        design_rank = int(torch.linalg.matrix_rank(design).item())
+        design_rank = int(torch.linalg.matrix_rank(design, rtol=1e-8).item())
+        underdetermined = design_rank < design.shape[1]
         fits.append(
             LocalMetricFit(
                 metric=metric,
@@ -124,6 +128,7 @@ def reconstruct_local_metrics(
                 relative_residual=relative_residual,
                 design_rank=design_rank,
                 n_constraints=len(node_neighbors),
+                underdetermined=underdetermined,
             )
         )
     return fits

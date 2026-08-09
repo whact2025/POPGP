@@ -69,3 +69,17 @@ corresponding classical solution becomes incomplete.
 - Treat exact, approximation, and native backend results as separate evidence tiers.
 - Native CUDA checks are required before claiming scalable equivalence.
 - Keep PRs reviewable; pilot repairs may be split before upstream submission.
+
+## Open questions retained for follow-up
+
+- Run a preregistered CA cooling study with matched cooling/no-cooling arms and at
+  least 50 shared seeds; report survival and population effects with intervals.
+- Extend blind topology recovery beyond MST-degenerate chains to larger lattices,
+  long-range models, and non-geometric controls.
+- Replace the fixed dimension penalty with a stress-driven, preregistered selection
+  rule and test whether false geometry persists for Bell-pair controls.
+- Derive the retention budget from an independently specified capacity law rather
+  than selecting it as a toy-model tolerance.
+- Test local-metric identifiability under neighborhood perturbations and refinement.
+- Treat Lorentz recovery, covariant conservation, and continuum closure as open until
+  direct numerical tests exist.

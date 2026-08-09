@@ -214,9 +214,9 @@ print(f"Source clock rate / boundary clock rate: {clock_ratio:.4f} (slower).")
 
 # ── Summary verdict ──────────────────────────────────────────────────────
 
-overall_pass = monotonic and symmetric
+diagnostic_pass = monotonic and symmetric
 print(f"\n{'='*50}")
-print(f"OVERALL: {'PASS' if overall_pass else 'FAIL'}")
+print(f"GREEN-FUNCTION DIAGNOSTIC: {'PASS' if diagnostic_pass else 'FAIL'}")
 print(f"  Monotonic recovery from well: {'PASS' if monotonic else 'FAIL'}")
 print(f"  Grid symmetry:     {'PASS' if symmetric else 'FAIL'}")
 print(f"{'='*50}")
@@ -268,8 +268,8 @@ for d_val in unique_d:
     ax2.plot([], [], "o", color=colors_by_d.get(int(d_val), "gray"),
              markersize=8, label=label)
 
-verdict = "PASS" if overall_pass else "FAIL"
-verdict_color = "green" if overall_pass else "red"
+verdict = "DIAGNOSTIC PASS" if diagnostic_pass else "DIAGNOSTIC FAIL"
+verdict_color = "green" if diagnostic_pass else "red"
 ax2.text(
     0.98, 0.05, verdict, transform=ax2.transAxes,
     fontsize=18, fontweight="bold", color="white",
@@ -307,7 +307,7 @@ for i in range(N):
                  xytext=(6, y_off), textcoords="offset points",
                  fontsize=9, fontweight="bold")
 
-verdict_color_emb = "green" if overall_pass else "red"
+verdict_color_emb = "green" if diagnostic_pass else "red"
 ax3.text(
     0.98, 0.02, verdict, transform=ax3.transAxes,
     fontsize=18, fontweight="bold", color="white",
@@ -376,6 +376,15 @@ report = {
         "use_exact_backend": cfg.use_exact_backend,
     },
     "pipeline": {
+        "pi_res": {
+            "n_cells": len(result.pi_res.cells),
+            "cells": result.pi_res.cells,
+            "leakage": result.pi_res.leakage,
+            "retention_loss": result.pi_res.retention_loss,
+            "admissible": result.pi_res.admissible,
+            "n_total_partitions": result.pi_res.n_total,
+            "n_admissible_partitions": result.pi_res.n_admissible,
+        },
         "pi_geom": {
             "D_spectral": float(result.pi_geom.D_spectral),
             "D_star": int(result.pi_geom.D_star),
@@ -420,6 +429,20 @@ report = {
         },
     },
     "checks": [
+        {
+            "name": "pi_res_admissibility",
+            "description": (
+                "The singleton resolution must satisfy the configured retention bound"
+            ),
+            "framework_section": "4.4.2a",
+            "criterion": "pi_res.admissible == true",
+            "value": {
+                "admissible": result.pi_res.admissible,
+                "retention_loss": result.pi_res.retention_loss,
+                "retention_epsilon": cfg.pi_res.retention_epsilon,
+            },
+            "passed": result.pi_res.admissible is True,
+        },
         {
             "name": "nonzero_source_constraint_residual",
             "description": "The nonzero diagnostic source satisfies the screened constraint",

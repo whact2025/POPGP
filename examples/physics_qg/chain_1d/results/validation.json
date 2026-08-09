@@ -107,54 +107,58 @@
       "spectral_diagnostic": "finite_graph_peak",
       "spectral_peak_time": 7.554770724909157,
       "D_star": 1,
-      "stress": 4.679795634157253e-16,
-      "objective": 0.0002590957377738843,
+      "stress": 4.860349514687119e-16,
+      "objective": 0.00025909573777390234,
       "stress_by_dimension": {
-        "1": 4.679795634157253e-16,
-        "2": 5.1312570770620765e-16,
-        "3": 5.296443091202027e-16
+        "1": 4.860349514687119e-16,
+        "2": 6.639527346370152e-10,
+        "3": 5.178990728913192e-16
       },
       "objective_by_dimension": {
-        "1": 0.0002590957377738843,
-        "2": 0.013478385956274996,
-        "3": 0.046697676174776076
+        "1": 0.00025909573777390234,
+        "2": 0.013478386620227217,
+        "3": 0.04669767617477607
       },
       "embedding_status": "geometric_candidate",
-      "selection_margin": 0.013219290218501111,
-      "stress_span": 6.166474570447747e-17,
-      "selection_driver": "spectral_penalty",
+      "selection_margin": 0.013219290882453315,
+      "stress_span": 6.639522486020637e-10,
+      "selection_driver": "mixed_stress_and_penalty",
       "metric_diagnostics": [
         {
           "condition_number": 1.0,
           "relative_residual": 0.0,
           "design_rank": 1,
-          "n_constraints": 1
+          "n_constraints": 1,
+          "underdetermined": false
         },
         {
           "condition_number": 1.0,
-          "relative_residual": 2.0076630299058635e-15,
+          "relative_residual": 2.217092922365548e-15,
           "design_rank": 1,
-          "n_constraints": 2
+          "n_constraints": 2,
+          "underdetermined": false
         },
         {
           "condition_number": 1.0,
           "relative_residual": 4.4341858447310587e-16,
           "design_rank": 1,
-          "n_constraints": 2
+          "n_constraints": 2,
+          "underdetermined": false
         },
         {
           "condition_number": 1.0,
           "relative_residual": 0.0,
           "design_rank": 1,
-          "n_constraints": 1
+          "n_constraints": 1,
+          "underdetermined": false
         }
       ],
       "complex_status": "not_available_for_selected_dimension",
       "coords": [
         1.501510117538726,
-        0.5000000000000029,
-        -0.49999999999999795,
-        -1.501510117538731
+        0.500000000000003,
+        -0.49999999999999784,
+        -1.5015101175387309
       ]
     },
     "pi_time": {
@@ -228,6 +232,7 @@
         "recall": 1.0,
         "mst_degenerate": true
       },
+      "severity": "informational",
       "passed": true
     },
     {
@@ -238,9 +243,9 @@
       "value": {
         "coords": [
           1.501510117538726,
-          0.5000000000000029,
-          -0.49999999999999795,
-          -1.501510117538731
+          0.500000000000003,
+          -0.49999999999999784,
+          -1.5015101175387309
         ],
         "rank": [
           3,
@@ -248,7 +253,7 @@
           1,
           0
         ],
-        "tolerance": 0.0030030202350774574
+        "tolerance": 0.003003020235077457
       },
       "passed": true
     },

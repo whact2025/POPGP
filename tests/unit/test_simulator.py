@@ -117,14 +117,41 @@ def test_graph_geodesics_preserves_float64_distance_dtype() -> None:
 
 
 def test_exact_path_has_negligible_one_dimensional_mds_stress() -> None:
-    positions = torch.arange(4, dtype=torch.float64).reshape(-1, 1)
+    positions = torch.tensor(
+        [[0.0], [1.0 / 3.0], [0.7], [1.1]], dtype=torch.float64
+    )
     distances = torch.cdist(positions, positions)
     coords = Simulator._classical_mds(distances, D=1)
 
     assert Simulator._mds_stress(distances, coords) < 1e-12
 
 
-def test_singleton_resolution_reports_uncomputed_leakage_and_admissibility() -> None:
+def test_mds_canonical_frame_is_rotation_invariant() -> None:
+    coords = torch.tensor(
+        [[0.0, 0.0], [1.0, 0.1], [0.2, 1.2], [1.1, 0.9]],
+        dtype=torch.float64,
+    )
+    angle = 0.491
+    rotation = torch.tensor(
+        [[math.cos(angle), -math.sin(angle)], [math.sin(angle), math.cos(angle)]],
+        dtype=torch.float64,
+    )
+
+    canonical = Simulator._canonicalize_embedding(coords)
+    rotated = Simulator._canonicalize_embedding(coords @ rotation)
+
+    assert torch.allclose(canonical, rotated, atol=1e-12, rtol=1e-12)
+    assert torch.allclose(
+        torch.cdist(canonical, canonical),
+        torch.cdist(coords, coords),
+        atol=1e-12,
+        rtol=1e-12,
+    )
+
+
+def test_singleton_resolution_reports_uncomputed_leakage_and_admissibility(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     config = SimulatorConfig.for_chain(n=2, beta=1.0)
     config.pi_res.cell_dim = 1
     config.pi_res.retention_epsilon = 0.0
@@ -138,6 +165,7 @@ def test_singleton_resolution_reports_uncomputed_leakage_and_admissibility() -> 
     assert result.admissible is False
     assert result.n_total == 1
     assert result.n_admissible == 0
+    assert "returned an inadmissible decomposition" in caplog.text
 
 
 def test_finite_graph_spectral_peak_ignores_float32_zero_mode() -> None:

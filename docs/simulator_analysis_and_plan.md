@@ -192,8 +192,8 @@ E_i : π_ω(A)'' → A_i     (completely positive, unital, idempotent)
 |-------------|------------------------------------------|----------|--------|
 | Type I factor cells | ✅ Contiguous k-qubit blocks via `ExactBackend` partial trace | `chain_1d` (k=2), `grid_2d` (k=1) | N/A |
 | `E_i` as CP maps | ✅ Partial trace (implicit in `Backend.reduced_state()`) | Used in all examples | N/A |
-| SU(2) equivariance | ❌ Not checked | Not checked | Not checked |
-| `L_leak` functional | ✅ Channel-norm via random probe states in `coarse_grain.compute_leakage()` | `chain_1d`: L_leak=4.86e-3 | N/A |
+| SU(2) equivariance | ✅ Sampled analytic identity for partial trace under the declared tensor-product action | `chain_1d`: max violation below tolerance | N/A |
+| `L_leak` functional | ✅ Unnormalized common-probe mean proportional to the channel Hilbert–Schmidt norm at fixed dimension | `chain_1d`: L_leak=6.0985289e-3 | N/A |
 | `L_drift` functional | ✅ Araki RE drift in `coarse_grain.compute_drift()` | Available as tie-breaker | N/A |
 | Causal flow attractor (toy-model: exhaustive search) | ✅ `coarse_grain.optimize_cells()` — full combinatorial search locates the flow fixed point | `chain_1d`: selects contiguous from 105 partitions | N/A |
 | Retention bound | ✅ `coarse_grain.compute_retention_loss()` — total correlation D(ω‖ω∘E) | `chain_1d`: 0.32 (passes) | N/A |
@@ -353,7 +353,9 @@ Framework §13 defines three concrete worked examples that the simulator must be
 3. Measurement of emergent photon dispersion relation on the graph.
 4. Confirmation that violations are < 10⁻¹⁴.
 
-**Status:** No code checks SU(2) equivariance of any coarse-graining map. `tasks_engine.md` mentions `P_singlet` projection but no implementation exists.
+**Status:** The exact backend samples the analytic identity that partial trace
+commutes with the declared tensor-product SU(2) action. This regression does not test
+a more general coarse-graining map or establish Lorentz recovery.
 
 ---
 
@@ -603,7 +605,7 @@ uv run python -m examples.physics_qg.ca_model
 | Criterion | Result |
 |-----------|--------|
 | Optimizer recovers contiguous 2-qubit blocks for 8-qubit chain | ✅ Selected `[[0,1],[2,3],[4,5],[6,7]]` out of 105 partitions |
-| `L_leak(contiguous) < L_leak(scattered)` | ✅ L_leak = 4.86e-3 (contiguous) vs higher for all other partitions |
+| `L_leak(contiguous) < L_leak(scattered)` | ✅ Unnormalized common-probe mean = 6.0985289e-3 (contiguous) vs higher for all other partitions |
 | SU(2) equivariance passes | ✅ max violation < 1e-14 (automatically satisfied for partial trace + tensor-product SU(2)) |
 | Retention bound satisfied | ✅ D(ω ‖ ω∘E) = 0.32 (well below ε = 10.0) |
 

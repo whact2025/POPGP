@@ -142,15 +142,6 @@
       "passed": true
     },
     {
-      "name": "entropy_below_threshold",
-      "description": "Average entropy of surviving cells is below the leakage death threshold",
-      "framework_section": "4.4.2a",
-      "criterion": "final_avg_entropy < 0.4",
-      "value": 0.1787045312617394,
-      "threshold": 0.4,
-      "passed": true
-    },
-    {
       "name": "population_growth",
       "description": "Population at end >= population at start (stable or growing)",
       "framework_section": "4.4.2a",

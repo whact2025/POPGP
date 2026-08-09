@@ -144,7 +144,7 @@ class PiGeomResult:
     h_ab: list[torch.Tensor] | None = None
     """Local metric tensors h_ab(x_i), one per node.  [D_star × D_star]."""
 
-    metric_diagnostics: list[dict[str, float | int]] = field(default_factory=list)
+    metric_diagnostics: list[dict[str, float | int | bool]] = field(default_factory=list)
     """Condition, residual, rank, and constraint count for local metric fits."""
 
     simplices: Any = None
@@ -330,6 +330,13 @@ class Simulator:
             k,
             leakage_text,
         )
+        if result.get("admissible") is False:
+            log.warning(
+                "Pi_res returned an inadmissible decomposition: retention loss %s "
+                "exceeds the configured bound %.6g",
+                result.get("retention_loss"),
+                cfg_res.retention_epsilon,
+            )
         return PiResResult(
             cells=result["cells"],
             leakage=result["leakage"],
@@ -654,6 +661,7 @@ class Simulator:
                 "relative_residual": fit.relative_residual,
                 "design_rank": fit.design_rank,
                 "n_constraints": fit.n_constraints,
+                "underdetermined": fit.underdetermined,
             }
             for fit in metric_fits
         ]
@@ -748,8 +756,62 @@ class Simulator:
 
         D_eff = min(D, n - 1)
         top_evals = evals[:D_eff].clamp(min=0)
-        coords = evecs[:, :D_eff] @ torch.diag(torch.sqrt(top_evals))
-        return coords.real
+        coords = (evecs[:, :D_eff] @ torch.diag(torch.sqrt(top_evals))).real
+        return Simulator._canonicalize_embedding(coords)
+
+    @staticmethod
+    def _canonicalize_embedding(coords: torch.Tensor) -> torch.Tensor:
+        """Fix the arbitrary orthogonal MDS frame using label-ordered anchors.
+
+        Classical MDS coordinates are defined only up to an orthogonal transform.
+        The polar frame of the first linearly independent, label-ordered coordinate
+        rows is equivariant under that transform, so applying its transpose yields
+        deterministic coordinates without changing any pairwise distance.
+        """
+        centered = coords - coords.mean(dim=0, keepdim=True)
+        dimension = centered.shape[1]
+        if dimension == 0:
+            return centered
+
+        represented_rank = int(
+            torch.linalg.matrix_rank(centered, rtol=1e-8).item()
+        )
+        if represented_rank < dimension:
+            return Simulator._canonicalize_embedding_signs(centered)
+
+        anchors: list[torch.Tensor] = []
+        for row in centered:
+            candidate = torch.stack([*anchors, row])
+            if int(torch.linalg.matrix_rank(candidate, rtol=1e-8).item()) > len(
+                anchors
+            ):
+                anchors.append(row)
+            if len(anchors) == dimension:
+                break
+
+        if len(anchors) < dimension:
+            return Simulator._canonicalize_embedding_signs(centered)
+
+        anchor_matrix = torch.stack(anchors)
+        gram_evals, gram_evecs = torch.linalg.eigh(anchor_matrix @ anchor_matrix.T)
+        inverse_sqrt = gram_evecs @ torch.diag(gram_evals.rsqrt()) @ gram_evecs.T
+        orientation = anchor_matrix.T @ inverse_sqrt
+        return centered @ orientation
+
+    @staticmethod
+    def _canonicalize_embedding_signs(coords: torch.Tensor) -> torch.Tensor:
+        """Stabilize represented axes when the requested MDS rank is deficient."""
+        canonical = coords.clone()
+        tolerance = 1e-8 * max(
+            1.0, float(torch.linalg.vector_norm(canonical).item())
+        )
+        for column in range(canonical.shape[1]):
+            nonzero = torch.nonzero(
+                canonical[:, column].abs() > tolerance, as_tuple=False
+            )
+            if nonzero.numel() and canonical[int(nonzero[0]), column] < 0:
+                canonical[:, column] *= -1
+        return canonical
 
     @staticmethod
     def _mds_stress(d_target: torch.Tensor, coords: torch.Tensor) -> float:

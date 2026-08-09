@@ -41,6 +41,11 @@ Published configuration:
 - Regularized local metric fits are reported with rank, condition, and residual.
 - A 2D Delaunay/angle-deficit result is labeled as an embedding proxy.
 
+The configured singleton resolution has retention loss approximately 3.44 against a
+0.1 bound, so `Pi_res` is inadmissible and the committed validation artifact has
+`overall_pass: false`. The downstream topology and geometry numbers remain useful as
+conditional diagnostics; they are not a passing end-to-end projection result.
+
 The heat-kernel value is a scale-dependent finite-size peak, not a continuum spectral
 dimension. The topology result is a selected benchmark, not yet a robustness result
 for larger grids, other temperatures, long-range Hamiltonians, or non-geometric

@@ -169,7 +169,6 @@ initial_pop = history_count[0] if history_count else 0
 pop_survived = final_pop > 0
 pop_grew = final_pop >= initial_pop
 final_entropy = history_entropy[-1] if history_entropy else 0
-entropy_below = final_entropy < LEAKAGE_THRESHOLD
 
 fig, ax1 = plt.subplots(figsize=(9, 5))
 color_pop = "tab:red"
@@ -268,17 +267,6 @@ report = {
             "criterion": "final_population > 0",
             "value": final_pop,
             "passed": pop_survived,
-        },
-        {
-            "name": "entropy_below_threshold",
-            "description": (
-                "Average entropy of surviving cells is below the leakage death threshold"
-            ),
-            "framework_section": "4.4.2a",
-            "criterion": f"final_avg_entropy < {LEAKAGE_THRESHOLD}",
-            "value": float(final_entropy),
-            "threshold": LEAKAGE_THRESHOLD,
-            "passed": entropy_below,
         },
         {
             "name": "population_growth",

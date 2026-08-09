@@ -113,10 +113,19 @@ def quantum_relative_entropy(
     rho_log_sigma = torch.trace(rho @ log_sigma).real.item()
 
     result = float(rho_log_rho - rho_log_sigma)
+    kernel_dimension = int(sigma_kernel.sum().item())
+    leakage_log_bound = numerical_leakage_atol * (
+        abs(
+            math.log(
+                max(numerical_leakage_atol, torch.finfo(torch.float64).tiny)
+            )
+        )
+        + math.log(max(kernel_dimension, 1))
+        + 1.0
+    )
     nonnegative_atol = max(
         support_atol,
-        numerical_leakage_atol
-        * abs(math.log(max(numerical_leakage_atol, torch.finfo(torch.float64).tiny))),
+        leakage_log_bound,
     )
     if -nonnegative_atol < result < 0.0:
         return 0.0

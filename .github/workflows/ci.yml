@@ -17,6 +17,17 @@ jobs:
       - name: Sync locked environment
         run: uv sync --frozen
       - name: Lint
-        run: uv run ruff check popgp tests examples
+        run: uv run ruff check .
+      - name: Validate manuscript source
+        run: uv run python scripts/check_tex.py
       - name: Test
         run: uv run pytest -q
+      - name: Regenerate documented examples
+        run: |
+          uv run python -m examples.physics_qg.chain_1d
+          uv run python -m examples.physics_qg.grid_2d
+          uv run python -m examples.physics_qg.gravity_well
+          uv run python -m examples.physics_qg.source_law
+          uv run python -m examples.physics_qg.ca_model
+      - name: Check committed structured artifacts
+        run: git diff --exit-code -- 'examples/physics_qg/*/results/validation.json'

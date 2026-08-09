@@ -41,6 +41,11 @@ For source strength `-0.01` on the 3×3 inferred graph:
 - `1+z ≈ 1.0123`; and
 - the source clock rate is about 0.9879 times the boundary rate.
 
+The Green-function diagnostic itself passes its solver checks. The enclosing
+projection does not: its configured singleton resolution has retention loss
+approximately 3.44 against a 0.1 bound. The committed artifact therefore records
+`overall_pass: false` and keeps the downstream solve explicitly conditional.
+
 ![Clock constraint result](results/gravity_well.png)
 
 Only two nonzero radial shells exist, so the displayed log-distance fit has no power
@@ -57,8 +62,10 @@ The comparison figure deliberately separates:
 - the manually injected negative Green-function source used for this diagnostic.
 
 Scientific tests elsewhere in the repository show that raw relative entropy and its
-induced potential scale quadratically near a faithful reference, while modular energy
-scales linearly. Accordingly, the physical source remains unresolved.
+induced potential scale quadratically near a faithful reference. Modular energy is
+exactly linear only for the affine-mixture identity regression; response order for a
+non-affine family must be tested separately. Accordingly, the physical source remains
+unresolved.
 
 ## Artifacts
 

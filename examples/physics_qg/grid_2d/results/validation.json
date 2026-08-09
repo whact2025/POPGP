@@ -172,76 +172,115 @@
       "spectral_diagnostic": "finite_graph_peak",
       "spectral_peak_time": 2.9885938981756235,
       "D_star": 2,
-      "stress": 0.16817252172756156,
-      "objective": 0.1706779540216832,
+      "stress": 0.16817252172756159,
+      "objective": 0.17067795402168323,
       "embedding_status": "geometric_candidate",
-      "selection_margin": 0.0514128054870788,
+      "selection_margin": 0.05141280548707855,
       "metric_diagnostics": [
         {
-          "condition_number": 2429.4352262534135,
-          "relative_residual": 0.0008057440950043501,
+          "condition_number": 1343.5885246402077,
+          "relative_residual": 0.0008063007692383327,
           "design_rank": 2,
           "n_constraints": 2,
+          "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 75.35555926420149,
-          "relative_residual": 0.00038664376862346093,
+          "condition_number": 50.36025687804365,
+          "relative_residual": 0.0003571070588407136,
           "design_rank": 3,
-          "n_constraints": 3
+          "n_constraints": 3,
+          "underdetermined": false
         },
         {
-          "condition_number": 2429.4352262530524,
-          "relative_residual": 0.0008057440950043485,
+          "condition_number": 1343.588524640108,
+          "relative_residual": 0.0008063007692380123,
           "design_rank": 2,
           "n_constraints": 2,
+          "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 75.35555926420352,
-          "relative_residual": 0.0003866437686230917,
+          "condition_number": 50.360256878045156,
+          "relative_residual": 0.00035710705884115385,
           "design_rank": 3,
-          "n_constraints": 3
+          "n_constraints": 3,
+          "underdetermined": false
         },
         {
-          "condition_number": 3266.1429370285337,
-          "relative_residual": 0.00013621547784671857,
+          "condition_number": 1675.1808666194513,
+          "relative_residual": 0.0001362154778466243,
           "design_rank": 2,
-          "n_constraints": 4
+          "n_constraints": 4,
+          "underdetermined": true
         },
         {
-          "condition_number": 75.35555926420295,
-          "relative_residual": 0.0003866437686234265,
+          "condition_number": 50.36025687804476,
+          "relative_residual": 0.00035710705884083266,
           "design_rank": 3,
-          "n_constraints": 3
+          "n_constraints": 3,
+          "underdetermined": false
         },
         {
-          "condition_number": 2429.435226253141,
-          "relative_residual": 0.0008057440950044108,
+          "condition_number": 1343.5885246400371,
+          "relative_residual": 0.0008063007692380118,
           "design_rank": 2,
           "n_constraints": 2,
+          "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 75.35555926420405,
-          "relative_residual": 0.00038664376862356675,
+          "condition_number": 50.36025687804522,
+          "relative_residual": 0.00035710705884126103,
           "design_rank": 3,
-          "n_constraints": 3
+          "n_constraints": 3,
+          "underdetermined": false
         },
         {
-          "condition_number": 2429.435226253295,
-          "relative_residual": 0.0008057440950042844,
+          "condition_number": 1343.5885246402647,
+          "relative_residual": 0.0008063007692377539,
           "design_rank": 2,
           "n_constraints": 2,
+          "underdetermined": true,
           "is_proxy_boundary": 1
         }
       ],
       "complex_status": "embedding_delaunay_proxy",
       "simplices": [
         [
+          6,
+          7,
+          8
+        ],
+        [
           0,
           3,
           6
+        ],
+        [
+          3,
+          6,
+          7
+        ],
+        [
+          3,
+          4,
+          7
+        ],
+        [
+          2,
+          5,
+          8
+        ],
+        [
+          5,
+          7,
+          8
+        ],
+        [
+          4,
+          5,
+          7
         ],
         [
           0,
@@ -259,93 +298,63 @@
           4
         ],
         [
-          6,
-          7,
-          8
-        ],
-        [
-          3,
-          6,
-          7
-        ],
-        [
-          3,
-          4,
-          7
-        ],
-        [
-          2,
-          5,
-          8
-        ],
-        [
-          1,
-          2,
-          5
-        ],
-        [
           1,
           4,
           5
         ],
         [
-          4,
-          5,
-          7
-        ],
-        [
-          5,
-          7,
-          8
+          1,
+          2,
+          5
         ]
       ],
       "deficit_angles": {
-        "0": 1.570796326794898,
-        "1": 0.0,
-        "2": 1.5707963267948921,
-        "3": 0.0,
-        "4": 0.0,
+        "0": 1.5707963267948934,
+        "1": 8.881784197001252e-16,
+        "2": 1.5707963267948968,
+        "3": -8.881784197001252e-16,
+        "4": -8.881784197001252e-16,
         "5": 0.0,
-        "6": 1.5707963267948977,
-        "7": 0.0,
-        "8": 1.5707963267948957
+        "6": 1.570796326794897,
+        "7": 8.881784197001252e-16,
+        "8": 1.5707963267948968
       },
       "coords": [
         [
-          0.29940303609890373,
-          -2.652017035612479
+          2.548709148318975,
+          0.7917816697039705
         ],
         [
-          1.3300949190114733,
-          -1.0602353616622906
+          0.7917816697039702,
+          1.50543458948574
         ],
         [
-          2.6520170356124795,
-          0.2994030360989032
+          -0.7917816697039703,
+          2.548709148318976
         ],
         [
-          -1.0602353616622937,
-          -1.330094919011473
+          1.5054345894857404,
+          -0.7917816697039737
         ],
         [
-          -7.355093534447753e-16,
-          -2.715523936994729e-16
+          3.1422959868828017e-16,
+          -7.892479816378799e-16
         ],
         [
-          1.0602353616622944,
-          1.3300949190114721
+          -1.5054345894857397,
+          0.7917816697039745
         ],
         [
-          -2.6520170356124786,
-          -0.2994030360989026
+          0.7917816697039693,
+          -2.5487091483189754
         ],
         [
-          -1.3300949190114746,
-          1.0602353616622922
+          -0.7917816697039718,
+          -1.5054345894857417
         ],
         [
-          -0.2994030360989023,
-          2.6520170356124773
+          -2.5487091483189737,
+          -0.791781669703969
         ]
       ]
     },
@@ -372,6 +381,18 @@
     }
   },
   "checks": [
+    {
+      "name": "pi_res_admissibility",
+      "description": "The singleton resolution must satisfy the configured retention bound",
+      "framework_section": "4.4.2a",
+      "criterion": "pi_res.admissible == true",
+      "value": {
+        "admissible": false,
+        "retention_loss": 3.43997701488105,
+        "retention_epsilon": 0.1
+      },
+      "passed": false
+    },
     {
       "name": "blind_edge_recovery",
       "description": "MI-only inference is compared with held-out Hamiltonian edges",
@@ -400,9 +421,9 @@
       "criterion": "avg_dist_neighbors < avg_dist_non_neighbors",
       "value": {
         "center_node": 4,
-        "avg_dist_neighbors": 1.7009560593087965,
+        "avg_dist_neighbors": 1.7009560593087967,
         "avg_dist_non_neighbors": 2.6688642781535443,
-        "separation_pct": 36.26667068714322
+        "separation_pct": 36.26667068714321
       },
       "passed": true
     },
@@ -419,7 +440,7 @@
       "description": "MDS stress is low, indicating faithful embedding",
       "framework_section": "4.4.4",
       "criterion": "stress < 0.5",
-      "value": 0.16817252172756156,
+      "value": 0.16817252172756159,
       "passed": true
     },
     {
@@ -435,7 +456,7 @@
       "passed": true
     }
   ],
-  "overall_pass": true,
+  "overall_pass": false,
   "artifacts": [
     "results/embedding.png",
     "results/clock_potential.png",
