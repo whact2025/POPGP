@@ -172,6 +172,59 @@ def modular_hamiltonian(sigma: torch.Tensor, *, eigenvalue_atol: float = 1e-15) 
     return evecs @ torch.diag((-torch.log(evals)).to(torch.complex128)) @ evecs.conj().T
 
 
+def kubo_mori_covariance(
+    reference: torch.Tensor,
+    first: torch.Tensor,
+    second: torch.Tensor | None = None,
+    *,
+    eigenvalue_atol: float = 1e-15,
+) -> float:
+    """Return the finite-dimensional Kubo--Mori covariance at ``reference``.
+
+    The logarithmic-mean spectral formula evaluates the canonical correlation
+    exactly up to eigendecomposition roundoff. ``reference`` must be faithful and
+    the observables Hermitian. If ``second`` is omitted, this returns the variance
+    of ``first``.
+    """
+    evals, eigenvectors = _eigh_density(reference, name="reference")
+    evals = evals.real
+    if (evals <= eigenvalue_atol).any():
+        raise ValueError("Kubo--Mori covariance requires a faithful reference state")
+
+    first = _as_complex128(first)
+    second = first if second is None else _as_complex128(second)
+    if first.shape != reference.shape or second.shape != reference.shape:
+        raise ValueError("observables must have the same shape as reference")
+    if not torch.allclose(first, first.conj().T, atol=1e-12, rtol=0.0):
+        raise ValueError("first observable must be Hermitian")
+    if not torch.allclose(second, second.conj().T, atol=1e-12, rtol=0.0):
+        raise ValueError("second observable must be Hermitian")
+
+    first_basis = eigenvectors.conj().T @ first @ eigenvectors
+    second_basis = eigenvectors.conj().T @ second @ eigenvectors
+    probabilities_i = evals[:, None].expand(-1, evals.numel())
+    probabilities_j = evals[None, :].expand(evals.numel(), -1)
+    log_difference = torch.log(probabilities_i) - torch.log(probabilities_j)
+    equal = log_difference.abs() <= 1e-12
+    logarithmic_mean = torch.empty_like(log_difference)
+    logarithmic_mean[equal] = 0.5 * (
+        probabilities_i[equal] + probabilities_j[equal]
+    )
+    logarithmic_mean[~equal] = (
+        probabilities_i[~equal] - probabilities_j[~equal]
+    ) / log_difference[~equal]
+
+    canonical_product = torch.sum(
+        logarithmic_mean.to(torch.complex128)
+        * first_basis
+        * second_basis.T
+    )
+    reference = _as_complex128(reference)
+    first_mean = torch.trace(reference @ first)
+    second_mean = torch.trace(reference @ second)
+    return float((canonical_product - first_mean * second_mean).real.item())
+
+
 def modular_energy_delta(rho: torch.Tensor, sigma: torch.Tensor) -> float:
     """Return ``Tr[(rho - sigma) K_sigma]`` for a faithful reference state."""
     k_sigma = modular_hamiltonian(sigma)

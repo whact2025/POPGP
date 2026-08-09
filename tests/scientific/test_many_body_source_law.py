@@ -4,11 +4,16 @@ import torch
 
 from popgp import Simulator, SimulatorConfig
 from popgp.backend import ExactBackend
-from popgp.diagnostics import fit_power_law, fit_quadratic_asymptote
+from popgp.diagnostics import (
+    assess_quadratic_response,
+    richardson_first_order_limit,
+)
 from popgp.information import (
     finite_gibbs_state,
+    kubo_mori_covariance,
     mix_states,
     modular_energy_delta,
+    modular_hamiltonian,
     quantum_relative_entropy,
     von_neumann_entropy,
 )
@@ -52,16 +57,26 @@ def _expectation_delta(
     return float(torch.trace((state - reference) @ observable).real.item())
 
 
+def _precision_floor(
+    reference: torch.Tensor,
+    observable: torch.Tensor,
+) -> float:
+    baseline = abs(float(torch.trace(reference @ observable).real.item()))
+    return float(np.finfo(float).eps * max(1.0, baseline))
+
+
 @pytest.mark.parametrize(
     ("n_sites", "family", "beta"),
     [
         (5, "heisenberg", 0.3),
         (5, "heisenberg", 1.0),
         (5, "heisenberg", 2.0),
+        (5, "heisenberg", 2.5),
         (5, "heisenberg", 3.0),
         (5, "ising", 0.3),
         (5, "ising", 1.0),
         (5, "ising", 2.0),
+        (5, "ising", 2.5),
         (5, "ising", 3.0),
         (3, "heisenberg", 1.0),
         (7, "heisenberg", 1.0),
@@ -82,7 +97,7 @@ def test_nonaffine_kms_response_converges_across_declared_parameter_sweep(
     hamiltonian = backend.build_hamiltonian()
     reference = backend.prepare_state()
     perturbation = -backend.build_local_energy_operators()[n_sites // 2]
-    epsilons = np.logspace(-5, -3, 9)
+    epsilons = np.logspace(-4.5, -3, 7)
     relative_entropy = []
     modular_energy = []
 
@@ -92,26 +107,36 @@ def test_nonaffine_kms_response_converges_across_declared_parameter_sweep(
             beta,
         )
         relative_entropy.append(quantum_relative_entropy(state, reference))
-        modular_energy.append(abs(modular_energy_delta(state, reference)))
+        modular_energy.append(modular_energy_delta(state, reference))
 
-    full_window = fit_quadratic_asymptote(
-        epsilons, np.asarray(relative_entropy)
+    modular_operator = modular_hamiltonian(reference)
+    precision_floor = _precision_floor(reference, modular_operator)
+    quadratic = assess_quadratic_response(
+        epsilons,
+        np.asarray(relative_entropy),
+        absolute_precision_floor=precision_floor,
+        lower_window_size=5,
     )
-    lower_window = fit_quadratic_asymptote(
-        epsilons[:6], np.asarray(relative_entropy[:6])
+    susceptibility = richardson_first_order_limit(
+        epsilons,
+        np.asarray(modular_energy),
+        absolute_precision_floor=precision_floor,
     )
-    modular_fit = fit_power_law(epsilons, np.asarray(modular_energy))
-    coefficient_uncertainty = 3.0 * np.hypot(
-        full_window.coefficient_standard_error,
-        lower_window.coefficient_standard_error,
+    exact_coefficient = (
+        0.5 * beta**2 * kubo_mori_covariance(reference, perturbation)
+    )
+    exact_susceptibility = -beta * kubo_mori_covariance(
+        reference, modular_operator, perturbation
     )
 
-    assert full_window.coefficient > 0.0
-    assert abs(full_window.coefficient - lower_window.coefficient) <= (
-        coefficient_uncertainty
+    assert quadratic.passed is True
+    assert susceptibility.passed is True
+    assert quadratic.full_window.minimum_signal_to_floor >= 1000.0
+    assert quadratic.full_window.coefficient == pytest.approx(
+        exact_coefficient, rel=5e-4
     )
-    assert abs(modular_fit.slope - 1.0) <= (
-        5.0 * modular_fit.slope_standard_error
+    assert susceptibility.estimate == pytest.approx(
+        exact_susceptibility, rel=1e-6
     )
 
 
@@ -145,11 +170,18 @@ def test_nonaffine_kms_family_separates_linear_and_quadratic_orders() -> None:
             modular_energy[-1] - entropy_delta, abs=2e-14
         )
 
-    relative_fit = fit_quadratic_asymptote(
-        epsilons, np.asarray(relative_entropy)
+    modular_operator = modular_hamiltonian(reference)
+    precision_floor = _precision_floor(reference, modular_operator)
+    relative_assessment = assess_quadratic_response(
+        epsilons,
+        np.asarray(relative_entropy),
+        absolute_precision_floor=precision_floor,
     )
-    modular_fit = fit_power_law(epsilons, np.abs(modular_energy))
-    energy_fit = fit_power_law(epsilons, np.abs(total_energy))
+    modular_limit = richardson_first_order_limit(
+        epsilons,
+        np.asarray(modular_energy),
+        absolute_precision_floor=precision_floor,
+    )
     nonaffinity_amplitude = 0.01
     endpoint = finite_gibbs_state(
         hamiltonian + nonaffinity_amplitude * perturbation, beta
@@ -159,9 +191,8 @@ def test_nonaffine_kms_family_separates_linear_and_quadratic_orders() -> None:
     )
     affine_midpoint = 0.5 * (reference + endpoint)
 
-    assert relative_fit.coefficient > 0.0
-    assert abs(modular_fit.slope - 1.0) <= 5.0 * modular_fit.slope_standard_error
-    assert abs(energy_fit.slope - 1.0) <= 5.0 * energy_fit.slope_standard_error
+    assert relative_assessment.passed is True
+    assert modular_limit.passed is True
     assert torch.linalg.matrix_norm(midpoint - affine_midpoint).item() > 1e-9
 
 
@@ -183,19 +214,20 @@ def test_isospectral_unitary_family_is_quadratic_and_has_zero_entropy_change() -
             von_neumann_entropy(state) - von_neumann_entropy(reference)
         )
 
-    relative_fit = fit_power_law(amplitudes, np.asarray(relative_entropy))
-    modular_fit = fit_power_law(amplitudes, np.asarray(modular_energy))
     identity_atol = np.finfo(float).eps * reference.shape[0]
-    assert abs(relative_fit.slope - 2.0) <= (
-        5.0 * relative_fit.slope_standard_error
-    )
-    assert abs(modular_fit.slope - 2.0) <= (
-        5.0 * modular_fit.slope_standard_error
-    )
     assert np.max(np.abs(np.asarray(entropy_change))) <= identity_atol
     assert np.max(
         np.abs(np.asarray(relative_entropy) - np.asarray(modular_energy))
     ) <= identity_atol
+
+
+def test_quadratic_gate_rejects_first_order_negative_control() -> None:
+    amplitudes = np.logspace(-5, -3, 9)
+    response = 0.4 * amplitudes + 0.7 * amplitudes**2
+
+    assessment = assess_quadratic_response(amplitudes, response)
+
+    assert assessment.passed is False
 
 
 def test_local_energy_candidate_is_conserved_spreads_and_has_correct_clock_sign() -> None:

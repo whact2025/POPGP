@@ -493,9 +493,12 @@ $$
 \rho(\epsilon)=\frac{\exp[-\beta(H+\epsilon V)]}
 {\operatorname{Tr}\exp[-\beta(H+\epsilon V)]},
 $$
-with localized $V=-h_{center}$ shows a nonzero first-order modular/energy
-susceptibility in the declared finite sweep ($\beta\leq3$), while nested-window fits
-of $D/\epsilon^2$ converge to a positive coefficient. Conversely, an isospectral
+with localized $V=-h_{center}$ shows a nonzero signed, Richardson-extrapolated modular
+susceptibility in the declared finite sweep ($\beta\leq3$, including $\beta=2.5$),
+matching the exact Kubo--Mori value. Relative coefficient agreement, an absolute
+slope band, normalized residual, a precision floor, and a first-order negative control
+separately gate $D=O(\epsilon^2)$. Physical-energy response then follows from the exact
+KMS identity rather than an independent slope test. Conversely, an isospectral
 local unitary family has $\Delta S=0$ and
 $D(\rho\|\sigma)=\Delta\langle K_\sigma\rangle=\beta\Delta\langle H\rangle
 =O(\epsilon^2)$. No family-independent first-order law is claimed.

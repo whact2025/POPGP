@@ -8,10 +8,16 @@ import torch
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.backend import ExactBackend
-from popgp.diagnostics import fit_power_law, fit_quadratic_asymptote
+from popgp.diagnostics import (
+    assess_quadratic_response,
+    fit_power_law,
+    richardson_first_order_limit,
+)
 from popgp.information import (
     finite_gibbs_state,
+    kubo_mori_covariance,
     modular_energy_delta,
+    modular_hamiltonian,
     quantum_relative_entropy,
     von_neumann_entropy,
 )
@@ -37,20 +43,55 @@ def _fit_dict(fit) -> dict[str, float]:
 def _asymptote_dict(fit) -> dict[str, float]:
     return {
         "coefficient": fit.coefficient,
-        "coefficient_standard_error": fit.coefficient_standard_error,
+        "coefficient_residual_scale": fit.coefficient_residual_scale,
         "linear_correction": fit.linear_correction,
         "normalized_rmse": fit.normalized_rmse,
+        "absolute_precision_floor": fit.absolute_precision_floor,
+        "minimum_signal_to_floor": fit.minimum_signal_to_floor,
     }
+
+
+def _assessment_dict(assessment) -> dict:
+    return {
+        "full_window": _asymptote_dict(assessment.full_window),
+        "lower_window": _asymptote_dict(assessment.lower_window),
+        "power_law": _fit_dict(assessment.power_law),
+        "relative_coefficient_difference": (
+            assessment.relative_coefficient_difference
+        ),
+        "slope_deviation": assessment.slope_deviation,
+        "passed": assessment.passed,
+    }
+
+
+def _limit_dict(limit) -> dict[str, float | bool]:
+    return {
+        "estimate": limit.estimate,
+        "truncation_error": limit.truncation_error,
+        "roundoff_error": limit.roundoff_error,
+        "total_error": limit.total_error,
+        "significance_ratio": limit.significance_ratio,
+        "minimum_signal_to_floor": limit.minimum_signal_to_floor,
+        "passed": limit.passed,
+    }
+
+
+def _expectation_precision_floor(
+    reference: torch.Tensor,
+    observable: torch.Tensor,
+) -> float:
+    baseline = abs(float(torch.trace(reference @ observable).real.item()))
+    return float(np.finfo(float).eps * max(1.0, baseline))
 
 
 def _order_sensitivity() -> list[dict]:
     """Sweep a non-affine KMS family over the declared finite regime."""
-    epsilons = np.logspace(-5, -3, 9)
+    epsilons = np.logspace(-4.5, -3, 7)
     sensitivity = []
     cases = [
         (5, family, beta)
         for family in ("heisenberg", "ising")
-        for beta in (0.3, 1.0, 2.0, 3.0)
+        for beta in (0.3, 1.0, 2.0, 2.5, 3.0)
     ]
     cases.extend([(3, "heisenberg", 1.0), (7, "heisenberg", 1.0)])
     for n_sites, family, beta in cases:
@@ -64,6 +105,10 @@ def _order_sensitivity() -> list[dict]:
         hamiltonian = backend.build_hamiltonian()
         reference = backend.prepare_state()
         perturbation = -backend.build_local_energy_operators()[n_sites // 2]
+        modular_operator = modular_hamiltonian(reference)
+        precision_floor = _expectation_precision_floor(
+            reference, modular_operator
+        )
         relative_entropy = []
         modular_energy = []
         for epsilon in epsilons:
@@ -72,44 +117,64 @@ def _order_sensitivity() -> list[dict]:
                 beta,
             )
             relative_entropy.append(quantum_relative_entropy(state, reference))
-            modular_energy.append(abs(modular_energy_delta(state, reference)))
-        full_asymptote = fit_quadratic_asymptote(
-            epsilons, np.asarray(relative_entropy)
+            modular_energy.append(modular_energy_delta(state, reference))
+        relative_entropy = np.asarray(relative_entropy)
+        modular_energy = np.asarray(modular_energy)
+        quadratic = assess_quadratic_response(
+            epsilons,
+            relative_entropy,
+            absolute_precision_floor=precision_floor,
+            lower_window_size=5,
         )
-        lower_asymptote = fit_quadratic_asymptote(
-            epsilons[:6], np.asarray(relative_entropy[:6])
+        susceptibility = richardson_first_order_limit(
+            epsilons,
+            modular_energy,
+            absolute_precision_floor=precision_floor,
         )
-        modular_fit = fit_power_law(epsilons, np.asarray(modular_energy))
-        coefficient_difference = abs(
-            full_asymptote.coefficient - lower_asymptote.coefficient
+        exact_quadratic_coefficient = (
+            0.5
+            * beta**2
+            * kubo_mori_covariance(reference, perturbation)
         )
-        coefficient_tolerance = 3.0 * np.hypot(
-            full_asymptote.coefficient_standard_error,
-            lower_asymptote.coefficient_standard_error,
+        exact_modular_susceptibility = -beta * kubo_mori_covariance(
+            reference,
+            modular_operator,
+            perturbation,
         )
-        slope_deviation = abs(modular_fit.slope - 1.0)
-        slope_tolerance = 5.0 * modular_fit.slope_standard_error
+        coefficient_relative_error = abs(
+            quadratic.full_window.coefficient - exact_quadratic_coefficient
+        ) / abs(exact_quadratic_coefficient)
+        susceptibility_relative_error = abs(
+            susceptibility.estimate - exact_modular_susceptibility
+        ) / abs(exact_modular_susceptibility)
         sensitivity.append(
             {
                 "n_sites": n_sites,
                 "hamiltonian": family,
                 "beta": beta,
                 "epsilons": epsilons.tolist(),
-                "relative_entropy_full_asymptote": _asymptote_dict(
-                    full_asymptote
+                "relative_entropy": relative_entropy.tolist(),
+                "signed_modular_energy": modular_energy.tolist(),
+                "absolute_precision_floor": precision_floor,
+                "relative_entropy_quadratic_assessment": _assessment_dict(
+                    quadratic
                 ),
-                "relative_entropy_lower_asymptote": _asymptote_dict(
-                    lower_asymptote
+                "modular_susceptibility": _limit_dict(susceptibility),
+                "exact_kubo_mori_quadratic_coefficient": (
+                    exact_quadratic_coefficient
                 ),
-                "coefficient_difference": coefficient_difference,
-                "three_sigma_coefficient_tolerance": coefficient_tolerance,
-                "modular_energy_fit": _fit_dict(modular_fit),
-                "slope_deviation": slope_deviation,
-                "five_sigma_slope_tolerance": slope_tolerance,
+                "quadratic_coefficient_relative_error": (
+                    coefficient_relative_error
+                ),
+                "exact_kubo_mori_modular_susceptibility": (
+                    exact_modular_susceptibility
+                ),
+                "susceptibility_relative_error": susceptibility_relative_error,
                 "passed": (
-                    full_asymptote.coefficient > 0.0
-                    and coefficient_difference <= coefficient_tolerance
-                    and slope_deviation <= slope_tolerance
+                    quadratic.passed
+                    and susceptibility.passed
+                    and coefficient_relative_error <= 5e-4
+                    and susceptibility_relative_error <= 1e-6
                 ),
             }
         )
@@ -187,16 +252,41 @@ def main() -> None:
         "total_energy": fit_power_law(epsilons, np.abs(total_energy)),
         "potential_amplitude": fit_power_law(epsilons, potential_amplitudes),
     }
-    relative_asymptote = fit_quadratic_asymptote(epsilons, relative_entropy)
-    relative_lower_asymptote = fit_quadratic_asymptote(
-        epsilons[:6], relative_entropy[:6]
+    modular_operator = modular_hamiltonian(reference)
+    precision_floor = _expectation_precision_floor(reference, modular_operator)
+    quadratic_assessment = assess_quadratic_response(
+        epsilons,
+        relative_entropy,
+        absolute_precision_floor=precision_floor,
     )
-    coefficient_difference = abs(
-        relative_asymptote.coefficient - relative_lower_asymptote.coefficient
+    modular_susceptibility = richardson_first_order_limit(
+        epsilons,
+        modular_energy,
+        absolute_precision_floor=precision_floor,
     )
-    coefficient_tolerance = 3.0 * np.hypot(
-        relative_asymptote.coefficient_standard_error,
-        relative_lower_asymptote.coefficient_standard_error,
+    exact_quadratic_coefficient = (
+        0.5
+        * config.substrate.beta**2
+        * kubo_mori_covariance(reference, perturbation)
+    )
+    exact_modular_susceptibility = (
+        -config.substrate.beta
+        * kubo_mori_covariance(reference, modular_operator, perturbation)
+    )
+    quadratic_coefficient_relative_error = abs(
+        quadratic_assessment.full_window.coefficient
+        - exact_quadratic_coefficient
+    ) / abs(exact_quadratic_coefficient)
+    modular_susceptibility_relative_error = abs(
+        modular_susceptibility.estimate - exact_modular_susceptibility
+    ) / abs(exact_modular_susceptibility)
+    synthetic_first_order_response = (
+        0.4 * epsilons + exact_quadratic_coefficient * epsilons**2
+    )
+    synthetic_first_order_assessment = assess_quadratic_response(
+        epsilons,
+        synthetic_first_order_response,
+        absolute_precision_floor=precision_floor,
     )
     midpoint_state = finite_gibbs_state(
         hamiltonian + (diagnostic_epsilon / 2.0) * perturbation,
@@ -357,8 +447,13 @@ def main() -> None:
     print(f"  max |Delta<K>-beta Delta<E>|: {kms_identity_error:.3e}")
     print(
         "  quadratic coefficient (full/lower window): "
-        f"{relative_asymptote.coefficient:.6e} / "
-        f"{relative_lower_asymptote.coefficient:.6e}"
+        f"{quadratic_assessment.full_window.coefficient:.6e} / "
+        f"{quadratic_assessment.lower_window.coefficient:.6e}"
+    )
+    print(
+        "  Richardson / exact Kubo-Mori susceptibility: "
+        f"{modular_susceptibility.estimate:.6e} / "
+        f"{exact_modular_susceptibility:.6e}"
     )
     print(f"  non-affine midpoint deviation: {nonaffine_deviation:.3e}")
     print(
@@ -405,44 +500,57 @@ def main() -> None:
     fig.savefig(figure_path, dpi=150)
     plt.close(fig)
 
-    linear_response_within_uncertainty = all(
-        abs(fits[name].slope - 1.0)
-        <= 5.0 * fits[name].slope_standard_error
-        for name in ("modular_energy", "total_energy", "potential_amplitude")
-    )
-    unitary_quadratic_within_uncertainty = all(
-        abs(fit.slope - 2.0) <= 5.0 * fit.slope_standard_error
-        for fit in (unitary_relative_fit, unitary_modular_fit)
-    )
-
     checks = [
         {
             "name": "nonaffine_kms_response_orders",
             "criterion": (
-                "D/epsilon^2 has a positive nested-window limit within three "
-                "combined standard errors; linear-observable slopes contain 1 "
-                "within five fit standard errors; family is detectably non-affine"
+                "relative coefficient drift <= 1e-3, |log-log slope-2| <= 0.02, "
+                "normalized RMSE <= 1e-2, minimum signal/floor >= 1000; signed "
+                "Richardson susceptibility exceeds ten total errors and agrees "
+                "with the exact Kubo-Mori value; family is detectably non-affine"
             ),
             "value": {
                 "descriptive_power_law_fits": {
                     name: _fit_dict(fit) for name, fit in fits.items()
                 },
-                "relative_entropy_full_asymptote": _asymptote_dict(
-                    relative_asymptote
+                "relative_entropy_quadratic_assessment": _assessment_dict(
+                    quadratic_assessment
                 ),
-                "relative_entropy_lower_asymptote": _asymptote_dict(
-                    relative_lower_asymptote
+                "modular_susceptibility": _limit_dict(
+                    modular_susceptibility
                 ),
-                "coefficient_difference": coefficient_difference,
-                "three_sigma_coefficient_tolerance": coefficient_tolerance,
+                "exact_kubo_mori_quadratic_coefficient": (
+                    exact_quadratic_coefficient
+                ),
+                "quadratic_coefficient_relative_error": (
+                    quadratic_coefficient_relative_error
+                ),
+                "exact_kubo_mori_modular_susceptibility": (
+                    exact_modular_susceptibility
+                ),
+                "modular_susceptibility_relative_error": (
+                    modular_susceptibility_relative_error
+                ),
                 "nonaffine_midpoint_deviation": nonaffine_deviation,
             },
             "passed": (
-                relative_asymptote.coefficient > 0.0
-                and coefficient_difference <= coefficient_tolerance
-                and linear_response_within_uncertainty
+                quadratic_assessment.passed
+                and modular_susceptibility.passed
+                and quadratic_coefficient_relative_error <= 5e-4
+                and modular_susceptibility_relative_error <= 1e-6
                 and nonaffine_deviation > 1e-9
             ),
+        },
+        {
+            "name": "quadratic_gate_rejects_first_order_negative_control",
+            "criterion": "the same quadratic-order gate rejects c1*epsilon+c2*epsilon^2",
+            "value": {
+                "synthetic_response": synthetic_first_order_response.tolist(),
+                "assessment": _assessment_dict(
+                    synthetic_first_order_assessment
+                ),
+            },
+            "passed": synthetic_first_order_assessment.passed is False,
         },
         {
             "name": "kms_and_local_decomposition_identities",
@@ -479,18 +587,18 @@ def main() -> None:
         {
             "name": "nonaffine_kms_parameter_sensitivity",
             "criterion": (
-                "nested-window quadratic coefficients agree within three combined "
-                "standard errors and modular slopes contain 1 within five fit "
-                "standard errors over the declared beta<=3 finite sweep"
+                "direct quadratic and Richardson gates pass, numerical coefficients "
+                "agree with Kubo-Mori values, and every response clears its precision "
+                "floor over the declared beta<=3 finite sweep"
             ),
             "value": sensitivity,
             "passed": all(case["passed"] for case in sensitivity),
         },
         {
-            "name": "isospectral_unitary_family_qualifier",
+            "name": "isospectral_unitary_identity_regression",
             "criterion": (
-                "D and Delta<K> are equal and quadratic while DeltaS=0 for the "
-                "declared local unitary family"
+                "D and Delta<K> agree within the dimension-scaled roundoff bound "
+                "and DeltaS=0; fitted slopes are descriptive only"
             ),
             "value": {
                 "relative_entropy_fit": _fit_dict(unitary_relative_fit),
@@ -500,8 +608,7 @@ def main() -> None:
                 "dimension_scaled_float64_tolerance": unitary_identity_atol,
             },
             "passed": (
-                unitary_quadratic_within_uncertainty
-                and unitary_identity_error <= unitary_identity_atol
+                unitary_identity_error <= unitary_identity_atol
                 and unitary_entropy_error <= unitary_identity_atol
             ),
         },
@@ -562,8 +669,9 @@ def main() -> None:
         "hypothesis": (
             "For the non-affine family rho(epsilon) proportional to "
             "exp[-beta(H+epsilon V)], a localized finite-chain perturbation has "
-            "nonzero first-order modular/energy susceptibility while relative "
-            "entropy converges quadratically. The order is family-specific."
+            "nonzero first-order modular susceptibility while relative entropy "
+            "converges quadratically; energy follows by KMS identity. The order "
+            "is family-specific."
         ),
         "config": {
             "n_sites": n_sites,
@@ -573,6 +681,7 @@ def main() -> None:
             "boundary": config.substrate.boundary,
             "beta": config.substrate.beta,
             "declared_sensitivity_beta_max": 3.0,
+            "declared_sensitivity_includes_beta_2_5": True,
             "center_site": 2,
             "response_family": "non-affine finite KMS family of H + epsilon V",
             "perturbation": "V = -h_center",
@@ -584,6 +693,16 @@ def main() -> None:
             "evolution_times": evolution_times.tolist(),
             "clock_mu": 0.1,
             "clock_zero_mode_policy": "subtract_mean",
+            "precision_floor_definition": (
+                "float64_eps * max(1, abs(Tr(reference K_reference)))"
+            ),
+            "minimum_signal_to_precision_floor": 1000.0,
+            "maximum_relative_quadratic_coefficient_difference": 1e-3,
+            "maximum_quadratic_slope_deviation": 0.02,
+            "maximum_quadratic_normalized_rmse": 1e-2,
+            "minimum_susceptibility_error_margin": 10.0,
+            "maximum_kubo_mori_coefficient_relative_error": 5e-4,
+            "maximum_kubo_mori_susceptibility_relative_error": 1e-6,
         },
         "measurements": {
             "relative_entropy": relative_entropy.tolist(),
@@ -593,12 +712,23 @@ def main() -> None:
             "local_energy_profiles": local_energy_profiles.tolist(),
             "potential_amplitudes": potential_amplitudes.tolist(),
             "fits": {name: _fit_dict(fit) for name, fit in fits.items()},
-            "relative_entropy_full_asymptote": _asymptote_dict(
-                relative_asymptote
+            "relative_entropy_quadratic_assessment": _assessment_dict(
+                quadratic_assessment
             ),
-            "relative_entropy_lower_asymptote": _asymptote_dict(
-                relative_lower_asymptote
+            "modular_susceptibility": _limit_dict(
+                modular_susceptibility
             ),
+            "exact_kubo_mori_quadratic_coefficient": exact_quadratic_coefficient,
+            "exact_kubo_mori_modular_susceptibility": (
+                exact_modular_susceptibility
+            ),
+            "quadratic_coefficient_relative_error": (
+                quadratic_coefficient_relative_error
+            ),
+            "modular_susceptibility_relative_error": (
+                modular_susceptibility_relative_error
+            ),
+            "absolute_precision_floor": precision_floor,
             "nonaffine_midpoint_deviation": nonaffine_deviation,
             "evolved_local_energy_profiles": evolved_profiles.tolist(),
             "evolved_total_energy": evolved_total_energy.tolist(),

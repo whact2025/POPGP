@@ -17,14 +17,24 @@ The response family is
 - conservation and spreading of that site-energy profile under exact evolution; and
 - the sign of a diagnostic graph potential sourced by negative local energy change.
 
-The quadratic claim is checked by fitting `D/epsilon^2` to a finite intercept on
-nested windows. The two intercepts must agree within three combined fit standard
-errors; linear-response slopes must contain 1 within five fit standard errors. The
-check is repeated for Heisenberg and Ising chains through `beta = 3` and for three
-small odd Heisenberg-chain sizes.
+The quadratic claim now has four independent numerical gates: nested-window
+coefficients agree within `1e-3` relatively, the absolute log-log slope is within
+`0.02` of 2, normalized RMSE is at most `1e-2`, and the smallest response exceeds an
+absolute floating-point floor by at least `1000`. The fitted coefficient is also
+compared with the exact Kubo--Mori coefficient. A synthetic first-order response must
+fail the same gate.
+
+First-order modular response is tested directly on the signed series using Richardson
+extrapolation. Its magnitude must exceed ten times the combined truncation/roundoff
+estimate and agree with the exact Kubo--Mori susceptibility. Energy and potential
+power-law slopes remain descriptive; the energy slope is not a separate gate because
+`Delta<K> = beta Delta<E>` is an analytic identity. The sweep includes `beta = 2.5`
+and covers both Hamiltonian families through `beta = 3`, plus three small odd
+Heisenberg-chain sizes.
 
 Response order is family-specific. An isospectral local-unitary control has
-`Delta S = 0` and `D = Delta<K> = beta Delta<E>` with quadratic order. A separate
+`Delta S = 0` and `D = Delta<K> = beta Delta<E>`; these identities are gated at
+roundoff scale while its quadratic slopes are descriptive. A separate
 full local quench supplies the profile-spreading experiment; a commuting Ising control
 retains a stationary profile, showing that spreading is dynamics-dependent.
 

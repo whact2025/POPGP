@@ -34,8 +34,11 @@ energy, physical energy, and the linear clock solve are exactly proportional to 
 mixture amplitude; record those legs as analytic-identity regressions, never as a
 falsification or robustness result. Modular energy remains a candidate after a
 genuinely non-affine five-site KMS family `ρ(ε)∝exp[-β(H+εV)]` shows a nonzero
-first-order susceptibility and nested-window convergence of `D/ε²` across the
-declared β≤3 finite sweep. An isospectral unitary family has `ΔS=0` and
+Richardson-extrapolated modular susceptibility matching the exact Kubo--Mori value.
+Direct coefficient, slope, residual, precision-floor, and first-order negative-control
+gates establish `D=O(ε²)` across the declared β≤3 finite sweep, including β=2.5.
+Physical-energy response follows from the KMS identity rather than a duplicate gate.
+An isospectral unitary family has `ΔS=0` and
 `D=Δ⟨K⟩=βΔ⟨H⟩=O(ε²)`, so response order must always carry its family qualifier.
 A separate quench verifies an exactly summing local-energy split, global conservation,
 and dynamics-dependent spreading. The split is a declared microscopic convention,

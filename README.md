@@ -147,9 +147,12 @@ because each one-site reference modular Hamiltonian is proportional to the ident
 
 An exact five-site experiment now uses the genuinely non-affine family
 `rho(epsilon) proportional to exp[-beta(H + epsilon V)]` with localized
-`V = -h_center`. Nested-window fits find a positive quadratic relative-entropy
-coefficient and a nonzero first-order modular/energy susceptibility over the declared
-finite sweep (`beta <= 3`). The result is family-specific: for an isospectral local
+`V = -h_center`. Direct coefficient, slope, residual, precision-floor, and negative-
+control gates verify quadratic relative entropy. A signed Richardson estimate finds
+a nonzero first-order modular susceptibility and agrees with the exact Kubo--Mori
+value over the declared finite sweep (`beta <= 3`, including `beta = 2.5`). Physical
+energy follows by the exact KMS identity. The result is family-specific: for an
+isospectral local
 unitary family, `Delta S = 0` and `D = Delta<K> = beta Delta<E>` are all quadratic.
 A separate quench shows exact finite-system energy conservation and profile spreading
 under Heisenberg dynamics, while a commuting Ising control shows no spreading. This

@@ -5,6 +5,7 @@ import torch
 
 from popgp.information import (
     finite_gibbs_state,
+    kubo_mori_covariance,
     mix_states,
     modular_energy_delta,
     quantum_relative_entropy,
@@ -77,6 +78,17 @@ def test_modular_energy_affine_mixture_linearity_identity() -> None:
     second = modular_energy_delta(mix_states(sigma, excitation, 2e-3), sigma)
 
     assert second == pytest.approx(2.0 * first, rel=1e-10, abs=1e-14)
+
+
+def test_kubo_mori_covariance_matches_commuting_classical_covariance() -> None:
+    reference = _diag(0.7, 0.3)
+    observable = torch.diag(torch.tensor([2.0, -1.0], dtype=torch.complex128))
+    mean = 0.7 * 2.0 + 0.3 * -1.0
+    expected = 0.7 * (2.0 - mean) ** 2 + 0.3 * (-1.0 - mean) ** 2
+
+    assert kubo_mori_covariance(reference, observable) == pytest.approx(
+        expected, abs=1e-14
+    )
 
 
 def test_finite_gibbs_state_matches_two_level_closed_form() -> None:

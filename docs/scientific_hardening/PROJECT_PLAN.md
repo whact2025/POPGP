@@ -7,11 +7,15 @@ constraint, separating analytic affine-family identities from discriminating
 non-affine response tests.
 
 - Equations: finite `D(ρ||σ)`, `Δ⟨Kσ⟩`, `ΔS`, and `(L+μ²I)Φ=s`.
-- Implementation: information primitives, uncertainty-aware power-law fitting,
-  KMS equal-energy controls, negative-source/redshift tests, and parameter sweeps.
+- Implementation: information primitives, precision-floor-aware asymptotic fitting,
+  direct Richardson/Kubo--Mori susceptibility, KMS equal-energy controls,
+  negative-source/redshift tests, and parameter sweeps.
 - Acceptance: analytic identities are labeled as such; quadratic response is verified
-  by nested-window coefficient convergence; slope estimates include standard errors;
-  signs agree across code/docs; manual Green-function tests are labeled non-physical.
+  by relative nested-window agreement, an absolute slope band, normalized residual,
+  an absolute precision floor, and a mandatory first-order negative control. Signed
+  first-order response must clear a stated Richardson error margin and match the exact
+  Kubo--Mori susceptibility. Signs agree across code/docs; manual Green-function tests
+  are labeled non-physical.
 - Falsification: raw relative entropy is rejected as a standalone linear source if
   its Φ slope is quadratic or it changes the far-field source at fixed energy.
 - Artifact: JSON/CSV scaling data plus plots and a source-law decision record.
@@ -20,9 +24,11 @@ non-affine response tests.
 Status: raw relative entropy fails the linear-source criteria. Under affine mixing,
 modular energy, physical energy, and the linear clock solve are exactly proportional
 to the mixture amplitude; their unit slopes are identity regressions. The many-body
-experiment now uses `ρ(ε)∝exp[-β(H+εV)]`, verifies nested-window convergence of
-`D/ε²`, and finds a nonzero first-order modular/energy susceptibility through β=3 in
-the declared finite sweep. An isospectral unitary control instead gives
+experiment now uses `ρ(ε)∝exp[-β(H+εV)]`, verifies `D=O(ε²)` with direct asymptotic
+and precision-floor gates, and finds a nonzero Richardson-extrapolated modular
+susceptibility matching the exact Kubo--Mori value through β=3 in the declared finite
+sweep (including β=2.5). Physical-energy response follows from the exact KMS identity
+rather than a duplicate slope gate. An isospectral unitary control instead gives
 `ΔS=0` and `D=Δ⟨K⟩=βΔ⟨H⟩=O(ε²)`, making the family qualifier explicit. A separate
 quench provides the audited conservation/spreading result, while a commuting Ising
 control shows that spreading is not universal. Scalable refinement, temporal
@@ -94,5 +100,8 @@ corresponding classical solution becomes incomplete.
 - Derive the retention budget from an independently specified capacity law rather
   than selecting it as a toy-model tolerance.
 - Test local-metric identifiability under neighborhood perturbations and refinement.
+- Repeat the weakest KMS response cases in independently implemented extended
+  precision; current complex128 signals clear the declared floor but are not an
+  arbitrary-precision cross-check.
 - Treat Lorentz recovery, covariant conservation, and continuum closure as open until
   direct numerical tests exist.

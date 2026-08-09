@@ -28,6 +28,7 @@ jobs:
           uv run python -m examples.physics_qg.grid_2d
           uv run python -m examples.physics_qg.gravity_well
           uv run python -m examples.physics_qg.source_law
+          uv run python -m examples.physics_qg.source_law_many_body
           uv run python -m examples.physics_qg.ca_model
       - name: Check committed structured artifacts
         run: git diff --exit-code -- 'examples/physics_qg/*/results/validation.json'

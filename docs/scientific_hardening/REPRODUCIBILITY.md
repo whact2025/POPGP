@@ -39,12 +39,12 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | 4 s | 76 passed |
+| `pytest -q` | 4 s | 83 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
 | source-law example | 7 s | RE slope≈1.9997; modular slope=1.0; negative result retained |
-| many-body source-law example | 9 s | non-affine KMS: converged `D/ε²`, nonzero linear susceptibility through β=3; isospectral control quadratic |
+| many-body source-law example | 9 s | direct quadratic/floor gates and Kubo--Mori/Richardson susceptibility pass through β=3, including β=2.5 |
 | CA analogy | 9 s | population declined 33 to 27; overall check fails; PNG/GIF/JSON regenerated |
 
 All examples regenerated their committed `validation.json` artifacts. Wall-clock
@@ -58,9 +58,13 @@ so cross-environment artifacts should be compared by structured metrics.
 - Under an affine mixture, modular energy, physical energy, and the linear clock solve
   are exactly proportional to ε. Their unit slopes are analytic identities and are
   excluded from the robustness claim.
-- In an exact five-site non-affine KMS family `ρ(ε)∝exp[-β(H+εV)]`, nested-window
-  fits of `D/ε²` converge and modular/energy susceptibility is nonzero across the
-  declared Heisenberg/Ising, β≤3, and three-size finite sweep. An isospectral unitary
+- In an exact five-site non-affine KMS family `ρ(ε)∝exp[-β(H+εV)]`, relative
+  coefficient, absolute slope, normalized residual, and precision-floor gates verify
+  `D=O(ε²)` and reject a synthetic first-order control. Signed Richardson estimates
+  give a nonzero modular susceptibility and match exact Kubo--Mori values across the
+  declared Heisenberg/Ising, β≤3 (including 2.5), and three-size finite sweep. Energy
+  response is not independently gated because it is fixed by the KMS identity. An
+  isospectral unitary
   control instead has `ΔS=0` and quadratic `D=Δ⟨K⟩=βΔ⟨H⟩`. A separate quench
   conserves and spreads the audited profile under Heisenberg dynamics; the commuting
   Ising profile remains stationary. This is a family-dependent feasibility result.
