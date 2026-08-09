@@ -1,9 +1,8 @@
 {
   "example": "ca_model",
-  "scientific_status": "phenomenological_analogy",
+  "scientific_status": "phenomenological_analogy_negative_population_result",
   "framework_version": "1.0-submission-draft",
   "package_version": "0.1.0",
-  "timestamp": "2026-08-09T12:36:27.380938+00:00",
   "config": {
     "width": 10,
     "height": 10,
@@ -160,20 +159,20 @@
         "initial": 33,
         "final": 27
       },
-      "severity": "informational",
       "passed": false
     },
     {
-      "name": "radiative_cooling_effective",
-      "description": "Average entropy decreases or stays stable over the simulation",
+      "name": "survivor_entropy_filter_regression",
+      "description": "Survivor entropy remains below the configured culling threshold by construction; this does not measure a cooling effect",
       "framework_section": "4.4.2a",
       "criterion": "entropy_last_5 <= leakage_threshold",
       "value": 0.19536425435811683,
       "threshold": 0.4,
+      "severity": "informational",
       "passed": true
     }
   ],
-  "overall_pass": true,
+  "overall_pass": false,
   "artifacts": [
     "results/dynamics_cooling.png",
     "results/evolution_cooling.gif",

@@ -3,7 +3,7 @@
 ## PR 2 — source law and linear response
 
 **Objective:** determine which vacuum-relative quantities can source a weak clock
-constraint with the required first-order response.
+constraint with a first-order response not forced by the chosen state family.
 
 - Equations: finite `D(ρ||σ)`, `Δ⟨Kσ⟩`, `ΔS`, and `(L+μ²I)Φ=s`.
 - Implementation: information primitives, uncertainty-aware power-law fitting,
@@ -15,9 +15,10 @@ constraint with the required first-order response.
 - Artifact: JSON/CSV scaling data plus plots and a source-law decision record.
 - Out of scope: claiming Einstein closure or selecting a final law from one qubit.
 
-Pilot status: the core analytic tests are implemented and raw relative entropy fails
-the linear-source criteria. Modular energy passes first-order scaling and remains a
-candidate. A spatially localized many-body KMS experiment is still required.
+Pilot status: the affine-mixture tests reject raw relative entropy as a standalone
+linear source. Modular energy and the graph solve are exactly linear under that family
+by construction, so their unit slopes do not validate a candidate. A non-affine KMS
+response family and a spatially localized many-body experiment are still required.
 
 ## PR 3 — blind geometry, Regge, and closure foundations
 

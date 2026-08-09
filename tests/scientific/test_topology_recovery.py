@@ -56,6 +56,20 @@ def test_adaptive_gap_recovers_grid_without_reference_edges() -> None:
     assert metrics.recall == 1.0
 
 
+def test_four_cell_chain_recovery_is_mst_degenerate() -> None:
+    reference = {(0, 1), (1, 2), (2, 3)}
+    weights = _correlation_matrix(4, reference)
+    inferred, separable = _infer_edges(weights)
+    distances = torch.zeros_like(weights)
+    mask = ~torch.eye(4, dtype=torch.bool)
+    distances[mask] = -torch.log(weights[mask] / (torch.e * weights.max()))
+    mst = set(Simulator._minimum_spanning_tree(distances, 4))
+
+    assert separable is True
+    assert inferred == reference
+    assert mst == reference
+
+
 def test_adaptive_gap_is_permutation_equivariant() -> None:
     reference = _grid_edges(3, 3)
     weights = _correlation_matrix(9, reference)
@@ -154,7 +168,10 @@ def test_disjoint_bell_pairs_are_marked_nonseparable() -> None:
     )
 
     locality = simulator.run_pi_loc(state, resolution)
+    geometry = simulator.run_pi_geom(locality)
 
     assert locality.connectivity_separable is False
     assert (0, 2) in locality.edges
     assert (1, 3) in locality.edges
+    assert geometry.D_star == 1
+    assert geometry.embedding_status == "geometric_candidate"

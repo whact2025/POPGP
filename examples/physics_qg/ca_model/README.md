@@ -89,32 +89,24 @@ is in the corner. A blue dashed horizontal line marks the entropy death threshol
   this line are culled each step. The average entropy of survivors should remain
   well below this line.
 
-**PASS criteria** (Section 4.4.2a):
-1. **Population survives**: The red line does not crash to zero. The population
-   stabilizes or grows from the initial seed, reaching a dynamic equilibrium
-   where births (replication) balance deaths (entropy culling).
+**Recorded diagnostics** (Section 4.4.2a):
+1. **Population survival/growth**: Survival and stable-or-growing population are
+   recorded separately. The committed run survives but ends below its initial count.
 2. **Entropy stays controlled**: The blue line remains below the dashed threshold.
    The average entropy of survivors should be well below 0.4, indicating the
    population is collectively stable and pure.
 
-**FAIL indicators**:
-- **Population crashes to zero**: The red line drops to 0 and stays there. This
-  means cooling is insufficient — interactions steadily increase entropy until
-  every cell exceeds the death threshold. Try increasing `COOLING_PROB` or
-  decreasing `DECAY_RATE`.
-- **Entropy rises to or above threshold**: The blue line approaches or exceeds
-  the dashed line. This means selection pressure is not keeping up with
-  entropy production. The population may survive but is unhealthy.
-- **Population oscillates wildly**: Large boom-bust cycles suggest the
-  parameters are near a critical boundary. The system is marginally stable.
+These diagnostics describe one stochastic trajectory. A crash, decline, or oscillation
+cannot be attributed specifically to cooling without matched seeds and a parameter
+sweep. The entropy threshold is also partly structural because cells above it are
+removed before the survivor average is recorded.
 
-**Key scientific insight**: If you set `COOLING_PROB = 0` (disable entropy
-export), the population **always** collapses. Interactions between misaligned
-cells always increase entropy (they act as a decoherence channel). Without an
-entropy export mechanism (cooling), every cell eventually exceeds the death
-threshold. This confirms the framework's prediction that **open systems with
-entropy export are necessary for persistent, stable structures** — a direct
-analogy to radiative cooling in astrophysics and the second law in biology.
+The committed run configures `COOLING_PROB = 0.02` but contains no matched no-cooling
+control. Its final population is smaller than its initial population, so the growth
+criterion fails and the artifact records a negative/mixed result. Survivor entropy is
+partly enforced by culling and pure-newborn normalization. This example therefore does
+not establish that cooling is effective or necessary; a multi-seed cooling sweep is
+required.
 
 ---
 

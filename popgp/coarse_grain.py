@@ -148,14 +148,18 @@ def compute_leakage(
     unitaries: list[torch.Tensor] | None = None,
     probe_vecs: list[torch.Tensor] | None = None,
 ) -> float:
-    r"""Compute L_leak(E) = ∫ ds w(s) · Σ_i ‖E_i∘σ_s − σ_s∘E_i‖²_HS (§4.4.2a).
+    r"""Compute an unnormalized common-probe leakage ranking (§4.4.2a).
 
-    The framework defines ‖·‖ as a superoperator (channel) norm, not a
-    state-dependent quantity.  We approximate the Hilbert-Schmidt channel
-    norm by averaging the Frobenius norm of the commutator evaluated on
-    random Haar-distributed pure probe states:
+    The returned value averages the Frobenius norm of the channel commutator
+    on common Haar-distributed pure probe states.  For a Hermiticity-preserving
+    map Δ with Δ(I)=0, the exact 2-design identity is
 
-        ‖Δ‖²_HS ≈ (d+1) · E_ψ[ ‖Δ(|ψ⟩⟨ψ|)‖²_F ]
+        ‖Δ‖²_HS = d(d+1) · E_ψ[ ‖Δ(|ψ⟩⟨ψ|)‖²_F ].
+
+    This function intentionally returns the raw expectation without the
+    dimension factor.  It is proportional to the Hilbert--Schmidt channel norm
+    at fixed Hilbert-space dimension and is used only to rank partitions.  It
+    must not be compared numerically across different dimensions.
 
     Parameters
     ----------
@@ -557,6 +561,7 @@ def optimize_cells(
         "drift": winner.get("drift"),
         "retention_loss": winner["retention_loss"],
         "su2_equivariant": True,
+        "admissible": True,
         "n_total": n_total,
         "n_admissible": n_admissible,
         "all_results": results,

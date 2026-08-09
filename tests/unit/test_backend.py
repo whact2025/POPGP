@@ -14,6 +14,12 @@ def test_ising_and_heisenberg_are_distinct_hamiltonians() -> None:
     ).build_hamiltonian()
 
     assert not torch.allclose(heisenberg, ising)
+    assert torch.linalg.eigvalsh(heisenberg) == pytest.approx(
+        torch.tensor([-0.75, 0.25, 0.25, 0.25], dtype=torch.float64)
+    )
+    assert torch.linalg.eigvalsh(ising) == pytest.approx(
+        torch.tensor([-0.25, -0.25, 0.25, 0.25], dtype=torch.float64)
+    )
 
 
 def test_unknown_hamiltonian_fails_explicitly() -> None:

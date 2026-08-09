@@ -101,7 +101,11 @@ print()
 print("=== Section Structure ===")
 for i, line in enumerate(lines, 1):
     s = line.strip()
-    if s.startswith("\\section{") or s.startswith("\\subsection{") or s.startswith("\\subsubsection"):
+    if (
+        s.startswith("\\section{")
+        or s.startswith("\\subsection{")
+        or s.startswith("\\subsubsection")
+    ):
         print(f"  Line {i}: {s[:80]}")
 print()
 

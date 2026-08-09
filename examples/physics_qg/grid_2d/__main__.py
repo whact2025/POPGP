@@ -14,11 +14,11 @@ Run:
     uv run python -m examples.physics_qg.grid_2d
 """
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
@@ -26,6 +26,7 @@ from popgp.diagnostics import edge_recovery_metrics
 from popgp.simulator import Simulator as _Sim
 
 _PKG_DIR = Path(__file__).parent
+torch.set_default_dtype(torch.float64)
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ print(f"MI gap ratio:         {result.pi_loc.connectivity_gap_ratio:.3f}")
 print(f"MI spectrum separable: {result.pi_loc.connectivity_separable}")
 center = (HEIGHT // 2) * WIDTH + (WIDTH // 2)
 neighbor_set = set()
-for i, j in edges:
+for i, j in reference_edges:
     if i == center:
         neighbor_set.add(j)
     if j == center:
@@ -94,9 +95,9 @@ d_neighbors = [np.linalg.norm(coords[center] - coords[n])
 d_others = [np.linalg.norm(coords[center] - coords[o])
             for o in other_set]
 
-avg_neigh = np.mean(d_neighbors) if d_neighbors else 0
-avg_other = np.mean(d_others) if d_others else 0
-topology_ok = avg_neigh < avg_other
+avg_neigh = np.mean(d_neighbors) if d_neighbors else float("nan")
+avg_other = np.mean(d_others) if d_others else float("nan")
+topology_ok = bool(d_neighbors and d_others) and avg_neigh < avg_other
 separation = (avg_other - avg_neigh) / avg_other * 100 if avg_other > 0 else 0
 
 print(f"Center node: {center}")
@@ -158,7 +159,20 @@ if result.pi_time is not None:
     fig, ax = plt.subplots(figsize=(6, 5))
     im = ax.imshow(phi_grid, cmap="inferno", origin="lower")
     fig.colorbar(im, ax=ax, label="Phi (Clock-Rate Potential)")
-    ax.set_title("Emergent Clock Potential (Sec 4.4.5)")
+    effective_source_norm = float(
+        torch.linalg.vector_norm(result.pi_time.delta_rho).item()
+    )
+    placeholder_degenerate = effective_source_norm < 1e-12 and phi_range < 1e-12
+    ax.set_title("Placeholder Clock Diagnostic (Constant Source Removed)")
+    if placeholder_degenerate:
+        ax.text(
+            0.5,
+            -0.12,
+            "SU(2)-invariant one-site marginals make this source zero at round-off",
+            transform=ax.transAxes,
+            ha="center",
+            fontsize=8,
+        )
 
     for iy in range(HEIGHT):
         for ix in range(WIDTH):
@@ -174,13 +188,23 @@ if result.pi_time is not None:
 phi = result.pi_time.phi.numpy() if result.pi_time is not None else None
 phi_range = float(phi.max() - phi.min()) if phi is not None else None
 phi_mean = float(phi.mean()) if phi is not None else None
+effective_source_norm = (
+    float(torch.linalg.vector_norm(result.pi_time.delta_rho).item())
+    if result.pi_time is not None
+    else None
+)
+placeholder_degenerate = (
+    effective_source_norm is not None
+    and effective_source_norm < 1e-12
+    and phi_range is not None
+    and phi_range < 1e-12
+)
 
 report = {
     "example": "grid_2d",
     "scientific_status": "finite_exact_benchmark",
     "framework_version": "1.0-submission-draft",
     "package_version": "0.1.0",
-    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -197,6 +221,11 @@ report = {
         "pi_res": {
             "n_cells": len(result.pi_res.cells),
             "cells": result.pi_res.cells,
+            "leakage": result.pi_res.leakage,
+            "retention_loss": result.pi_res.retention_loss,
+            "admissible": result.pi_res.admissible,
+            "n_total_partitions": result.pi_res.n_total,
+            "n_admissible_partitions": result.pi_res.n_admissible,
         },
         "pi_loc": {
             "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
@@ -235,6 +264,7 @@ report = {
             "phi_range": phi_range,
             "phi_mean": phi_mean,
             "constraint_residual": result.pi_time.constraint_residual,
+            "effective_source_norm": effective_source_norm,
         },
     },
     "checks": [
@@ -295,15 +325,19 @@ report = {
             "passed": result.pi_geom.stress < 0.5,
         },
         {
-            "name": "placeholder_clock_constraint_solved",
+            "name": "placeholder_source_degeneracy",
             "description": (
-                "The non-physical entropy placeholder produced a low-residual "
-                "clock-constraint solution"
+                "SU(2)-invariant one-site Gibbs marginals make the entropy "
+                "placeholder constant, so zero-mode removal gives Phi=0"
             ),
             "framework_section": "4.4.5",
-            "criterion": "constraint_residual < 1e-10",
-            "value": result.pi_time.constraint_residual,
-            "passed": result.pi_time.constraint_residual < 1e-10,
+            "criterion": "effective_source_norm < 1e-12 and phi_range < 1e-12",
+            "value": {
+                "effective_source_norm": effective_source_norm,
+                "phi_range": phi_range,
+                "constraint_residual": result.pi_time.constraint_residual,
+            },
+            "passed": placeholder_degenerate,
         },
     ],
 }
@@ -316,7 +350,7 @@ report["artifacts"] = [
 ]
 
 val_path = results / "validation.json"
-val_path.write_text(validation_json(report))
+val_path.write_text(validation_json(report) + "\n", encoding="utf-8")
 print(f"Saved: {val_path}")
 
 print("\nDone.")

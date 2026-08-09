@@ -3,7 +3,6 @@
   "scientific_status": "numerical_green_function_diagnostic",
   "framework_version": "1.0-submission-draft",
   "package_version": "0.1.0",
-  "timestamp": "2026-08-09T12:49:29.560910+00:00",
   "config": {
     "width": 3,
     "height": 3,
@@ -22,63 +21,63 @@
     "pi_geom": {
       "D_spectral": 1.4994570653658537,
       "D_star": 2,
-      "stress": 0.16817254462090145,
+      "stress": 0.16817252172756156,
       "embedding_status": "geometric_candidate",
       "metric_diagnostics": [
         {
-          "condition_number": 1867.3289374319597,
-          "relative_residual": 0.0007977093616932065,
+          "condition_number": 2429.4352262534135,
+          "relative_residual": 0.0008057440950043501,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 47.11110763820884,
-          "relative_residual": 0.0004373264494968317,
+          "condition_number": 75.35555926420149,
+          "relative_residual": 0.00038664376862346093,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 1867.3289844156343,
-          "relative_residual": 0.0007977094180027315,
+          "condition_number": 2429.4352262530524,
+          "relative_residual": 0.0008057440950043485,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 47.111326617230056,
-          "relative_residual": 0.00043732721930175606,
+          "condition_number": 75.35555926420352,
+          "relative_residual": 0.0003866437686230917,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 2471.704031769688,
-          "relative_residual": 0.00013621616007478357,
-          "design_rank": 3,
+          "condition_number": 3266.1429370285337,
+          "relative_residual": 0.00013621547784671857,
+          "design_rank": 2,
           "n_constraints": 4
         },
         {
-          "condition_number": 47.11142292634852,
-          "relative_residual": 0.0004373252902237734,
+          "condition_number": 75.35555926420295,
+          "relative_residual": 0.0003866437686234265,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 1867.3313401288144,
-          "relative_residual": 0.0007977092918088511,
+          "condition_number": 2429.435226253141,
+          "relative_residual": 0.0008057440950044108,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 47.11131264489813,
-          "relative_residual": 0.0004373244048844544,
+          "condition_number": 75.35555926420405,
+          "relative_residual": 0.00038664376862356675,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 1867.3295471477554,
-          "relative_residual": 0.0007977094841717164,
+          "condition_number": 2429.435226253295,
+          "relative_residual": 0.0008057440950042844,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
@@ -105,32 +104,33 @@
       "scientific_status": "numerical_green_function_diagnostic",
       "physical_source_law_validated": false,
       "effective_source": [
-        0.0011111110862758425,
-        0.0011111110862758425,
-        0.0011111110862758425,
-        0.0011111110862758425,
-        -0.00888888869020674,
-        0.0011111110862758425,
-        0.0011111110862758425,
-        0.0011111110862758425,
-        0.0011111110862758425
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        -0.008888888888888889,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111
       ],
-      "source_background": -0.0011111110862758425,
-      "constraint_residual": 3.641370109900311e-18,
+      "source_background": -0.0011111111111111111,
+      "constraint_residual": 1.8778932484214493e-18,
+      "relative_constraint_residual": 1.991806575454861e-16,
       "phi_point": [
-        0.0022578959906165478,
-        0.00023303130135077826,
-        0.0022578959906165465,
-        0.0002330313013507779,
-        -0.009963709167869308,
-        0.00023303130135077962,
-        0.002257895990616548,
-        0.00023303130135077975,
-        0.002257895990616549
+        0.002257896041084457,
+        0.00023303130655943517,
+        0.0022578960410844567,
+        0.00023303130655943314,
+        -0.009963709390575564,
+        0.00023303130655943452,
+        0.0022578960410844554,
+        0.00023303130655943392,
+        0.002257896041084457
       ],
-      "phi_min": -0.009963709167869308,
-      "phi_max": 0.002257895990616549,
-      "phi_at_source": -0.009963709167869308,
+      "phi_min": -0.009963709390575564,
+      "phi_max": 0.002257896041084457,
+      "phi_at_source": -0.009963709390575564,
       "graph_distances": [
         2,
         1,
@@ -149,39 +149,47 @@
           2.0
         ],
         "phi_avg": [
-          -0.009963709167869308,
-          0.00023303130135077888,
-          0.002257895990616548
+          -0.009963709390575564,
+          0.0002330313065594342,
+          0.0022578960410844567
         ],
         "phi_std": [
           0.0,
-          8.106631917797829e-19,
-          9.936877048100784e-19
+          7.498112479012449e-19,
+          7.19178360604521e-19
         ]
       },
       "log_fit": {
-        "slope": 0.0029212622456748966,
-        "intercept": 0.00023303130135077853,
+        "slope": 0.002921262310970197,
+        "intercept": 0.00023303130655943384,
         "r_squared": 1.0
       },
       "redshift": {
-        "phi_source": -0.009963709167869308,
-        "phi_boundary": 0.002257895990616548,
-        "z": 0.012296594158738072,
-        "one_plus_z": 1.012296594158738
+        "phi_source": -0.009963709390575564,
+        "phi_boundary": 0.0022578960410844567,
+        "z": 0.012296594435271313,
+        "one_plus_z": 1.0122965944352713
       }
     }
   },
   "checks": [
+    {
+      "name": "nonzero_source_constraint_residual",
+      "description": "The nonzero diagnostic source satisfies the screened constraint",
+      "framework_section": "4.4.5",
+      "criterion": "relative_constraint_residual < 1e-12",
+      "value": 1.991806575454861e-16,
+      "passed": true
+    },
     {
       "name": "monotonic_falloff",
       "description": "Phi rises monotonically away from the negative diagnostic source",
       "framework_section": "4.4.5 / 5.1",
       "criterion": "Phi(d) < Phi(d+1) for all consecutive shells",
       "value": {
-        "d=0": -0.009963709167869308,
-        "d=1": 0.00023303130135077888,
-        "d=2": 0.002257895990616548
+        "d=0": -0.009963709390575564,
+        "d=1": 0.0002330313065594342,
+        "d=2": 0.0022578960410844567
       },
       "passed": true
     },
@@ -190,7 +198,7 @@
       "description": "Cells equidistant from source have equal Phi (lattice symmetry preserved)",
       "framework_section": "4.4.5",
       "criterion": "max asymmetry < 5%",
-      "value": 7.909425397109598e-13,
+      "value": 8.723630757706069e-13,
       "threshold": 5.0,
       "passed": true
     },
@@ -210,7 +218,7 @@
       "description": "Emitter in the negative well is redshifted at the boundary",
       "framework_section": "5.1",
       "criterion": "z > 0",
-      "value": 0.012296594158738072,
+      "value": 0.012296594435271313,
       "passed": true
     },
     {

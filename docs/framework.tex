@@ -220,7 +220,7 @@ For Type III compatibility, we eschew the naive von Neumann entropy. The bound i
 \begin{equation}
 S_{\text{Araki}}( \omega|_R \| \omega^{\text{vac}}|_R ) \leq \eta \cdot \mathrm{Cap}(\partial R)
 \end{equation}
-A geometric area scaling $\mathrm{Cap}(\partial R) \propto A_{\text{geo}}(\partial R)/\ell_*^2$ is treated as an emergent behavior in the low-stress embedding regime (\S 4.4.4), not as an input constraint.
+A geometric area scaling $\mathrm{Cap}(\partial R) \propto A_{\text{geo}}(\partial R)/\ell_*^2$ is treated as an emergent behavior in the low-stress embedding regime (Section~\ref{subsec:pi-geom}), not as an input constraint.
 
 \subsubsection*{Selection Principle \texorpdfstring{$E$}{E}: symmetry-commuting, phase-flow stable cell net}
 The choice of the effective cell algebras $\{\mathcal{A}_i\}$ and coarse-graining maps $\{E_i\}$ is fixed by a \textit{stability principle} tied to the phase/action ordering flow $\sigma_s$. Intuitively: the correct decomposition is the one for which phase/action ordering does not continually ``slosh'' information across emergent cell boundaries.
@@ -304,6 +304,7 @@ d_G(i,j) = \inf_{\text{paths } i\to j} \sum_{(a,b) \in \text{path}} d_{ab}.
 \end{equation}
 
 \subsubsection{\texorpdfstring{$\Pi_{\text{geom}}$}{Pi\_geom}: emergent geometry via complexity-stress minimization}
+\label{subsec:pi-geom}
 \textbf{Ontic vs. Epistemic distinction.} The physical (ontic) reality in this framework is solely the \textbf{discrete correlation graph} $(V, d_G)$. The embedding into $\mathbb{R}^{D^*}$ described below is strictly an \textbf{epistemic coordinate chart}: a lossy compression constructed by macroscopic observers to extract the effective dimension $D^*$. 
 
 \textbf{1. Dimension Selection (Derived, not assumed).} The emergent dimension $D^*$ is the integer that minimizes a \textbf{Complexity-Stress Functional} $F(D)$ that balances embedding fidelity against topological complexity:
@@ -522,8 +523,8 @@ An exhaustive search evaluated \textbf{all 105 possible 4-cell coarse-graining p
 \textbf{T4 --- Emergent Gravity Well and Redshift. [COMPLETED]}
 A localized \textbf{entropy-deficit source} ($\delta\rho_i < 0$) was injected into a 2D MI-weighted correlation graph. The resulting clock-rate potential $\Phi$ exhibited monotonic radial falloff and exact discrete gravitational redshift.
 
-\textbf{T5 --- Phenomenological Stability and Radiative Cooling. [COMPLETED]}
-CA models demonstrated \textbf{emergent spatial clustering} (``purity shields''). Disabling the cooling channel caused \textbf{total population extinction}, confirming that emergent geometry requires an effectively open thermodynamic subsystem mechanism.
+\textbf{T5 --- Phenomenological Stability and Radiative Cooling. [CA ANALOGY]}
+A single cooling-enabled CA run retains a nonzero population but ends below its initial population. No matched no-cooling artifact or multi-seed sweep exists, so the run does not establish that cooling is effective or necessary and does not validate emergent geometry.
 
 \subsection{Distinctive empirical commitments and lethal falsifiers}
 \textbf{F1 --- Dimensional Collapse.} Falsified if states globally minimize complexity-stress at $D^* \to \infty$ or $D^* = 1$ when they shouldn't. \\

@@ -814,7 +814,7 @@ Crucially, the complexity-stress functional (§4.4.4) **dynamically selected** t
 The clock-rate Laplacian (§4.4.5) successfully generated a **2D spatial heatmap** of the potential $\Phi$ across the grid, demonstrating how boundary connectivity natively generates a "gravitational depth" landscape: corner sites (with the fewest neighbours and hence lowest MI connectivity) exhibited the deepest potential wells, while the centre site (highest connectivity) sat at the shallowest point — a purely relational analogue of gravitational potential sourced by network topology rather than assumed mass distribution.
 
 **T2 — Stability under phase-flow (locality from leakage minimization). [COMPLETED]**
-An exhaustive combinatorial search evaluated **all 105 possible 4-cell coarse-graining partitions** of the 8-qubit Hilbert space (each partition dividing 8 qubits into 4 cells of 2 qubits each). For each candidate partition $\{E_i\}$, the phase-flow leakage $\mathcal{L}_{\text{leak}}$ was computed by measuring the Hilbert-Schmidt channel norm of the commutator $\|E_i \circ \sigma_s - \sigma_s \circ E_i\|$ over a finite phase-order window, using pre-computed Haar-random probe states for efficiency.
+An exhaustive combinatorial search evaluated **all 105 possible 4-cell coarse-graining partitions** of the 8-qubit Hilbert space (each partition dividing 8 qubits into 4 cells of 2 qubits each). For each candidate partition $\{E_i\}$, the phase-flow leakage $\mathcal{L}_{\text{leak}}$ was ranked with an unnormalized common-Haar-probe mean proportional to the Hilbert--Schmidt channel norm at fixed Hilbert-space dimension. The omitted $d(d+1)$ factor prevents comparison of the reported values across dimensions but does not change the within-system ranking.
 
 The $\mathcal{L}_{\text{leak}}$ minimization **independently and uniquely recovered the contiguous 1D local blocks** $\{(1,2), (3,4), (5,6), (7,8)\}$ as the optimal cell net $E^*$. Non-local "scattered" partitions (e.g., $\{(1,5), (2,6), (3,7), (4,8)\}$) exhibited massively accelerated entropy growth under phase-flow evolution — their leakage values were orders of magnitude larger than the local minimum.
 
@@ -832,12 +832,17 @@ A localized **entropy-deficit source** ($\delta\rho_i < 0$, §4.4.5) was injecte
 
 This computationally proves that the $\Pi_{\text{time}}$ pipeline (§4.4.5) natively possesses a **Newtonian weak-field limit**: a localized entropy deficit on the correlation graph produces a clock-rate potential well with the correct sign, symmetry, and radial profile to match standard gravitational phenomenology (§8.2.3), without any continuum smoothing or post-hoc parameter adjustment.
 
-**T5 — Phenomenological Stability and Radiative Cooling. [COMPLETED]**
-A phenomenological cellular-automaton (CA) model of $\Pi_{\text{res}}$ was constructed on a 2D grid to validate the macro-principle that locally coherent subsystems survive projection only if the substrate can export phase-flow entropy. Cells evolve under nearest-neighbour interaction (purity decay proportional to Bloch-vector misalignment), a selection rule that removes cells exceeding the leakage death-threshold, and optional probabilistic entropy export ("radiative cooling") to the environment.
+**T5 — Phenomenological Stability and Radiative Cooling. [CA ANALOGY]**
+A phenomenological cellular-automaton (CA) model was run on a 2D grid with a configured
+cooling probability. It is not the quantum projection pipeline and does not test a
+universal thermodynamic requirement.
 
 The simulation successfully demonstrated **emergent spatial clustering**: surviving cells self-organize into "purity shields" — clusters of mutually aligned cells whose collective low-entropy boundary suppresses further decoherence. These structures arise spontaneously from the alignment forces without any geometric input, validating that the stability selection principle (§4.4.2a) natively produces spatially coherent subsystems.
 
-Critically, disabling the cooling channel caused **total population extinction** within a small number of phase-order steps in every trial — interaction-induced decoherence monotonically drove all cell entropies past the leakage threshold, yielding no surviving cell net and therefore no emergent geometry. This confirms the strict open-system requirement: the causal gradient flow can only converge to a stable fixed point if the substrate is thermodynamically open (see §11.4.1 for full details).
+No matched no-cooling run or sweep is implemented. The committed cooling-enabled run
+ends below its initial population, while survivor entropy is partly enforced by the
+culling rule and pure-newborn normalization. No causal conclusion about cooling or
+emergent geometry follows.
 
 Tests T1, T2, T4, and T5 are fully algorithmic, deterministic, and reproducible from the published simulation code. T3 is implementable once the Regge pipeline (§8.2) is operational.
 
@@ -846,9 +851,12 @@ Computational simulations of $\Pi_{\text{res}}$ using a phenomenological cellula
 
 **Setup.** A 2D grid of cells evolves under nearest-neighbour interaction (purity decay proportional to Bloch-vector misalignment), a selection rule that removes cells whose entropy exceeds a leakage death-threshold, and optional probabilistic entropy export ("radiative cooling") to the environment.
 
-**Key finding.** Without cooling, interaction-induced decoherence monotonically drives all cell entropies above the leakage threshold within a small number of phase-order steps, resulting in total population extinction — the projection yields no surviving cell net and therefore no emergent geometry. With cooling enabled, stable populations self-organize into **purity shields**: clusters of mutually aligned cells whose collective low-entropy boundary suppresses further decoherence. Surviving populations maintain average entropy well below the leakage threshold indefinitely.
+**Current result.** The single cooling-enabled run retains a nonzero population but
+fails its stable-or-growing population criterion. No no-cooling artifact exists.
 
-**Implication for the framework.** The existence of a stable fixed point for the causal gradient flow (§4.4.2a) mathematically requires the substrate to function as an open thermodynamic system capable of exporting phase-flow entropy. This is not an auxiliary assumption but a necessary condition: a closed-system substrate in which total entropy is conserved cannot support stable emergent geometry under the leakage functional $\mathcal{L}_{\text{leak}}$. The radiative cooling mechanism provides the physical pathway by which the cell net dissipates the entropy generated by inter-cell interactions, allowing the flow to converge rather than diverge.
+**Interpretation limit.** Whether cooling changes survival requires a matched multi-seed
+control. The present CA cannot establish necessity, a Type III mechanism, or a link to
+spatial geometry.
 
 #### 11.4.2 Methodological Note on Finite-Dimensional Reductions
 The completed validations T1 and T2 employ standard von Neumann trace-entropy formulas ($S(\rho) = -\mathrm{Tr}(\rho \ln \rho)$, $I_{ij} = S(\rho_i) + S(\rho_j) - S(\rho_{ij})$) in the simulation code, while the framework's foundational definitions (§4.4.3, §6.1) are stated in terms of the Araki relative entropy to ensure compatibility with Type III von Neumann algebras. There is no contradiction: in finite-dimensional Hilbert spaces (such as the 8-qubit toy model, where each cell algebra is $M_{d_i}(\mathbb{C})$), the Araki relative entropy **reduces exactly** to the standard von Neumann trace formula. The toy-model computations are therefore exact instances — not approximations — of the general definitions.

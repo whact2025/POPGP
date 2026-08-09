@@ -14,7 +14,6 @@ Run:
     uv run python -m examples.physics_qg.chain_1d
 """
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -23,8 +22,10 @@ import torch
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
+from popgp.diagnostics import edge_recovery_metrics
 
 _PKG_DIR = Path(__file__).parent
+torch.set_default_dtype(torch.float64)
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -47,6 +48,27 @@ sim = Simulator(cfg)
 result = sim.run()
 
 n_cells = len(result.pi_res.cells)
+site_to_cell = {
+    site: cell_index
+    for cell_index, cell in enumerate(result.pi_res.cells)
+    for site in cell
+}
+reference_edges = {
+    tuple(sorted((site_to_cell[i], site_to_cell[j])))
+    for i, j in sim.backend.build_edges()
+    if site_to_cell[i] != site_to_cell[j]
+}
+inferred_edges = {tuple(sorted(edge)) for edge in result.pi_loc.edges}
+edge_recovery = edge_recovery_metrics(inferred_edges, reference_edges)
+mst_edges = set(
+    Simulator._minimum_spanning_tree(result.pi_loc.distance_matrix, n_cells)
+)
+mst_degenerate = inferred_edges == mst_edges
+stress_values = list(result.pi_geom.stress_by_dimension.values())
+stress_span = max(stress_values) - min(stress_values)
+dimension_selection_driver = (
+    "spectral_penalty" if stress_span < 1e-12 else "mixed_stress_and_penalty"
+)
 print(f"Substrate: {cfg.substrate.n_qubits}-qubit Heisenberg chain "
       f"(beta={cfg.substrate.beta})")
 print(f"Cells: {n_cells} blocks of {cfg.pi_res.cell_dim} qubits")
@@ -229,7 +251,6 @@ report = {
     "scientific_status": "finite_exact_benchmark",
     "framework_version": "1.0-submission-draft",
     "package_version": "0.1.0",
-    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "n_qubits": cfg.substrate.n_qubits,
         "topology": cfg.substrate.topology,
@@ -256,6 +277,9 @@ report = {
                 else None
             ),
             "su2_equivariant": result.pi_res.su2_equivariant,
+            "admissible": result.pi_res.admissible,
+            "n_total_partitions": result.pi_res.n_total,
+            "n_admissible_partitions": result.pi_res.n_admissible,
         },
         "pi_loc": {
             "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
@@ -267,6 +291,11 @@ report = {
             "connectivity_gap_ratio": result.pi_loc.connectivity_gap_ratio,
             "connectivity_separable": result.pi_loc.connectivity_separable,
             "inferred_edges": result.pi_loc.edges,
+            "held_out_reference_edges": sorted(reference_edges),
+            "edge_precision": edge_recovery.precision,
+            "edge_recall": edge_recovery.recall,
+            "mst_edges": sorted(mst_edges),
+            "mst_alone_reproduces_inferred_edges": mst_degenerate,
         },
         "pi_geom": {
             "D_spectral": float(result.pi_geom.D_spectral),
@@ -279,6 +308,8 @@ report = {
             "objective_by_dimension": result.pi_geom.objective_by_dimension,
             "embedding_status": result.pi_geom.embedding_status,
             "selection_margin": result.pi_geom.selection_margin,
+            "stress_span": stress_span,
+            "selection_driver": dimension_selection_driver,
             "metric_diagnostics": result.pi_geom.metric_diagnostics,
             "complex_status": result.pi_geom.complex_status,
             "coords": coords.tolist(),
@@ -315,12 +346,30 @@ report = {
             "passed": result.pi_res.cells == [[0, 1], [2, 3], [4, 5], [6, 7]],
         },
         {
-            "name": "su2_equivariance",
-            "description": "Sampled coarse-graining map commutes with global SU(2) action",
+            "name": "su2_equivariance_identity_regression",
+            "description": (
+                "Numerically checks the analytic identity that partial trace commutes "
+                "with the declared product SU(2) action"
+            ),
             "framework_section": "4.4.2a (E4)",
             "criterion": "su2_equivariant == True",
             "value": result.pi_res.su2_equivariant,
             "passed": result.pi_res.su2_equivariant is True,
+        },
+        {
+            "name": "blind_edge_recovery",
+            "description": (
+                "Inferred cell edges match held-out coarse Hamiltonian edges; at four "
+                "cells this result is non-discriminating because the MST alone matches"
+            ),
+            "framework_section": "4.4.3",
+            "criterion": "edge precision == 1 and edge recall == 1",
+            "value": {
+                "precision": edge_recovery.precision,
+                "recall": edge_recovery.recall,
+                "mst_degenerate": mst_degenerate,
+            },
+            "passed": edge_recovery.precision == 1.0 and edge_recovery.recall == 1.0,
         },
         {
             "name": "geometry_1d_ordering",
@@ -361,7 +410,7 @@ report["artifacts"] = [
 ]
 
 val_path = results / "validation.json"
-val_path.write_text(validation_json(report))
+val_path.write_text(validation_json(report) + "\n", encoding="utf-8")
 print(f"Saved: {val_path}")
 
 print("\nDone.")

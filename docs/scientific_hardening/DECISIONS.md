@@ -30,7 +30,9 @@ spectral dimension.
 The pipeline von Neumann source is non-physical. A manually injected source is a
 Green-function diagnostic. Raw relative entropy is rejected as a standalone linear
 mass source in the tested perturbative regime. Modular energy is a candidate only;
-no final source law is selected without many-body localization and conservation tests.
+its affine-mixture unit slope is an algebraic identity, not a falsification test. No
+final source law is selected without a non-affine response, many-body localization,
+and conservation tests.
 
 ## D006 — clock and redshift convention
 

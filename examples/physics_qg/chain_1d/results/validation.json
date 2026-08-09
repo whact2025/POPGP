@@ -3,7 +3,6 @@
   "scientific_status": "finite_exact_benchmark",
   "framework_version": "1.0-submission-draft",
   "package_version": "0.1.0",
-  "timestamp": "2026-08-09T12:49:09.464063+00:00",
   "config": {
     "n_qubits": 8,
     "topology": "chain",
@@ -42,7 +41,10 @@
       "leakage": 0.006098528919738642,
       "drift": null,
       "retention_loss": 0.3195663011886438,
-      "su2_equivariant": true
+      "su2_equivariant": true,
+      "admissible": true,
+      "n_total_partitions": 105,
+      "n_admissible_partitions": 105
     },
     "pi_loc": {
       "mi_matrix_shape": [
@@ -67,59 +69,92 @@
           2,
           3
         ]
-      ]
+      ],
+      "held_out_reference_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "edge_precision": 1.0,
+      "edge_recall": 1.0,
+      "mst_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "mst_alone_reproduces_inferred_edges": true
     },
     "pi_geom": {
       "D_spectral": 0.8390354890749466,
       "spectral_diagnostic": "finite_graph_peak",
       "spectral_peak_time": 7.554770724909157,
       "D_star": 1,
-      "stress": 3.766315876706819e-08,
-      "objective": 0.0002591334009321834,
+      "stress": 4.679795634157253e-16,
+      "objective": 0.0002590957377738843,
       "stress_by_dimension": {
-        "1": 3.766315876706819e-08,
-        "2": 6.52345045580953e-08,
-        "3": 6.52345045580953e-08
+        "1": 4.679795634157253e-16,
+        "2": 5.1312570770620765e-16,
+        "3": 5.296443091202027e-16
       },
       "objective_by_dimension": {
-        "1": 0.0002591334009321834,
-        "2": 0.01347845119077904,
-        "3": 0.046697741409280104
+        "1": 0.0002590957377738843,
+        "2": 0.013478385956274996,
+        "3": 0.046697676174776076
       },
       "embedding_status": "geometric_candidate",
-      "selection_margin": 0.013219317789846858,
+      "selection_margin": 0.013219290218501111,
+      "stress_span": 6.166474570447747e-17,
+      "selection_driver": "spectral_penalty",
       "metric_diagnostics": [
         {
           "condition_number": 1.0,
-          "relative_residual": 2.3429770090089903e-09,
+          "relative_residual": 0.0,
           "design_rank": 1,
           "n_constraints": 1
         },
         {
           "condition_number": 1.0,
-          "relative_residual": 1.1903047611315232e-07,
+          "relative_residual": 2.0076630299058635e-15,
           "design_rank": 1,
           "n_constraints": 2
         },
         {
           "condition_number": 1.0,
-          "relative_residual": 1.1903046188071358e-07,
+          "relative_residual": 4.4341858447310587e-16,
           "design_rank": 1,
           "n_constraints": 2
         },
         {
           "condition_number": 1.0,
-          "relative_residual": 2.342975016629646e-09,
+          "relative_residual": 0.0,
           "design_rank": 1,
           "n_constraints": 1
         }
       ],
       "complex_status": "not_available_for_selected_dimension",
       "coords": [
-        1.5015100240707397,
-        0.5,
-        -0.5,
-        -1.5015102624893188
+        1.501510117538726,
+        0.5000000000000029,
+        -0.49999999999999795,
+        -1.501510117538731
       ]
     },
     "pi_time": {
@@ -145,8 +180,8 @@
       "framework_section": "4.4.2a",
       "criterion": "entropy_increase_invalid > entropy_increase_valid",
       "value": {
-        "valid": 1.1124904155731201,
-        "invalid": 1.299808382987976
+        "valid": 1.1124903902776022,
+        "invalid": 1.29980839049638
       },
       "passed": true
     },
@@ -176,11 +211,23 @@
       "passed": true
     },
     {
-      "name": "su2_equivariance",
-      "description": "Sampled coarse-graining map commutes with global SU(2) action",
+      "name": "su2_equivariance_identity_regression",
+      "description": "Numerically checks the analytic identity that partial trace commutes with the declared product SU(2) action",
       "framework_section": "4.4.2a (E4)",
       "criterion": "su2_equivariant == True",
       "value": true,
+      "passed": true
+    },
+    {
+      "name": "blind_edge_recovery",
+      "description": "Inferred cell edges match held-out coarse Hamiltonian edges; at four cells this result is non-discriminating because the MST alone matches",
+      "framework_section": "4.4.3",
+      "criterion": "edge precision == 1 and edge recall == 1",
+      "value": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "mst_degenerate": true
+      },
       "passed": true
     },
     {
@@ -190,10 +237,10 @@
       "criterion": "tolerance-ranked coords are monotonic",
       "value": {
         "coords": [
-          1.5015100240707397,
-          0.5,
-          -0.5,
-          -1.5015102624893188
+          1.501510117538726,
+          0.5000000000000029,
+          -0.49999999999999795,
+          -1.501510117538731
         ],
         "rank": [
           3,
@@ -201,7 +248,7 @@
           1,
           0
         ],
-        "tolerance": 0.0030030205380171537
+        "tolerance": 0.0030030202350774574
       },
       "passed": true
     },

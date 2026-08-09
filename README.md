@@ -91,13 +91,15 @@ attractor and its equivalence to this minimizer have not been established.
 
 The exact backend computes pairwise quantum mutual information. The default blind
 connectivity rule identifies the largest multiplicative gap in positive MI values,
-reports whether that gap clears a configured separability threshold, and adds a
-minimum spanning tree only if needed for connectivity. A fixed-k k-NN baseline is
+reports whether that gap clears a configured separability threshold, and unions the
+result with a minimum spanning tree to ensure connectivity. A fixed-k k-NN baseline is
 still available. Ground-truth Hamiltonian edges are used only after inference for
 validation metrics and plots.
 
-The controlled 8-site chain and 3×3 grid are exactly recovered at the published
-parameters. This result is not yet evidence of robustness to long-range models,
+The controlled 3×3 grid recovers all held-out nearest-neighbor edges at the published
+parameters. The four-cell chain also matches its held-out cell edges, but this case is
+non-discriminating because the mandatory MST alone produces the same three edges.
+These results are not yet evidence of robustness to long-range models,
 non-geometric controls, larger lattices, or topological entanglement. The proposed
 QCMI/Markov filtering stage is not implemented.
 
@@ -135,11 +137,14 @@ candidate modes now accept a caller-supplied reference state, but temporal avera
 conservation, localization, and a validated physical KMS source remain open.
 Scientific regression tests establish a negative
 result important to the program: near a faithful reference, relative entropy and
-the resulting potential begin at second order in perturbation amplitude, whereas
-modular-energy variation begins at first order. Equal-energy KMS controls also show
+the resulting potential begin at second order in perturbation amplitude. Under the
+declared affine mixture, modular energy and the linear graph solve are exactly linear
+by construction; their fitted unit slopes are arithmetic regressions, not hypothesis
+tests. Equal-energy KMS controls also show
 that raw relative entropy changes with entropy at fixed energy. Raw relative entropy
-is therefore falsified as a standalone linear mass source in this regime; modular
-energy is retained as a candidate, not declared a final law.
+is therefore falsified as a standalone linear mass source in this regime. A
+non-affine response family is required before modular energy can pass a meaningful
+first-order test.
 
 ## Repository map
 

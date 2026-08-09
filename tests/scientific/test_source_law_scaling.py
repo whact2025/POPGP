@@ -29,7 +29,7 @@ def test_relative_entropy_is_quadratic_near_faithful_reference() -> None:
     assert _log_slope(epsilons, values) == pytest.approx(2.0, abs=0.02)
 
 
-def test_modular_energy_has_first_order_response() -> None:
+def test_modular_energy_obeys_affine_mixture_linearity_identity() -> None:
     reference = _diag(0.7, 0.3)
     excitation = _diag(0.2, 0.8)
     epsilons = np.logspace(-6, -2, 10)
@@ -37,11 +37,12 @@ def test_modular_energy_has_first_order_response() -> None:
         [modular_energy_delta(mix_states(reference, excitation, eps), reference)
          for eps in epsilons]
     )
+    coefficient = modular_energy_delta(excitation, reference)
 
-    assert _log_slope(epsilons, values) == pytest.approx(1.0, abs=1e-8)
+    assert values == pytest.approx(epsilons * coefficient, abs=1e-14)
 
 
-def test_clock_potential_inherits_candidate_source_scaling() -> None:
+def test_clock_potential_obeys_linear_solver_homogeneity_identity() -> None:
     reference = _diag(0.7, 0.3)
     excitation = _diag(0.2, 0.8)
     epsilons = np.logspace(-5, -2, 10)
@@ -70,8 +71,25 @@ def test_clock_potential_inherits_candidate_source_scaling() -> None:
             amplitudes.append(float(phi.max() - phi.min()))
 
     relative_fit = fit_power_law(epsilons, np.array(relative_entropy_amplitudes))
-    modular_fit = fit_power_law(epsilons, np.array(modular_energy_amplitudes))
+    relative_ratios = np.array(relative_entropy_amplitudes) / np.array(
+        [
+            quantum_relative_entropy(
+                mix_states(reference, excitation, epsilon), reference
+            )
+            for epsilon in epsilons
+        ]
+    )
+    modular_ratios = np.array(modular_energy_amplitudes) / np.array(
+        [
+            abs(
+                modular_energy_delta(
+                    mix_states(reference, excitation, epsilon), reference
+                )
+            )
+            for epsilon in epsilons
+        ]
+    )
     assert relative_fit.slope == pytest.approx(2.0, abs=0.02)
     assert relative_fit.slope_standard_error < 0.01
-    assert modular_fit.slope == pytest.approx(1.0, abs=1e-8)
-    assert modular_fit.slope_standard_error < 1e-8
+    assert np.ptp(relative_ratios) < 1e-10
+    assert np.ptp(modular_ratios) < 1e-10

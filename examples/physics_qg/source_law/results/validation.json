@@ -2,7 +2,6 @@
   "example": "source_law",
   "framework_version": "1.0-submission-draft",
   "package_version": "0.1.0",
-  "timestamp": "2026-08-09T12:39:54.987434+00:00",
   "scientific_status": "candidate_comparison_with_negative_result",
   "config": {
     "epsilons": [
@@ -179,19 +178,22 @@
       "passed": true
     },
     {
-      "name": "modular_energy_is_linear",
-      "criterion": "abs(slope-1) < 1e-8",
+      "name": "affine_modular_linearity_identity_regression",
+      "criterion": "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12",
       "value": {
-        "slope": 0.9999999999995276,
-        "intercept": -0.8588501615567374,
-        "slope_standard_error": 1.8074841977714659e-13,
-        "r_squared": 1.0
+        "fit": {
+          "slope": 0.9999999999995276,
+          "intercept": -0.8588501615567374,
+          "slope_standard_error": 1.8074841977714659e-13,
+          "r_squared": 1.0
+        },
+        "max_absolute_identity_error": 7.020209066843641e-17
       },
       "passed": true
     },
     {
-      "name": "potential_inherits_source_scaling",
-      "criterion": "relative Phi slope near 2 and modular Phi slope near 1",
+      "name": "linear_solver_homogeneity_identity_regression",
+      "criterion": "Phi/source amplitude ratio is constant and relative-entropy Phi retains the measured quadratic order",
       "value": {
         "relative_entropy_phi": {
           "slope": 1.9996837715059763,
@@ -204,7 +206,8 @@
           "intercept": -1.9607902403175215,
           "slope_standard_error": 1.8076424496968592e-13,
           "r_squared": 1.0
-        }
+        },
+        "max_ratio_spread": 1.6653345369377348e-16
       },
       "passed": true
     },
@@ -221,7 +224,7 @@
   ],
   "conclusion": {
     "raw_relative_entropy_linear_source": "falsified_in_tested_regime",
-    "modular_energy": "first_order_candidate_not_validated_physical_law"
+    "modular_energy": "affine_linearity_identity_not_a_falsification_test"
   },
   "artifacts": [
     "results/source_scaling.png",

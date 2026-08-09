@@ -81,11 +81,20 @@ def quantum_relative_entropy(
     evals_rho = evals_rho.real
     evals_sigma = evals_sigma.real
 
+    numerical_leakage_atol = min(
+        support_atol,
+        32.0 * torch.finfo(torch.float64).eps * rho.shape[0],
+    )
     sigma_kernel = evals_sigma <= eigenvalue_atol
     if sigma_kernel.any():
         kernel_vectors = evecs_sigma[:, sigma_kernel]
-        leaked_weight = torch.trace(kernel_vectors.conj().T @ rho @ kernel_vectors).real.item()
-        if leaked_weight > support_atol:
+        leaked_weight = torch.trace(
+            kernel_vectors.conj().T @ rho @ kernel_vectors
+        ).real.item()
+        # Support containment is exact.  The only ignored weight is a guard for
+        # floating-point projection noise, deliberately much smaller than the
+        # public matrix-validation tolerance.
+        if leaked_weight > numerical_leakage_atol:
             return math.inf
 
     positive_rho = evals_rho > eigenvalue_atol
@@ -104,8 +113,17 @@ def quantum_relative_entropy(
     rho_log_sigma = torch.trace(rho @ log_sigma).real.item()
 
     result = float(rho_log_rho - rho_log_sigma)
-    if -support_atol < result < 0.0:
+    nonnegative_atol = max(
+        support_atol,
+        numerical_leakage_atol
+        * abs(math.log(max(numerical_leakage_atol, torch.finfo(torch.float64).tiny))),
+    )
+    if -nonnegative_atol < result < 0.0:
         return 0.0
+    if result < 0.0:
+        raise ArithmeticError(
+            "relative entropy became negative beyond the numerical tolerance"
+        )
     return result
 
 

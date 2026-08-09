@@ -22,6 +22,16 @@ def test_relative_entropy_enforces_support_condition() -> None:
     assert math.isinf(quantum_relative_entropy(rho, sigma))
 
 
+@pytest.mark.parametrize("leaked_weight", [1e-13, 1e-12, 1e-11])
+def test_relative_entropy_rejects_subthreshold_support_leakage(
+    leaked_weight: float,
+) -> None:
+    rho = _diag(1.0 - leaked_weight, leaked_weight)
+    sigma = _diag(1.0, 0.0)
+
+    assert math.isinf(quantum_relative_entropy(rho, sigma))
+
+
 def test_relative_entropy_matches_commuting_closed_form() -> None:
     rho = _diag(0.6, 0.4)
     sigma = _diag(0.5, 0.5)
@@ -41,7 +51,7 @@ def test_information_primitives_reject_non_normalized_input() -> None:
         von_neumann_entropy(invalid)
 
 
-def test_modular_energy_is_linear_in_mixture_amplitude() -> None:
+def test_modular_energy_affine_mixture_linearity_identity() -> None:
     sigma = _diag(0.7, 0.3)
     excitation = _diag(0.2, 0.8)
     first = modular_energy_delta(mix_states(sigma, excitation, 1e-3), sigma)

@@ -569,7 +569,7 @@ uv run python -m examples.physics_qg.ca_model
 
 **1.1 Coarse-graining module (`popgp/coarse_grain.py`, ~340 lines)**
 - `enumerate_partitions(N, k)` generates all equal-size partitions (105 for N=8, k=2).
-- `compute_leakage()` evaluates the Hilbert-Schmidt channel norm of the commutator `E_i ∘ σ_s − σ_s ∘ E_i` by averaging over Haar-random probe states, with pre-computed unitaries for efficiency.
+- `compute_leakage()` returns an unnormalized common-Haar-probe mean proportional to the Hilbert-Schmidt channel norm at fixed Hilbert-space dimension. The omitted `d(d+1)` factor means values must not be compared across dimensions.
 - `compute_drift()` evaluates the Araki relative entropy drift functional.
 - `compute_retention_loss()` computes D(ω ‖ ω∘E) = Σ S(ρ_i) − S(ρ) (total correlation).
 - `optimize_cells()` locates the causal flow attractor via exhaustive search: enumerate → filter admissible → minimize L_leak → L_drift tie-breaker.

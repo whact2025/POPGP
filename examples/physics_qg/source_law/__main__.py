@@ -1,6 +1,5 @@
 """Compare relative-entropy and modular-energy clock-source scaling."""
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -157,12 +156,20 @@ equal_modular = abs(pure_control["modular_energy"] - mixed_control["modular_ener
 different_relative = (
     abs(pure_control["relative_entropy"] - mixed_control["relative_entropy"]) > 0.1
 )
+modular_coefficient = modular_energy_delta(excitation, reference)
+modular_identity_error = float(
+    np.max(np.abs(modular_energy_values - epsilons * modular_coefficient))
+)
+relative_solver_ratios = relative_phi_amplitudes / relative_entropy_values
+modular_solver_ratios = modular_phi_amplitudes / np.abs(modular_energy_values)
+solver_homogeneity_spread = float(
+    max(np.ptp(relative_solver_ratios), np.ptp(modular_solver_ratios))
+)
 
 report = {
     "example": "source_law",
     "framework_version": "1.0-submission-draft",
     "package_version": "0.1.0",
-    "timestamp": datetime.now(UTC).isoformat(),
     "scientific_status": "candidate_comparison_with_negative_result",
     "config": {
         "epsilons": epsilons.tolist(),
@@ -191,21 +198,28 @@ report = {
             "passed": abs(fits["relative_entropy"].slope - 2.0) < 0.02,
         },
         {
-            "name": "modular_energy_is_linear",
-            "criterion": "abs(slope-1) < 1e-8",
-            "value": _fit_dict("modular_energy"),
-            "passed": abs(fits["modular_energy"].slope - 1.0) < 1e-8,
+            "name": "affine_modular_linearity_identity_regression",
+            "criterion": "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12",
+            "value": {
+                "fit": _fit_dict("modular_energy"),
+                "max_absolute_identity_error": modular_identity_error,
+            },
+            "passed": modular_identity_error < 1e-12,
         },
         {
-            "name": "potential_inherits_source_scaling",
-            "criterion": "relative Phi slope near 2 and modular Phi slope near 1",
+            "name": "linear_solver_homogeneity_identity_regression",
+            "criterion": (
+                "Phi/source amplitude ratio is constant and relative-entropy Phi "
+                "retains the measured quadratic order"
+            ),
             "value": {
                 "relative_entropy_phi": _fit_dict("relative_entropy_phi"),
                 "modular_energy_phi": _fit_dict("modular_energy_phi"),
+                "max_ratio_spread": solver_homogeneity_spread,
             },
             "passed": (
                 abs(fits["relative_entropy_phi"].slope - 2.0) < 0.02
-                and abs(fits["modular_energy_phi"].slope - 1.0) < 1e-8
+                and solver_homogeneity_spread < 1e-10
             ),
         },
         {
@@ -223,11 +237,13 @@ report = {
     ],
     "conclusion": {
         "raw_relative_entropy_linear_source": "falsified_in_tested_regime",
-        "modular_energy": "first_order_candidate_not_validated_physical_law",
+        "modular_energy": "affine_linearity_identity_not_a_falsification_test",
     },
     "artifacts": ["results/source_scaling.png", "results/validation.json"],
 }
 report["overall_pass"] = all(check["passed"] for check in report["checks"])
-(results / "validation.json").write_text(validation_json(report))
+(results / "validation.json").write_text(
+    validation_json(report) + "\n", encoding="utf-8"
+)
 print(f"Saved: {results / 'source_scaling.png'}")
 print(f"Saved: {results / 'validation.json'}")

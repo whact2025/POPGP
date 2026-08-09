@@ -89,6 +89,57 @@ def test_geometry_reports_stress_separately_from_objective() -> None:
     assert result.objective >= result.stress
 
 
+def test_graph_geodesics_preserves_float64_distance_dtype() -> None:
+    simulator = Simulator(SimulatorConfig.for_chain(n=4))
+    weights = torch.tensor(
+        [
+            [0.0, 0.3, 0.0, 0.0],
+            [0.3, 0.0, 0.2, 0.0],
+            [0.0, 0.2, 0.0, 0.1],
+            [0.0, 0.0, 0.1, 0.0],
+        ],
+        dtype=torch.float64,
+    )
+    distances = torch.full_like(weights, float("inf"))
+    distances.fill_diagonal_(0.0)
+    distances[weights > 0] = -torch.log(weights[weights > 0])
+
+    graph_distances, *_ = simulator._graph_geodesics(
+        distances,
+        weights,
+        4,
+        method="adaptive_gap",
+        k_nearest=3,
+        minimum_gap_ratio=1.1,
+    )
+
+    assert graph_distances.dtype == torch.float64
+
+
+def test_exact_path_has_negligible_one_dimensional_mds_stress() -> None:
+    positions = torch.arange(4, dtype=torch.float64).reshape(-1, 1)
+    distances = torch.cdist(positions, positions)
+    coords = Simulator._classical_mds(distances, D=1)
+
+    assert Simulator._mds_stress(distances, coords) < 1e-12
+
+
+def test_singleton_resolution_reports_uncomputed_leakage_and_admissibility() -> None:
+    config = SimulatorConfig.for_chain(n=2, beta=1.0)
+    config.pi_res.cell_dim = 1
+    config.pi_res.retention_epsilon = 0.0
+    simulator = Simulator(config)
+
+    result = simulator.run_pi_res(simulator.prepare())
+
+    assert result.leakage is None
+    assert result.retention_loss is not None
+    assert result.retention_loss > 0.0
+    assert result.admissible is False
+    assert result.n_total == 1
+    assert result.n_admissible == 0
+
+
 def test_finite_graph_spectral_peak_ignores_float32_zero_mode() -> None:
     config = SimulatorConfig.for_chain(n=4)
     simulator = Simulator(config)

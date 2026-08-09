@@ -20,7 +20,6 @@ Run:
     uv run python -m examples.physics_qg.ca_model
 """
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.animation as animation
@@ -190,8 +189,8 @@ ax2.axhline(LEAKAGE_THRESHOLD, color="darkblue", linestyle="--", linewidth=1.5,
             alpha=0.7, label=f"Death threshold = {LEAKAGE_THRESHOLD}")
 ax2.legend(loc="upper right", fontsize=8)
 
-verdict = "PASS" if (pop_survived and entropy_below) else "FAIL"
-verdict_color = "green" if verdict == "PASS" else "red"
+verdict = "SURVIVES" if pop_grew else "NEGATIVE"
+verdict_color = "green" if pop_grew else "darkorange"
 ax1.text(
     0.98, 0.5, verdict, transform=ax1.transAxes,
     fontsize=18, fontweight="bold", color="white",
@@ -199,7 +198,7 @@ ax1.text(
     bbox=dict(boxstyle="round,pad=0.4", fc=verdict_color, alpha=0.9),
 )
 
-fig.suptitle("Emergent Stability with Radiative Cooling", fontsize=13)
+fig.suptitle("Phenomenological CA Run (Cooling Configured, No Control)", fontsize=13)
 fig.tight_layout()
 fig.savefig(results / "dynamics_cooling.png", dpi=150)
 print(f"Saved: {results / 'dynamics_cooling.png'}")
@@ -231,10 +230,9 @@ avg_entropy_final_5 = (
 
 report = {
     "example": "ca_model",
-    "scientific_status": "phenomenological_analogy",
+    "scientific_status": "phenomenological_analogy_negative_population_result",
     "framework_version": "1.0-submission-draft",
     "package_version": "0.1.0",
-    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -288,24 +286,26 @@ report = {
             "framework_section": "4.4.2a",
             "criterion": "final_population >= initial_population",
             "value": {"initial": initial_pop, "final": final_pop},
-            "severity": "informational",
             "passed": pop_grew,
         },
         {
-            "name": "radiative_cooling_effective",
-            "description": "Average entropy decreases or stays stable over the simulation",
+            "name": "survivor_entropy_filter_regression",
+            "description": (
+                "Survivor entropy remains below the configured culling threshold by "
+                "construction; this does not measure a cooling effect"
+            ),
             "framework_section": "4.4.2a",
             "criterion": "entropy_last_5 <= leakage_threshold",
             "value": avg_entropy_final_5,
             "threshold": LEAKAGE_THRESHOLD,
+            "severity": "informational",
             "passed": avg_entropy_final_5 < LEAKAGE_THRESHOLD,
         },
     ],
 }
 
 report["overall_pass"] = all(
-    c["passed"] for c in report["checks"]
-    if c.get("severity") != "informational"
+    c["passed"] for c in report["checks"] if c.get("severity") != "informational"
 )
 report["artifacts"] = [
     "results/dynamics_cooling.png",
@@ -314,7 +314,7 @@ report["artifacts"] = [
 ]
 
 val_path = results / "validation.json"
-val_path.write_text(validation_json(report))
+val_path.write_text(validation_json(report) + "\n", encoding="utf-8")
 print(f"Saved: {val_path}")
 
 print("\nDone.")

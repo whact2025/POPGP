@@ -29,6 +29,7 @@ import torch
 
 from popgp.backend import Backend, create_backend
 from popgp.coarse_grain import (
+    compute_retention_loss,
     optimize_cells,
 )
 from popgp.config import SimulatorConfig
@@ -52,8 +53,8 @@ class PiResResult:
     cells: list[list[int]]
     """Selected cell decomposition: cells[i] = list of qubit indices."""
 
-    leakage: float
-    """L_leak value for the selected decomposition."""
+    leakage: float | None
+    """Unnormalized common-probe leakage ranking, or None if not computed."""
 
     drift: float | None = None
     """L_drift value (tie-breaker), or None if not computed."""
@@ -63,6 +64,15 @@ class PiResResult:
 
     su2_equivariant: bool | None = None
     """Whether the SU(2) equivariance check passed."""
+
+    admissible: bool | None = None
+    """Whether the fixed/selected decomposition passed implemented constraints."""
+
+    n_total: int | None = None
+    """Number of candidate partitions considered, if known."""
+
+    n_admissible: int | None = None
+    """Number of candidates passing implemented admissibility checks."""
 
 
 @dataclass
@@ -273,12 +283,25 @@ class Simulator:
 
         if k == 1:
             cells = [[i] for i in range(N)]
+            retention = (
+                compute_retention_loss(cells, state, self.backend)
+                if self.config.use_exact_backend
+                else None
+            )
+            admissible = (
+                retention <= cfg_res.retention_epsilon
+                if retention is not None
+                else None
+            )
             result = {
                 "cells": cells,
-                "leakage": 0.0,
+                "leakage": None,
                 "drift": None,
-                "retention_loss": 0.0,
+                "retention_loss": retention,
                 "su2_equivariant": True,
+                "admissible": admissible,
+                "n_total": 1,
+                "n_admissible": int(admissible) if admissible is not None else None,
             }
         elif self.config.use_exact_backend:
             result = self._pi_res_exact(state)
@@ -291,11 +314,21 @@ class Simulator:
                 "drift": None,
                 "retention_loss": None,
                 "su2_equivariant": None,
+                "admissible": None,
+                "n_total": None,
+                "n_admissible": None,
             }
 
+        leakage_text = (
+            f"{result['leakage']:.6e}"
+            if result["leakage"] is not None
+            else "not computed"
+        )
         log.info(
-            "Π_res: %d cells of size %d, L_leak=%.6e",
-            len(result["cells"]), k, result["leakage"],
+            "Π_res: %d cells of size %d, leakage proxy=%s",
+            len(result["cells"]),
+            k,
+            leakage_text,
         )
         return PiResResult(
             cells=result["cells"],
@@ -303,6 +336,9 @@ class Simulator:
             drift=result.get("drift"),
             retention_loss=result.get("retention_loss"),
             su2_equivariant=result.get("su2_equivariant"),
+            admissible=result.get("admissible"),
+            n_total=result.get("n_total"),
+            n_admissible=result.get("n_admissible"),
         )
 
     def _pi_res_exact(self, state: object) -> dict:
@@ -446,7 +482,12 @@ class Simulator:
         bool | None,
     ]:
         """Infer blind connectivity and compute shortest-path distances."""
-        adj = torch.full((n, n), float("inf"))
+        adj = torch.full(
+            (n, n),
+            float("inf"),
+            dtype=dist_matrix.dtype,
+            device=dist_matrix.device,
+        )
         edges: set[tuple[int, int]] = set()
         threshold: float | None = None
         gap_ratio: float | None = None
@@ -714,8 +755,10 @@ class Simulator:
     def _mds_stress(d_target: torch.Tensor, coords: torch.Tensor) -> float:
         """Kruskal stress-1: normalized residual of distance reproduction."""
         n = coords.shape[0]
-        d_embed = torch.cdist(coords.float(), coords.float()).double()
-        mask = torch.triu(torch.ones(n, n, dtype=torch.bool), diagonal=1)
+        d_embed = torch.cdist(coords, coords)
+        mask = torch.triu(
+            torch.ones(n, n, dtype=torch.bool, device=coords.device), diagonal=1
+        )
         residuals = (d_target[mask] - d_embed[mask]) ** 2
         denom = (d_target[mask] ** 2).sum()
         if denom < 1e-15:

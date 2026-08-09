@@ -22,7 +22,6 @@ Run:
     uv run python -m examples.physics_qg.gravity_well
 """
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -34,6 +33,7 @@ from popgp.config import PiResConfig
 from popgp.simulator import Simulator as _Sim
 
 _PKG_DIR = Path(__file__).parent
+torch.set_default_dtype(torch.float64)
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -116,12 +116,15 @@ phi_point_tensor, effective_source, source_background, constraint_residual = (
     )
 )
 phi_point = phi_point_tensor.numpy()
+effective_source_norm = float(torch.linalg.vector_norm(effective_source).item())
+relative_constraint_residual = constraint_residual / effective_source_norm
 
 print(f"mu (mass parameter): {MU}")
 print(f"source strength: {POINT_SOURCE_STRENGTH}")
 print(f"Phi range: [{phi_point.min():.4f}, {phi_point.max():.4f}]")
 print(f"Phi at center (source): {phi_point[center]:.4f}")
 print(f"constraint residual: {constraint_residual:.3e}")
+print(f"relative constraint residual: {relative_constraint_residual:.3e}")
 
 # ── Radial profile by graph distance ─────────────────────────────────────
 
@@ -358,7 +361,6 @@ report = {
     "scientific_status": "numerical_green_function_diagnostic",
     "framework_version": "1.0-submission-draft",
     "package_version": "0.1.0",
-    "timestamp": datetime.now(UTC).isoformat(),
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -393,6 +395,7 @@ report = {
             "effective_source": effective_source.tolist(),
             "source_background": float(source_background),
             "constraint_residual": float(constraint_residual),
+            "relative_constraint_residual": float(relative_constraint_residual),
             "phi_point": phi_point.tolist(),
             "phi_min": float(phi_point.min()),
             "phi_max": float(phi_point.max()),
@@ -417,6 +420,14 @@ report = {
         },
     },
     "checks": [
+        {
+            "name": "nonzero_source_constraint_residual",
+            "description": "The nonzero diagnostic source satisfies the screened constraint",
+            "framework_section": "4.4.5",
+            "criterion": "relative_constraint_residual < 1e-12",
+            "value": float(relative_constraint_residual),
+            "passed": relative_constraint_residual < 1e-12,
+        },
         {
             "name": "monotonic_falloff",
             "description": "Phi rises monotonically away from the negative diagnostic source",
@@ -473,7 +484,7 @@ report["artifacts"] = [
 ]
 
 val_path = results / "validation.json"
-val_path.write_text(validation_json(report))
+val_path.write_text(validation_json(report) + "\n", encoding="utf-8")
 print(f"Saved: {val_path}")
 
 print("\nDone.")

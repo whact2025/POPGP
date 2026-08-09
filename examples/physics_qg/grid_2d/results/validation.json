@@ -3,7 +3,6 @@
   "scientific_status": "finite_exact_benchmark",
   "framework_version": "1.0-submission-draft",
   "package_version": "0.1.0",
-  "timestamp": "2026-08-09T12:49:19.647020+00:00",
   "config": {
     "width": 3,
     "height": 3,
@@ -47,7 +46,12 @@
         [
           8
         ]
-      ]
+      ],
+      "leakage": null,
+      "retention_loss": 3.43997701488105,
+      "admissible": false,
+      "n_total_partitions": 1,
+      "n_admissible_partitions": 0
     },
     "pi_loc": {
       "mi_matrix_shape": [
@@ -168,65 +172,65 @@
       "spectral_diagnostic": "finite_graph_peak",
       "spectral_peak_time": 2.9885938981756235,
       "D_star": 2,
-      "stress": 0.16817254462090145,
-      "objective": 0.1706779769150231,
+      "stress": 0.16817252172756156,
+      "objective": 0.1706779540216832,
       "embedding_status": "geometric_candidate",
-      "selection_margin": 0.05141281373338655,
+      "selection_margin": 0.0514128054870788,
       "metric_diagnostics": [
         {
-          "condition_number": 1867.3289374319597,
-          "relative_residual": 0.0007977093616932065,
+          "condition_number": 2429.4352262534135,
+          "relative_residual": 0.0008057440950043501,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 47.11110763820884,
-          "relative_residual": 0.0004373264494968317,
+          "condition_number": 75.35555926420149,
+          "relative_residual": 0.00038664376862346093,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 1867.3289844156343,
-          "relative_residual": 0.0007977094180027315,
+          "condition_number": 2429.4352262530524,
+          "relative_residual": 0.0008057440950043485,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 47.111326617230056,
-          "relative_residual": 0.00043732721930175606,
+          "condition_number": 75.35555926420352,
+          "relative_residual": 0.0003866437686230917,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 2471.704031769688,
-          "relative_residual": 0.00013621616007478357,
-          "design_rank": 3,
+          "condition_number": 3266.1429370285337,
+          "relative_residual": 0.00013621547784671857,
+          "design_rank": 2,
           "n_constraints": 4
         },
         {
-          "condition_number": 47.11142292634852,
-          "relative_residual": 0.0004373252902237734,
+          "condition_number": 75.35555926420295,
+          "relative_residual": 0.0003866437686234265,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 1867.3313401288144,
-          "relative_residual": 0.0007977092918088511,
+          "condition_number": 2429.435226253141,
+          "relative_residual": 0.0008057440950044108,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 47.11131264489813,
-          "relative_residual": 0.0004373244048844544,
+          "condition_number": 75.35555926420405,
+          "relative_residual": 0.00038664376862356675,
           "design_rank": 3,
           "n_constraints": 3
         },
         {
-          "condition_number": 1867.3295471477554,
-          "relative_residual": 0.0007977094841717164,
+          "condition_number": 2429.435226253295,
+          "relative_residual": 0.0008057440950042844,
           "design_rank": 2,
           "n_constraints": 2,
           "is_proxy_boundary": 1
@@ -240,34 +244,9 @@
           6
         ],
         [
-          6,
-          7,
-          8
-        ],
-        [
-          5,
-          7,
-          8
-        ],
-        [
-          4,
-          5,
-          7
-        ],
-        [
-          3,
-          6,
-          7
-        ],
-        [
-          3,
-          4,
-          7
-        ],
-        [
+          0,
           1,
-          4,
-          5
+          2
         ],
         [
           0,
@@ -280,6 +259,21 @@
           4
         ],
         [
+          6,
+          7,
+          8
+        ],
+        [
+          3,
+          6,
+          7
+        ],
+        [
+          3,
+          4,
+          7
+        ],
+        [
           2,
           5,
           8
@@ -290,58 +284,68 @@
           5
         ],
         [
-          0,
           1,
-          2
+          4,
+          5
+        ],
+        [
+          4,
+          5,
+          7
+        ],
+        [
+          5,
+          7,
+          8
         ]
       ],
       "deficit_angles": {
-        "0": 1.5707962270776255,
+        "0": 1.570796326794898,
         "1": 0.0,
-        "2": 1.5707962564142084,
+        "2": 1.5707963267948921,
         "3": 0.0,
         "4": 0.0,
         "5": 0.0,
-        "6": 1.5707965965854358,
+        "6": 1.5707963267948977,
         "7": 0.0,
-        "8": 1.5707962271023166
+        "8": 1.5707963267948957
       },
       "coords": [
         [
-          -2.4531495571136475,
-          -1.051138997077942
+          0.29940303609890373,
+          -2.652017035612479
         ],
         [
-          -0.6318334937095642,
-          -1.5792516469955444
+          1.3300949190114733,
+          -1.0602353616622906
         ],
         [
-          1.051138997077942,
-          -2.4531493186950684
+          2.6520170356124795,
+          0.2994030360989032
         ],
         [
-          -1.5792523622512817,
-          0.6318339109420776
+          -1.0602353616622937,
+          -1.330094919011473
         ],
         [
-          -5.7230110428463377e-08,
-          -1.4855297081339813e-07
+          -7.355093534447753e-16,
+          -2.715523936994729e-16
         ],
         [
-          1.5792522430419922,
-          -0.6318337917327881
+          1.0602353616622944,
+          1.3300949190114721
         ],
         [
-          -1.0511393547058105,
-          2.4531502723693848
+          -2.6520170356124786,
+          -0.2994030360989026
         ],
         [
-          0.6318337917327881,
-          1.5792523622512817
+          -1.3300949190114746,
+          1.0602353616622922
         ],
         [
-          2.4531495571136475,
-          1.0511391162872314
+          -0.2994030360989023,
+          2.6520170356124773
         ]
       ]
     },
@@ -363,7 +367,8 @@
       "phi_max": 1.3694162316904747e-16,
       "phi_range": 2.7514450339362562e-16,
       "phi_mean": 3.0814879110195774e-33,
-      "constraint_residual": 7.401486830834378e-17
+      "constraint_residual": 7.401486830834378e-17,
+      "effective_source_norm": 1.5700924586837752e-16
     }
   },
   "checks": [
@@ -395,9 +400,9 @@
       "criterion": "avg_dist_neighbors < avg_dist_non_neighbors",
       "value": {
         "center_node": 4,
-        "avg_dist_neighbors": 1.7009559869766235,
-        "avg_dist_non_neighbors": 2.6688642501831055,
-        "separation_pct": 36.26667404174805
+        "avg_dist_neighbors": 1.7009560593087965,
+        "avg_dist_non_neighbors": 2.6688642781535443,
+        "separation_pct": 36.26667068714322
       },
       "passed": true
     },
@@ -414,15 +419,19 @@
       "description": "MDS stress is low, indicating faithful embedding",
       "framework_section": "4.4.4",
       "criterion": "stress < 0.5",
-      "value": 0.16817254462090145,
+      "value": 0.16817252172756156,
       "passed": true
     },
     {
-      "name": "placeholder_clock_constraint_solved",
-      "description": "The non-physical entropy placeholder produced a low-residual clock-constraint solution",
+      "name": "placeholder_source_degeneracy",
+      "description": "SU(2)-invariant one-site Gibbs marginals make the entropy placeholder constant, so zero-mode removal gives Phi=0",
       "framework_section": "4.4.5",
-      "criterion": "constraint_residual < 1e-10",
-      "value": 7.401486830834378e-17,
+      "criterion": "effective_source_norm < 1e-12 and phi_range < 1e-12",
+      "value": {
+        "effective_source_norm": 1.5700924586837752e-16,
+        "phi_range": 2.7514450339362562e-16,
+        "constraint_residual": 7.401486830834378e-17
+      },
       "passed": true
     }
   ],

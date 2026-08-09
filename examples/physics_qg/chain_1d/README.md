@@ -55,6 +55,11 @@ dimension. The Hamiltonian already encodes nearest-neighbor chain interactions; 
 test asks whether the correlation pipeline recovers that encoded locality without
 receiving coordinates or reference edges.
 
+The inferred three-edge cell graph matches the held-out coarse Hamiltonian graph, but
+this four-cell case is non-discriminating: the mandatory minimum spanning tree alone
+produces the same edge set. It is an ordering/consistency benchmark, not evidence that
+the adaptive-gap rule independently discovered the chain.
+
 ## Clock panel
 
 ![Placeholder clock potential](results/clock_potential.png)
