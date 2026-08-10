@@ -204,6 +204,12 @@ the criterion named in that check. Negative results are retained. See
 [`docs/scientific_hardening`](docs/scientific_hardening/) for claim-by-claim scope,
 acceptance criteria, and unresolved risks.
 
+Independent agent reviews follow the repository-authored
+[`agent review workflow`](docs/governance/AGENT_REVIEW_WORKFLOW.md). The
+[`review launch runbook`](docs/reviews/LAUNCH_INDEPENDENT_REVIEW.md) provides frozen
+worktree commands, copy/paste initial-review and re-review prompts, required handoff
+fields, and links to the review, response, and disagreement templates.
+
 Contributions should include unit tests for implementation changes and scientific
 regression or falsification tests for physical claims. Please report contradictions
 between the manuscript, examples, and code as first-class issues.
