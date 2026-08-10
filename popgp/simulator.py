@@ -38,9 +38,13 @@ from popgp.geometry import (
     reconstruct_local_metrics,
     vertex_deficits_2d,
 )
-from popgp.information import modular_energy_delta
+from popgp.information import finite_gibbs_state, modular_energy_delta
 
 log = logging.getLogger(__name__)
+
+
+KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE = 1e-10
+"""Maximum trace distance accepted by the runtime KMS-reference check."""
 
 
 # ── Pipeline result containers ──────────────────────────────────────────
@@ -994,6 +998,10 @@ class Simulator:
                 if cfg_time.beta_kms is not None
                 else self.config.substrate.beta
             )
+            reference_state = self._validate_kms_reference_state(
+                reference_state,
+                beta_kms=beta_kms,
+            )
             local_energy = self.backend.build_local_energy_operators()
             state_delta = state - reference_state
             for i, cell in enumerate(cells):
@@ -1024,13 +1032,60 @@ class Simulator:
                 raise ValueError(f"Unknown source model: {cfg_time.source_model!r}")
         return cfg_time.source_scale * delta_rho
 
+    def _validate_kms_reference_state(
+        self,
+        reference_state: object,
+        *,
+        beta_kms: float,
+    ) -> torch.Tensor:
+        """Require the backend Gibbs state at ``beta_kms`` as KMS reference."""
+        if not isinstance(reference_state, torch.Tensor):
+            raise ValueError(
+                "reference_state must be a tensor containing the Gibbs/KMS state"
+            )
+
+        expected = finite_gibbs_state(
+            self.backend.build_hamiltonian(),
+            beta_kms,
+        )
+        reference = reference_state.to(
+            dtype=expected.dtype,
+            device=expected.device,
+        )
+        if reference.shape != expected.shape or not torch.isfinite(reference).all():
+            raise ValueError(
+                "reference_state must be a finite density matrix with the same "
+                "shape as the backend Gibbs/KMS state"
+            )
+
+        trace_distance = 0.5 * torch.linalg.matrix_norm(
+            reference - expected,
+            ord="nuc",
+        ).item()
+        if trace_distance > KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE:
+            raise ValueError(
+                "reference_state must be the Gibbs/KMS state of the backend "
+                f"Hamiltonian at beta_kms={beta_kms!r}; trace distance "
+                f"{trace_distance:.6e} exceeds "
+                "KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE="
+                f"{KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE:.1e}"
+            )
+        return reference
+
     # ── full pipeline ────────────────────────────────────────────────
 
-    def run(self, evolve_steps: int | None = None) -> SimulatorResult:
+    def run(
+        self,
+        evolve_steps: int | None = None,
+        *,
+        reference_state: object | None = None,
+    ) -> SimulatorResult:
         """
         Execute the complete projection pipeline Π = Π_time ∘ Π_geom ∘ Π_loc ∘ Π_res.
 
-        This is the primary entry point for end-to-end simulation.
+        This is the primary entry point for end-to-end simulation. Candidate
+        source models that depend on a reference receive it through the explicit
+        ``reference_state`` keyword argument.
         """
         state = self.prepare()
         if evolve_steps is not None and evolve_steps > 0:
@@ -1040,7 +1095,13 @@ class Simulator:
         pi_loc = self.run_pi_loc(state, pi_res)
         pi_geom = self.run_pi_geom(pi_loc)
 
-        pi_time = self.run_pi_time(state, pi_res, pi_loc, pi_geom)
+        pi_time = self.run_pi_time(
+            state,
+            pi_res,
+            pi_loc,
+            pi_geom,
+            reference_state=reference_state,
+        )
 
         return SimulatorResult(
             config=self.config,

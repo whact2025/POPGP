@@ -2,6 +2,8 @@
 
 Audit date: 2026-08-09 (America/New_York).
 
+Review-protocol remediation verified: 2026-08-10 (America/New_York).
+
 ## Environment
 
 - Windows / PowerShell
@@ -30,6 +32,7 @@ uv run python -m examples.physics_qg.gravity_well
 uv run python -m examples.physics_qg.source_law
 uv run python -m examples.physics_qg.source_law_many_body
 uv run python -m examples.physics_qg.ca_model
+uv run python scripts/check_validation_artifacts.py
 ```
 
 Additional controlled checks exercised five common-probe seeds for chain partition
@@ -39,7 +42,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | 4 s | 83 passed |
+| `pytest -q` | 4 s | 97 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -49,8 +52,14 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 All examples regenerated their committed `validation.json` artifacts. Wall-clock
 timestamps have been removed, and every result artifact was byte-identical across two
-consecutive runs in the locked environment. PNG metadata remains environment-dependent,
-so cross-environment artifacts should be compared by structured metrics.
+consecutive runs in the locked Windows environment. Linux CI exposed bounded LAPACK
+and floating-point drift despite unchanged scientific gates. CI therefore compares a
+declared validation contract rather than serialized bytes: JSON schema, types, array
+shapes, metadata, stable configuration, check identities, and pass/fail outcomes stay
+strict; all numbers must be finite; ordinary diagnostics use narrow tolerances; and
+the small set of sensitive fit/error fields has an explicit bounded allowlist in
+`scripts/check_validation_artifacts.py`. Required visual outputs must be tracked,
+present, and nonempty. PNG pixels and metadata are not hashed across environments.
 
 ## Negative and sensitivity results
 
@@ -66,12 +75,15 @@ so cross-environment artifacts should be compared by structured metrics.
   response is not independently gated because it is fixed by the KMS identity. An
   isospectral unitary
   control instead has `ΔS=0` and quadratic `D=Δ⟨K⟩=βΔ⟨H⟩`. A separate quench
-  conserves and spreads the audited profile under Heisenberg dynamics; the commuting
+  conserves the global Hamiltonian expectation while the audited profile spreads
+  under Heisenberg dynamics; the commuting
   Ising profile remains stationary. This is a family-dependent feasibility result.
 - The one-site reduced modular-energy mode is numerically blind in the symmetric KMS
   chain. The separately named exact-backend `−βΔ⟨h_i⟩` candidate reproduces the
-  audited local profile and sums to minus the global modular-energy change; its microscopic
-  decomposition dependence is retained as a limitation.
+  audited local profile. Its runtime requires the supplied reference to match the
+  backend Gibbs state at the same β within trace distance `1e-10`; under that premise
+  it sums to minus the global modular-energy change. Its microscopic decomposition
+  dependence is retained as a limitation.
 - Equal-energy states relative to a KMS reference have different entropy and raw
   relative entropy, exposing an entropy confound for a mass-source interpretation.
 - The old fixed 3-nearest-neighbor grid inference had precision 0.75 and recall 1.0

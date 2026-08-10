@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from popgp import Simulator, SimulatorConfig
+from popgp.information import modular_energy_delta
 from popgp.simulator import PiLocResult
 
 
@@ -242,6 +243,7 @@ def test_negative_candidate_source_models_are_available_explicitly() -> None:
 def test_kms_energy_density_candidate_aggregates_partitioned_sites() -> None:
     config = SimulatorConfig.for_chain(n=4, beta=0.7)
     config.pi_time.source_model = "negative_kms_energy_density_candidate"
+    config.pi_time.source_scale = 1.7
     simulator = Simulator(config)
     reference = simulator.prepare()
     pauli_x = torch.tensor([[0.0, 1.0], [1.0, 0.0]], dtype=torch.complex128)
@@ -264,7 +266,8 @@ def test_kms_energy_density_candidate_aggregates_partitioned_sites() -> None:
             torch.zeros_like(local_energy[0]),
         )
         expected.append(
-            -config.substrate.beta
+            -config.pi_time.source_scale
+            * config.substrate.beta
             * torch.trace((state - reference) @ cell_operator).real.item()
         )
 
@@ -273,6 +276,70 @@ def test_kms_energy_density_candidate_aggregates_partitioned_sites() -> None:
         torch.tensor(expected, dtype=torch.float64),
         atol=1e-14,
         rtol=0.0,
+    )
+    assert source.sum().item() == pytest.approx(
+        -config.pi_time.source_scale
+        * modular_energy_delta(state, reference),
+        abs=2e-14,
+    )
+
+
+def test_kms_energy_density_candidate_rejects_beta_mismatch() -> None:
+    config = SimulatorConfig.for_chain(n=4, beta=1.3)
+    config.pi_time.source_model = "negative_kms_energy_density_candidate"
+    config.pi_time.beta_kms = 0.5
+    simulator = Simulator(config)
+    reference = simulator.prepare()
+
+    with pytest.raises(ValueError, match="KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE"):
+        simulator._compute_source_term(
+            reference,
+            [[0, 1], [2, 3]],
+            config.pi_time,
+            reference_state=reference,
+        )
+
+
+def test_kms_energy_density_candidate_rejects_faithful_non_gibbs_reference() -> None:
+    config = SimulatorConfig.for_chain(n=2, beta=0.7)
+    config.pi_time.source_model = "negative_kms_energy_density_candidate"
+    simulator = Simulator(config)
+    state = simulator.prepare()
+    non_gibbs = torch.diag(
+        torch.tensor([0.4, 0.3, 0.2, 0.1], dtype=torch.complex128)
+    )
+
+    with pytest.raises(ValueError, match="KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE"):
+        simulator._compute_source_term(
+            state,
+            [[0], [1]],
+            config.pi_time,
+            reference_state=non_gibbs,
+        )
+
+
+def test_run_propagates_reference_state_to_kms_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = SimulatorConfig.for_chain(n=4, beta=0.7)
+    config.pi_time.source_model = "negative_kms_energy_density_candidate"
+    simulator = Simulator(config)
+    reference = simulator.prepare()
+    pauli_x = torch.tensor([[0.0, 1.0], [1.0, 0.0]], dtype=torch.complex128)
+    local_unitary = simulator.backend.site_operator(pauli_x, site=1)
+    state = 0.99 * reference + 0.01 * (
+        local_unitary @ reference @ local_unitary.conj().T
+    )
+    monkeypatch.setattr(simulator, "prepare", lambda: state)
+
+    result = simulator.run(reference_state=reference)
+
+    assert result.pi_time is not None
+    assert result.pi_time.source_model == "negative_kms_energy_density_candidate"
+    assert torch.linalg.vector_norm(result.pi_time.delta_rho_raw).item() > 0.0
+    assert result.pi_time.delta_rho_raw.sum().item() == pytest.approx(
+        -modular_energy_delta(state, reference),
+        abs=2e-14,
     )
 
 

@@ -273,7 +273,9 @@ class PiTimeConfig:
     ``negative_modular_energy_candidate`` (both reduced-state contrasts), and
     ``negative_kms_energy_density_candidate`` (an exact-backend microscopic
     Hamiltonian decomposition). All candidates require a reference state passed
-    to ``run_pi_time``. [STRUCTURAL_CHOICE]"""
+    to ``run_pi_time`` or ``Simulator.run``. The KMS-labelled candidate additionally
+    validates that reference against the backend Gibbs state at ``beta_kms``.
+    [STRUCTURAL_CHOICE]"""
 
     source_scale: float = 1.0
     """Multiplicative scale applied to the configured clock source.

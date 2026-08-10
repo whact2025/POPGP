@@ -47,7 +47,9 @@
     "maximum_quadratic_normalized_rmse": 0.01,
     "minimum_susceptibility_error_margin": 10.0,
     "maximum_kubo_mori_coefficient_relative_error": 0.0005,
-    "maximum_kubo_mori_susceptibility_relative_error": 1e-06
+    "maximum_kubo_mori_susceptibility_relative_error": 1e-06,
+    "kms_reference_validation": "trace distance to Gibbs(H, beta)",
+    "kms_reference_trace_distance_tolerance": 1e-10
   },
   "measurements": {
     "relative_entropy": [
@@ -1396,8 +1398,8 @@
       "passed": true
     },
     {
-      "name": "localized_energy_is_conserved_and_spreads",
-      "criterion": "conservation drift below 1e-12, initial endpoint fraction below 1e-12, and t=1 endpoint fraction above 0.05",
+      "name": "localized_energy_is_globally_conserved_and_spreads",
+      "criterion": "global-energy conservation drift below 1e-12, initial endpoint fraction below 1e-12, and t=1 endpoint fraction above 0.05",
       "value": {
         "conservation_drift": 0.0,
         "initial_endpoint_fraction": 4.54123182112811e-16,
@@ -2332,7 +2334,7 @@
     },
     {
       "name": "pipeline_reduced_modular_blindness_and_density_repair",
-      "criterion": "reduced-state source norm below 1e-12, KMS energy-density source norm above 1e-3, and density implementation error below 1e-14",
+      "criterion": "runtime-validated KMS reference; reduced-state source norm below 1e-12, KMS energy-density source norm above 1e-3, and density implementation error below 1e-14",
       "value": {
         "reduced_modular_source": [
           -4.2325137762141434e-16,

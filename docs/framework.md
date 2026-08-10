@@ -480,9 +480,14 @@ $$
 \qquad \sum_i h_i=H,
 $$
 using a declared symmetric split of pair interactions. In the non-affine family
-described below it has a nonzero first-order susceptibility; its source density sums
-to minus the global modular-energy change. A separate finite-chain quench demonstrates
-conservation of the audited local-energy profile.
+described below it has a nonzero first-order susceptibility. The KMS-labelled runtime
+source is accepted only when the supplied reference is within trace distance $10^{-10}$
+of the Gibbs state for the same backend Hamiltonian and $\beta$; under that validated
+premise, its source density sums to minus the global modular-energy change. A separate
+finite-chain quench demonstrates
+that the global Hamiltonian expectation is conserved while the audited site-energy
+profile changes and spreads. No discrete continuity current or local conservation law
+is established by this check.
 
 The order statement is excitation-family dependent. Under the affine interpolation
 $\rho(\epsilon)=(1-\epsilon)\sigma+\epsilon\rho_{exc}$, every fixed-observable

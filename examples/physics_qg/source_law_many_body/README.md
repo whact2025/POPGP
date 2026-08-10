@@ -14,7 +14,8 @@ The response family is
 
 - global relative entropy, modular energy, entropy change, and physical energy;
 - an explicit symmetric site-energy decomposition that sums to the Hamiltonian;
-- conservation and spreading of that site-energy profile under exact evolution; and
+- global-energy conservation together with spreading of that site-energy profile
+  under exact evolution (without a tested local continuity current); and
 - the sign of a diagnostic graph potential sourced by negative local energy change.
 
 The quadratic claim now has four independent numerical gates: nested-window
@@ -41,8 +42,11 @@ retains a stationary profile, showing that spreading is dynamics-dependent.
 The experiment also preserves an integration-level negative result: the earlier
 one-site reduced-state modular source is numerically zero for the symmetric KMS
 reference. A distinct exact-backend candidate based on `−β Δ⟨h_i⟩` recovers the
-audited local-energy profile and sums to minus the global modular-energy change. This is an
-explicit repair path, not a silent replacement or a claim of uniqueness.
+audited local-energy decomposition. It is accepted only for a supplied reference that
+matches the Gibbs state of the same backend Hamiltonian and β within trace distance
+`1e-10`; under that validated premise it sums to minus the global modular-energy
+change. This is an explicit repair path, not a silent replacement or a claim of
+uniqueness.
 
 The interaction chain is supplied by the Hamiltonian, and the local-energy split is a
 declared microscopic convention. A successful result therefore supports only the

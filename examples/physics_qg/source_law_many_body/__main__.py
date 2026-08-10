@@ -21,6 +21,7 @@ from popgp.information import (
     quantum_relative_entropy,
     von_neumann_entropy,
 )
+from popgp.simulator import KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE
 
 
 def _expectation_delta(
@@ -485,7 +486,7 @@ def main() -> None:
         axes[1].plot(sites, evolved_profiles[index], "o-", label=f"t={time:g}")
     axes[1].set_xlabel("Microscopic chain site")
     axes[1].set_ylabel("Local energy change")
-    axes[1].set_title("Conserved profile spreading")
+    axes[1].set_title("Global energy conserved; profile spreads")
     axes[1].grid(True, linestyle=":", alpha=0.5)
     axes[1].legend()
 
@@ -568,9 +569,9 @@ def main() -> None:
             < 5e-13,
         },
         {
-            "name": "localized_energy_is_conserved_and_spreads",
+            "name": "localized_energy_is_globally_conserved_and_spreads",
             "criterion": (
-                "conservation drift below 1e-12, initial endpoint fraction below "
+                "global-energy conservation drift below 1e-12, initial endpoint fraction below "
                 "1e-12, and t=1 endpoint fraction above 0.05"
             ),
             "value": {
@@ -621,8 +622,9 @@ def main() -> None:
         {
             "name": "pipeline_reduced_modular_blindness_and_density_repair",
             "criterion": (
-                "reduced-state source norm below 1e-12, KMS energy-density source "
-                "norm above 1e-3, and density implementation error below 1e-14"
+                "runtime-validated KMS reference; reduced-state source norm below "
+                "1e-12, KMS energy-density source norm above 1e-3, and density "
+                "implementation error below 1e-14"
             ),
             "value": {
                 "reduced_modular_source": reduced_modular_source.tolist(),
@@ -703,6 +705,10 @@ def main() -> None:
             "minimum_susceptibility_error_margin": 10.0,
             "maximum_kubo_mori_coefficient_relative_error": 5e-4,
             "maximum_kubo_mori_susceptibility_relative_error": 1e-6,
+            "kms_reference_validation": "trace distance to Gibbs(H, beta)",
+            "kms_reference_trace_distance_tolerance": (
+                KMS_REFERENCE_TRACE_DISTANCE_TOLERANCE
+            ),
         },
         "measurements": {
             "relative_entropy": relative_entropy.tolist(),

@@ -162,9 +162,12 @@ behavior, and an independent operational clock observable remain open.
 
 For integration testing, the exact backend exposes a separate
 `negative_kms_energy_density_candidate`. It uses `−β Δ⟨h_i⟩` from the
-declared microscopic Hamiltonian split, sums to minus the global KMS modular-energy change,
-and is not interchangeable with the reduced-state candidate. Its dependence on the
-supplied interaction graph and energy-density convention is an explicit limitation.
+declared microscopic Hamiltonian split. The runtime accepts this KMS-labelled source
+only when the supplied reference is within trace distance `1e-10` of the Gibbs state
+for that same Hamiltonian and β; under that validated premise, the source sums to
+minus the global KMS modular-energy change. It is not interchangeable with the
+reduced-state candidate. Its dependence on the supplied interaction graph and
+energy-density convention is an explicit limitation.
 
 ## Repository map
 
