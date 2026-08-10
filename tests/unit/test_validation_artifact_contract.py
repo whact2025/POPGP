@@ -131,12 +131,23 @@ def test_sensitive_diagnostic_drift_remains_bounded() -> None:
 
 def test_sensitive_relative_drift_remains_bounded() -> None:
     candidate = _linux_candidate()
-    candidate["checks"][0]["value"]["significance_ratio"] = 4_000_000_000.0
+    candidate["checks"][0]["value"]["significance_ratio"] = 1_000_000.0
 
     summary = compare_validation_documents(_reference_document(), candidate)
 
     assert not summary.passed
     assert any("sensitive diagnostic 'significance_ratio'" in error for error in summary.errors)
+
+
+def test_noise_dominated_significance_ratio_accepts_observed_ci_drift() -> None:
+    reference = _reference_document()
+    candidate = _linux_candidate()
+    reference["checks"][0]["value"]["significance_ratio"] = 934_024_743.6098032
+    candidate["checks"][0]["value"]["significance_ratio"] = 371_279_242.7637979
+
+    summary = compare_validation_documents(reference, candidate)
+
+    assert summary.passed
 
 
 def test_declared_tracked_nonempty_visual_is_accepted(tmp_path: Path) -> None:

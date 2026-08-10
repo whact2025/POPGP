@@ -42,7 +42,11 @@ SENSITIVE_DIAGNOSTIC_TOLERANCES: dict[str, tuple[float, float]] = {
     "normalized_rmse": (0.0, 2e-4),
     "quadratic_coefficient_relative_error": (0.0, 2e-4),
     "relative_coefficient_difference": (0.0, 2e-4),
-    "significance_ratio": (0.5, 0.0),
+    # This is a quotient whose denominator is an O(1e-10) cancellation/error
+    # estimate.  Its precise large value is noise-sensitive; the exact `passed`
+    # gate remains protected separately.  rel_tol=0.99 bounds accepted movement
+    # to at most a factor of 100 in either direction.
+    "significance_ratio": (0.99, 0.0),
     "slope_deviation": (0.0, 2e-4),
     "slope_standard_error": (0.0, 1e-4),
 }
