@@ -1,5 +1,9 @@
 # Scientific hardening project plan
 
+Campaign-level viability tiers, dependency-ordered work packets, adversarial roles,
+portable orchestration fields, and fail-closed decision rules are defined in the
+[adversarial viability demonstration plan](VIABILITY_DEMONSTRATION_PLAN.md).
+
 ## PR 2 — source law and linear response
 
 **Objective:** determine which vacuum-relative quantities can source a weak clock

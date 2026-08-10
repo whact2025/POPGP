@@ -4,6 +4,12 @@ This runbook turns [the POPGP review workflow](../governance/AGENT_REVIEW_WORKFL
 into concrete Git commands and copy/paste agent prompts. Use a fresh agent task/session
 and, when possible, a different model from the builder.
 
+For a multi-packet scientific campaign, first define the target tier and packet
+contracts in the
+[adversarial viability demonstration plan](../scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md),
+then apply this review runbook to each frozen implementation candidate. Packet
+adjudication does not replace independent implementation review.
+
 ## 1. Freeze and record the candidate
 
 From the POPGP repository root, confirm the intended branch is clean and commit the
