@@ -23,14 +23,14 @@ access_declaration:
   private_evaluator_seen: false
   notes: "Authenticated maintainer access was used only to inspect GitHub Actions logs and verify remediation CI; no hidden evaluator data or final labels were available."
 
-summary: "All four findings and all five requested tests were accepted and implemented in two fix commits. The builder reproduced the exact Ubuntu artifact differences, replaced byte-for-byte JSON comparison with a bounded semantic contract, validated KMS references at the runtime boundary, propagated reference_state through Simulator.run(), corrected the conservation claim, added regression tests, and obtained a green exact-SHA GitHub Actions run. These are builder assertions pending independent re-review."
+summary: "All four findings and all five requested tests were accepted and implemented in three fix commits. The builder reproduced the exact Ubuntu artifact differences, replaced byte-for-byte JSON comparison with a bounded semantic contract, validated KMS references at the runtime boundary, propagated reference_state through Simulator.run(), corrected the conservation claim, added regression tests, and obtained green exact-SHA GitHub Actions runs. These are builder assertions pending independent re-review."
 
 finding_responses:
   - finding_id: "CI-001"
     blocking_as_reported: true
     disposition: accepted
     implementation_status: implemented
-    rationale: "Authorized logs identified platform-dependent floating diagnostics, Delaunay simplex ordering, and a near-zero chain stress classification. The implementation canonicalizes simplex order, uses a scale-aware tolerance for the classification, and checks JSON semantically: keys, types, list lengths, stable configuration, metadata, gate identities, and gate outcomes remain exact; only named floating diagnostics receive explicit finite tolerances. CI now runs this contract and the exact remediation SHA passes on Ubuntu."
+    rationale: "Authorized logs identified platform-dependent floating diagnostics, Delaunay simplex ordering, and a near-zero chain stress classification. The implementation canonicalizes simplex order, uses a scale-aware tolerance for the classification, and checks JSON semantically: keys, types, list lengths, stable configuration, metadata, gate identities, and gate outcomes remain exact; only named floating diagnostics receive explicit finite tolerances. A second Linux sample exposed greater variation in a noise-dominated significance ratio whose denominator is an O(1e-10) error estimate; that field is now bounded to a factor of 100 while its pass/fail gate remains exact. CI runs this contract and the latest exact remediation SHA passes on Ubuntu."
     changed_files:
       - ".github/workflows/ci.yml"
       - "scripts/check_validation_artifacts.py"
@@ -44,12 +44,13 @@ finding_responses:
     fix_commits:
       - "cb004f08b3710c146015828be78328bd49c9e171"
       - "6dc7ac17e507a137485b0b480c91bf111b10d171"
+      - "f40fc6d7aa3710f335ee561d02fa8d862f5d9ec6"
     verification:
       - command: "uv run python -m examples.physics_qg.chain_1d; uv run python -m examples.physics_qg.grid_2d; uv run python -m examples.physics_qg.gravity_well; uv run python -m examples.physics_qg.source_law; uv run python -m examples.physics_qg.source_law_many_body; uv run python -m examples.physics_qg.ca_model; uv run python scripts/check_validation_artifacts.py"
         result: "exit 0; all six examples regenerated and the checker reported 'Validation artifact contracts and required visual outputs are valid.'; git status remained clean"
-      - command: "gh run watch 31375828946 --interval 10 --exit-status"
-        result: "exit 0; GitHub Actions job 93414736212 passed all steps in 2m19s at head SHA 6dc7ac17e507a137485b0b480c91bf111b10d171"
-    residual_risk: "The semantic comparator is deliberately scoped rather than byte-exact. Named sensitive diagnostics have explicit absolute or relative bounds, while non-finite values, schema/shape changes, stable-input changes, metadata changes, gate identity changes, and gate outcome changes fail exactly."
+      - command: "gh run watch 31376568187 --interval 10 --exit-status"
+        result: "exit 0; GitHub Actions job 93417034274 passed all steps in 1m20s at head SHA f40fc6d7aa3710f335ee561d02fa8d862f5d9ec6"
+    residual_risk: "The semantic comparator is deliberately scoped rather than byte-exact. Named sensitive diagnostics have explicit absolute or relative bounds, including a factor-100 bound for the noise-dominated significance ratio, while non-finite values, schema/shape changes, stable-input changes, metadata changes, gate identity changes, and gate outcome changes fail exactly."
     disagreement_ref: ""
 
   - finding_id: "SLAW-001"
@@ -68,7 +69,7 @@ finding_responses:
       - command: "uv run pytest -q tests/unit/test_simulator.py"
         result: "exit 0; 20 passed in 2.08s, including matched-KMS identity, beta-mismatch rejection, non-Gibbs rejection, and public-run propagation"
       - command: "uv run pytest -q"
-        result: "exit 0; 98 passed in 3.80s"
+        result: "exit 0; 99 passed in 3.71s"
     residual_risk: "Validation intentionally supports only the finite Gibbs construction implemented by this backend; alternate representations of an equivalent KMS state are outside the current API contract."
     disagreement_ref: ""
 
@@ -124,9 +125,9 @@ requested_test_responses:
       - "tests/unit/test_regge_proxy.py"
       - ".github/workflows/ci.yml"
     verification:
-      - command: "gh run watch 31375828946 --interval 10 --exit-status"
-        result: "exit 0; exact-SHA Ubuntu structured-artifact step passed"
-    rationale: "Authorized logs supplied the exact Linux differences; contract and canonical-order regressions cover their causes while retaining strict scientific gates."
+      - command: "gh run watch 31376568187 --interval 10 --exit-status"
+        result: "exit 0; exact-SHA Ubuntu structured-artifact step passed at f40fc6d7aa3710f335ee561d02fa8d862f5d9ec6"
+    rationale: "Authorized logs supplied the exact Linux differences across two failing samples; contract, observed-drift, mutation-bound, and canonical-order regressions cover their causes while retaining exact scientific gates."
     disagreement_ref: ""
 
   - requested_test_id: "TST-SLAW-001"
@@ -159,7 +160,7 @@ requested_test_responses:
       - "tests/scientific/test_many_body_source_law.py"
     verification:
       - command: "uv run pytest -q"
-        result: "exit 0; 98 passed, including wording regression and profile-spreading/global-energy behavior"
+        result: "exit 0; 99 passed, including wording regression and profile-spreading/global-energy behavior"
     rationale: "The local-conservation claim was removed, so the requested alternative wording regression was implemented."
     disagreement_ref: ""
 
@@ -173,25 +174,25 @@ requested_test_responses:
       - command: "uv run python scripts/check_validation_artifacts.py"
         result: "exit 0; every declared visual was tracked, present, and nonempty"
       - command: "uv run pytest -q tests/unit/test_validation_artifact_contract.py"
-        result: "exit 0; 10 passed in 0.06s, including tracked/nonempty acceptance and empty/untracked rejection cases"
+        result: "exit 0; 11 passed in 0.05s, including observed-drift acceptance, excessive-drift rejection, tracked/nonempty acceptance, and empty/untracked rejection cases"
     rationale: "The final CI gate now enforces a stable smoke policy for declared PNG and GIF outputs."
     disagreement_ref: ""
 
 new_or_changed_risks:
-  - "Cross-platform structured artifacts are compared semantically. The accepted numeric variation is limited to named diagnostics with reviewable bounds; exact scientific gate outcomes and stable inputs remain mandatory."
+  - "Cross-platform structured artifacts are compared semantically. The accepted numeric variation is limited to named diagnostics with reviewable bounds; the largest allowance is a factor of 100 for a noise-dominated significance ratio that remains orders of magnitude beyond its exact pass gate. Exact scientific gate outcomes and stable inputs remain mandatory."
   - "The KMS runtime check forms a dense Gibbs state and computes a trace norm, which is appropriate for the current small finite backend but may require a scalable validation strategy before larger systems are supported."
 
 external_actions:
   - action: "Run the complete GitHub Actions workflow on the exact remediation SHA."
     owner: "Richard Fuoco"
     status: complete
-    evidence_ref: "https://github.com/whact2025/POPGP/actions/runs/31375828946"
+    evidence_ref: "https://github.com/whact2025/POPGP/actions/runs/31376568187"
 
 rereview_request:
   requested: true
   scope: "all findings, requested tests, regressions, and new findings"
   handoff_commit: "recorded in the PR or handoff after this response is committed"
-  notes: "Please independently verify the two fix commits, this response, exact-SHA CI evidence, scientific identities, API path, claim wording, comparator strictness, and any newly introduced risks."
+  notes: "Please independently verify the three fix commits, this response, exact-SHA CI evidence, scientific identities, API path, claim wording, comparator strictness, and any newly introduced risks."
 ```
 
 The builder does not mark any finding resolved. Resolution status belongs to the
