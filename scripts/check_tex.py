@@ -53,9 +53,12 @@ ends = re.findall(r"\\end\{(\w+)\}", text)
 bc = Counter(begins)
 ec = Counter(ends)
 all_envs = sorted(set(list(bc.keys()) + list(ec.keys())))
+environment_mismatches = []
 for env in all_envs:
     b, e = bc.get(env, 0), ec.get(env, 0)
     status = "OK" if b == e else "MISMATCH"
+    if b != e:
+        environment_mismatches.append((env, b, e))
     print(f"  {status}: {env} (begin={b}, end={e})")
 print()
 
@@ -75,6 +78,12 @@ if md_issues:
         print(f"  Line {ln}: {desc}")
 else:
     print("  None found.")
+
+fatal_errors = bool(
+    non_ascii or issues or depth != 0 or environment_mismatches or md_issues
+)
+if fatal_errors:
+    raise SystemExit("framework.tex failed structural validation")
 print()
 
 # 5. Potential wide equations
@@ -101,7 +110,11 @@ print()
 print("=== Section Structure ===")
 for i, line in enumerate(lines, 1):
     s = line.strip()
-    if s.startswith("\\section{") or s.startswith("\\subsection{") or s.startswith("\\subsubsection"):
+    if (
+        s.startswith("\\section{")
+        or s.startswith("\\subsection{")
+        or s.startswith("\\subsubsection")
+    ):
         print(f"  Line {i}: {s[:80]}")
 print()
 

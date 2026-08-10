@@ -16,8 +16,9 @@ implementations are provided:
 
 * **GPUBackend** — mean-field per-cell amplitudes via the CUDA engine.
   Used when n_qubits > exact_threshold.  Phase-flow is a Trotterized
-  Heisenberg mean-field interaction on the GPU.  MI is approximated
-  by time-averaged Sz correlations.
+  Heisenberg mean-field interaction on the GPU.  Product-state mean field
+  cannot represent entanglement, so mutual information is unsupported and
+  the end-to-end projection pipeline stops explicitly at Π_loc.
 
 Architecture Decision 1: both backends expose the same interface so the
 Simulator class needs no conditional logic.
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from popgp.config import SimulatorConfig
 
 from popgp.engine import Engine
+from popgp.information import quantum_relative_entropy, von_neumann_entropy
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +67,22 @@ class Backend(abc.ABC):
 
     def __init__(self, config: SimulatorConfig) -> None:
         self.config = config
+        self._substrate_snapshot = vars(config.substrate).copy()
+
+    def _assert_substrate_unchanged(self) -> None:
+        """Require a new backend when substrate-defining inputs change."""
+        current = vars(self.config.substrate)
+        changed = sorted(
+            key
+            for key in self._substrate_snapshot.keys() | current.keys()
+            if self._substrate_snapshot.get(key) != current.get(key)
+        )
+        if changed:
+            names = ", ".join(changed)
+            raise RuntimeError(
+                "substrate configuration changed after backend construction "
+                f"({names}); construct a new backend"
+            )
 
     # ── substrate ────────────────────────────────────────────────────
 
@@ -79,6 +97,16 @@ class Backend(abc.ABC):
     @abc.abstractmethod
     def build_edges(self) -> list[tuple[int, int]]:
         """Return the interaction graph edges for the lattice topology."""
+
+    def build_cell_hamiltonian(self, cell_indices: list[int]) -> torch.Tensor:
+        """Restrict the configured interaction Hamiltonian to one cell.
+
+        Backends that support multi-site coarse graining override this method so the
+        leakage functional uses the same Hamiltonian family as the substrate.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide a cell Hamiltonian"
+        )
 
     # ── phase-flow σ_s ───────────────────────────────────────────────
 
@@ -127,7 +155,9 @@ class ExactBackend(Backend):
     Full density-matrix backend for N ≤ 12 qubits.
 
     All operations are exact: the state is a 2^N × 2^N density matrix,
-    partial traces use einsum, entropies use eigendecomposition.
+    partial traces use einsum, entropies use eigendecomposition. Substrate
+    parameters are snapshotted at construction; changing them requires a new
+    backend so cached operators and states cannot silently disagree.
     """
 
     def __init__(self, config: SimulatorConfig) -> None:
@@ -136,6 +166,7 @@ class ExactBackend(Backend):
         self._N = N
         self._dim = 2**N
         self._H: torch.Tensor | None = None
+        self._cell_hamiltonians: dict[tuple[int, ...], torch.Tensor] = {}
         self._evals: torch.Tensor | None = None
         self._evecs: torch.Tensor | None = None
         log.info(
@@ -148,37 +179,149 @@ class ExactBackend(Backend):
             self._H = H
             self._evals, self._evecs = torch.linalg.eigh(H)
 
+    @staticmethod
+    def _embedded_operator(
+        operator: torch.Tensor,
+        site: int,
+        n_sites: int,
+    ) -> torch.Tensor:
+        """Embed a one-qubit operator in an ``n_sites`` Hilbert space."""
+        if operator.shape != (2, 2):
+            raise ValueError("operator must be a 2x2 one-qubit matrix")
+        if not 0 <= site < n_sites:
+            raise IndexError(f"site must lie in [0, {n_sites})")
+        parts = [_I2] * n_sites
+        parts[site] = operator.to(dtype=torch.complex128)
+        result = parts[0]
+        for part in parts[1:]:
+            result = torch.kron(result, part)
+        return result
+
+    def site_operator(self, operator: torch.Tensor, site: int) -> torch.Tensor:
+        """Embed a one-qubit operator at ``site`` in the full Hilbert space."""
+        return self._embedded_operator(operator, site, self._N)
+
+    def _pair_interaction(
+        self,
+        first: int,
+        second: int,
+        n_sites: int,
+    ) -> torch.Tensor:
+        """Build one configured pair term in the requested Hilbert space."""
+        family = self.config.substrate.hamiltonian
+        coupling = self.config.substrate.coupling_J
+        interaction = self._embedded_operator(
+            _SZ, first, n_sites
+        ) @ self._embedded_operator(_SZ, second, n_sites)
+        if family == "heisenberg":
+            interaction += self._embedded_operator(
+                _SX, first, n_sites
+            ) @ self._embedded_operator(_SX, second, n_sites)
+            interaction += self._embedded_operator(
+                _SY, first, n_sites
+            ) @ self._embedded_operator(_SY, second, n_sites)
+        return coupling * interaction
+
+    def build_interaction_terms(
+        self,
+    ) -> list[tuple[tuple[int, int], torch.Tensor]]:
+        """Return the pair terms whose sum is the configured Hamiltonian.
+
+        The associated edges are microscopic inputs, not inferred geometry. Exposing
+        the decomposition makes localized-energy experiments auditable without
+        silently reconstructing a different Hamiltonian in example code.
+
+        The returned full-space terms are intentionally transient. Retaining every
+        dense edge operator would multiply steady-state memory by the edge count.
+        """
+        self._assert_substrate_unchanged()
+        family = self.config.substrate.hamiltonian
+        if family not in {"heisenberg", "ising"}:
+            raise NotImplementedError(
+                f"Hamiltonian family {family!r} is not implemented."
+            )
+        terms = []
+        for i, j in self.build_edges():
+            terms.append(((i, j), self._pair_interaction(i, j, self._N)))
+        return terms
+
+    def build_local_energy_operators(self) -> list[torch.Tensor]:
+        """Split each pair interaction equally between its endpoint sites.
+
+        The operators sum exactly to the microscopic Hamiltonian. This symmetric
+        split is a declared finite-chain convention for localization diagnostics;
+        it is not a unique covariant stress-energy density.
+        """
+        local_terms = [
+            torch.zeros((self._dim, self._dim), dtype=torch.complex128)
+            for _ in range(self._N)
+        ]
+        for (i, j), interaction in self.build_interaction_terms():
+            local_terms[i] += 0.5 * interaction
+            local_terms[j] += 0.5 * interaction
+        return local_terms
+
+    def build_cell_hamiltonian(self, cell_indices: list[int]) -> torch.Tensor:
+        """Restrict the configured pair terms to ``cell_indices``.
+
+        The restriction uses the same configured pair-term constructor as
+        :meth:`build_interaction_terms`, but builds directly in the cell Hilbert
+        space. This avoids retaining or repeatedly constructing full-space edge
+        operators during the partition search.
+        """
+        self._assert_substrate_unchanged()
+        if not cell_indices:
+            raise ValueError("cell_indices must be nonempty")
+        if len(set(cell_indices)) != len(cell_indices):
+            raise ValueError("cell_indices must be unique")
+        if any(site < 0 or site >= self._N for site in cell_indices):
+            raise IndexError(f"cell indices must lie in [0, {self._N})")
+        cache_key = tuple(cell_indices)
+        if cache_key in self._cell_hamiltonians:
+            return self._cell_hamiltonians[cache_key]
+
+        restricted = self._build_cell_hamiltonian_uncached(cell_indices)
+        self._cell_hamiltonians[cache_key] = restricted
+        return restricted
+
+    def _build_cell_hamiltonian_uncached(
+        self,
+        cell_indices: list[int],
+    ) -> torch.Tensor:
+        """Construct a validated cell generator without consulting the cache."""
+        local_site = {site: index for index, site in enumerate(cell_indices)}
+        cell_dimension = 2 ** len(cell_indices)
+        restricted = torch.zeros(
+            (cell_dimension, cell_dimension), dtype=torch.complex128
+        )
+        for first, second in self.build_edges():
+            if first in local_site and second in local_site:
+                restricted += self._pair_interaction(
+                    local_site[first],
+                    local_site[second],
+                    len(cell_indices),
+                )
+        return restricted
+
     # ── substrate ────────────────────────────────────────────────────
 
     def build_hamiltonian(self) -> torch.Tensor:
-        """Heisenberg Hamiltonian H = Σ_{<ij>} S_i · S_j  (§4.3)."""
+        """Build the configured nearest-neighbor pair Hamiltonian (§4.3)."""
+        self._assert_substrate_unchanged()
         if self._H is not None:
             return self._H
 
-        N = self._N
-        dim = self._dim
-
-        def _site_op(op: torch.Tensor, site: int) -> torch.Tensor:
-            parts = [_I2] * N
-            parts[site] = op
-            result = parts[0]
-            for p in parts[1:]:
-                result = torch.kron(result, p)
-            return result
-
-        H = torch.zeros((dim, dim), dtype=torch.complex128)
-        J = self.config.substrate.coupling_J
-        for i, j in self.build_edges():
-            H += J * (
-                _site_op(_SX, i) @ _site_op(_SX, j)
-                + _site_op(_SY, i) @ _site_op(_SY, j)
-                + _site_op(_SZ, i) @ _site_op(_SZ, j)
-            )
-        self._H = H
-        return H
+        hamiltonian = torch.zeros(
+            (self._dim, self._dim), dtype=torch.complex128
+        )
+        for _, interaction in self.build_interaction_terms():
+            hamiltonian += interaction
+        self._H = hamiltonian
+        return hamiltonian
 
     def prepare_state(self) -> torch.Tensor:
         """Thermal state ρ = exp(−βH)/Z  (§4.4.1 GNS representation)."""
+        self._assert_substrate_unchanged()
         self._ensure_diagonalized()
         assert self._evals is not None and self._evecs is not None
         beta = self.config.substrate.beta
@@ -192,6 +335,7 @@ class ExactBackend(Backend):
         return rho
 
     def build_edges(self) -> list[tuple[int, int]]:
+        self._assert_substrate_unchanged()
         cfg = self.config.substrate
         N = self._N
         edges: list[tuple[int, int]] = []
@@ -263,11 +407,7 @@ class ExactBackend(Backend):
 
     def entropy(self, rho: torch.Tensor) -> float:
         """S(ρ) = −Tr(ρ log ρ)  via eigendecomposition."""
-        evals = torch.linalg.eigvalsh(rho).real
-        evals = evals[evals > 1e-15]
-        if len(evals) == 0:
-            return 0.0
-        return -torch.sum(evals * torch.log(evals)).item()
+        return von_neumann_entropy(rho)
 
     def mutual_information(
         self, state: torch.Tensor, cell_i: list[int], cell_j: list[int]
@@ -283,18 +423,9 @@ class ExactBackend(Backend):
     ) -> float:
         """S(ρ ‖ σ) = Tr[ρ(log ρ − log σ)]  (§6.1).
 
-        Uses eigendecomposition for matrix logarithm.  Eigenvalues are
-        clamped to avoid log(0).
+        Uses eigendecomposition with an exact support-containment check.
         """
-        def _matrix_log(m: torch.Tensor) -> torch.Tensor:
-            evals, evecs = torch.linalg.eigh(m)
-            evals = evals.real.clamp(min=1e-30)
-            return evecs @ torch.diag(torch.log(evals).to(dtype=torch.complex128)) @ evecs.conj().T
-
-        log_rho = _matrix_log(rho)
-        log_sigma = _matrix_log(sigma)
-        result = torch.trace(rho @ (log_rho - log_sigma))
-        return result.real.item()
+        return quantum_relative_entropy(rho, sigma)
 
 
 # ── GPU Backend ─────────────────────────────────────────────────────────
@@ -305,9 +436,9 @@ class GPUBackend(Backend):
     Mean-field GPU backend for N > 12 cells.
 
     Each cell is a single qubit (α, β) evolved by the CUDA phase-flow
-    kernel.  MI is approximated by time-averaged Sz Pearson correlations.
-    This is a pragmatic approximation documented in the analysis —
-    not framework-strict, but necessary for scalability.
+    kernel. Product states contain no entanglement and cannot supply quantum
+    mutual information; this is an experimental dynamics path rather than a
+    scalable implementation of the full projection.
     """
 
     def __init__(self, config: SimulatorConfig) -> None:
@@ -321,6 +452,16 @@ class GPUBackend(Backend):
         )
 
     def _get_engine(self):
+        if self._device.type != "cuda":
+            raise RuntimeError(
+                "GPUBackend evolution requires backend.device='cuda' and a built "
+                "native CUDA engine."
+            )
+        if self.config.substrate.hamiltonian != "heisenberg":
+            raise NotImplementedError(
+                "The native mean-field backend currently implements only "
+                "Heisenberg dynamics."
+            )
         if self._engine is None:
             self._engine = Engine(precision=self.config.backend.precision)
         return self._engine
@@ -335,11 +476,15 @@ class GPUBackend(Backend):
         """Initialize per-cell qubit amplitudes near |0⟩ with perturbation."""
         torch.manual_seed(self.config.substrate.seed)
         N = self._N
-        perturbation = 0.15  # [TUNABLE_HYPERPARAMETER] symmetry-breaking amplitude
-        alphas = torch.ones(N, dtype=torch.complex128, device=self._device)
-        betas = torch.zeros(N, dtype=torch.complex128, device=self._device)
+        perturbation = self.config.backend.initial_perturbation
+        complex_dtype = (
+            torch.complex64 if self.config.backend.precision == "float" else torch.complex128
+        )
+        real_dtype = torch.float32 if self.config.backend.precision == "float" else torch.float64
+        alphas = torch.ones(N, dtype=complex_dtype, device=self._device)
+        betas = torch.zeros(N, dtype=complex_dtype, device=self._device)
         betas += perturbation * torch.randn(
-            N, dtype=torch.float64, device=self._device
+            N, dtype=real_dtype, device=self._device
         )
         norms = torch.sqrt(
             alphas.real**2 + alphas.imag**2 + betas.real**2 + betas.imag**2
@@ -355,6 +500,8 @@ class GPUBackend(Backend):
         if cfg.topology == "chain":
             for i in range(N - 1):
                 edges.append((i, i + 1))
+            if cfg.boundary == "periodic" and N > 2:
+                edges.append((N - 1, 0))
         elif cfg.topology == "grid":
             W = cfg.grid_width or int(np.sqrt(N))
             H = cfg.grid_height or (N // W)
@@ -365,17 +512,49 @@ class GPUBackend(Backend):
                         edges.append((k, y * W + x + 1))
                     if y + 1 < H:
                         edges.append((k, (y + 1) * W + x))
+                    if cfg.boundary == "periodic":
+                        if x == W - 1 and W > 2:
+                            edges.append((k, y * W))
+                        if y == H - 1 and H > 2:
+                            edges.append((k, x))
+        else:
+            raise ValueError(f"Unknown topology: {cfg.topology}")
         return edges
 
     def evolve(self, state: dict, dt: float) -> dict:
-        """One Trotterized mean-field Heisenberg step via CUDA kernel."""
+        """One edge-colored mean-field Heisenberg step via CUDA.
+
+        Edges in a batch never share a node. Launching all lattice edges in a
+        single kernel would race on cell amplitudes and make evolution
+        nondeterministic.
+        """
         engine = self._get_engine()
-        edges = self.build_edges()
-        src = torch.tensor([e[0] for e in edges], dtype=torch.int32, device=self._device)
-        dst = torch.tensor([e[1] for e in edges], dtype=torch.int32, device=self._device)
-        weights = torch.ones(len(edges), dtype=torch.float64, device=self._device)
-        engine.step(state["alphas"], state["betas"], src, dst, weights, dt)
+        real_dtype = torch.float32 if self.config.backend.precision == "float" else torch.float64
+        for edges in self._edge_color_batches(self.build_edges()):
+            src = torch.tensor([e[0] for e in edges], dtype=torch.int32, device=self._device)
+            dst = torch.tensor([e[1] for e in edges], dtype=torch.int32, device=self._device)
+            weights = torch.ones(len(edges), dtype=real_dtype, device=self._device)
+            engine.step(state["alphas"], state["betas"], src, dst, weights, dt)
         return state
+
+    @staticmethod
+    def _edge_color_batches(
+        edges: list[tuple[int, int]],
+    ) -> list[list[tuple[int, int]]]:
+        """Greedily partition edges into node-disjoint launch batches."""
+        batches: list[list[tuple[int, int]]] = []
+        occupied: list[set[int]] = []
+        for edge in edges:
+            nodes = set(edge)
+            for batch, used in zip(batches, occupied, strict=True):
+                if nodes.isdisjoint(used):
+                    batch.append(edge)
+                    used.update(nodes)
+                    break
+            else:
+                batches.append([edge])
+                occupied.append(set(nodes))
+        return batches
 
     def reduced_state(
         self, state: dict, cell_indices: list[int]
@@ -392,34 +571,20 @@ class GPUBackend(Backend):
         return torch.outer(psi, psi.conj())
 
     def entropy(self, rho: torch.Tensor) -> float:
-        evals = torch.linalg.eigvalsh(rho).real
-        evals = evals[evals > 1e-15]
-        if len(evals) == 0:
-            return 0.0
-        return -torch.sum(evals * torch.log(evals)).item()
+        return von_neumann_entropy(rho)
 
     def mutual_information(
         self, state: dict, cell_i: list[int], cell_j: list[int]
     ) -> float:
-        """Approximate MI via Sz correlation (mean-field proxy, not framework-strict)."""
-        a_i, b_i = state["alphas"][cell_i[0]], state["betas"][cell_i[0]]
-        a_j, b_j = state["alphas"][cell_j[0]], state["betas"][cell_j[0]]
-        sz_i = (abs(a_i) ** 2 - abs(b_i) ** 2).item()
-        sz_j = (abs(a_j) ** 2 - abs(b_j) ** 2).item()
-        return abs(sz_i * sz_j)
+        raise NotImplementedError(
+            "GPUBackend evolves a product-state mean field and cannot compute mutual information. "
+            "A connected-correlation or tensor-network backend is required for Π_loc."
+        )
 
     def araki_relative_entropy(
         self, rho: torch.Tensor, sigma: torch.Tensor
     ) -> float:
-        def _matrix_log(m: torch.Tensor) -> torch.Tensor:
-            evals, evecs = torch.linalg.eigh(m)
-            evals = evals.real.clamp(min=1e-30)
-            return evecs @ torch.diag(torch.log(evals).to(dtype=torch.complex128)) @ evecs.conj().T
-
-        log_rho = _matrix_log(rho)
-        log_sigma = _matrix_log(sigma)
-        result = torch.trace(rho @ (log_rho - log_sigma))
-        return result.real.item()
+        return quantum_relative_entropy(rho, sigma)
 
 
 # ── Factory ─────────────────────────────────────────────────────────────

@@ -14,7 +14,6 @@ Run:
     uv run python -m examples.physics_qg.chain_1d
 """
 
-from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -23,8 +22,10 @@ import torch
 
 from popgp import Simulator, SimulatorConfig, validation_json
 from popgp.config import PiResConfig
+from popgp.diagnostics import edge_recovery_metrics
 
 _PKG_DIR = Path(__file__).parent
+torch.set_default_dtype(torch.float64)
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -47,6 +48,33 @@ sim = Simulator(cfg)
 result = sim.run()
 
 n_cells = len(result.pi_res.cells)
+site_to_cell = {
+    site: cell_index
+    for cell_index, cell in enumerate(result.pi_res.cells)
+    for site in cell
+}
+reference_edges = {
+    tuple(sorted((site_to_cell[i], site_to_cell[j])))
+    for i, j in sim.backend.build_edges()
+    if site_to_cell[i] != site_to_cell[j]
+}
+inferred_edges = {tuple(sorted(edge)) for edge in result.pi_loc.edges}
+edge_recovery = edge_recovery_metrics(inferred_edges, reference_edges)
+mst_edges = set(
+    Simulator._minimum_spanning_tree(result.pi_loc.distance_matrix, n_cells)
+)
+mst_degenerate = inferred_edges == mst_edges
+stress_values = list(result.pi_geom.stress_by_dimension.values())
+stress_span = max(stress_values) - min(stress_values)
+selection_driver_tolerance = max(
+    1e-12,
+    1e-6 * result.pi_geom.selection_margin,
+)
+dimension_selection_driver = (
+    "spectral_penalty"
+    if stress_span <= selection_driver_tolerance
+    else "mixed_stress_and_penalty"
+)
 print(f"Substrate: {cfg.substrate.n_qubits}-qubit Heisenberg chain "
       f"(beta={cfg.substrate.beta})")
 print(f"Cells: {n_cells} blocks of {cfg.pi_res.cell_dim} qubits")
@@ -226,8 +254,9 @@ phi_mean = float(phi.mean()) if phi is not None else None
 
 report = {
     "example": "chain_1d",
-    "framework_version": "0.10",
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "scientific_status": "finite_exact_benchmark",
+    "framework_version": "1.0-submission-draft",
+    "package_version": "0.1.0",
     "config": {
         "n_qubits": cfg.substrate.n_qubits,
         "topology": cfg.substrate.topology,
@@ -248,32 +277,68 @@ report = {
             "cells": result.pi_res.cells,
             "leakage": float(result.pi_res.leakage),
             "drift": float(result.pi_res.drift) if result.pi_res.drift is not None else None,
-            "retention_loss": float(result.pi_res.retention_loss) if result.pi_res.retention_loss is not None else None,
+            "retention_loss": (
+                float(result.pi_res.retention_loss)
+                if result.pi_res.retention_loss is not None
+                else None
+            ),
             "su2_equivariant": result.pi_res.su2_equivariant,
+            "admissible": result.pi_res.admissible,
+            "n_total_partitions": result.pi_res.n_total,
+            "n_admissible_partitions": result.pi_res.n_admissible,
         },
         "pi_loc": {
             "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
-            "mi_min_positive": float(result.pi_loc.mi_matrix[result.pi_loc.mi_matrix > 0].min().item()),
+            "mi_min_positive": float(
+                result.pi_loc.mi_matrix[result.pi_loc.mi_matrix > 0].min().item()
+            ),
             "mi_max": float(result.pi_loc.mi_matrix.max().item()),
+            "connectivity_method": result.pi_loc.connectivity_method,
+            "connectivity_gap_ratio": result.pi_loc.connectivity_gap_ratio,
+            "connectivity_separable": result.pi_loc.connectivity_separable,
+            "inferred_edges": result.pi_loc.edges,
+            "held_out_reference_edges": sorted(reference_edges),
+            "edge_precision": edge_recovery.precision,
+            "edge_recall": edge_recovery.recall,
+            "mst_edges": sorted(mst_edges),
+            "mst_alone_reproduces_inferred_edges": mst_degenerate,
         },
         "pi_geom": {
             "D_spectral": float(result.pi_geom.D_spectral),
+            "spectral_diagnostic": "finite_graph_peak",
+            "spectral_peak_time": result.pi_geom.spectral_peak_time,
             "D_star": int(result.pi_geom.D_star),
             "stress": float(result.pi_geom.stress),
+            "objective": float(result.pi_geom.objective),
+            "stress_by_dimension": result.pi_geom.stress_by_dimension,
+            "objective_by_dimension": result.pi_geom.objective_by_dimension,
+            "embedding_status": result.pi_geom.embedding_status,
+            "selection_margin": result.pi_geom.selection_margin,
+            "stress_span": stress_span,
+            "selection_driver_tolerance": selection_driver_tolerance,
+            "selection_driver": dimension_selection_driver,
+            "metric_diagnostics": result.pi_geom.metric_diagnostics,
+            "complex_status": result.pi_geom.complex_status,
             "coords": coords.tolist(),
         },
         "pi_time": {
+            "source_model": result.pi_time.source_model,
+            "source_status": result.pi_time.source_status,
             "phi": phi.tolist() if phi is not None else None,
             "phi_min": float(phi.min()) if phi is not None else None,
             "phi_max": float(phi.max()) if phi is not None else None,
             "phi_range": phi_range,
             "phi_mean": phi_mean,
+            "constraint_residual": result.pi_time.constraint_residual,
         },
     },
     "checks": [
         {
             "name": "stability_selection",
-            "description": "Invalid (non-local) cells reach higher entropy than valid (local) cells",
+            "description": (
+                "One chosen scattered partition reaches higher entropy than the "
+                "selected contiguous partition"
+            ),
             "framework_section": "4.4.2a",
             "criterion": "entropy_increase_invalid > entropy_increase_valid",
             "value": {"valid": slope_valid, "invalid": slope_invalid},
@@ -288,12 +353,31 @@ report = {
             "passed": result.pi_res.cells == [[0, 1], [2, 3], [4, 5], [6, 7]],
         },
         {
-            "name": "su2_equivariance",
-            "description": "Coarse-graining map commutes with SU(2) action",
+            "name": "su2_equivariance_identity_regression",
+            "description": (
+                "Numerically checks the analytic identity that partial trace commutes "
+                "with the declared product SU(2) action"
+            ),
             "framework_section": "4.4.2a (E4)",
             "criterion": "su2_equivariant == True",
             "value": result.pi_res.su2_equivariant,
             "passed": result.pi_res.su2_equivariant is True,
+        },
+        {
+            "name": "blind_edge_recovery",
+            "description": (
+                "Inferred cell edges match held-out coarse Hamiltonian edges; at four "
+                "cells this result is non-discriminating because the MST alone matches"
+            ),
+            "framework_section": "4.4.3",
+            "criterion": "edge precision == 1 and edge recall == 1",
+            "value": {
+                "precision": edge_recovery.precision,
+                "recall": edge_recovery.recall,
+                "mst_degenerate": mst_degenerate,
+            },
+            "severity": "informational",
+            "passed": edge_recovery.precision == 1.0 and edge_recovery.recall == 1.0,
         },
         {
             "name": "geometry_1d_ordering",
@@ -312,17 +396,22 @@ report = {
             "passed": result.pi_geom.D_star == 1,
         },
         {
-            "name": "clock_potential_nontrivial",
-            "description": "Clock potential Phi has non-trivial structure (not flat)",
+            "name": "placeholder_clock_constraint_solved",
+            "description": (
+                "The explicitly non-physical entropy placeholder produces a "
+                "low-residual clock-constraint solution"
+            ),
             "framework_section": "4.4.5",
-            "criterion": "phi_range > 0",
-            "value": phi_range,
-            "passed": phi_range is not None and phi_range > 0,
+            "criterion": "constraint_residual < 1e-10",
+            "value": result.pi_time.constraint_residual,
+            "passed": result.pi_time.constraint_residual < 1e-10,
         },
     ],
 }
 
-report["overall_pass"] = all(c["passed"] for c in report["checks"])
+report["overall_pass"] = all(
+    c["passed"] for c in report["checks"] if c.get("severity") != "informational"
+)
 report["artifacts"] = [
     "results/entropy_growth.png",
     "results/embedding.png",
@@ -331,7 +420,7 @@ report["artifacts"] = [
 ]
 
 val_path = results / "validation.json"
-val_path.write_text(validation_json(report))
+val_path.write_text(validation_json(report) + "\n", encoding="utf-8")
 print(f"Saved: {val_path}")
 
 print("\nDone.")

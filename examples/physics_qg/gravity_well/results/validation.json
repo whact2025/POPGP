@@ -1,7 +1,8 @@
 {
   "example": "gravity_well",
-  "framework_version": "0.10",
-  "timestamp": "2026-02-22T03:54:01.246530+00:00",
+  "scientific_status": "numerical_green_function_diagnostic",
+  "framework_version": "1.0-submission-draft",
+  "package_version": "0.1.0",
   "config": {
     "width": 3,
     "height": 3,
@@ -12,45 +13,170 @@
     "I_0": 1.0,
     "lambda_dim": 0.01,
     "mu": 0.1,
+    "point_source_strength": -0.01,
     "center_cell": 4,
     "use_exact_backend": true
   },
   "pipeline": {
+    "pi_res": {
+      "n_cells": 9,
+      "cells": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ],
+        [
+          6
+        ],
+        [
+          7
+        ],
+        [
+          8
+        ]
+      ],
+      "leakage": null,
+      "retention_loss": 3.43997701488105,
+      "admissible": false,
+      "n_total_partitions": 1,
+      "n_admissible_partitions": 0
+    },
     "pi_geom": {
-      "D_spectral": 1.0,
+      "D_spectral": 1.4994570653658537,
       "D_star": 2,
-      "stress": 0.10806721838779144
+      "stress": 0.16817252172756159,
+      "embedding_status": "geometric_candidate",
+      "metric_diagnostics": [
+        {
+          "condition_number": 1343.5885246402145,
+          "relative_residual": 0.0008063007692380755,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "underdetermined": true,
+          "is_proxy_boundary": 1
+        },
+        {
+          "condition_number": 50.360256878043685,
+          "relative_residual": 0.00035710705884087234,
+          "design_rank": 3,
+          "n_constraints": 3,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1343.5885246398207,
+          "relative_residual": 0.000806300769238141,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "underdetermined": true,
+          "is_proxy_boundary": 1
+        },
+        {
+          "condition_number": 50.3602568780453,
+          "relative_residual": 0.0003571070588409119,
+          "design_rank": 3,
+          "n_constraints": 3,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1675.1808666190857,
+          "relative_residual": 0.00013621547784667143,
+          "design_rank": 2,
+          "n_constraints": 4,
+          "underdetermined": true
+        },
+        {
+          "condition_number": 50.36025687804479,
+          "relative_residual": 0.00035710705884095176,
+          "design_rank": 3,
+          "n_constraints": 3,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1343.5885246402802,
+          "relative_residual": 0.0008063007692382689,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "underdetermined": true,
+          "is_proxy_boundary": 1
+        },
+        {
+          "condition_number": 50.36025687804538,
+          "relative_residual": 0.00035710705884124525,
+          "design_rank": 3,
+          "n_constraints": 3,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1343.5885246401858,
+          "relative_residual": 0.0008063007692383327,
+          "design_rank": 2,
+          "n_constraints": 2,
+          "underdetermined": true,
+          "is_proxy_boundary": 1
+        }
+      ],
+      "complex_status": "embedding_delaunay_proxy"
     },
     "pi_time_natural": {
       "phi": [
-        0.0,
-        6.008162975311279,
-        7.277210235595703,
-        6.0081634521484375,
-        6.99064302444458,
-        7.679549217224121,
-        7.277210235595703,
-        7.679549217224121,
-        8.022126197814941
+        2.2316189743620526e-17,
+        9.104798662627574e-17,
+        1.3694162316904747e-16,
+        -1.3820288022457818e-16,
+        5.04502822212276e-18,
+        9.104798662627574e-17,
+        -9.230924368180644e-17,
+        -1.3820288022457816e-16,
+        2.231618974362056e-17
       ],
-      "phi_min": 0.0,
-      "phi_max": 8.022126197814941
+      "phi_min": -1.3820288022457818e-16,
+      "phi_max": 1.3694162316904747e-16
     },
     "gravity_test": {
-      "phi_point": [
-        11.005647659301758,
-        11.0614652633667,
-        11.005648612976074,
-        11.061464309692383,
-        11.731260299682617,
-        11.061463356018066,
-        11.005648612976074,
-        11.061464309692383,
-        11.005646705627441
+      "scientific_status": "numerical_green_function_diagnostic",
+      "physical_source_law_validated": false,
+      "effective_source": [
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        -0.008888888888888889,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111,
+        0.0011111111111111111
       ],
-      "phi_min": 11.005646705627441,
-      "phi_max": 11.731260299682617,
-      "phi_at_source": 11.731260299682617,
+      "source_background": -0.0011111111111111111,
+      "constraint_residual": 1.8778932484214493e-18,
+      "relative_constraint_residual": 1.991806575454861e-16,
+      "phi_point": [
+        0.002257896041084457,
+        0.00023303130655943517,
+        0.0022578960410844567,
+        0.00023303130655943314,
+        -0.009963709390575564,
+        0.00023303130655943452,
+        0.0022578960410844554,
+        0.00023303130655943392,
+        0.002257896041084457
+      ],
+      "phi_min": -0.009963709390575564,
+      "phi_max": 0.002257896041084457,
+      "phi_at_source": -0.009963709390575564,
       "graph_distances": [
         2,
         1,
@@ -69,39 +195,59 @@
           2.0
         ],
         "phi_avg": [
-          11.731260299682617,
-          11.061464309692383,
-          11.005647659301758
+          -0.009963709390575564,
+          0.0002330313065594342,
+          0.0022578960410844567
         ],
         "phi_std": [
           0.0,
-          6.743495646333031e-07,
-          8.259061701210157e-07
+          7.498112479012449e-19,
+          7.19178360604521e-19
         ]
       },
       "log_fit": {
-        "slope": -0.08052640471758965,
-        "intercept": 11.06146430969238,
+        "slope": 0.002921262310970197,
+        "intercept": 0.00023303130655943384,
         "r_squared": 1.0
       },
       "redshift": {
-        "phi_source": 11.731260299682617,
-        "phi_boundary": 11.005647659301758,
-        "z": 1.0659964084625244,
-        "one_plus_z": 2.0659964084625244
+        "phi_source": -0.009963709390575564,
+        "phi_boundary": 0.0022578960410844567,
+        "z": 0.012296594435271313,
+        "one_plus_z": 1.0122965944352713
       }
     }
   },
   "checks": [
     {
-      "name": "monotonic_falloff",
-      "description": "Phi decreases monotonically with graph distance from the mass source",
-      "framework_section": "4.4.5 / 5.1",
-      "criterion": "Phi(d) > Phi(d+1) for all consecutive shells",
+      "name": "pi_res_admissibility",
+      "description": "The singleton resolution must satisfy the configured retention bound",
+      "framework_section": "4.4.2a",
+      "criterion": "pi_res.admissible == true",
       "value": {
-        "d=0": 11.731260299682617,
-        "d=1": 11.061464309692383,
-        "d=2": 11.005647659301758
+        "admissible": false,
+        "retention_loss": 3.43997701488105,
+        "retention_epsilon": 0.1
+      },
+      "passed": false
+    },
+    {
+      "name": "nonzero_source_constraint_residual",
+      "description": "The nonzero diagnostic source satisfies the screened constraint",
+      "framework_section": "4.4.5",
+      "criterion": "relative_constraint_residual < 1e-12",
+      "value": 1.991806575454861e-16,
+      "passed": true
+    },
+    {
+      "name": "monotonic_falloff",
+      "description": "Phi rises monotonically away from the negative diagnostic source",
+      "framework_section": "4.4.5 / 5.1",
+      "criterion": "Phi(d) < Phi(d+1) for all consecutive shells",
+      "value": {
+        "d=0": -0.009963709390575564,
+        "d=1": 0.0002330313065594342,
+        "d=2": 0.0022578960410844567
       },
       "passed": true
     },
@@ -110,27 +256,27 @@
       "description": "Cells equidistant from source have equal Phi (lattice symmetry preserved)",
       "framework_section": "4.4.5",
       "criterion": "max asymmetry < 5%",
-      "value": 1.7330634364043362e-05,
+      "value": 8.723630757706069e-13,
       "threshold": 5.0,
       "passed": true
     },
     {
-      "name": "phi_peaked_at_source",
-      "description": "Clock potential is maximal at the mass source cell",
+      "name": "negative_well_at_source",
+      "description": "Clock potential is minimal at the negative source cell",
       "framework_section": "5.1",
-      "criterion": "argmax(phi) == center",
+      "criterion": "argmin(phi) == center",
       "value": {
-        "argmax": 4,
+        "argmin": 4,
         "center": 4
       },
       "passed": true
     },
     {
       "name": "redshift_positive",
-      "description": "Gravitational redshift z > 0 (source clocks tick faster than boundary)",
+      "description": "Emitter in the negative well is redshifted at the boundary",
       "framework_section": "5.1",
       "criterion": "z > 0",
-      "value": 1.0659964084625244,
+      "value": 0.012296594435271313,
       "passed": true
     },
     {
@@ -142,7 +288,7 @@
       "passed": true
     }
   ],
-  "overall_pass": true,
+  "overall_pass": false,
   "artifacts": [
     "results/gravity_well.png",
     "results/gravity_embedding.png",

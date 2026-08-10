@@ -1,7 +1,8 @@
 {
   "example": "chain_1d",
-  "framework_version": "0.10",
-  "timestamp": "2026-02-21T19:16:13.760696+00:00",
+  "scientific_status": "finite_exact_benchmark",
+  "framework_version": "1.0-submission-draft",
+  "package_version": "0.1.0",
   "config": {
     "n_qubits": 8,
     "topology": "chain",
@@ -37,52 +38,155 @@
           7
         ]
       ],
-      "leakage": 0.004860194018109187,
+      "leakage": 0.006098528919738642,
       "drift": null,
-      "retention_loss": 0.31956630118864293,
-      "su2_equivariant": true
+      "retention_loss": 0.3195663011886438,
+      "su2_equivariant": true,
+      "admissible": true,
+      "n_total_partitions": 105,
+      "n_admissible_partitions": 105
     },
     "pi_loc": {
       "mi_matrix_shape": [
         4,
         4
       ],
-      "mi_min_positive": 1.4244193380363868e-06,
-      "mi_max": 0.1065274104475975
+      "mi_min_positive": 1.4244192860779492e-06,
+      "mi_max": 0.10652740874130018,
+      "connectivity_method": "adaptive_gap",
+      "connectivity_gap_ratio": 302.35731645025265,
+      "connectivity_separable": true,
+      "inferred_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "held_out_reference_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "edge_precision": 1.0,
+      "edge_recall": 1.0,
+      "mst_edges": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          3
+        ]
+      ],
+      "mst_alone_reproduces_inferred_edges": true
     },
     "pi_geom": {
-      "D_spectral": 1.0,
+      "D_spectral": 0.8390354890749466,
+      "spectral_diagnostic": "finite_graph_peak",
+      "spectral_peak_time": 7.554770724909157,
       "D_star": 1,
-      "stress": 7.7161633359739e-08,
+      "stress": 4.860349514687119e-16,
+      "objective": 0.00025909573777390234,
+      "stress_by_dimension": {
+        "1": 4.860349514687119e-16,
+        "2": 5.034432205558175e-16,
+        "3": 5.41134677012244e-16
+      },
+      "objective_by_dimension": {
+        "1": 0.00025909573777390234,
+        "2": 0.013478385956274985,
+        "3": 0.04669767617477609
+      },
+      "embedding_status": "geometric_candidate",
+      "selection_margin": 0.013219290218501083,
+      "stress_span": 5.5099725543532064e-17,
+      "selection_driver_tolerance": 1.3219290218501083e-08,
+      "selection_driver": "spectral_penalty",
+      "metric_diagnostics": [
+        {
+          "condition_number": 1.0,
+          "relative_residual": 0.0,
+          "design_rank": 1,
+          "n_constraints": 1,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1.0,
+          "relative_residual": 2.217092922365548e-15,
+          "design_rank": 1,
+          "n_constraints": 2,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1.0,
+          "relative_residual": 4.4341858447310587e-16,
+          "design_rank": 1,
+          "n_constraints": 2,
+          "underdetermined": false
+        },
+        {
+          "condition_number": 1.0,
+          "relative_residual": 0.0,
+          "design_rank": 1,
+          "n_constraints": 1,
+          "underdetermined": false
+        }
+      ],
+      "complex_status": "not_available_for_selected_dimension",
       "coords": [
-        0.0015101059107109904,
-        0.0,
-        1.4115752837440265e-11,
-        -0.0015101059107109904
+        1.501510117538726,
+        0.500000000000003,
+        -0.49999999999999784,
+        -1.5015101175387309
       ]
     },
     "pi_time": {
+      "source_model": "von_neumann_placeholder",
+      "source_status": "placeholder",
       "phi": [
-        0.0,
-        36.04331588745117,
-        59.822471618652344,
-        71.72520446777344
+        -0.02212812093257117,
+        0.022128120932574494,
+        0.0221281209325724,
+        -0.022128120932575726
       ],
-      "phi_min": 0.0,
-      "phi_max": 71.72520446777344,
-      "phi_range": 71.72520446777344,
-      "phi_mean": 41.89774703979492
+      "phi_min": -0.022128120932575726,
+      "phi_max": 0.022128120932574494,
+      "phi_range": 0.04425624186515022,
+      "phi_mean": -8.673617379884035e-19,
+      "constraint_residual": 4.4365955630223736e-16
     }
   },
   "checks": [
     {
       "name": "stability_selection",
-      "description": "Invalid (non-local) cells reach higher entropy than valid (local) cells",
+      "description": "One chosen scattered partition reaches higher entropy than the selected contiguous partition",
       "framework_section": "4.4.2a",
       "criterion": "entropy_increase_invalid > entropy_increase_valid",
       "value": {
-        "valid": 1.1124904155731201,
-        "invalid": 1.299808382987976
+        "valid": 1.1124903902776022,
+        "invalid": 1.29980839049638
       },
       "passed": true
     },
@@ -112,11 +216,24 @@
       "passed": true
     },
     {
-      "name": "su2_equivariance",
-      "description": "Coarse-graining map commutes with SU(2) action",
+      "name": "su2_equivariance_identity_regression",
+      "description": "Numerically checks the analytic identity that partial trace commutes with the declared product SU(2) action",
       "framework_section": "4.4.2a (E4)",
       "criterion": "su2_equivariant == True",
       "value": true,
+      "passed": true
+    },
+    {
+      "name": "blind_edge_recovery",
+      "description": "Inferred cell edges match held-out coarse Hamiltonian edges; at four cells this result is non-discriminating because the MST alone matches",
+      "framework_section": "4.4.3",
+      "criterion": "edge precision == 1 and edge recall == 1",
+      "value": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "mst_degenerate": true
+      },
+      "severity": "informational",
       "passed": true
     },
     {
@@ -126,18 +243,18 @@
       "criterion": "tolerance-ranked coords are monotonic",
       "value": {
         "coords": [
-          0.0015101059107109904,
-          0.0,
-          1.4115752837440265e-11,
-          -0.0015101059107109904
+          1.501510117538726,
+          0.500000000000003,
+          -0.49999999999999784,
+          -1.5015101175387309
         ],
         "rank": [
+          3,
           2,
-          1,
           1,
           0
         ],
-        "tolerance": 3.020212034243741e-06
+        "tolerance": 0.003003020235077457
       },
       "passed": true
     },
@@ -150,11 +267,11 @@
       "passed": true
     },
     {
-      "name": "clock_potential_nontrivial",
-      "description": "Clock potential Phi has non-trivial structure (not flat)",
+      "name": "placeholder_clock_constraint_solved",
+      "description": "The explicitly non-physical entropy placeholder produces a low-residual clock-constraint solution",
       "framework_section": "4.4.5",
-      "criterion": "phi_range > 0",
-      "value": 71.72520446777344,
+      "criterion": "constraint_residual < 1e-10",
+      "value": 4.4365955630223736e-16,
       "passed": true
     }
   ],

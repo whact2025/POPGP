@@ -14,11 +14,10 @@ reads from a SimulatorConfig instance passed at construction time.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Callable
-
-import math
 
 
 class ParamKind(Enum):
@@ -131,6 +130,28 @@ class PiResConfig:
     """Phase-order step δ for the drift functional L_drift.
     [TUNABLE_HYPERPARAMETER]  Should satisfy δ ≪ phase_window_width."""
 
+    probe_seed: int = 42
+    """Seed for common random channel-norm probes. [NUMERICAL_CONTROL]
+    Every candidate partition must be evaluated with the same probes."""
+
+    leakage_probe_states: int = 8
+    """Number of common Haar probes used for leakage estimation.
+    [TUNABLE_HYPERPARAMETER]"""
+
+    drift_probe_states: int = 4
+    """Number of common Haar probes used for drift estimation.
+    [TUNABLE_HYPERPARAMETER]"""
+
+    leakage_tie_tolerance: float = 1e-8
+    """Absolute tolerance for leakage ties. [NUMERICAL_CONTROL]"""
+
+    su2_tolerance: float = 1e-6
+    """Numerical tolerance for SU(2)-equivariance checks. [NUMERICAL_CONTROL]"""
+
+    su2_samples: int = 5
+    """Number of sampled SU(2) transformations used for verification.
+    [NUMERICAL_CONTROL]"""
+
 
 # ── Π_loc configuration ────────────────────────────────────────────────
 
@@ -140,8 +161,14 @@ class PiLocConfig:
     """Parameters for locality from correlations (§4.4.3)."""
 
     I_0: float | None = None
-    """Reference mutual-information scale.  If None, uses max(I_ij).
-    [TUNABLE_HYPERPARAMETER]  Typical strong-coupling value."""
+    """Reference mutual-information scale. If None, it is derived as
+    ``I_0_multiplier * max(I_ij)`` so distinct nodes retain positive length.
+    Explicit values must be strictly larger than the observed maximum MI.
+    [TUNABLE_HYPERPARAMETER]"""
+
+    I_0_multiplier: float = math.e
+    """Multiplier used to derive I_0 when it is not supplied.
+    [EMPIRICAL_SCALE_SETTING] The default gives the strongest pair unit length."""
 
     distance_kernel: Callable[[float], float] = field(
         default_factory=lambda: default_distance_kernel
@@ -155,9 +182,20 @@ class PiLocConfig:
     """Monotone increasing map κ: I_ij → edge weight, κ(0)=0.
     [STRUCTURAL_CHOICE]  Default: κ(I) = I (identity)."""
 
-    k_nearest: int = 6
-    """k for k-nearest-neighbor connectivity backbone.
-    [TUNABLE_HYPERPARAMETER]  Must be ≥ D*+1 for manifold recovery."""
+    connectivity_method: str = "adaptive_gap"
+    """Blind connectivity rule. ``adaptive_gap`` separates correlation
+    scales at the largest multiplicative MI gap and then adds an MST only
+    when needed for connectivity. ``knn_mst`` retains the fixed-k baseline.
+    [STRUCTURAL_CHOICE]"""
+
+    minimum_gap_ratio: float = 1.5
+    """Minimum multiplicative separation required to call an adaptive MI
+    gap identifiable. Below this value only the connectivity MST is returned
+    and the result is marked non-separable. [TUNABLE_HYPERPARAMETER]"""
+
+    k_nearest: int = 3
+    """k for the optional ``knn_mst`` connectivity baseline.
+    [TUNABLE_HYPERPARAMETER]"""
 
     mi_epsilon: float = 1e-12
     """Numerical floor for MI values (avoids log(0)).
@@ -171,17 +209,25 @@ class PiLocConfig:
 class PiGeomConfig:
     """Parameters for emergent geometry (§4.4.4)."""
 
-    lambda_dim: float = 1.0
+    lambda_dim: float = 0.01
     """Penalty weight for dimension selection: topological inertia.
     [TUNABLE_HYPERPARAMETER]  Evaluated in the degeneracy-breaking
     limit (λ_dim → 0⁺); it breaks ties between equally low-stress
     embeddings to prevent high-frequency quantum noise from causing
     macroscopic dimensionality jitter, not to force D=3 (§4.4.4 step 1).
-    Default 1.0 is appropriate for toy models with few nodes."""
+    The small default implements the stated λ_dim → 0⁺ limit."""
 
     D_max: int = 6
     """Maximum candidate embedding dimension.
     [STRUCTURAL_CHOICE]  D* > 3 flags a non-geometric phase (F1)."""
+
+    max_geometric_dimension: int = 3
+    """Largest selected dimension labeled a geometric candidate.
+    [STRUCTURAL_CHOICE] Higher values are reported as non-geometric."""
+
+    max_geometric_stress: float = 0.25
+    """Maximum MDS stress labeled an acceptable finite geometric candidate.
+    [TUNABLE_HYPERPARAMETER] This is a diagnostic threshold, not a theorem."""
 
     embedding_method: str = "mds"
     """Embedding algorithm ('mds', 'smacof').
@@ -193,6 +239,10 @@ class PiGeomConfig:
     [TUNABLE_HYPERPARAMETER]  Controls how strongly h_ab is pulled
     toward the inverse local covariance (§4.4.4 step 3)."""
 
+    metric_eigenvalue_floor: float = 1e-8
+    """Numerical SPD floor for local embedding-metric fits.
+    [NUMERICAL_CONTROL]"""
+
 
 # ── Π_time configuration ───────────────────────────────────────────────
 
@@ -203,8 +253,33 @@ class PiTimeConfig:
 
     mu: float = 0.0
     """Screening mass for the clock-rate Laplacian.
-    [TUNABLE_HYPERPARAMETER]  μ=0 gives standard 1/r GR behavior.
-    μ>0 is an optional controlled IR-modification module."""
+    [TUNABLE_HYPERPARAMETER] μ=0 gives an unscreened graph Poisson
+    constraint; no continuum 1/r law is implied without a convergence test.
+    μ>0 is an optional controlled IR regulator."""
+
+    zero_mode_policy: str = "subtract_mean"
+    """Compatibility policy for μ=0 graph Poisson solves.
+    ``subtract_mean`` removes the constant source mode; ``require_zero_sum``
+    rejects incompatible sources. [STRUCTURAL_CHOICE]"""
+
+    normalize_potential: bool = True
+    """Subtract the mean potential after solving so only clock-rate contrasts
+    are reported on a finite graph. [STRUCTURAL_CHOICE]"""
+
+    source_model: str = "von_neumann_placeholder"
+    """Clock source model. The default is an explicitly non-physical
+    placeholder retained for pipeline diagnostics. Explicit experimental
+    alternatives are ``negative_relative_entropy_candidate`` and
+    ``negative_modular_energy_candidate`` (both reduced-state contrasts), and
+    ``negative_kms_energy_density_candidate`` (an exact-backend microscopic
+    Hamiltonian decomposition). All candidates require a reference state passed
+    to ``run_pi_time`` or ``Simulator.run``. The KMS-labelled candidate additionally
+    validates that reference against the backend Gibbs state at ``beta_kms``.
+    [STRUCTURAL_CHOICE]"""
+
+    source_scale: float = 1.0
+    """Multiplicative scale applied to the configured clock source.
+    [EMPIRICAL_SCALE_SETTING]"""
 
     beta_0: float = 1.0
     """Clock-rate coupling constant: dτ = β_0·exp(Φ)·dS_act.
@@ -267,6 +342,10 @@ class BackendConfig:
     [STRUCTURAL_CHOICE]  'double' is required for accurate entropy
     and eigenvalue computations at toy scale."""
 
+    initial_perturbation: float = 0.15
+    """Symmetry-breaking amplitude for the experimental mean-field product
+    state. [TUNABLE_HYPERPARAMETER]"""
+
 
 # ── Top-level configuration ─────────────────────────────────────────────
 
@@ -305,6 +384,7 @@ class SimulatorConfig:
             substrate=SubstrateConfig(
                 n_qubits=n, topology="chain", beta=beta, **kw
             ),
+            pi_res=PiResConfig(cell_dim=2),
         )
 
     @classmethod
@@ -321,6 +401,7 @@ class SimulatorConfig:
                 beta=beta,
                 **kw,
             ),
+            pi_res=PiResConfig(cell_dim=1),
         )
 
     @property

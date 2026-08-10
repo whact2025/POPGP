@@ -22,7 +22,7 @@ import pyvista as pv
 from scipy.spatial import Delaunay
 
 if TYPE_CHECKING:
-    from popgp.simulator import PiGeomResult, PiTimeResult
+    from popgp.simulator import PiGeomResult
 
 
 class POPGPRenderer:

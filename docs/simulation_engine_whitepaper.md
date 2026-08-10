@@ -6,6 +6,12 @@
 **Date:** February 2026  
 **Status:** Conceptual Proposal
 
+> **Historical concept document.** Performance and physics statements below are
+> architectural goals, not measured results. In particular, O(area) scaling,
+> large-system MI geometry, and seamless multiscale behavior have not been
+> demonstrated. The mean-field CUDA backend cannot compute mutual information.
+> See `docs/scientific_hardening/` for current implementation status.
+
 ---
 
 ## Abstract
@@ -72,14 +78,18 @@ Simulating 100+ qubits is impossible on classical supercomputers due to the stat
 Simulating quark-gluon plasmas requires massive grids. A relational engine could simulate the **interaction graph** of the plasma directly, potentially offering a faster route to calculating scattering amplitudes without the artifacts of a discrete space-time lattice.
 
 ### 4.3 Cosmology & Gravity
-Simulating the early universe or black holes requires coupling Quantum Mechanics with Gravity. Since POPGP **derives gravity** from the thermodynamics of the substrate (Section 8), this engine could natively simulate "quantum gravity" phenomena like horizon formation and Hawking radiation without needing a unified field theory equation.
+Quantum-gravity simulation would require a validated source law, tensor closure,
+controlled high-curvature dynamics, and causal-completeness tests. POPGP does not yet
+provide those ingredients. The present engine can support finite graph and quantum
+information experiments that may inform such a future program.
 
 ---
 
 ## 5. Development Roadmap
 
 ### Phase 1: The Toy Model (Completed)
-*   `chain_1d_stability.py` and `grid_2d.py` prove the core concept: deriving geometry from algebraic correlations.
+*   The chain and grid examples benchmark recovery of interaction topology encoded in
+    their Hamiltonians; they do not derive geometry without structural priors.
 
 ### Phase 2: The Dynamic Kernal (Next Step)
 *   Build a C++/CUDA kernel for the **Phase-Ordered Flow**.

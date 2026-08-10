@@ -1,0 +1,234 @@
+{
+  "example": "source_law",
+  "framework_version": "1.0-submission-draft",
+  "package_version": "0.1.0",
+  "scientific_status": "candidate_comparison_with_negative_result",
+  "config": {
+    "epsilons": [
+      1e-05,
+      1.584893192461114e-05,
+      2.5118864315095822e-05,
+      3.9810717055349695e-05,
+      6.309573444801929e-05,
+      0.0001,
+      0.00015848931924611142,
+      0.0002511886431509582,
+      0.00039810717055349735,
+      0.000630957344480193,
+      0.001,
+      0.001584893192461114,
+      0.002511886431509582,
+      0.003981071705534973,
+      0.006309573444801936,
+      0.01
+    ],
+    "reference": [
+      0.7,
+      0.3
+    ],
+    "excitation": [
+      0.2,
+      0.8
+    ],
+    "clock_graph": "three_node_path",
+    "mu": 0.1
+  },
+  "measurements": {
+    "relative_entropy": [
+      5.952349724225314e-11,
+      1.4951628823922647e-10,
+      3.755670219263152e-10,
+      9.433769321276486e-10,
+      2.369637930321744e-09,
+      5.95219218357812e-09,
+      1.4950952920145255e-08,
+      3.755399080596078e-08,
+      9.432696290723186e-08,
+      2.3692112127715603e-07,
+      5.950493385808997e-07,
+      1.4944195247945657e-06,
+      3.7527118593727593e-06,
+      9.422017281490724e-06,
+      2.364971760371315e-05,
+      5.93369074836092e-05
+    ],
+    "modular_energy": [
+      4.236489301963773e-06,
+      6.714383054582225e-06,
+      1.0641579994794442e-05,
+      1.6865767690755524e-05,
+      2.6730440398638005e-05,
+      4.236489301942235e-05,
+      6.714383054572817e-05,
+      0.00010641579994771922,
+      0.00016865767690732753,
+      0.00026730440398689987,
+      0.0004236489301935824,
+      0.0006714383054572819,
+      0.0010641579994768331,
+      0.0016865767690739265,
+      0.0026730440398683203,
+      0.004236489301936022
+    ],
+    "entropy_change": [
+      4.236429778425865e-06,
+      6.714233538263059e-06,
+      1.0641204427841444e-05,
+      1.686482431384473e-05,
+      2.672807076065098e-05,
+      4.235894082726954e-05,
+      6.712887959281488e-05,
+      0.00010637824595693957,
+      0.00016856334994452826,
+      0.0002670674828656461,
+      0.0004230538808549511,
+      0.0006699438859324447,
+      0.0010604052876174164,
+      0.0016771547517925312,
+      0.002649394322264631,
+      0.004177152394452377
+    ],
+    "relative_entropy_phi_amplitude": [
+      1.9775248253240245e-11,
+      4.9673185461537034e-11,
+      1.247730969854868e-10,
+      3.134142631653318e-10,
+      7.87255126352739e-10,
+      1.9774724862385785e-09,
+      4.96709399340374e-09,
+      1.2476408905634812e-08,
+      3.133786143097404e-08,
+      7.87113359724771e-08,
+      1.976908101597674e-07,
+      4.964848919583275e-07,
+      1.2467481260374617e-06,
+      3.13023829949858e-06,
+      7.857049037778456e-06,
+      1.9713258300202393e-05
+    ],
+    "modular_energy_phi_amplitude": [
+      1.407471528891619e-06,
+      2.230692044711703e-06,
+      3.5354086361443336e-06,
+      5.603245079985225e-06,
+      8.880544982936213e-06,
+      1.4074715288844636e-05,
+      2.230692044708577e-05,
+      3.535408636136852e-05,
+      5.60324507997766e-05,
+      8.880544982953484e-05,
+      0.00014074715288823336,
+      0.00022306920447085778,
+      0.00035354086361356587,
+      0.0005603245079979822,
+      0.0008880544982951231,
+      0.0014074715288823994
+    ],
+    "fits": {
+      "relative_entropy": {
+        "slope": 1.999683771505978,
+        "intercept": -0.5218766103968699,
+        "slope_residual_scale": 6.833867207855639e-05,
+        "r_squared": 0.9999999836492207
+      },
+      "modular_energy": {
+        "slope": 0.9999999999995276,
+        "intercept": -0.8588501615567374,
+        "slope_residual_scale": 1.8074841977714659e-13,
+        "r_squared": 1.0
+      },
+      "relative_entropy_phi": {
+        "slope": 1.9996837715059763,
+        "intercept": -1.623816689157661,
+        "slope_residual_scale": 6.833867207862644e-05,
+        "r_squared": 0.9999999836492207
+      },
+      "modular_energy_phi": {
+        "slope": 0.9999999999995274,
+        "intercept": -1.9607902403175215,
+        "slope_residual_scale": 1.8076424496968592e-13,
+        "r_squared": 1.0
+      }
+    },
+    "equal_energy_control": {
+      "pure_middle": {
+        "energy": 1.0,
+        "entropy": -0.0,
+        "relative_entropy": 1.4076059644443804,
+        "modular_energy": 0.5752103826044415
+      },
+      "mixed_extremes": {
+        "energy": 1.0,
+        "entropy": 0.6931471805599453,
+        "relative_entropy": 0.7144587838844353,
+        "modular_energy": 0.5752103826044417
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "relative_entropy_is_quadratic",
+      "criterion": "abs(slope-2) < 0.02",
+      "value": {
+        "slope": 1.999683771505978,
+        "intercept": -0.5218766103968699,
+        "slope_residual_scale": 6.833867207855639e-05,
+        "r_squared": 0.9999999836492207
+      },
+      "passed": true
+    },
+    {
+      "name": "affine_modular_linearity_identity_regression",
+      "criterion": "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12",
+      "value": {
+        "fit": {
+          "slope": 0.9999999999995276,
+          "intercept": -0.8588501615567374,
+          "slope_residual_scale": 1.8074841977714659e-13,
+          "r_squared": 1.0
+        },
+        "max_absolute_identity_error": 7.020209066843641e-17
+      },
+      "passed": true
+    },
+    {
+      "name": "linear_solver_homogeneity_identity_regression",
+      "criterion": "Phi/source amplitude ratio is constant and relative-entropy Phi retains the measured quadratic order",
+      "value": {
+        "relative_entropy_phi": {
+          "slope": 1.9996837715059763,
+          "intercept": -1.623816689157661,
+          "slope_residual_scale": 6.833867207862644e-05,
+          "r_squared": 0.9999999836492207
+        },
+        "modular_energy_phi": {
+          "slope": 0.9999999999995274,
+          "intercept": -1.9607902403175215,
+          "slope_residual_scale": 1.8076424496968592e-13,
+          "r_squared": 1.0
+        },
+        "max_ratio_spread": 1.6653345369377348e-16
+      },
+      "passed": true
+    },
+    {
+      "name": "equal_energy_entropy_confound",
+      "criterion": "equal energy and modular energy, but different relative entropy",
+      "value": {
+        "equal_energy": true,
+        "equal_modular_energy": true,
+        "different_relative_entropy": true
+      },
+      "passed": true
+    }
+  ],
+  "conclusion": {
+    "raw_relative_entropy_linear_source": "falsified_in_tested_regime",
+    "modular_energy": "affine_linearity_identity_not_a_falsification_test"
+  },
+  "artifacts": [
+    "results/source_scaling.png",
+    "results/validation.json"
+  ],
+  "overall_pass": true
+}

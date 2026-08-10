@@ -12,13 +12,13 @@ dynamics are fundamentally different from the exact density-matrix pipeline
 conceptual illustration of the stability selection principle, not a strict
 framework implementation.
 
-## Framework Sections Validated
+## Framework analogies illustrated
 
-| Principle | Framework Reference | What this script tests |
+| Principle | Framework Reference | Programmed behavior |
 |---|---|---|
-| Stability Selection | Section 4.4.2a | Cells with entropy above `LEAKAGE_THRESHOLD` are eliminated. |
-| Emergent Persistence | Section 4.4.2a | Populations of stable cells self-organise and persist over time. |
-| Radiative Cooling | Section 4.4.2a | Entropy export ("cooling") is necessary for dense, stable populations. |
+| Stability Selection | Section 4.4.2a | The update rule explicitly eliminates cells above `LEAKAGE_THRESHOLD`. |
+| Persistence | Section 4.4.2a | Selected update rules can produce persistent populations. |
+| Radiative Cooling analogy | Section 4.4.2a | A programmed stochastic reset exports the model entropy. |
 
 ## Cell Representation
 
@@ -79,8 +79,9 @@ uv run python -m examples.physics_qg.ca_model
 
 ![Population Dynamics](results/dynamics_cooling.png)
 
-**What you see**: A dual-axis line chart over time steps. A **PASS/FAIL** badge
-is in the corner. A blue dashed horizontal line marks the entropy death threshold.
+**What you see**: A dual-axis line chart over time steps. A **NEGATIVE** outcome
+badge is in the corner for the committed run. A blue dashed horizontal line marks
+the entropy death threshold.
 
 **Visual elements**:
 - **Red line (left y-axis)** = live cell count at each step.
@@ -89,32 +90,24 @@ is in the corner. A blue dashed horizontal line marks the entropy death threshol
   this line are culled each step. The average entropy of survivors should remain
   well below this line.
 
-**PASS criteria** (Section 4.4.2a):
-1. **Population survives**: The red line does not crash to zero. The population
-   stabilizes or grows from the initial seed, reaching a dynamic equilibrium
-   where births (replication) balance deaths (entropy culling).
+**Recorded diagnostics** (Section 4.4.2a):
+1. **Population survival/growth**: Survival and stable-or-growing population are
+   recorded separately. The committed run survives but ends below its initial count.
 2. **Entropy stays controlled**: The blue line remains below the dashed threshold.
    The average entropy of survivors should be well below 0.4, indicating the
    population is collectively stable and pure.
 
-**FAIL indicators**:
-- **Population crashes to zero**: The red line drops to 0 and stays there. This
-  means cooling is insufficient — interactions steadily increase entropy until
-  every cell exceeds the death threshold. Try increasing `COOLING_PROB` or
-  decreasing `DECAY_RATE`.
-- **Entropy rises to or above threshold**: The blue line approaches or exceeds
-  the dashed line. This means selection pressure is not keeping up with
-  entropy production. The population may survive but is unhealthy.
-- **Population oscillates wildly**: Large boom-bust cycles suggest the
-  parameters are near a critical boundary. The system is marginally stable.
+These diagnostics describe one stochastic trajectory. A crash, decline, or oscillation
+cannot be attributed specifically to cooling without matched seeds and a parameter
+sweep. The entropy threshold is also partly structural because cells above it are
+removed before the survivor average is recorded.
 
-**Key scientific insight**: If you set `COOLING_PROB = 0` (disable entropy
-export), the population **always** collapses. Interactions between misaligned
-cells always increase entropy (they act as a decoherence channel). Without an
-entropy export mechanism (cooling), every cell eventually exceeds the death
-threshold. This confirms the framework's prediction that **open systems with
-entropy export are necessary for persistent, stable structures** — a direct
-analogy to radiative cooling in astrophysics and the second law in biology.
+The committed run configures `COOLING_PROB = 0.02` but contains no matched no-cooling
+control. Its final population is smaller than its initial population, so the growth
+criterion fails and the artifact records a negative/mixed result. Survivor entropy is
+partly enforced by culling and pure-newborn normalization. This example therefore does
+not establish that cooling is effective or necessary; a multi-seed cooling sweep is
+required.
 
 ---
 
@@ -138,9 +131,8 @@ using the 'inferno' colour map.
 - **Middle frames**: Clusters of bright cells begin expanding as stable cells
   replicate into neighbouring empty sites. The spatial clustering is emergent —
   no clustering rule was programmed.
-- **Late frames**: Large connected regions of stable (bright) cells filling
-  most of the grid, with occasional dark patches where local interactions are
-  driving entropy up.
+- **Late frames**: A sparse population fluctuates between roughly 26 and 36 occupied
+  sites in the committed trajectory; it does not fill most of the grid.
 
 **What indicates failure**:
 - The grid goes entirely black (all cells dead) — see population crash above.

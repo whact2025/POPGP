@@ -20,7 +20,6 @@ Run:
     uv run python -m examples.physics_qg.ca_model
 """
 
-from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib.animation as animation
@@ -44,7 +43,7 @@ REPLICATION_PROB = 0.05         # [TUNABLE_HYPERPARAMETER] reproduction probabil
 MUTATION_RATE = 0.02            # [TUNABLE_HYPERPARAMETER] Bloch-vector noise on replication
 COOLING_PROB = 0.02             # [TUNABLE_HYPERPARAMETER] probability of radiative cooling per step
 INITIAL_DENSITY = 0.4           # [TUNABLE_HYPERPARAMETER] fraction of grid initially occupied
-DECAY_RATE = 0.3                # [TUNABLE_HYPERPARAMETER] purity-decay coupling from neighbor mismatch
+DECAY_RATE = 0.3                # [TUNABLE_HYPERPARAMETER] neighbor-mismatch decay
 ALIGN_STRENGTH = 0.1            # [TUNABLE_HYPERPARAMETER] alignment force between neighbors
 DT = 0.1                        # [TUNABLE_HYPERPARAMETER] interaction timestep
 REPRO_PURITY_THRESHOLD = 0.1    # [TUNABLE_HYPERPARAMETER] max entropy for reproduction eligibility
@@ -83,9 +82,15 @@ def _interact(b1, b2):
     rx2, ry2, rz2 = rx2 * decay, ry2 * decay, rz2 * decay
 
     a = ALIGN_STRENGTH * DT
-    ax = 0.5 * (rx1 + rx2); ay = 0.5 * (ry1 + ry2); az = 0.5 * (rz1 + rz2)
-    rx1 += a * (ax - rx1); ry1 += a * (ay - ry1); rz1 += a * (az - rz1)
-    rx2 += a * (ax - rx2); ry2 += a * (ay - ry2); rz2 += a * (az - rz2)
+    ax = 0.5 * (rx1 + rx2)
+    ay = 0.5 * (ry1 + ry2)
+    az = 0.5 * (rz1 + rz2)
+    rx1 += a * (ax - rx1)
+    ry1 += a * (ay - ry1)
+    rz1 += a * (az - rz1)
+    rx2 += a * (ax - rx2)
+    ry2 += a * (ay - ry2)
+    rz2 += a * (az - rz2)
 
     return (rx1, ry1, rz1), (rx2, ry2, rz2)
 
@@ -164,7 +169,6 @@ initial_pop = history_count[0] if history_count else 0
 pop_survived = final_pop > 0
 pop_grew = final_pop >= initial_pop
 final_entropy = history_entropy[-1] if history_entropy else 0
-entropy_below = final_entropy < LEAKAGE_THRESHOLD
 
 fig, ax1 = plt.subplots(figsize=(9, 5))
 color_pop = "tab:red"
@@ -184,8 +188,8 @@ ax2.axhline(LEAKAGE_THRESHOLD, color="darkblue", linestyle="--", linewidth=1.5,
             alpha=0.7, label=f"Death threshold = {LEAKAGE_THRESHOLD}")
 ax2.legend(loc="upper right", fontsize=8)
 
-verdict = "PASS" if (pop_survived and entropy_below) else "FAIL"
-verdict_color = "green" if verdict == "PASS" else "red"
+verdict = "SURVIVES" if pop_grew else "NEGATIVE"
+verdict_color = "green" if pop_grew else "darkorange"
 ax1.text(
     0.98, 0.5, verdict, transform=ax1.transAxes,
     fontsize=18, fontweight="bold", color="white",
@@ -193,7 +197,7 @@ ax1.text(
     bbox=dict(boxstyle="round,pad=0.4", fc=verdict_color, alpha=0.9),
 )
 
-fig.suptitle("Emergent Stability with Radiative Cooling", fontsize=13)
+fig.suptitle("Phenomenological CA Run (Cooling Configured, No Control)", fontsize=13)
 fig.tight_layout()
 fig.savefig(results / "dynamics_cooling.png", dpi=150)
 print(f"Saved: {results / 'dynamics_cooling.png'}")
@@ -217,12 +221,17 @@ print(f"Saved: {results / 'evolution_cooling.gif'}")
 
 peak_pop = max(history_count)
 min_pop = min(history_count)
-avg_entropy_final_5 = float(np.mean(history_entropy[-5:])) if len(history_entropy) >= 5 else final_entropy
+avg_entropy_final_5 = (
+    float(np.mean(history_entropy[-5:]))
+    if len(history_entropy) >= 5
+    else final_entropy
+)
 
 report = {
     "example": "ca_model",
-    "framework_version": "0.10",
-    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "scientific_status": "phenomenological_analogy_negative_population_result",
+    "framework_version": "1.0-submission-draft",
+    "package_version": "0.1.0",
     "config": {
         "width": WIDTH,
         "height": HEIGHT,
@@ -260,38 +269,31 @@ report = {
             "passed": pop_survived,
         },
         {
-            "name": "entropy_below_threshold",
-            "description": "Average entropy of surviving cells is below the leakage death threshold",
-            "framework_section": "4.4.2a",
-            "criterion": f"final_avg_entropy < {LEAKAGE_THRESHOLD}",
-            "value": float(final_entropy),
-            "threshold": LEAKAGE_THRESHOLD,
-            "passed": entropy_below,
-        },
-        {
             "name": "population_growth",
             "description": "Population at end >= population at start (stable or growing)",
             "framework_section": "4.4.2a",
             "criterion": "final_population >= initial_population",
             "value": {"initial": initial_pop, "final": final_pop},
-            "severity": "informational",
             "passed": pop_grew,
         },
         {
-            "name": "radiative_cooling_effective",
-            "description": "Average entropy decreases or stays stable over the simulation",
+            "name": "survivor_entropy_filter_regression",
+            "description": (
+                "Survivor entropy remains below the configured culling threshold by "
+                "construction; this does not measure a cooling effect"
+            ),
             "framework_section": "4.4.2a",
             "criterion": "entropy_last_5 <= leakage_threshold",
             "value": avg_entropy_final_5,
             "threshold": LEAKAGE_THRESHOLD,
+            "severity": "informational",
             "passed": avg_entropy_final_5 < LEAKAGE_THRESHOLD,
         },
     ],
 }
 
 report["overall_pass"] = all(
-    c["passed"] for c in report["checks"]
-    if c.get("severity") != "informational"
+    c["passed"] for c in report["checks"] if c.get("severity") != "informational"
 )
 report["artifacts"] = [
     "results/dynamics_cooling.png",
@@ -300,7 +302,7 @@ report["artifacts"] = [
 ]
 
 val_path = results / "validation.json"
-val_path.write_text(validation_json(report))
+val_path.write_text(validation_json(report) + "\n", encoding="utf-8")
 print(f"Saved: {val_path}")
 
 print("\nDone.")
