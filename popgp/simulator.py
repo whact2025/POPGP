@@ -631,7 +631,7 @@ class Simulator:
             F_D = stress + cfg_geom.lambda_dim * (D - D_S) ** 2
             stress_by_dimension[D] = stress
             objective_by_dimension[D] = F_D
-            if F_D < best_objective:
+            if best_coords is None or F_D < best_objective:
                 best_D = D
                 best_objective = F_D
                 best_stress = stress
@@ -640,11 +640,12 @@ class Simulator:
         assert best_coords is not None
 
         ordered_objectives = sorted(objective_by_dimension.values())
-        selection_margin = (
-            ordered_objectives[1] - ordered_objectives[0]
-            if len(ordered_objectives) > 1
-            else float("inf")
-        )
+        if len(ordered_objectives) == 1:
+            selection_margin = float("inf")
+        elif np.isfinite(ordered_objectives[1]):
+            selection_margin = ordered_objectives[1] - ordered_objectives[0]
+        else:
+            selection_margin = 0.0
         if best_D > cfg_geom.max_geometric_dimension:
             embedding_status = "non_geometric_dimension"
         elif best_stress > cfg_geom.max_geometric_stress:
@@ -793,7 +794,7 @@ class Simulator:
 
     @staticmethod
     def _canonicalize_embedding(coords: torch.Tensor) -> torch.Tensor:
-        """Fix the arbitrary orthogonal MDS frame using label-ordered anchors.
+        """Fix the MDS frame using maximum-volume anchors with label-ordered ties.
 
         Classical MDS coordinates are defined only up to an orthogonal transform.
         A label-stable maximum-volume anchor scan is equivariant under that transform,
@@ -815,7 +816,11 @@ class Simulator:
                 centered, represented_rank
             )
 
-        anchor_matrix = Simulator._select_embedding_anchors(centered, dimension)
+        anchor_matrix = Simulator._select_embedding_anchors(
+            centered,
+            dimension,
+            float(singular_values[0].item()),
+        )
         polar_left, _, polar_right_h = torch.linalg.svd(
             anchor_matrix.T, full_matrices=False
         )
@@ -826,13 +831,16 @@ class Simulator:
     def _select_embedding_anchors(
         centered: torch.Tensor,
         dimension: int,
+        singular_scale: float,
     ) -> torch.Tensor:
         """Select a stable maximum-volume row basis with label-ordered ties."""
         basis: list[torch.Tensor] = []
         anchors: list[torch.Tensor] = []
         remaining = list(range(centered.shape[0]))
         epsilon = torch.finfo(centered.dtype).eps
-        scale = max(1.0, float(torch.linalg.matrix_norm(centered).item()))
+        degeneracy_tolerance = (
+            epsilon * max(centered.shape) * singular_scale
+        )
 
         for _ in range(dimension):
             residuals: list[tuple[int, torch.Tensor, float]] = []
@@ -844,14 +852,17 @@ class Simulator:
                     (index, residual, float(torch.linalg.vector_norm(residual).item()))
                 )
             maximum = max(norm for _, _, norm in residuals)
-            if maximum <= epsilon * scale:
+            if maximum <= degeneracy_tolerance:
                 raise RuntimeError("embedding rank and anchor selection disagree")
-            tie_tolerance = 256.0 * epsilon * max(1.0, maximum)
+            tie_tolerance = 256.0 * epsilon * maximum
             index, residual, _ = next(
                 item for item in residuals if item[2] >= maximum - tie_tolerance
             )
+            residual_norm = torch.linalg.vector_norm(residual)
+            if float(residual_norm.item()) <= degeneracy_tolerance:
+                raise RuntimeError("embedding anchor has zero numerical residual")
             anchors.append(centered[index])
-            basis.append(residual / torch.linalg.vector_norm(residual))
+            basis.append(residual / residual_norm)
             remaining.remove(index)
 
         return torch.stack(anchors)
@@ -888,8 +899,8 @@ class Simulator:
         )
         residuals = (d_target[mask] - d_embed[mask]) ** 2
         denom = (d_target[mask] ** 2).sum()
-        if denom < 1e-15:
-            return 0.0
+        if denom == 0:
+            return float("inf")
         return torch.sqrt(residuals.sum() / denom).item()
 
     # ── Π_time: emergent time ────────────────────────────────────────

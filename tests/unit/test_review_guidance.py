@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 QUALITY_COMMANDS = {
@@ -28,6 +30,11 @@ UNGATED_MATRIX_ROWS = {
     "Closure / conservation",
 }
 
+CANONICAL_QUALITY_AUTHORITY_CLAUSES = {
+    "`.github/workflows/ci.yml`, which is the authoritative quality suite",
+    "`.github/workflows/ci.yml` is authoritative",
+}
+
 
 def _uv_commands(path: Path) -> set[str]:
     text = path.read_text(encoding="utf-8")
@@ -41,13 +48,23 @@ def _uv_commands(path: Path) -> set[str]:
 
 def _markdown_table(text: str, header: str) -> list[list[str]]:
     lines = text.splitlines()
-    start = next(index for index, line in enumerate(lines) if line.startswith(header))
-    rows = []
-    for line in lines[start + 2 :]:
-        if not line.startswith("|"):
-            break
-        rows.append([cell.strip() for cell in line.strip("|").split("|")])
-    return rows
+    header_indices = [
+        index for index, line in enumerate(lines) if line.startswith(header)
+    ]
+    assert len(header_indices) == 1
+    start = header_indices[0]
+    assert start + 1 < len(lines)
+    assert re.fullmatch(r"\|(?:\s*:?-+:?\s*\|)+", lines[start + 1])
+
+    end = start + 2
+    while end < len(lines) and lines[end].startswith("|"):
+        end += 1
+    pipe_lines = {index for index, line in enumerate(lines) if line.startswith("|")}
+    assert pipe_lines == set(range(start, end))
+    return [
+        [cell.strip() for cell in line.strip("|").split("|")]
+        for line in lines[start + 2 : end]
+    ]
 
 
 def _has_negative_control_marker(path: Path, function_name: str) -> bool:
@@ -58,10 +75,14 @@ def _has_negative_control_marker(path: Path, function_name: str) -> bool:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         and node.name == function_name
     )
-    return any(
-        ast.unparse(decorator).startswith("pytest.mark.negative_control")
-        for decorator in function.decorator_list
+    decorators = {ast.unparse(decorator) for decorator in function.decorator_list}
+    is_control = "pytest.mark.negative_control" in decorators
+    is_skipped = any(
+        decorator == "pytest.mark.skip"
+        or decorator.startswith("pytest.mark.skipif(")
+        for decorator in decorators
     )
+    return is_control and not is_skipped
 
 
 def _quality_authority_sentences() -> list[tuple[Path, str]]:
@@ -75,11 +96,60 @@ def _quality_authority_sentences() -> list[tuple[Path, str]]:
         normalized = re.sub(r"\s+", " ", path.read_text(encoding="utf-8"))
         for sentence in re.split(r"(?<=[.!?])\s+", normalized):
             lowered = sentence.lower()
-            if "authoritative" in lowered and (
-                "quality suite" in lowered or "pre-freeze" in lowered
+            if re.search(r"\b(authoritative|canonical|official|primary)\b", lowered) and (
+                "suite" in lowered or ".github/workflows/ci.yml" in lowered
             ):
                 matches.append((path, sentence))
     return matches
+
+
+def _is_canonical_quality_authority_sentence(sentence: str) -> bool:
+    return any(
+        clause in sentence for clause in CANONICAL_QUALITY_AUTHORITY_CLAUSES
+    )
+
+
+def _collected_test_count(root: Path) -> int:
+    collected = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert collected.returncode == 0, (
+        f"pytest collection failed under {root}\n"
+        f"stdout:\n{collected.stdout}\n"
+        f"stderr:\n{collected.stderr}"
+    )
+    collected_match = re.search(r"(\d+) tests? collected", collected.stdout)
+    assert collected_match is not None, collected.stdout
+    return int(collected_match.group(1))
+
+
+def _assert_no_skip_or_xfail_markers(root: Path) -> None:
+    marked = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-m",
+            "skip or xfail",
+        ],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    output = f"{marked.stdout}\n{marked.stderr}"
+    assert marked.returncode == 5 and "no tests collected" in output, (
+        "the documented passed count requires a suite with no skip/xfail markers\n"
+        f"{output}"
+    )
 
 
 def test_documented_quality_commands_match_authoritative_ci() -> None:
@@ -94,11 +164,68 @@ def test_documented_quality_commands_match_authoritative_ci() -> None:
     assert _uv_commands(readme) == QUALITY_COMMANDS
     assert _uv_commands(runbook) == QUALITY_COMMANDS
     assert ".github/workflows/ci.yml`, which is the authoritative quality" in governance
+    assert "`.github/workflows/ci.yml` is authoritative" in runbook.read_text(
+        encoding="utf-8"
+    )
 
     authority_sentences = _quality_authority_sentences()
-    assert authority_sentences
+    assert len(authority_sentences) == len(CANONICAL_QUALITY_AUTHORITY_CLAUSES)
     for path, sentence in authority_sentences:
-        assert ".github/workflows/ci.yml" in sentence, f"{path}: {sentence}"
+        assert _is_canonical_quality_authority_sentence(sentence), (
+            f"{path}: {sentence}"
+        )
+
+
+def test_competing_quality_authority_sentence_is_rejected() -> None:
+    evasion = (
+        "Although .github/workflows/ci.yml exists, the authoritative quality suite "
+        "is the README Quick start."
+    )
+
+    assert not _is_canonical_quality_authority_sentence(evasion)
+
+
+def test_markdown_table_parser_rejects_truncated_coverage() -> None:
+    truncated = "\n".join(
+        [
+            "| Hypothesis | Status |",
+            "|---|---|",
+            "| registered | active |",
+            "",
+            "| hidden by whitespace | active |",
+        ]
+    )
+
+    with pytest.raises(AssertionError):
+        _markdown_table(truncated, "| Hypothesis |")
+
+
+def test_negative_control_marker_must_be_exact_and_unskipped(
+    tmp_path: Path,
+) -> None:
+    module = tmp_path / "test_controls.py"
+    module.write_text(
+        "\n".join(
+            [
+                "import pytest",
+                "",
+                "@pytest.mark.negative_control",
+                "def test_exact(): pass",
+                "",
+                "@pytest.mark.negative_control_pending",
+                "def test_pending(): pass",
+                "",
+                "@pytest.mark.skip",
+                "@pytest.mark.negative_control",
+                "def test_skipped(): pass",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    assert _has_negative_control_marker(module, "test_exact")
+    assert not _has_negative_control_marker(module, "test_pending")
+    assert not _has_negative_control_marker(module, "test_skipped")
 
 
 def test_review_identity_schema_has_typed_independence_declaration() -> None:
@@ -182,13 +309,27 @@ def test_reproducibility_record_matches_collected_test_count() -> None:
     )
     assert recorded_match is not None
 
-    collected = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+    _assert_no_skip_or_xfail_markers(ROOT)
+    assert int(recorded_match.group(1)) == _collected_test_count(ROOT)
+
+
+def test_collection_failure_reports_the_offending_module(tmp_path: Path) -> None:
+    broken = tmp_path / "test_broken.py"
+    broken.write_text(
+        "raise RuntimeError('deliberate collection failure')\n",
+        encoding="utf-8",
     )
-    collected_match = re.search(r"(\d+) tests? collected", collected.stdout)
-    assert collected_match is not None
-    assert int(recorded_match.group(1)) == int(collected_match.group(1))
+
+    with pytest.raises(AssertionError, match="test_broken.py"):
+        _collected_test_count(tmp_path)
+
+
+def test_skip_marker_invalidates_documented_pass_count(tmp_path: Path) -> None:
+    skipped = tmp_path / "test_skipped.py"
+    skipped.write_text(
+        "import pytest\n\n@pytest.mark.skip\ndef test_skipped():\n    pass\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssertionError, match="skip/xfail"):
+        _assert_no_skip_or_xfail_markers(tmp_path)

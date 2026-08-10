@@ -75,12 +75,25 @@ def test_power_law_residual_scale_is_not_labelled_as_sampling_uncertainty() -> N
 def test_framework_locality_status_discloses_qcmi_gap_in_both_sources() -> None:
     framework_md = (ROOT / "docs" / "framework.md").read_text(encoding="utf-8")
     framework_tex = (ROOT / "docs" / "framework.tex").read_text(encoding="utf-8")
+    expected_md = (
+        r"| Emergent locality via QCMI-screened mutual information \(I_{ij}\) and graph "
+        r"metric \(d_G\) | Definition / partial prototype | Pairwise MI and blind graph "
+        r"routing are implemented; QCMI screening is not. The tested Hamiltonians contain "
+        r"chain/grid interaction graphs. | Fails if non-geometric controls produce stable "
+        r"geometric declarations or encoded locality is not robustly recovered. |"
+    )
+    expected_tex = (
+        r"\item[\textbf{Emergent locality} $I_{ij}, d_G$] \textit{(Definition / partial "
+        r"prototype)} Pairwise mutual information and blind multi-hop graph routing are "
+        r"implemented; QCMI screening is not. The tested Hamiltonians contain chain/grid "
+        r"interaction graphs. \textbf{Failure mode:} Falsified if non-geometric controls "
+        r"produce stable geometric declarations or encoded locality is not robustly recovered."
+    )
 
-    for source in (framework_md, framework_tex):
-        locality_row = next(
-            line for line in source.splitlines() if "Emergent locality" in line
-        )
-        assert "Definition / partial prototype" in locality_row
-        assert "Pairwise" in locality_row
-        assert "QCMI screening is not" in locality_row
-        assert "non-geometric controls" in locality_row
+    for source, expected in ((framework_md, expected_md), (framework_tex, expected_tex)):
+        locality_rows = [
+            line.strip()
+            for line in source.splitlines()
+            if not line.lstrip().startswith("%") and "Emergent locality" in line
+        ]
+        assert locality_rows == [expected]

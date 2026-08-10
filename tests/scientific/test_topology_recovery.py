@@ -177,3 +177,30 @@ def test_disjoint_bell_pairs_are_marked_nonseparable() -> None:
     assert (1, 3) in locality.edges
     assert geometry.D_star == 1
     assert geometry.embedding_status == "geometric_candidate"
+
+
+@pytest.mark.negative_control
+def test_perturbed_disjoint_bell_control_becomes_separable_and_still_declares_geometry() -> None:
+    config = SimulatorConfig.for_chain(n=4)
+    config.pi_res.cell_dim = 1
+    simulator = Simulator(config)
+    state_vector = torch.zeros(16, dtype=torch.complex128)
+    for basis in range(16):
+        bits = [(basis >> (3 - qubit)) & 1 for qubit in range(4)]
+        if bits[0] == bits[2] and bits[1] == bits[3]:
+            state_vector[basis] = 0.5
+    state = torch.outer(state_vector, state_vector.conj())
+    perturbed_state = simulator.backend.evolve(state, 0.05)
+    resolution = PiResResult(
+        cells=[[0], [1], [2], [3]],
+        leakage=0.0,
+    )
+
+    locality = simulator.run_pi_loc(perturbed_state, resolution)
+    geometry = simulator.run_pi_geom(locality)
+
+    assert locality.connectivity_separable is True
+    assert locality.connectivity_gap_ratio is not None
+    assert locality.connectivity_gap_ratio > 1e4
+    assert geometry.D_star == 1
+    assert geometry.embedding_status == "geometric_candidate"

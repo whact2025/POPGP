@@ -111,14 +111,79 @@ def test_cell_hamiltonian_validates_indices_and_backend_capability() -> None:
         Backend.build_cell_hamiltonian(backend, [0])
 
 
-def test_backend_reuses_interaction_and_cell_hamiltonian_caches() -> None:
+def test_backend_reuses_only_cell_hamiltonian_cache() -> None:
     backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=4)))
 
     interactions = backend.build_interaction_terms()
     cell_hamiltonian = backend.build_cell_hamiltonian([0, 1])
 
-    assert backend.build_interaction_terms() is interactions
+    repeated_interactions = backend.build_interaction_terms()
+    assert repeated_interactions is not interactions
+    assert [edge for edge, _ in repeated_interactions] == [
+        edge for edge, _ in interactions
+    ]
+    for (_, expected), (_, actual) in zip(interactions, repeated_interactions):
+        assert torch.equal(actual, expected)
     assert backend.build_cell_hamiltonian([0, 1]) is cell_hamiltonian
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("coupling_J", 5.0),
+        ("hamiltonian", "ising"),
+        ("boundary", "periodic"),
+    ],
+)
+def test_backend_rejects_substrate_mutation_after_construction(
+    field: str,
+    value: object,
+) -> None:
+    config = SimulatorConfig(substrate=SubstrateConfig(n_qubits=4))
+    backend = ExactBackend(config)
+    backend.build_interaction_terms()
+    backend.build_cell_hamiltonian([0, 1])
+
+    setattr(config.substrate, field, value)
+
+    with pytest.raises(RuntimeError, match="construct a new backend"):
+        backend.build_interaction_terms()
+    with pytest.raises(RuntimeError, match="construct a new backend"):
+        backend.build_cell_hamiltonian([0, 1])
+    with pytest.raises(RuntimeError, match="construct a new backend"):
+        backend.build_cell_hamiltonian([2, 3])
+    with pytest.raises(RuntimeError, match="construct a new backend"):
+        backend.build_hamiltonian()
+
+
+def _retained_tensor_bytes(value: object, seen: set[int] | None = None) -> int:
+    if seen is None:
+        seen = set()
+    identity = id(value)
+    if identity in seen:
+        return 0
+    seen.add(identity)
+    if isinstance(value, torch.Tensor):
+        return value.nelement() * value.element_size()
+    if isinstance(value, dict):
+        return sum(
+            _retained_tensor_bytes(item, seen)
+            for pair in value.items()
+            for item in pair
+        )
+    if isinstance(value, (list, tuple, set)):
+        return sum(_retained_tensor_bytes(item, seen) for item in value)
+    return 0
+
+
+def test_exact_backend_does_not_retain_full_interaction_decomposition() -> None:
+    backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=10)))
+    hamiltonian = backend.build_hamiltonian()
+
+    retained = _retained_tensor_bytes(vars(backend))
+    hamiltonian_bytes = hamiltonian.nelement() * hamiltonian.element_size()
+
+    assert retained <= 3 * hamiltonian_bytes
 
 
 def test_compute_leakage_requires_backend_edges_and_coupling() -> None:
@@ -152,14 +217,14 @@ def test_optimize_cells_constructs_each_distinct_cell_generator_once(
 ) -> None:
     backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=6)))
     state = backend.prepare_state()
-    original = backend.build_cell_hamiltonian
+    original = backend._build_cell_hamiltonian_uncached
     calls: list[tuple[int, ...]] = []
 
     def counted(cell: list[int]) -> torch.Tensor:
         calls.append(tuple(cell))
         return original(cell)
 
-    monkeypatch.setattr(backend, "build_cell_hamiltonian", counted)
+    monkeypatch.setattr(backend, "_build_cell_hamiltonian_uncached", counted)
     optimize_cells(
         state,
         backend,

@@ -108,7 +108,6 @@ def compute_leakage(
     n_probe_states: int = 8,
     unitaries: list[torch.Tensor] | None = None,
     probe_vecs: list[torch.Tensor] | None = None,
-    cell_hamiltonian_cache: dict[tuple[int, ...], torch.Tensor] | None = None,
 ) -> float:
     r"""Compute an unnormalized common-probe leakage ranking (§4.4.2a).
 
@@ -138,14 +137,10 @@ def compute_leakage(
         raise ValueError("leakage edges must match the backend interaction graph")
     if coupling_J != backend.config.substrate.coupling_J:
         raise ValueError("leakage coupling_J must match the backend configuration")
-    if cell_hamiltonian_cache is None:
-        cell_hamiltonian_cache = {}
-    cell_H: dict[int, torch.Tensor] = {}
-    for index, cell in enumerate(cells):
-        cache_key = tuple(cell)
-        if cache_key not in cell_hamiltonian_cache:
-            cell_hamiltonian_cache[cache_key] = backend.build_cell_hamiltonian(cell)
-        cell_H[index] = cell_hamiltonian_cache[cache_key]
+    cell_H = {
+        index: backend.build_cell_hamiltonian(cell)
+        for index, cell in enumerate(cells)
+    }
 
     if probe_vecs is None:
         probe_vecs = _generate_probe_vectors(d_full, n_probe_states)
@@ -440,8 +435,6 @@ def optimize_cells(
 
     results: list[dict] = []
     n_admissible = 0
-    cell_hamiltonian_cache: dict[tuple[int, ...], torch.Tensor] = {}
-
     for idx, cells in enumerate(enumerate_partitions(n_qubits, cell_dim)):
         su2_ok, su2_max_viol = check_su2_equivariance(
             cells, state, backend, n_qubits,
@@ -466,7 +459,6 @@ def optimize_cells(
             phase_window_width, phase_window_samples,
             unitaries=unitaries,
             probe_vecs=leakage_probes,
-            cell_hamiltonian_cache=cell_hamiltonian_cache,
         )
 
         results.append({

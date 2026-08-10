@@ -27,6 +27,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--strict-markers"]
 markers = [
     "scientific: scientific regression or falsification tests",
     "negative_control: demonstrated input or mutation that crosses a gate boundary",

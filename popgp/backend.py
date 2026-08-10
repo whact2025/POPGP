@@ -67,6 +67,22 @@ class Backend(abc.ABC):
 
     def __init__(self, config: SimulatorConfig) -> None:
         self.config = config
+        self._substrate_snapshot = vars(config.substrate).copy()
+
+    def _assert_substrate_unchanged(self) -> None:
+        """Require a new backend when substrate-defining inputs change."""
+        current = vars(self.config.substrate)
+        changed = sorted(
+            key
+            for key in self._substrate_snapshot.keys() | current.keys()
+            if self._substrate_snapshot.get(key) != current.get(key)
+        )
+        if changed:
+            names = ", ".join(changed)
+            raise RuntimeError(
+                "substrate configuration changed after backend construction "
+                f"({names}); construct a new backend"
+            )
 
     # ── substrate ────────────────────────────────────────────────────
 
@@ -139,7 +155,9 @@ class ExactBackend(Backend):
     Full density-matrix backend for N ≤ 12 qubits.
 
     All operations are exact: the state is a 2^N × 2^N density matrix,
-    partial traces use einsum, entropies use eigendecomposition.
+    partial traces use einsum, entropies use eigendecomposition. Substrate
+    parameters are snapshotted at construction; changing them requires a new
+    backend so cached operators and states cannot silently disagree.
     """
 
     def __init__(self, config: SimulatorConfig) -> None:
@@ -148,9 +166,6 @@ class ExactBackend(Backend):
         self._N = N
         self._dim = 2**N
         self._H: torch.Tensor | None = None
-        self._interaction_terms: list[
-            tuple[tuple[int, int], torch.Tensor]
-        ] | None = None
         self._cell_hamiltonians: dict[tuple[int, ...], torch.Tensor] = {}
         self._evals: torch.Tensor | None = None
         self._evecs: torch.Tensor | None = None
@@ -164,18 +179,48 @@ class ExactBackend(Backend):
             self._H = H
             self._evals, self._evecs = torch.linalg.eigh(H)
 
-    def site_operator(self, operator: torch.Tensor, site: int) -> torch.Tensor:
-        """Embed a one-qubit operator at ``site`` in the full Hilbert space."""
+    @staticmethod
+    def _embedded_operator(
+        operator: torch.Tensor,
+        site: int,
+        n_sites: int,
+    ) -> torch.Tensor:
+        """Embed a one-qubit operator in an ``n_sites`` Hilbert space."""
         if operator.shape != (2, 2):
             raise ValueError("operator must be a 2x2 one-qubit matrix")
-        if not 0 <= site < self._N:
-            raise IndexError(f"site must lie in [0, {self._N})")
-        parts = [_I2] * self._N
+        if not 0 <= site < n_sites:
+            raise IndexError(f"site must lie in [0, {n_sites})")
+        parts = [_I2] * n_sites
         parts[site] = operator.to(dtype=torch.complex128)
         result = parts[0]
         for part in parts[1:]:
             result = torch.kron(result, part)
         return result
+
+    def site_operator(self, operator: torch.Tensor, site: int) -> torch.Tensor:
+        """Embed a one-qubit operator at ``site`` in the full Hilbert space."""
+        return self._embedded_operator(operator, site, self._N)
+
+    def _pair_interaction(
+        self,
+        first: int,
+        second: int,
+        n_sites: int,
+    ) -> torch.Tensor:
+        """Build one configured pair term in the requested Hilbert space."""
+        family = self.config.substrate.hamiltonian
+        coupling = self.config.substrate.coupling_J
+        interaction = self._embedded_operator(
+            _SZ, first, n_sites
+        ) @ self._embedded_operator(_SZ, second, n_sites)
+        if family == "heisenberg":
+            interaction += self._embedded_operator(
+                _SX, first, n_sites
+            ) @ self._embedded_operator(_SX, second, n_sites)
+            interaction += self._embedded_operator(
+                _SY, first, n_sites
+            ) @ self._embedded_operator(_SY, second, n_sites)
+        return coupling * interaction
 
     def build_interaction_terms(
         self,
@@ -185,27 +230,20 @@ class ExactBackend(Backend):
         The associated edges are microscopic inputs, not inferred geometry. Exposing
         the decomposition makes localized-energy experiments auditable without
         silently reconstructing a different Hamiltonian in example code.
+
+        The returned full-space terms are intentionally transient. Retaining every
+        dense edge operator would multiply steady-state memory by the edge count.
         """
+        self._assert_substrate_unchanged()
         family = self.config.substrate.hamiltonian
         if family not in {"heisenberg", "ising"}:
             raise NotImplementedError(
                 f"Hamiltonian family {family!r} is not implemented."
             )
-        if self._interaction_terms is not None:
-            return self._interaction_terms
-
         terms = []
-        coupling = self.config.substrate.coupling_J
         for i, j in self.build_edges():
-            interaction = self.site_operator(_SZ, i) @ self.site_operator(_SZ, j)
-            if family == "heisenberg":
-                interaction += (
-                    self.site_operator(_SX, i) @ self.site_operator(_SX, j)
-                    + self.site_operator(_SY, i) @ self.site_operator(_SY, j)
-                )
-            terms.append(((i, j), coupling * interaction))
-        self._interaction_terms = terms
-        return self._interaction_terms
+            terms.append(((i, j), self._pair_interaction(i, j, self._N)))
+        return terms
 
     def build_local_energy_operators(self) -> list[torch.Tensor]:
         """Split each pair interaction equally between its endpoint sites.
@@ -226,11 +264,12 @@ class ExactBackend(Backend):
     def build_cell_hamiltonian(self, cell_indices: list[int]) -> torch.Tensor:
         """Restrict the configured pair terms to ``cell_indices``.
 
-        The restriction is derived from :meth:`build_interaction_terms`, rather than
-        rebuilding a Hamiltonian-family approximation inside the coarse-graining
-        module. Partial tracing contributes an identity factor for every omitted site,
-        which is divided out to recover the operator on the cell Hilbert space.
+        The restriction uses the same configured pair-term constructor as
+        :meth:`build_interaction_terms`, but builds directly in the cell Hilbert
+        space. This avoids retaining or repeatedly constructing full-space edge
+        operators during the partition search.
         """
+        self._assert_substrate_unchanged()
         if not cell_indices:
             raise ValueError("cell_indices must be nonempty")
         if len(set(cell_indices)) != len(cell_indices):
@@ -241,23 +280,34 @@ class ExactBackend(Backend):
         if cache_key in self._cell_hamiltonians:
             return self._cell_hamiltonians[cache_key]
 
-        cell = set(cell_indices)
-        internal = torch.zeros(
-            (self._dim, self._dim), dtype=torch.complex128
-        )
-        for (i, j), interaction in self.build_interaction_terms():
-            if i in cell and j in cell:
-                internal += interaction
-
-        complement_dimension = 2 ** (self._N - len(cell_indices))
-        restricted = self.reduced_state(internal, cell_indices) / complement_dimension
+        restricted = self._build_cell_hamiltonian_uncached(cell_indices)
         self._cell_hamiltonians[cache_key] = restricted
+        return restricted
+
+    def _build_cell_hamiltonian_uncached(
+        self,
+        cell_indices: list[int],
+    ) -> torch.Tensor:
+        """Construct a validated cell generator without consulting the cache."""
+        local_site = {site: index for index, site in enumerate(cell_indices)}
+        cell_dimension = 2 ** len(cell_indices)
+        restricted = torch.zeros(
+            (cell_dimension, cell_dimension), dtype=torch.complex128
+        )
+        for first, second in self.build_edges():
+            if first in local_site and second in local_site:
+                restricted += self._pair_interaction(
+                    local_site[first],
+                    local_site[second],
+                    len(cell_indices),
+                )
         return restricted
 
     # ── substrate ────────────────────────────────────────────────────
 
     def build_hamiltonian(self) -> torch.Tensor:
         """Build the configured nearest-neighbor pair Hamiltonian (§4.3)."""
+        self._assert_substrate_unchanged()
         if self._H is not None:
             return self._H
 
@@ -271,6 +321,7 @@ class ExactBackend(Backend):
 
     def prepare_state(self) -> torch.Tensor:
         """Thermal state ρ = exp(−βH)/Z  (§4.4.1 GNS representation)."""
+        self._assert_substrate_unchanged()
         self._ensure_diagonalized()
         assert self._evals is not None and self._evecs is not None
         beta = self.config.substrate.beta
@@ -284,6 +335,7 @@ class ExactBackend(Backend):
         return rho
 
     def build_edges(self) -> list[tuple[int, int]]:
+        self._assert_substrate_unchanged()
         cfg = self.config.substrate
         N = self._N
         edges: list[tuple[int, int]] = []

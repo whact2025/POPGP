@@ -214,6 +214,24 @@ def test_failing_check_cannot_be_demoted_to_informational() -> None:
     assert any("cannot be informational" in error for error in errors)
 
 
+def test_unregistered_noninformational_check_is_rejected() -> None:
+    root = Path(__file__).resolve().parents[2]
+    relative_path = "examples/physics_qg/source_law/results/validation.json"
+    document = json.loads((root / relative_path).read_text(encoding="utf-8"))
+    document["checks"].append(
+        {
+            "name": "relative_entropy_fit_quality_floor",
+            "criterion": "R squared exceeds 0.999",
+            "value": 1.0,
+            "passed": True,
+        }
+    )
+
+    errors = check_validation_semantics(document, relative_path)
+
+    assert any("unregistered" in error for error in errors)
+
+
 def test_committed_validation_artifacts_are_internally_consistent() -> None:
     root = Path(__file__).resolve().parents[2]
     paths = sorted(root.glob("examples/physics_qg/*/results/validation.json"))

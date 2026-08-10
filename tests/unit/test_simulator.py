@@ -362,6 +362,18 @@ def _grid_hop_distances(width: int, height: int) -> torch.Tensor:
     return torch.cdist(coordinates, coordinates, p=1)
 
 
+def _grid_edges(width: int, height: int) -> set[tuple[int, int]]:
+    edges: set[tuple[int, int]] = set()
+    for y in range(height):
+        for x in range(width):
+            node = y * width + x
+            if x + 1 < width:
+                edges.add((node, node + 1))
+            if y + 1 < height:
+                edges.add((node, node + width))
+    return edges
+
+
 def _star_hop_distances(n: int) -> torch.Tensor:
     distances = torch.full((n, n), 2.0, dtype=torch.float64)
     distances.fill_diagonal_(0.0)
@@ -400,6 +412,137 @@ def test_mds_direct_anchor_scan_uses_global_rank_tolerance() -> None:
         atol=1e-14,
         rtol=1e-14,
     )
+
+
+def test_mds_canonicalization_is_scale_covariant_below_unit_scale() -> None:
+    chain = torch.cdist(
+        torch.arange(6, dtype=torch.float64).reshape(-1, 1),
+        torch.arange(6, dtype=torch.float64).reshape(-1, 1),
+        p=1,
+    )
+    for scale in (1.0, 1e-4, 1e-8, 1e-10, 1e-11, 1e-13, 1e-15):
+        for dimension in range(1, 6):
+            embedded = Simulator._classical_mds(chain * scale, dimension)
+            assert torch.isfinite(embedded).all()
+
+    generator = torch.Generator().manual_seed(2718)
+    raw = torch.randn((8, 3), dtype=torch.float64, generator=generator)
+    orthonormal, _ = torch.linalg.qr(raw - raw.mean(dim=0, keepdim=True))
+    for scale in (1e-8, 1e-9, 1e-10):
+        for ratio in (1e-8, 1.5e-8, 1e-7):
+            coords = orthonormal * torch.tensor(
+                [scale, scale * math.sqrt(ratio), scale * ratio],
+                dtype=torch.float64,
+            )
+            canonical = Simulator._canonicalize_embedding(coords)
+            before = torch.cdist(coords, coords)
+            after = torch.cdist(canonical, canonical)
+            mask = torch.triu(torch.ones_like(before, dtype=torch.bool), diagonal=1)
+            relative_change = torch.max(
+                torch.abs(after[mask] - before[mask]) / before[mask]
+            ).item()
+            assert torch.isfinite(canonical).all()
+            assert relative_change < 1e-14
+
+
+@pytest.mark.parametrize(
+    "coords",
+    [
+        torch.tensor(
+            [(x, y) for y in range(3) for x in range(3)],
+            dtype=torch.float64,
+        ),
+        torch.randn(
+            (8, 3),
+            dtype=torch.float64,
+            generator=torch.Generator().manual_seed(31415),
+        ),
+    ],
+)
+def test_mds_canonical_frame_is_positively_homogeneous(coords: torch.Tensor) -> None:
+    coords = coords - coords.mean(dim=0, keepdim=True)
+    canonical = Simulator._canonicalize_embedding(coords)
+    magnitude = float(torch.max(torch.abs(canonical)).item())
+
+    for scale in (1e20, 1e10, 1e-5, 1e-10, 1e-13, 1e-14, 1e-15):
+        scaled = Simulator._canonicalize_embedding(scale * coords)
+        maximum_deviation = torch.max(
+            torch.abs(scaled - scale * canonical)
+        ).item()
+        assert maximum_deviation <= 1e-12 * scale * magnitude
+
+
+def test_mds_anchor_scan_never_selects_a_zero_residual_row() -> None:
+    coords = torch.tensor(
+        [
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [-2.0, -1.0, -1.0],
+        ],
+        dtype=torch.float64,
+    )
+    for scale in (1.0, 1e-6, 1e-15):
+        scaled = scale * coords
+        canonical = Simulator._canonicalize_embedding(scaled)
+        assert torch.isfinite(canonical).all()
+        assert torch.allclose(
+            torch.cdist(canonical, canonical),
+            torch.cdist(scaled, scaled),
+            atol=1e-28,
+            rtol=1e-14,
+        )
+
+
+def test_mds_canonicalization_docstring_names_maximum_volume_selection() -> None:
+    summary = (Simulator._canonicalize_embedding.__doc__ or "").splitlines()[0]
+
+    assert "maximum-volume anchors with label-ordered ties" in summary
+    assert "using label-ordered anchors" not in summary
+
+
+def test_mds_stress_and_geometry_status_are_scale_invariant() -> None:
+    distance_matrix = _grid_hop_distances(3, 3)
+    one_dimensional = Simulator._classical_mds(distance_matrix, 1)
+    expected_stress = Simulator._mds_stress(distance_matrix, one_dimensional)
+    assert expected_stress > 0
+
+    edges = sorted(_grid_edges(3, 3))
+    weights = torch.zeros_like(distance_matrix)
+    for first, second in edges:
+        weights[first, second] = weights[second, first] = 1.0
+    simulator = Simulator(SimulatorConfig.for_grid(3, 3))
+    baseline: tuple[int, str] | None = None
+
+    for scale in (1.0, 1e-6, 1e-9, 1e-12):
+        assert Simulator._mds_stress(
+            distance_matrix * scale,
+            one_dimensional * scale,
+        ) == pytest.approx(expected_stress, rel=1e-13)
+        locality = PiLocResult(
+            mi_matrix=weights,
+            distance_matrix=distance_matrix * scale,
+            weight_matrix=weights,
+            edges=edges,
+            connectivity_method="scale_invariance_fixture",
+        )
+        geometry = simulator.run_pi_geom(locality)
+        status = (geometry.D_star, geometry.embedding_status)
+        if baseline is None:
+            baseline = status
+        assert status == baseline
+
+    degenerate = PiLocResult(
+        mi_matrix=weights,
+        distance_matrix=torch.zeros_like(distance_matrix),
+        weight_matrix=weights,
+        edges=edges,
+        connectivity_method="degenerate_distance_fixture",
+    )
+    degenerate_geometry = simulator.run_pi_geom(degenerate)
+    assert math.isinf(degenerate_geometry.stress)
+    assert degenerate_geometry.embedding_status == "poor_fit"
 
 
 @pytest.mark.parametrize(

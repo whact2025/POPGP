@@ -66,6 +66,64 @@ INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
         {"blind_edge_recovery"}
     ),
 }
+NONINFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
+    "examples/physics_qg/ca_model/results/validation.json": frozenset(
+        {"population_survival", "population_growth"}
+    ),
+    "examples/physics_qg/chain_1d/results/validation.json": frozenset(
+        {
+            "stability_selection",
+            "contiguous_cells",
+            "su2_equivariance_identity_regression",
+            "geometry_1d_ordering",
+            "dimension_selection",
+            "placeholder_clock_constraint_solved",
+        }
+    ),
+    "examples/physics_qg/gravity_well/results/validation.json": frozenset(
+        {
+            "pi_res_admissibility",
+            "nonzero_source_constraint_residual",
+            "monotonic_falloff",
+            "grid_symmetry",
+            "negative_well_at_source",
+            "redshift_positive",
+            "dimension_selection_2d",
+        }
+    ),
+    "examples/physics_qg/grid_2d/results/validation.json": frozenset(
+        {
+            "pi_res_admissibility",
+            "blind_edge_recovery",
+            "dimension_selection",
+            "topology_preservation",
+            "finite_graph_spectral_peak",
+            "mds_stress",
+            "placeholder_source_degeneracy",
+        }
+    ),
+    "examples/physics_qg/source_law/results/validation.json": frozenset(
+        {
+            "relative_entropy_is_quadratic",
+            "affine_modular_linearity_identity_regression",
+            "linear_solver_homogeneity_identity_regression",
+            "equal_energy_entropy_confound",
+        }
+    ),
+    "examples/physics_qg/source_law_many_body/results/validation.json": frozenset(
+        {
+            "nonaffine_kms_response_orders",
+            "quadratic_gate_rejects_first_order_negative_control",
+            "kms_and_local_decomposition_identities",
+            "local_energy_decomposition_consistency_and_spreading",
+            "nonaffine_kms_parameter_sensitivity",
+            "isospectral_unitary_identity_regression",
+            "spreading_requires_noncommuting_dynamics",
+            "pipeline_reduced_modular_blindness_and_density_repair",
+            "negative_energy_candidate_has_slower_source_clock",
+        }
+    ),
+}
 
 
 @dataclass
@@ -229,6 +287,7 @@ def check_validation_semantics(
     errors: list[str] = []
     names: set[str] = set()
     informational_names: set[str] = set()
+    noninformational_names: set[str] = set()
     noninformational_outcomes: list[bool] = []
     for index, check in enumerate(checks):
         if not isinstance(check, dict):
@@ -254,6 +313,7 @@ def check_validation_semantics(
             if not passed:
                 errors.append(f"failing check {name!r} cannot be informational")
         else:
+            noninformational_names.add(name)
             noninformational_outcomes.append(passed)
 
     expected_informational = INFORMATIONAL_CHECK_ALLOWLIST.get(
@@ -264,6 +324,15 @@ def check_validation_semantics(
             "informational check set changed "
             f"(expected={sorted(expected_informational)}, "
             f"actual={sorted(informational_names)})"
+        )
+    expected_noninformational = NONINFORMATIONAL_CHECK_ALLOWLIST.get(
+        relative_path, frozenset()
+    )
+    if noninformational_names != expected_noninformational:
+        errors.append(
+            "non-informational check set is not explicitly registered "
+            f"(missing={sorted(expected_noninformational - noninformational_names)}, "
+            f"unregistered={sorted(noninformational_names - expected_noninformational)})"
         )
     expected_overall = all(noninformational_outcomes)
     if overall_pass is not expected_overall:
