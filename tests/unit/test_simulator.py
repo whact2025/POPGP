@@ -425,8 +425,8 @@ def test_mds_canonicalization_is_scale_covariant_below_unit_scale() -> None:
             embedded = Simulator._classical_mds(chain * scale, dimension)
             assert torch.isfinite(embedded).all()
 
-    generator = torch.Generator().manual_seed(2718)
-    raw = torch.randn((8, 3), dtype=torch.float64, generator=generator)
+    position = torch.arange(8, dtype=torch.float64) - 3.5
+    raw = torch.column_stack([position, position.square(), position.pow(3)])
     orthonormal, _ = torch.linalg.qr(raw - raw.mean(dim=0, keepdim=True))
     for scale in (1e-8, 1e-9, 1e-10):
         for ratio in (1e-8, 1.5e-8, 1e-7):
