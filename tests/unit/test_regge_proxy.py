@@ -75,3 +75,14 @@ def test_graph_to_mds_to_regge_pipeline_preserves_square_corner_deficits() -> No
 def test_delaunay_proxy_rejects_non_2d_embedding() -> None:
     with pytest.raises(ValueError, match="requires 2D"):
         build_delaunay_proxy(torch.zeros((4, 3), dtype=torch.float64))
+
+
+def test_delaunay_proxy_has_canonical_simplex_order() -> None:
+    coords = torch.tensor(
+        [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
+        dtype=torch.float64,
+    )
+
+    simplices = build_delaunay_proxy(coords)
+
+    assert simplices == sorted(simplices)

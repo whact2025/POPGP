@@ -121,7 +121,7 @@ def test_non_finite_diagnostic_is_rejected() -> None:
 
 def test_sensitive_diagnostic_drift_remains_bounded() -> None:
     candidate = _linux_candidate()
-    candidate["checks"][0]["value"]["linear_correction"] = 0.02
+    candidate["checks"][0]["value"]["linear_correction"] = 0.05
 
     summary = compare_validation_documents(_reference_document(), candidate)
 

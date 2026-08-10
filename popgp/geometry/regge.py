@@ -19,7 +19,10 @@ def build_delaunay_proxy(coords: torch.Tensor) -> list[tuple[int, int, int]]:
         triangulation = Delaunay(coords.detach().cpu().numpy())
     except QhullError as exc:
         raise ValueError("embedding points do not define a stable 2D triangulation") from exc
-    return [tuple(sorted(map(int, simplex))) for simplex in triangulation.simplices]
+    simplices = [
+        tuple(sorted(map(int, simplex))) for simplex in triangulation.simplices
+    ]
+    return sorted(simplices)
 
 
 def _triangle_angles(points: torch.Tensor) -> tuple[float, float, float]:

@@ -66,8 +66,14 @@ mst_edges = set(
 mst_degenerate = inferred_edges == mst_edges
 stress_values = list(result.pi_geom.stress_by_dimension.values())
 stress_span = max(stress_values) - min(stress_values)
+selection_driver_tolerance = max(
+    1e-12,
+    1e-6 * result.pi_geom.selection_margin,
+)
 dimension_selection_driver = (
-    "spectral_penalty" if stress_span < 1e-12 else "mixed_stress_and_penalty"
+    "spectral_penalty"
+    if stress_span <= selection_driver_tolerance
+    else "mixed_stress_and_penalty"
 )
 print(f"Substrate: {cfg.substrate.n_qubits}-qubit Heisenberg chain "
       f"(beta={cfg.substrate.beta})")
@@ -309,6 +315,7 @@ report = {
             "embedding_status": result.pi_geom.embedding_status,
             "selection_margin": result.pi_geom.selection_margin,
             "stress_span": stress_span,
+            "selection_driver_tolerance": selection_driver_tolerance,
             "selection_driver": dimension_selection_driver,
             "metric_diagnostics": result.pi_geom.metric_diagnostics,
             "complex_status": result.pi_geom.complex_status,

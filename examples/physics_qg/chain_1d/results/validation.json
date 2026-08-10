@@ -122,7 +122,8 @@
       "embedding_status": "geometric_candidate",
       "selection_margin": 0.013219290882453315,
       "stress_span": 6.639522486020637e-10,
-      "selection_driver": "mixed_stress_and_penalty",
+      "selection_driver_tolerance": 1.3219290882453315e-08,
+      "selection_driver": "spectral_penalty",
       "metric_diagnostics": [
         {
           "condition_number": 1.0,

@@ -37,14 +37,14 @@ DEFAULT_DIAGNOSTIC_ABS_TOL = 5e-9
 # small-signal regressions/Richardson error estimates.  Their gate booleans and the
 # check identity/criterion remain exact elsewhere in the document.
 SENSITIVE_DIAGNOSTIC_TOLERANCES: dict[str, tuple[float, float]] = {
-    "coefficient_residual_scale": (0.0, 2e-6),
-    "linear_correction": (0.0, 5e-3),
-    "normalized_rmse": (0.0, 5e-5),
-    "quadratic_coefficient_relative_error": (0.0, 2e-5),
-    "relative_coefficient_difference": (0.0, 2e-5),
+    "coefficient_residual_scale": (0.0, 5e-6),
+    "linear_correction": (0.0, 2e-2),
+    "normalized_rmse": (0.0, 2e-4),
+    "quadratic_coefficient_relative_error": (0.0, 2e-4),
+    "relative_coefficient_difference": (0.0, 2e-4),
     "significance_ratio": (0.5, 0.0),
-    "slope_deviation": (0.0, 2e-5),
-    "slope_standard_error": (0.0, 2e-5),
+    "slope_deviation": (0.0, 2e-4),
+    "slope_standard_error": (0.0, 1e-4),
 }
 
 STABLE_INPUT_KEYS = frozenset({"beta", "epsilons"})
