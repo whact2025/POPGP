@@ -51,6 +51,7 @@ def test_quadratic_assessment_rejects_unsorted_amplitudes() -> None:
         assess_quadratic_response(amplitudes[permutation], responses[permutation])
 
 
+@pytest.mark.negative_control
 def test_quadratic_asymptote_enforces_absolute_precision_floor() -> None:
     amplitudes = np.logspace(-5, -3, 9)
     responses = 2.5 * amplitudes**2

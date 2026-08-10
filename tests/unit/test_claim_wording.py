@@ -70,3 +70,17 @@ def test_power_law_residual_scale_is_not_labelled_as_sampling_uncertainty() -> N
     assert "slope_standard_error" not in combined
     assert "slope_residual_scale" in combined
     assert "residual scale=" in combined
+
+
+def test_framework_locality_status_discloses_qcmi_gap_in_both_sources() -> None:
+    framework_md = (ROOT / "docs" / "framework.md").read_text(encoding="utf-8")
+    framework_tex = (ROOT / "docs" / "framework.tex").read_text(encoding="utf-8")
+
+    for source in (framework_md, framework_tex):
+        locality_row = next(
+            line for line in source.splitlines() if "Emergent locality" in line
+        )
+        assert "Definition / partial prototype" in locality_row
+        assert "Pairwise" in locality_row
+        assert "QCMI screening is not" in locality_row
+        assert "non-geometric controls" in locality_row

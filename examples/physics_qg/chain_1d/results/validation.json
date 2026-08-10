@@ -111,18 +111,18 @@
       "objective": 0.00025909573777390234,
       "stress_by_dimension": {
         "1": 4.860349514687119e-16,
-        "2": 6.639527346370152e-10,
-        "3": 7.121160675246565e-11
+        "2": 5.034432205558175e-16,
+        "3": 5.41134677012244e-16
       },
       "objective_by_dimension": {
         "1": 0.00025909573777390234,
-        "2": 0.013478386620227217,
-        "3": 0.046697676245987155
+        "2": 0.013478385956274985,
+        "3": 0.04669767617477609
       },
       "embedding_status": "geometric_candidate",
-      "selection_margin": 0.013219290882453315,
-      "stress_span": 6.639522486020637e-10,
-      "selection_driver_tolerance": 1.3219290882453315e-08,
+      "selection_margin": 0.013219290218501083,
+      "stress_span": 5.5099725543532064e-17,
+      "selection_driver_tolerance": 1.3219290218501083e-08,
       "selection_driver": "spectral_penalty",
       "metric_diagnostics": [
         {

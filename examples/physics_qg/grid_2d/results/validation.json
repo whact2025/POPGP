@@ -172,73 +172,73 @@
       "spectral_diagnostic": "finite_graph_peak",
       "spectral_peak_time": 2.9885938981756235,
       "D_star": 2,
-      "stress": 0.16817252172756156,
-      "objective": 0.1706779540216832,
+      "stress": 0.16817252172756159,
+      "objective": 0.17067795402168323,
       "embedding_status": "geometric_candidate",
-      "selection_margin": 0.05141280548707858,
+      "selection_margin": 0.05141280548707888,
       "metric_diagnostics": [
         {
-          "condition_number": 1343.5885246401829,
-          "relative_residual": 0.0008063007692381398,
+          "condition_number": 1343.5885246402145,
+          "relative_residual": 0.0008063007692380755,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 50.36025687804392,
-          "relative_residual": 0.0003571070588410865,
+          "condition_number": 50.360256878043685,
+          "relative_residual": 0.00035710705884087234,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1343.5885246401167,
-          "relative_residual": 0.000806300769237755,
+          "condition_number": 1343.5885246398207,
+          "relative_residual": 0.000806300769238141,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 50.360256878045305,
-          "relative_residual": 0.00035710705884093967,
+          "condition_number": 50.3602568780453,
+          "relative_residual": 0.0003571070588409119,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1675.1808666192626,
-          "relative_residual": 0.0001362154778465772,
+          "condition_number": 1675.1808666190857,
+          "relative_residual": 0.00013621547784667143,
           "design_rank": 2,
           "n_constraints": 4,
           "underdetermined": true
         },
         {
-          "condition_number": 50.36025687804462,
-          "relative_residual": 0.0003571070588408881,
+          "condition_number": 50.36025687804479,
+          "relative_residual": 0.00035710705884095176,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1343.5885246400733,
-          "relative_residual": 0.0008063007692380118,
+          "condition_number": 1343.5885246402802,
+          "relative_residual": 0.0008063007692382689,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 50.360256878045696,
-          "relative_residual": 0.00035710705884100716,
+          "condition_number": 50.36025687804538,
+          "relative_residual": 0.00035710705884124525,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1343.5885246403952,
-          "relative_residual": 0.0008063007692380111,
+          "condition_number": 1343.5885246401858,
+          "relative_residual": 0.0008063007692383327,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
@@ -309,52 +309,52 @@
         ]
       ],
       "deficit_angles": {
-        "0": 1.5707963267948986,
+        "0": 1.5707963267948981,
         "1": 0.0,
-        "2": 1.5707963267948954,
+        "2": 1.570796326794897,
         "3": 0.0,
-        "4": -8.881784197001252e-16,
+        "4": 0.0,
         "5": 0.0,
-        "6": 1.5707963267948966,
-        "7": 0.0,
-        "8": 1.5707963267948966
+        "6": 1.5707963267948963,
+        "7": -8.881784197001252e-16,
+        "8": 1.570796326794899
       },
       "coords": [
         [
-          2.548709148318976,
-          0.7917816697039701
+          2.668864278153546,
+          0.0
         ],
         [
-          0.7917816697039707,
-          1.5054345894857395
+          1.2027575640375956,
+          1.2027575640375971
         ],
         [
-          -0.7917816697039703,
-          2.548709148318974
+          2.0791259382015782e-16,
+          2.6688642781535443
         ],
         [
-          1.505434589485741,
-          -0.7917816697039731
+          1.2027575640375976,
+          -1.2027575640375978
         ],
         [
-          2.9074045525667777e-16,
-          -6.909073501558287e-16
+          9.326026114937454e-17,
+          -7.990599444398513e-16
         ],
         [
-          -1.5054345894857402,
-          0.7917816697039739
+          -1.2027575640375967,
+          1.2027575640375985
         ],
         [
-          0.7917816697039695,
-          -2.548709148318974
+          -9.356660688547903e-16,
+          -2.668864278153544
         ],
         [
-          -0.7917816697039723,
-          -1.5054345894857408
+          -1.2027575640375976,
+          -1.2027575640375983
         ],
         [
-          -2.5487091483189745,
-          -0.7917816697039683
+          -2.6688642781535443,
+          1.0814654049873102e-15
         ]
       ]
     },
@@ -422,8 +422,8 @@
       "value": {
         "center_node": 4,
         "avg_dist_neighbors": 1.7009560593087967,
-        "avg_dist_non_neighbors": 2.668864278153544,
-        "separation_pct": 36.2666706871432
+        "avg_dist_non_neighbors": 2.6688642781535448,
+        "separation_pct": 36.26667068714322
       },
       "passed": true
     },
@@ -440,7 +440,7 @@
       "description": "MDS stress is low, indicating faithful embedding",
       "framework_section": "4.4.4",
       "criterion": "stress < 0.5",
-      "value": 0.16817252172756156,
+      "value": 0.16817252172756159,
       "passed": true
     },
     {

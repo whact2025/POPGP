@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from popgp.backend import ExactBackend, GPUBackend
+from popgp.backend import Backend, ExactBackend, GPUBackend
+from popgp.coarse_grain import compute_leakage, optimize_cells
 from popgp.config import BackendConfig, SimulatorConfig, SubstrateConfig
 
 
@@ -93,6 +94,90 @@ def test_site_operator_validates_shape_and_site() -> None:
         backend.site_operator(torch.eye(3), 0)
     with pytest.raises(IndexError, match="site"):
         backend.site_operator(torch.eye(2), 2)
+
+
+def test_cell_hamiltonian_validates_indices_and_backend_capability() -> None:
+    backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=3)))
+
+    with pytest.raises(ValueError, match="nonempty"):
+        backend.build_cell_hamiltonian([])
+    with pytest.raises(ValueError, match="unique"):
+        backend.build_cell_hamiltonian([0, 0])
+    with pytest.raises(IndexError, match="must lie"):
+        backend.build_cell_hamiltonian([-1])
+    with pytest.raises(IndexError, match="must lie"):
+        backend.build_cell_hamiltonian([3])
+    with pytest.raises(NotImplementedError, match="does not provide"):
+        Backend.build_cell_hamiltonian(backend, [0])
+
+
+def test_backend_reuses_interaction_and_cell_hamiltonian_caches() -> None:
+    backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=4)))
+
+    interactions = backend.build_interaction_terms()
+    cell_hamiltonian = backend.build_cell_hamiltonian([0, 1])
+
+    assert backend.build_interaction_terms() is interactions
+    assert backend.build_cell_hamiltonian([0, 1]) is cell_hamiltonian
+
+
+def test_compute_leakage_requires_backend_edges_and_coupling() -> None:
+    backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=2)))
+    state = backend.prepare_state()
+
+    with pytest.raises(ValueError, match="edges must match"):
+        compute_leakage(
+            [[0, 1]],
+            state,
+            backend,
+            [],
+            backend.config.substrate.coupling_J,
+            0.1,
+            1,
+        )
+    with pytest.raises(ValueError, match="coupling_J must match"):
+        compute_leakage(
+            [[0, 1]],
+            state,
+            backend,
+            backend.build_edges(),
+            backend.config.substrate.coupling_J + 1.0,
+            0.1,
+            1,
+        )
+
+
+def test_optimize_cells_constructs_each_distinct_cell_generator_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=6)))
+    state = backend.prepare_state()
+    original = backend.build_cell_hamiltonian
+    calls: list[tuple[int, ...]] = []
+
+    def counted(cell: list[int]) -> torch.Tensor:
+        calls.append(tuple(cell))
+        return original(cell)
+
+    monkeypatch.setattr(backend, "build_cell_hamiltonian", counted)
+    optimize_cells(
+        state,
+        backend,
+        n_qubits=6,
+        cell_dim=2,
+        edges=backend.build_edges(),
+        coupling_J=backend.config.substrate.coupling_J,
+        phase_window_width=0.1,
+        phase_window_samples=1,
+        retention_epsilon=float("inf"),
+        su2_tolerance=float("inf"),
+        su2_samples=1,
+        leakage_probe_states=1,
+        drift_probe_states=1,
+    )
+
+    assert len(calls) == len(set(calls))
+    assert len(calls) <= 15
 
 
 def test_gpu_backend_does_not_mislabel_product_correlations_as_mi() -> None:

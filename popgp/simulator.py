@@ -796,43 +796,65 @@ class Simulator:
         """Fix the arbitrary orthogonal MDS frame using label-ordered anchors.
 
         Classical MDS coordinates are defined only up to an orthogonal transform.
-        The polar frame of the first linearly independent, label-ordered coordinate
-        rows is equivariant under that transform, so applying its transpose yields
-        deterministic coordinates without changing any pairwise distance.
+        A label-stable maximum-volume anchor scan is equivariant under that transform,
+        and the SVD polar factor is exactly orthogonal to floating-point precision.
+        Applying it yields deterministic coordinates without changing pairwise distance.
         """
         centered = coords - coords.mean(dim=0, keepdim=True)
         dimension = centered.shape[1]
         if dimension == 0:
             return centered
 
+        singular_values = torch.linalg.svdvals(centered)
+        rank_tolerance = 1e-8 * float(singular_values[0].item())
         represented_rank = int(
-            torch.linalg.matrix_rank(centered, rtol=1e-8).item()
+            torch.count_nonzero(singular_values > rank_tolerance).item()
         )
         if represented_rank < dimension:
             return Simulator._canonicalize_rank_deficient_embedding(
                 centered, represented_rank
             )
 
-        anchors: list[torch.Tensor] = []
-        for row in centered:
-            candidate = torch.stack([*anchors, row])
-            if int(torch.linalg.matrix_rank(candidate, rtol=1e-8).item()) > len(
-                anchors
-            ):
-                anchors.append(row)
-            if len(anchors) == dimension:
-                break
-
-        if len(anchors) < dimension:
-            return Simulator._canonicalize_rank_deficient_embedding(
-                centered, represented_rank
-            )
-
-        anchor_matrix = torch.stack(anchors)
-        gram_evals, gram_evecs = torch.linalg.eigh(anchor_matrix @ anchor_matrix.T)
-        inverse_sqrt = gram_evecs @ torch.diag(gram_evals.rsqrt()) @ gram_evecs.T
-        orientation = anchor_matrix.T @ inverse_sqrt
+        anchor_matrix = Simulator._select_embedding_anchors(centered, dimension)
+        polar_left, _, polar_right_h = torch.linalg.svd(
+            anchor_matrix.T, full_matrices=False
+        )
+        orientation = polar_left @ polar_right_h
         return centered @ orientation
+
+    @staticmethod
+    def _select_embedding_anchors(
+        centered: torch.Tensor,
+        dimension: int,
+    ) -> torch.Tensor:
+        """Select a stable maximum-volume row basis with label-ordered ties."""
+        basis: list[torch.Tensor] = []
+        anchors: list[torch.Tensor] = []
+        remaining = list(range(centered.shape[0]))
+        epsilon = torch.finfo(centered.dtype).eps
+        scale = max(1.0, float(torch.linalg.matrix_norm(centered).item()))
+
+        for _ in range(dimension):
+            residuals: list[tuple[int, torch.Tensor, float]] = []
+            for index in remaining:
+                residual = centered[index].clone()
+                for vector in basis:
+                    residual -= torch.dot(residual, vector) * vector
+                residuals.append(
+                    (index, residual, float(torch.linalg.vector_norm(residual).item()))
+                )
+            maximum = max(norm for _, _, norm in residuals)
+            if maximum <= epsilon * scale:
+                raise RuntimeError("embedding rank and anchor selection disagree")
+            tie_tolerance = 256.0 * epsilon * max(1.0, maximum)
+            index, residual, _ = next(
+                item for item in residuals if item[2] >= maximum - tie_tolerance
+            )
+            anchors.append(centered[index])
+            basis.append(residual / torch.linalg.vector_norm(residual))
+            remaining.remove(index)
+
+        return torch.stack(anchors)
 
     @staticmethod
     def _canonicalize_rank_deficient_embedding(

@@ -296,6 +296,39 @@ def test_kms_energy_density_candidate_aggregates_partitioned_sites() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "delta",
+    [1e-3, 1e-5, 1e-6, 1e-7, 3e-8, 1.5e-8, 1.1e-8, 1e-9],
+)
+@pytest.mark.parametrize("padded", [False, True])
+def test_mds_canonical_frame_is_isometric_near_rank_threshold(
+    delta: float,
+    padded: bool,
+) -> None:
+    first = torch.tensor([-2.0, -1.0, 0.0, 1.0, 2.0], dtype=torch.float64)
+    second = torch.tensor([1.0, -2.0, 0.0, 2.0, -1.0], dtype=torch.float64)
+    coords = torch.column_stack(
+        [
+            first / torch.linalg.vector_norm(first),
+            delta * second / torch.linalg.vector_norm(second),
+        ]
+    )
+    if padded:
+        coords = torch.column_stack(
+            [coords, torch.zeros(coords.shape[0], dtype=torch.float64)]
+        )
+
+    canonical = Simulator._canonicalize_embedding(coords)
+    before = torch.cdist(coords, coords)
+    after = torch.cdist(canonical, canonical)
+    mask = torch.triu(torch.ones_like(before, dtype=torch.bool), diagonal=1)
+    relative_change = torch.max(
+        torch.abs(after[mask] - before[mask]) / before[mask]
+    ).item()
+
+    assert relative_change < 1e-14
+
+
 def test_rank_deficient_mds_canonical_frame_fixes_degenerate_rotation() -> None:
     represented = torch.tensor(
         [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
@@ -327,6 +360,46 @@ def _grid_hop_distances(width: int, height: int) -> torch.Tensor:
         dtype=torch.float64,
     )
     return torch.cdist(coordinates, coordinates, p=1)
+
+
+def _star_hop_distances(n: int) -> torch.Tensor:
+    distances = torch.full((n, n), 2.0, dtype=torch.float64)
+    distances.fill_diagonal_(0.0)
+    distances[0, 1:] = 1.0
+    distances[1:, 0] = 1.0
+    return distances
+
+
+def test_mds_canonicalization_terminates_when_first_label_is_symmetry_center() -> None:
+    grid = _grid_hop_distances(3, 3)
+    center_first = torch.tensor([4, 0, 1, 2, 3, 5, 6, 7, 8])
+    fixtures = [
+        _star_hop_distances(5),
+        _star_hop_distances(6),
+        grid[center_first][:, center_first],
+    ]
+
+    for distances in fixtures:
+        for dimension in range(1, distances.shape[0]):
+            coords = Simulator._classical_mds(distances, dimension)
+            assert torch.isfinite(coords).all()
+
+
+def test_mds_direct_anchor_scan_uses_global_rank_tolerance() -> None:
+    coords = torch.tensor(
+        [[1e-9, 0.0], [1.0, 1.0], [-1.0, 0.5], [-1e-9, -1.5]],
+        dtype=torch.float64,
+    )
+
+    canonical = Simulator._canonicalize_embedding(coords)
+
+    assert torch.isfinite(canonical).all()
+    assert torch.allclose(
+        torch.cdist(canonical, canonical),
+        torch.cdist(coords, coords),
+        atol=1e-14,
+        rtol=1e-14,
+    )
 
 
 @pytest.mark.parametrize(

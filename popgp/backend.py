@@ -148,6 +148,10 @@ class ExactBackend(Backend):
         self._N = N
         self._dim = 2**N
         self._H: torch.Tensor | None = None
+        self._interaction_terms: list[
+            tuple[tuple[int, int], torch.Tensor]
+        ] | None = None
+        self._cell_hamiltonians: dict[tuple[int, ...], torch.Tensor] = {}
         self._evals: torch.Tensor | None = None
         self._evecs: torch.Tensor | None = None
         log.info(
@@ -187,6 +191,8 @@ class ExactBackend(Backend):
             raise NotImplementedError(
                 f"Hamiltonian family {family!r} is not implemented."
             )
+        if self._interaction_terms is not None:
+            return self._interaction_terms
 
         terms = []
         coupling = self.config.substrate.coupling_J
@@ -198,7 +204,8 @@ class ExactBackend(Backend):
                     + self.site_operator(_SY, i) @ self.site_operator(_SY, j)
                 )
             terms.append(((i, j), coupling * interaction))
-        return terms
+        self._interaction_terms = terms
+        return self._interaction_terms
 
     def build_local_energy_operators(self) -> list[torch.Tensor]:
         """Split each pair interaction equally between its endpoint sites.
@@ -230,6 +237,9 @@ class ExactBackend(Backend):
             raise ValueError("cell_indices must be unique")
         if any(site < 0 or site >= self._N for site in cell_indices):
             raise IndexError(f"cell indices must lie in [0, {self._N})")
+        cache_key = tuple(cell_indices)
+        if cache_key in self._cell_hamiltonians:
+            return self._cell_hamiltonians[cache_key]
 
         cell = set(cell_indices)
         internal = torch.zeros(
@@ -240,7 +250,9 @@ class ExactBackend(Backend):
                 internal += interaction
 
         complement_dimension = 2 ** (self._N - len(cell_indices))
-        return self.reduced_state(internal, cell_indices) / complement_dimension
+        restricted = self.reduced_state(internal, cell_indices) / complement_dimension
+        self._cell_hamiltonians[cache_key] = restricted
+        return restricted
 
     # ── substrate ────────────────────────────────────────────────────
 

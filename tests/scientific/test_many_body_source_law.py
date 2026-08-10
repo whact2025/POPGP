@@ -221,6 +221,7 @@ def test_isospectral_unitary_family_is_quadratic_and_has_zero_entropy_change() -
     ) <= identity_atol
 
 
+@pytest.mark.negative_control
 def test_quadratic_gate_rejects_first_order_negative_control() -> None:
     amplitudes = np.logspace(-5, -3, 9)
     response = 0.4 * amplitudes + 0.7 * amplitudes**2
@@ -332,6 +333,7 @@ def test_global_energy_drift_is_generator_observable_identity_not_local_gate() -
     assert max(mismatched_totals) - min(mismatched_totals) > 1e-5
 
 
+@pytest.mark.negative_control
 def test_profile_spreading_is_not_automatic_in_commuting_ising_control() -> None:
     config = SimulatorConfig.for_chain(
         n=5,
@@ -357,6 +359,7 @@ def test_profile_spreading_is_not_automatic_in_commuting_ising_control() -> None
     assert torch.allclose(evolved_profile, initial, atol=1e-13, rtol=0.0)
 
 
+@pytest.mark.negative_control
 def test_reduced_modular_source_is_blind_but_kms_energy_density_is_not() -> None:
     config = SimulatorConfig.for_chain(
         n=5,

@@ -3,7 +3,9 @@
 Every active acceptance gate and every gate retaining a deliberate negative result
 has a stable ID and at least one executable negative control. A passing identity
 regression is not an acceptance gate. The table records the statistic change that the
-test computes; exact floating-point values remain assertions in the cited test.
+test computes; exact floating-point values remain assertions in the cited test. CI
+parses this table row by row, requires every control node to exist, and requires each
+cited test to carry the `negative_control` pytest marker.
 
 | Gate ID | Matrix row | Status | Demonstrated negative control or mutation | Statistic before → after |
 |---|---|---|---|---|

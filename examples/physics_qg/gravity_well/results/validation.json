@@ -58,71 +58,71 @@
     "pi_geom": {
       "D_spectral": 1.4994570653658537,
       "D_star": 2,
-      "stress": 0.16817252172756156,
+      "stress": 0.16817252172756159,
       "embedding_status": "geometric_candidate",
       "metric_diagnostics": [
         {
-          "condition_number": 1343.5885246401829,
-          "relative_residual": 0.0008063007692381398,
+          "condition_number": 1343.5885246402145,
+          "relative_residual": 0.0008063007692380755,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 50.36025687804392,
-          "relative_residual": 0.0003571070588410865,
+          "condition_number": 50.360256878043685,
+          "relative_residual": 0.00035710705884087234,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1343.5885246401167,
-          "relative_residual": 0.000806300769237755,
+          "condition_number": 1343.5885246398207,
+          "relative_residual": 0.000806300769238141,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 50.360256878045305,
-          "relative_residual": 0.00035710705884093967,
+          "condition_number": 50.3602568780453,
+          "relative_residual": 0.0003571070588409119,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1675.1808666192626,
-          "relative_residual": 0.0001362154778465772,
+          "condition_number": 1675.1808666190857,
+          "relative_residual": 0.00013621547784667143,
           "design_rank": 2,
           "n_constraints": 4,
           "underdetermined": true
         },
         {
-          "condition_number": 50.36025687804462,
-          "relative_residual": 0.0003571070588408881,
+          "condition_number": 50.36025687804479,
+          "relative_residual": 0.00035710705884095176,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1343.5885246400733,
-          "relative_residual": 0.0008063007692380118,
+          "condition_number": 1343.5885246402802,
+          "relative_residual": 0.0008063007692382689,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,
           "is_proxy_boundary": 1
         },
         {
-          "condition_number": 50.360256878045696,
-          "relative_residual": 0.00035710705884100716,
+          "condition_number": 50.36025687804538,
+          "relative_residual": 0.00035710705884124525,
           "design_rank": 3,
           "n_constraints": 3,
           "underdetermined": false
         },
         {
-          "condition_number": 1343.5885246403952,
-          "relative_residual": 0.0008063007692380111,
+          "condition_number": 1343.5885246401858,
+          "relative_residual": 0.0008063007692383327,
           "design_rank": 2,
           "n_constraints": 2,
           "underdetermined": true,

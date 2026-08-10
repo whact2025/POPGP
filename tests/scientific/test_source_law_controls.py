@@ -11,6 +11,7 @@ def _diag(*values: float) -> torch.Tensor:
     return torch.diag(torch.tensor(values, dtype=torch.complex128))
 
 
+@pytest.mark.negative_control
 def test_equal_energy_states_expose_entropy_source_confound() -> None:
     hamiltonian = torch.diag(torch.tensor([0.0, 1.0, 2.0], dtype=torch.complex128))
     pure_middle = _diag(0.0, 1.0, 0.0)

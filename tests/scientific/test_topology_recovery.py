@@ -86,6 +86,7 @@ def test_adaptive_gap_is_permutation_equivariant() -> None:
     assert mapped_back == reference
 
 
+@pytest.mark.negative_control
 def test_nonseparable_correlations_are_not_called_identifiable() -> None:
     n = 6
     weights = torch.full((n, n), 0.2, dtype=torch.float64)
@@ -152,6 +153,7 @@ def test_petersen_control_exposes_dimension_penalty_sensitivity() -> None:
     assert strong_penalty.stress > 2.0 * weak_penalty.stress
 
 
+@pytest.mark.negative_control
 def test_disjoint_bell_pairs_are_marked_nonseparable() -> None:
     config = SimulatorConfig.for_chain(n=4)
     config.pi_res.cell_dim = 1

@@ -29,6 +29,7 @@ dev = [
 testpaths = ["tests"]
 markers = [
     "scientific: scientific regression or falsification tests",
+    "negative_control: demonstrated input or mutation that crosses a gate boundary",
     "slow: tests that perform exact diagonalization or combinatorial search",
 ]
 
