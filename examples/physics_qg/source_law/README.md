@@ -25,5 +25,6 @@ This is a negative result for raw relative entropy as a standalone linear mass
 source in the tested regime. The modular and solver linearities are analytic identity
 regressions, not evidence for a physical source. The follow-up
 [`source_law_many_body`](../source_law_many_body/README.md) experiment tests
-localization, conservation, and spreading in one exact interacting chain; covariance,
-robustness, and many-body refinement remain open.
+localization and spreading in one exact interacting chain and retains global-energy
+constancy only as an implementation-consistency identity; covariance, local
+conservation, robustness, and many-body refinement remain open.

@@ -19,7 +19,6 @@ review_id: ""
 review_artifact: ""
 review_commit: ""                 # full hash containing immutable review
 candidate_commit_reviewed: ""     # full candidate hash named by review
-legacy_requested_test_id_method: "not-applicable"
 
 access_declaration:
   final_labels_seen: false

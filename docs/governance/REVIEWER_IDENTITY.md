@@ -29,6 +29,7 @@ Every review artifact records these fields separately:
 | `reviewer_operator` | Human accountable for the run |
 | `access_level` | Information and systems available to the reviewer |
 | `independence_statement` | Shared prompts, context, operator, session, or conclusions |
+| `independence_declaration` | Typed shared-role and model-separation facts defined below |
 
 A seat name is not a model identity. If an exact identifier or version is unavailable,
 record `unknown`; never guess.
@@ -46,6 +47,22 @@ independent agent review.
 
 Re-review necessarily receives the prior review and builder response. It must still
 reproduce evidence rather than accepting the builder's dispositions as proof.
+
+Every review also records the typed declaration:
+
+```yaml
+independence_declaration:
+  shared_operator: false
+  shared_session: false
+  shared_orchestrator: false
+  builder_model_identity: ""
+  reviewer_model_differs_from_builder: false
+  external_scientific_validation: false
+```
+
+`external_scientific_validation` is false for every review conducted under this
+workflow. Only a replication by an unaffiliated group with independent code can set it
+true; no agent review may set it true.
 
 ## Hidden-access declaration
 

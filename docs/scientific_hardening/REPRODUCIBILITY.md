@@ -59,7 +59,8 @@ shapes, metadata, stable configuration, check identities, and pass/fail outcomes
 strict; all numbers must be finite; ordinary diagnostics use narrow tolerances; and
 the small set of sensitive fit/error fields has an explicit bounded allowlist in
 `scripts/check_validation_artifacts.py`. Required visual outputs must be tracked,
-present, and nonempty. PNG pixels and metadata are not hashed across environments.
+present, and nonempty. CI does not verify that every checked-out visual was rewritten
+during the current run, and PNG pixels and metadata are not hashed across environments.
 
 ## Negative and sensitivity results
 
@@ -97,8 +98,9 @@ present, and nonempty. PNG pixels and metadata are not hashed across environment
   `poor_fit` rather than a geometric candidate.
 - Local metric fits use a Frobenius-orthonormal symmetric basis, report an explicit
   underdetermined flag with fixed rank tolerance, and are invariant under rotations
-  of the MDS frame. The canonical MDS frame removes arbitrary orientation changes
-  from serialized tensors. Earlier regularized scalar diagnostics could shift by
+  of the MDS frame. The canonical MDS frame fixes the full represented subspace,
+  including rank-deficient degenerate embeddings, and removes arbitrary orientation
+  changes from serialized tensors. Earlier regularized scalar diagnostics could shift by
   roughly 30–60% under a rotation of the degenerate 2D eigenspace. The 3×3 grid still
   has underdetermined boundary fits; its 2D Delaunay deficits are proxy-only.
 - Chain partition selection is unchanged for probe seeds 0, 1, 2, 42, and 99, while

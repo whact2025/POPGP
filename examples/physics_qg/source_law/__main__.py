@@ -99,7 +99,7 @@ mixed_control = _state_control(mixed_extremes)
 print("Perturbative source-law fits")
 for name, fit in fits.items():
     print(
-        f"  {name}: slope={fit.slope:.6f} +/- {fit.slope_standard_error:.6f}, "
+        f"  {name}: slope={fit.slope:.6f}, residual scale={fit.slope_residual_scale:.6f}, "
         f"R^2={fit.r_squared:.8f}"
     )
 print("Equal-energy KMS control")
@@ -146,7 +146,7 @@ def _fit_dict(name: str) -> dict[str, float]:
     return {
         "slope": fit.slope,
         "intercept": fit.intercept,
-        "slope_standard_error": fit.slope_standard_error,
+        "slope_residual_scale": fit.slope_residual_scale,
         "r_squared": fit.r_squared,
     }
 

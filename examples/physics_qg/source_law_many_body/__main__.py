@@ -36,7 +36,7 @@ def _fit_dict(fit) -> dict[str, float]:
     return {
         "slope": fit.slope,
         "intercept": fit.intercept,
-        "slope_standard_error": fit.slope_standard_error,
+        "slope_residual_scale": fit.slope_residual_scale,
         "r_squared": fit.r_squared,
     }
 
@@ -429,7 +429,9 @@ def main() -> None:
     decomposition_error = float(
         np.max(np.abs(local_energy_profiles.sum(axis=1) - total_energy))
     )
-    conservation_drift = float(np.ptp(evolved_total_energy))
+    generator_observable_consistency_drift = float(
+        np.ptp(evolved_total_energy)
+    )
     initial_outside_fraction = float(
         np.abs(evolved_profiles[0, [0, 4]]).sum()
         / np.abs(evolved_profiles[0]).sum()
@@ -442,8 +444,8 @@ def main() -> None:
     print("Localized non-affine KMS source-law diagnostics")
     for name, fit in fits.items():
         print(
-            f"  {name}: slope={fit.slope:.6f} +/- "
-            f"{fit.slope_standard_error:.6f}, R^2={fit.r_squared:.8f}"
+            f"  {name}: slope={fit.slope:.6f}, residual scale="
+            f"{fit.slope_residual_scale:.6f}, R^2={fit.r_squared:.8f}"
         )
     print(f"  max |Delta<K>-beta Delta<E>|: {kms_identity_error:.3e}")
     print(
@@ -461,7 +463,10 @@ def main() -> None:
         "  isospectral unitary slopes (D/DeltaK): "
         f"{unitary_relative_fit.slope:.6f} / {unitary_modular_fit.slope:.6f}"
     )
-    print(f"  energy-conservation drift: {conservation_drift:.3e}")
+    print(
+        "  generator/observable consistency drift: "
+        f"{generator_observable_consistency_drift:.3e}"
+    )
     print(f"  evolved endpoint energy fraction (t=1): {evolved_outside_fraction:.6f}")
     print(f"  commuting Ising profile change (t=1): {ising_profile_change:.3e}")
     print(
@@ -569,18 +574,21 @@ def main() -> None:
             < 5e-13,
         },
         {
-            "name": "localized_energy_is_globally_conserved_and_spreads",
+            "name": "local_energy_decomposition_consistency_and_spreading",
             "criterion": (
-                "global-energy conservation drift below 1e-12, initial endpoint fraction below "
-                "1e-12, and t=1 endpoint fraction above 0.05"
+                "implementation-consistency drift for the measured global Hamiltonian "
+                "below 1e-12, initial endpoint fraction below 1e-12, and t=1 endpoint "
+                "fraction above 0.05"
             ),
             "value": {
-                "conservation_drift": conservation_drift,
+                "generator_observable_consistency_drift": (
+                    generator_observable_consistency_drift
+                ),
                 "initial_endpoint_fraction": initial_outside_fraction,
                 "t1_endpoint_fraction": evolved_outside_fraction,
             },
             "passed": (
-                conservation_drift < 1e-12
+                generator_observable_consistency_drift < 1e-12
                 and initial_outside_fraction < 1e-12
                 and evolved_outside_fraction > 0.05
             ),

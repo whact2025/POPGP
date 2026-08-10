@@ -230,7 +230,7 @@ def test_quadratic_gate_rejects_first_order_negative_control() -> None:
     assert assessment.passed is False
 
 
-def test_local_energy_candidate_is_conserved_spreads_and_has_correct_clock_sign() -> None:
+def test_local_energy_decomposition_sums_profile_spreads_and_clock_sign_is_correct() -> None:
     backend, hamiltonian, reference, excitation, local_energy = _experiment()
     profiles = []
     total_energies = []
@@ -277,6 +277,59 @@ def test_local_energy_candidate_is_conserved_spreads_and_has_correct_clock_sign(
     assert int(torch.argmin(phi).item()) == 2
     assert torch.exp(phi[2]) < torch.exp(phi[0])
     assert redshift > 0.0
+
+
+def test_global_energy_drift_is_generator_observable_identity_not_local_gate() -> None:
+    backend, hamiltonian, reference, excitation, local_energy = _experiment()
+    mutated_decomposition = [term.clone() for term in local_energy]
+    transferred_term = 0.25 * local_energy[0]
+    mutated_decomposition[0] = mutated_decomposition[0] + transferred_term
+    mutated_decomposition[1] = mutated_decomposition[1] - transferred_term
+    mismatched_observable = hamiltonian + 0.25 * local_energy[0]
+    times = (0.0, 0.2, 0.5, 1.0)
+    arbitrary_vector = torch.arange(
+        1,
+        hamiltonian.shape[0] + 1,
+        dtype=torch.float64,
+    ).to(torch.complex128)
+    arbitrary_vector += 1j * torch.flip(arbitrary_vector, dims=(0,))
+    arbitrary_vector /= torch.linalg.vector_norm(arbitrary_vector)
+    arbitrary_state = torch.outer(arbitrary_vector, arbitrary_vector.conj())
+
+    canonical_totals = []
+    mutated_totals = []
+    mismatched_totals = []
+    arbitrary_totals = []
+    for time in times:
+        state = backend.evolve(excitation, dt=time)
+        canonical_totals.append(
+            sum(
+                _expectation_delta(state, reference, term)
+                for term in local_energy
+            )
+        )
+        mutated_totals.append(
+            sum(
+                _expectation_delta(state, reference, term)
+                for term in mutated_decomposition
+            )
+        )
+        mismatched_totals.append(
+            _expectation_delta(state, reference, mismatched_observable)
+        )
+        arbitrary_totals.append(
+            _expectation_delta(
+                backend.evolve(arbitrary_state, dt=time),
+                reference,
+                hamiltonian,
+            )
+        )
+
+    assert max(canonical_totals) - min(canonical_totals) < 1e-13
+    assert max(mutated_totals) - min(mutated_totals) < 1e-13
+    assert max(arbitrary_totals) - min(arbitrary_totals) < 1e-13
+    assert mutated_totals == pytest.approx(canonical_totals, abs=1e-13)
+    assert max(mismatched_totals) - min(mismatched_totals) > 1e-5
 
 
 def test_profile_spreading_is_not_automatic_in_commuting_ising_control() -> None:

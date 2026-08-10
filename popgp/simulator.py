@@ -757,11 +757,39 @@ class Simulator:
         idx = evals.argsort(descending=True)
         evals = evals[idx]
         evecs = evecs[:, idx]
+        evecs = Simulator._canonicalize_degenerate_eigenvector_blocks(
+            evals, evecs
+        )
 
         D_eff = min(D, n - 1)
         top_evals = evals[:D_eff].clamp(min=0)
         coords = (evecs[:, :D_eff] @ torch.diag(torch.sqrt(top_evals))).real
         return Simulator._canonicalize_embedding(coords)
+
+    @staticmethod
+    def _canonicalize_degenerate_eigenvector_blocks(
+        eigenvalues: torch.Tensor,
+        eigenvectors: torch.Tensor,
+    ) -> torch.Tensor:
+        """Fix label-ordered bases before a requested dimension cuts a block."""
+        canonical = eigenvectors.clone()
+        if eigenvalues.numel() == 0:
+            return canonical
+        scale = max(1.0, float(torch.max(torch.abs(eigenvalues)).item()))
+        tolerance = 256.0 * torch.finfo(eigenvalues.dtype).eps * scale
+        start = 0
+        while start < eigenvalues.numel():
+            end = start + 1
+            while end < eigenvalues.numel() and abs(
+                float(eigenvalues[end] - eigenvalues[start])
+            ) <= tolerance:
+                end += 1
+            if end - start > 1 and eigenvalues[start] > tolerance:
+                canonical[:, start:end] = Simulator._canonicalize_embedding(
+                    canonical[:, start:end]
+                )
+            start = end
+        return canonical
 
     @staticmethod
     def _canonicalize_embedding(coords: torch.Tensor) -> torch.Tensor:
@@ -781,7 +809,9 @@ class Simulator:
             torch.linalg.matrix_rank(centered, rtol=1e-8).item()
         )
         if represented_rank < dimension:
-            return Simulator._canonicalize_embedding_signs(centered)
+            return Simulator._canonicalize_rank_deficient_embedding(
+                centered, represented_rank
+            )
 
         anchors: list[torch.Tensor] = []
         for row in centered:
@@ -794,7 +824,9 @@ class Simulator:
                 break
 
         if len(anchors) < dimension:
-            return Simulator._canonicalize_embedding_signs(centered)
+            return Simulator._canonicalize_rank_deficient_embedding(
+                centered, represented_rank
+            )
 
         anchor_matrix = torch.stack(anchors)
         gram_evals, gram_evecs = torch.linalg.eigh(anchor_matrix @ anchor_matrix.T)
@@ -803,19 +835,26 @@ class Simulator:
         return centered @ orientation
 
     @staticmethod
-    def _canonicalize_embedding_signs(coords: torch.Tensor) -> torch.Tensor:
-        """Stabilize represented axes when the requested MDS rank is deficient."""
-        canonical = coords.clone()
-        tolerance = 1e-8 * max(
-            1.0, float(torch.linalg.vector_norm(canonical).item())
+    def _canonicalize_rank_deficient_embedding(
+        coords: torch.Tensor,
+        represented_rank: int,
+    ) -> torch.Tensor:
+        """Fix the full represented frame and pad unrepresented axes with zeros."""
+        dimension = coords.shape[1]
+        if represented_rank == 0:
+            return torch.zeros_like(coords)
+
+        left, singular_values, _ = torch.linalg.svd(coords, full_matrices=False)
+        represented = left[:, :represented_rank] * singular_values[:represented_rank]
+        canonical = Simulator._canonicalize_embedding(represented)
+        if represented_rank == dimension:
+            return canonical
+        padding = torch.zeros(
+            (coords.shape[0], dimension - represented_rank),
+            dtype=coords.dtype,
+            device=coords.device,
         )
-        for column in range(canonical.shape[1]):
-            nonzero = torch.nonzero(
-                canonical[:, column].abs() > tolerance, as_tuple=False
-            )
-            if nonzero.numel() and canonical[int(nonzero[0]), column] < 0:
-                canonical[:, column] *= -1
-        return canonical
+        return torch.cat([canonical, padding], dim=1)
 
     @staticmethod
     def _mds_stress(d_target: torch.Tensor, coords: torch.Tensor) -> float:
@@ -951,7 +990,9 @@ class Simulator:
 
         ``1 + z = ν_emit / ν_obs = exp(Φ_observer - Φ_emitter)``.
         """
-        delta = torch.as_tensor(phi_observer) - torch.as_tensor(phi_emitter)
+        delta = torch.as_tensor(
+            phi_observer, dtype=torch.float64
+        ) - torch.as_tensor(phi_emitter, dtype=torch.float64)
         return float(torch.exp(delta).item() - 1.0)
 
     def _compute_source_term(

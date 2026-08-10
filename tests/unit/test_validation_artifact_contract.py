@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 
 from scripts.check_validation_artifacts import (
     check_required_visuals,
+    check_validation_semantics,
     compare_validation_documents,
 )
 
@@ -183,3 +185,41 @@ def test_empty_or_untracked_visual_is_rejected(tmp_path: Path) -> None:
 
     assert any("not tracked" in error for error in errors)
     assert any("empty" in error for error in errors)
+
+
+def test_headline_must_equal_noninformational_check_conjunction() -> None:
+    document = _reference_document()
+    document["checks"][0]["passed"] = False
+
+    errors = check_validation_semantics(
+        document,
+        "examples/physics_qg/demo/results/validation.json",
+    )
+
+    assert any("overall_pass=True" in error for error in errors)
+
+
+def test_failing_check_cannot_be_demoted_to_informational() -> None:
+    document = _reference_document()
+    document["checks"][0].update(
+        {"name": "blind_edge_recovery", "severity": "informational", "passed": False}
+    )
+    document["overall_pass"] = True
+
+    errors = check_validation_semantics(
+        document,
+        "examples/physics_qg/chain_1d/results/validation.json",
+    )
+
+    assert any("cannot be informational" in error for error in errors)
+
+
+def test_committed_validation_artifacts_are_internally_consistent() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = sorted(root.glob("examples/physics_qg/*/results/validation.json"))
+
+    assert paths
+    for path in paths:
+        relative_path = path.relative_to(root).as_posix()
+        document = json.loads(path.read_text(encoding="utf-8"))
+        assert check_validation_semantics(document, relative_path) == []

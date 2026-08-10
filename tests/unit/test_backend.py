@@ -41,6 +41,51 @@ def test_local_energy_decomposition_sums_to_hamiltonian() -> None:
     assert torch.allclose(torch.stack(local_energy).sum(dim=0), backend.build_hamiltonian())
 
 
+@pytest.mark.parametrize("family", ["heisenberg", "ising"])
+def test_cell_generators_and_intercell_terms_reconstruct_hamiltonian(
+    family: str,
+) -> None:
+    backend = ExactBackend(
+        SimulatorConfig(
+            substrate=SubstrateConfig(n_qubits=4, hamiltonian=family)
+        )
+    )
+    identity = torch.eye(4, dtype=torch.complex128)
+    left = backend.build_cell_hamiltonian([0, 1])
+    right = backend.build_cell_hamiltonian([2, 3])
+    interaction_terms = dict(backend.build_interaction_terms())
+
+    reconstructed = (
+        torch.kron(left, identity)
+        + torch.kron(identity, right)
+        + interaction_terms[(1, 2)]
+    )
+
+    assert torch.allclose(
+        reconstructed,
+        backend.build_hamiltonian(),
+        atol=1e-14,
+        rtol=1e-14,
+    )
+
+
+@pytest.mark.parametrize("family", ["heisenberg", "ising"])
+def test_two_site_local_energy_operators_split_interaction_equally(
+    family: str,
+) -> None:
+    backend = ExactBackend(
+        SimulatorConfig(
+            substrate=SubstrateConfig(n_qubits=2, hamiltonian=family)
+        )
+    )
+    interaction = backend.build_interaction_terms()[0][1]
+
+    local_energy = backend.build_local_energy_operators()
+
+    assert torch.allclose(local_energy[0], 0.5 * interaction)
+    assert torch.allclose(local_energy[1], 0.5 * interaction)
+
+
 def test_site_operator_validates_shape_and_site() -> None:
     backend = ExactBackend(SimulatorConfig(substrate=SubstrateConfig(n_qubits=2)))
 

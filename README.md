@@ -47,16 +47,17 @@ uv run python -m examples.physics_qg.gravity_well
 Install [uv](https://docs.astral.sh/uv/), then run:
 
 ```text
-uv sync
+uv sync --frozen
+uv run ruff check .
+uv run python scripts/check_tex.py
 uv run pytest -q
-uv run ruff check popgp tests examples
-
 uv run python -m examples.physics_qg.chain_1d
 uv run python -m examples.physics_qg.grid_2d
 uv run python -m examples.physics_qg.gravity_well
 uv run python -m examples.physics_qg.source_law
 uv run python -m examples.physics_qg.source_law_many_body
 uv run python -m examples.physics_qg.ca_model
+uv run python scripts/check_validation_artifacts.py
 ```
 
 Programmatic usage:
@@ -154,11 +155,13 @@ value over the declared finite sweep (`beta <= 3`, including `beta = 2.5`). Phys
 energy follows by the exact KMS identity. The result is family-specific: for an
 isospectral local
 unitary family, `Delta S = 0` and `D = Delta<K> = beta Delta<E>` are all quadratic.
-A separate quench shows exact finite-system energy conservation and profile spreading
-under Heisenberg dynamics, while a commuting Ising control shows no spreading. This
-makes modular energy a feasible localized test object in those controlled models, not
-a final source law. Temporal averaging, covariant conservation, scalable/refinement
-behavior, and an independent operational clock observable remain open.
+A separate quench shows profile spreading under Heisenberg dynamics, while a commuting
+Ising control shows no spreading. Constancy of the measured global Hamiltonian under
+its own unitary evolution is retained as an implementation-consistency identity, not
+as source-law evidence. This makes modular energy a feasible localized test object in
+those controlled models, not a final source law. Temporal averaging, covariant
+conservation, scalable/refinement behavior, and an independent operational clock
+observable remain open.
 
 For integration testing, the exact backend exposes a separate
 `negative_kms_energy_density_candidate`. It uses `−β Δ⟨h_i⟩` from the

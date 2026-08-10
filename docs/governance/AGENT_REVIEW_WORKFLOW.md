@@ -55,7 +55,14 @@ re-review. Each re-review branch starts from the exact remediation candidate it 
 
 1. Start from the intended baseline and implement a bounded change.
 2. Add unit tests and scientific regression or falsification tests as appropriate.
-3. Run the complete quality suite documented in the repository README.
+   Every new or changed acceptance gate must include a demonstrated failing negative
+   control or mutation. Register that control in
+   `docs/scientific_hardening/GATE_TEST_REGISTRY.md`; an identity check must be
+   labelled as implementation consistency and cannot serve as a physics falsifier.
+3. Run every command in `.github/workflows/ci.yml`, which is the authoritative quality
+   suite. The README and
+   [`LAUNCH_INDEPENDENT_REVIEW.md`](../reviews/LAUNCH_INDEPENDENT_REVIEW.md) reproduce
+   the same command set for local execution.
 4. Commit the candidate and record:
    - full candidate hash;
    - baseline hash;

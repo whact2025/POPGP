@@ -37,8 +37,9 @@ uv run python -m examples.physics_qg.ca_model
 uv run python scripts/check_validation_artifacts.py
 ```
 
-If the README or CI workflow changes this suite, use the newer repository-authored
-commands and state the difference in the handoff.
+`.github/workflows/ci.yml` is authoritative. The README and this runbook intentionally
+repeat its quality-command set, and a regression test requires all three to remain in
+sync.
 
 ## 2. Create an isolated reviewer worktree
 
@@ -141,7 +142,8 @@ verified-satisfied, unresolved, or superseded to every requested test.
 Create reviews/independent_reviewer/<review-id>-REREVIEW-1.md, commit only that
 artifact, leave the worktree clean, and return the full review commit hash plus the
 fresh recommendation and blocking count. approve: true requires zero unresolved
-blocking findings.
+blocking findings. Complete both the typed independence declaration and the prose
+independence statement.
 ```
 
 Repeat with incremented response/re-review round numbers if a blocker remains. Never

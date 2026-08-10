@@ -40,10 +40,12 @@ gates establish `D=O(ε²)` across the declared β≤3 finite sweep, including �
 Physical-energy response follows from the KMS identity rather than a duplicate gate.
 An isospectral unitary family has `ΔS=0` and
 `D=Δ⟨K⟩=βΔ⟨H⟩=O(ε²)`, so response order must always carry its family qualifier.
-A separate quench verifies an exactly summing local-energy split, global conservation,
-and dynamics-dependent spreading. The split is a declared microscopic convention,
-not a covariant stress tensor. No final source law is selected without scalable
-refinement, temporal averaging, continuum, and covariant-conservation tests.
+A separate quench verifies an exactly summing local-energy split and
+dynamics-dependent spreading. Constancy of the measured global Hamiltonian under its
+own unitary evolution is an implementation-consistency identity, not a source-law
+falsifier. The split is a declared microscopic convention, not a covariant stress
+tensor. No final source law is selected without scalable refinement, temporal
+averaging, continuum, and covariant-conservation tests.
 
 Do not equate a cell's reduced-state modular Hamiltonian with a density of the global
 KMS modular charge. The former is identity-like and blind in the symmetric-chain
@@ -85,3 +87,22 @@ clock solve.
 Use `codex/` branches and descriptive commits. Prefer staged PRs for source,
 geometry/closure, paper, and high-curvature work. Do not stage the private handoff
 document unless the owner explicitly chooses to publish it.
+
+## D011 — validation headline and informational checks
+
+`overall_pass` is the conjunction of every non-informational check. A failing check may
+never be labelled `informational`. Informational status is restricted to the explicit
+allow-list in `scripts/check_validation_artifacts.py`; adding, removing, or renaming an
+informational check requires a reviewed policy change. CI validates these invariants
+against every committed `validation.json`, independently of regeneration comparison.
+
+## D012 — acceptance-gate sensitivity
+
+Every new or changed acceptance gate ships with a demonstrated failing negative
+control or mutation and a registry entry that records the gated statistic before and
+after that control. Gates must adjudicate the claimed behavior: algebraic identities
+and generator/observable consistency checks are regressions, not physical
+falsifiers. A declared parameter sweep records statistic ranges where meaningful,
+but robustness does not require a passing statistic to vary by more than its own
+tolerance; that would make stability and the requested sensitivity condition
+mutually incompatible.

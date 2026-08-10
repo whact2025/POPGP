@@ -90,6 +90,8 @@ def test_clock_potential_obeys_linear_solver_homogeneity_identity() -> None:
         ]
     )
     assert relative_fit.slope == pytest.approx(2.0, abs=0.02)
-    assert relative_fit.slope_standard_error < 0.01
+    # This deterministic residual scale is capped at half the 0.02 slope band so
+    # curvature cannot consume the order gate; it is not a sampling uncertainty.
+    assert relative_fit.slope_residual_scale < 0.01
     assert np.ptp(relative_ratios) < 1e-10
     assert np.ptp(modular_ratios) < 1e-10

@@ -22,6 +22,14 @@ files_reviewed: []
 access_level: public-repository-only
 independence_statement: ""
 
+independence_declaration:
+  shared_operator: false
+  shared_session: false
+  shared_orchestrator: false
+  builder_model_identity: ""
+  reviewer_model_differs_from_builder: false
+  external_scientific_validation: false
+
 hidden_access_declaration:
   final_labels_seen: false
   secret_seed_seen: false
@@ -88,6 +96,8 @@ recommendation:
   claim execution for a read-only inference.
 - `context_hash_method` must be reproducible, for example
   `git rev-parse "<commit>^{tree}"`.
+- `external_scientific_validation` is always false for an agent review under this
+  workflow, even when builder and reviewer use different models.
 - `approve: true` requires zero unresolved blocking findings.
 - Remove unused example list entries from a completed artifact; do not leave ambiguous
   placeholder objects in `findings`, `requested_tests`, or prior-result lists.

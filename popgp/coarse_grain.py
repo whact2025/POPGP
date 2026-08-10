@@ -28,7 +28,7 @@ from math import factorial
 
 import torch
 
-from popgp.backend import _I2, _SX, _SY, _SZ, Backend
+from popgp.backend import Backend
 
 log = logging.getLogger(__name__)
 
@@ -82,45 +82,6 @@ def count_partitions(n: int, k: int) -> int:
     return numerator // denominator
 
 
-# ── Local Hamiltonian Construction ───────────────────────────────────────
-
-
-def _build_local_hamiltonian(
-    cell: list[int],
-    edges: list[tuple[int, int]],
-    coupling_J: float,
-) -> torch.Tensor:
-    """Construct the Hamiltonian restricted to qubits within a single cell.
-
-    Only interactions between qubits that are *both* in the cell are
-    included.  This is the operator whose unitary generates the
-    'trace-then-evolve' branch of the leakage commutator (§4.4.2a).
-    """
-    k = len(cell)
-    d = 2 ** k
-    H_local = torch.zeros((d, d), dtype=torch.complex128)
-    local_map = {q: i for i, q in enumerate(cell)}
-
-    for qi, qj in edges:
-        if qi in local_map and qj in local_map:
-            li, lj = local_map[qi], local_map[qj]
-
-            def _op(op: torch.Tensor, site: int) -> torch.Tensor:
-                parts = [_I2] * k
-                parts[site] = op
-                out = parts[0]
-                for p in parts[1:]:
-                    out = torch.kron(out, p)
-                return out
-
-            H_local += coupling_J * (
-                _op(_SX, li) @ _op(_SX, lj)
-                + _op(_SY, li) @ _op(_SY, lj)
-                + _op(_SZ, li) @ _op(_SZ, lj)
-            )
-    return H_local
-
-
 def _evolve_local(
     rho_cell: torch.Tensor,
     H_local: torch.Tensor,
@@ -172,9 +133,12 @@ def compute_leakage(
     dt_sample = phase_window_width / phase_window_samples
     d_full = state.shape[0]
 
+    if edges != backend.build_edges():
+        raise ValueError("leakage edges must match the backend interaction graph")
+    if coupling_J != backend.config.substrate.coupling_J:
+        raise ValueError("leakage coupling_J must match the backend configuration")
     cell_H = {
-        i: _build_local_hamiltonian(cell, edges, coupling_J)
-        for i, cell in enumerate(cells)
+        i: backend.build_cell_hamiltonian(cell) for i, cell in enumerate(cells)
     }
 
     if probe_vecs is None:

@@ -9,11 +9,11 @@ import numpy as np
 
 @dataclass(frozen=True)
 class PowerLawFit:
-    """Log-log power-law fit with elementary uncertainty diagnostics."""
+    """Descriptive log-log power-law fit with a residual slope scale."""
 
     slope: float
     intercept: float
-    slope_standard_error: float
+    slope_residual_scale: float
     r_squared: float
 
 
@@ -87,14 +87,14 @@ def fit_power_law(amplitudes: np.ndarray, responses: np.ndarray) -> PowerLawFit:
     total_sum = float(np.sum((log_y - np.mean(log_y)) ** 2))
     degrees_of_freedom = x.size - 2
     centered_sum = float(np.sum((log_x - np.mean(log_x)) ** 2))
-    standard_error = float(
+    residual_scale = float(
         np.sqrt((residual_sum / degrees_of_freedom) / centered_sum)
     )
     r_squared = 1.0 if total_sum == 0.0 else 1.0 - residual_sum / total_sum
     return PowerLawFit(
         slope=float(slope),
         intercept=float(intercept),
-        slope_standard_error=standard_error,
+        slope_residual_scale=residual_scale,
         r_squared=r_squared,
     )
 
@@ -106,12 +106,14 @@ def fit_quadratic_asymptote(
     absolute_precision_floor: float = 0.0,
     minimum_signal_to_floor: float = 1000.0,
 ) -> QuadraticAsymptoteFit:
-    """Fit ``response / amplitude**2 = c0 + c1 * amplitude``.
+    """Fit ``response = c0*amplitude**2 + c1*amplitude**3``.
 
-    The intercept and its residual-propagation scale are descriptive, not sampling
-    estimates. A quadratic claim also needs nested-window agreement, an absolute
-    log-log slope band, residual control, and a first-order negative control; use
-    :func:`assess_quadratic_response` for that combined gate.
+    The response-space least-squares fit corresponds to inverse-variance weighting
+    after division by ``amplitude**2`` when the absolute numerical response floor is
+    approximately constant. The coefficient residual scale is descriptive, not a
+    sampling estimate. A quadratic claim also needs nested-window agreement, an
+    absolute log-log slope band, residual control, and a first-order negative control;
+    use :func:`assess_quadratic_response` for that combined gate.
     """
     x = np.asarray(amplitudes, dtype=float)
     y = np.asarray(responses, dtype=float)
@@ -136,16 +138,16 @@ def fit_quadratic_asymptote(
             f"the required factor {minimum_signal_to_floor:g}"
         )
 
-    scaled = y / x**2
-    design = np.column_stack([np.ones_like(x), x])
-    coefficient, linear_correction = np.linalg.lstsq(design, scaled, rcond=None)[0]
-    residual = scaled - design @ np.asarray([coefficient, linear_correction])
+    design = np.column_stack([x**2, x**3])
+    coefficient, linear_correction = np.linalg.lstsq(design, y, rcond=None)[0]
+    response_residual = y - design @ np.asarray([coefficient, linear_correction])
     degrees_of_freedom = x.size - 2
-    residual_variance = float(np.sum(residual**2) / degrees_of_freedom)
+    residual_variance = float(np.sum(response_residual**2) / degrees_of_freedom)
     covariance = residual_variance * np.linalg.inv(design.T @ design)
     coefficient_residual_scale = float(np.sqrt(max(covariance[0, 0], 0.0)))
+    scaled_residual = response_residual / x**2
     scale = max(abs(float(coefficient)), np.finfo(float).tiny)
-    normalized_rmse = float(np.sqrt(np.mean(residual**2)) / scale)
+    normalized_rmse = float(np.sqrt(np.mean(scaled_residual**2)) / scale)
     return QuadraticAsymptoteFit(
         coefficient=float(coefficient),
         coefficient_residual_scale=coefficient_residual_scale,
@@ -170,6 +172,10 @@ def assess_quadratic_response(
     """Assess quadratic order with independent coefficient, slope, and fit gates."""
     x = np.asarray(amplitudes, dtype=float)
     y = np.asarray(responses, dtype=float)
+    if x.shape != y.shape or x.ndim != 1 or x.size < 4:
+        raise ValueError("amplitudes and responses must be equal 1D arrays of length >= 4")
+    if np.any(np.diff(x) <= 0.0):
+        raise ValueError("amplitudes must be strictly increasing")
     if not 3 <= lower_window_size < x.size:
         raise ValueError("lower_window_size must be between 3 and len(amplitudes)-1")
     full = fit_quadratic_asymptote(

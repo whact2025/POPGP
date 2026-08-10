@@ -12,6 +12,10 @@ serialized bytes:
 * every numeric value must remain finite; and
 * every declared visual artifact must be tracked, present, and nonempty.
 
+The visual smoke check does not prove that each example rewrote its checked-out image
+during the current run. CI attests structured regeneration plus visual availability,
+not cross-platform image-byte regeneration.
+
 The wider policies below correspond to fields that changed materially in the frozen
 Linux CI diff for PR #2 while all associated scientific gates remained unchanged.
 Keeping the list here makes that exception reviewable instead of silently weakening
@@ -48,12 +52,20 @@ SENSITIVE_DIAGNOSTIC_TOLERANCES: dict[str, tuple[float, float]] = {
     # to at most a factor of 100 in either direction.
     "significance_ratio": (0.99, 0.0),
     "slope_deviation": (0.0, 2e-4),
-    "slope_standard_error": (0.0, 1e-4),
+    "slope_residual_scale": (0.0, 1e-4),
 }
 
 STABLE_INPUT_KEYS = frozenset({"beta", "epsilons"})
 VISUAL_SUFFIXES = frozenset({".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"})
 VALIDATION_GLOB = "examples/physics_qg/*/results/validation.json"
+INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
+    "examples/physics_qg/ca_model/results/validation.json": frozenset(
+        {"survivor_entropy_filter_regression"}
+    ),
+    "examples/physics_qg/chain_1d/results/validation.json": frozenset(
+        {"blind_edge_recovery"}
+    ),
+}
 
 
 @dataclass
@@ -200,6 +212,68 @@ def load_json_document(raw: str, *, source: str) -> Any:
         raise ValueError(f"{source}: invalid strict JSON: {exc}") from exc
 
 
+def check_validation_semantics(
+    document: Any,
+    relative_path: str,
+) -> list[str]:
+    """Validate headline/check consistency and the informational-check policy."""
+    if not isinstance(document, dict):
+        return ["validation document must be an object"]
+    checks = document.get("checks")
+    overall_pass = document.get("overall_pass")
+    if not isinstance(checks, list) or not checks:
+        return ["checks must be a nonempty array"]
+    if not isinstance(overall_pass, bool):
+        return ["overall_pass must be a boolean"]
+
+    errors: list[str] = []
+    names: set[str] = set()
+    informational_names: set[str] = set()
+    noninformational_outcomes: list[bool] = []
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict):
+            errors.append(f"checks[{index}] must be an object")
+            continue
+        name = check.get("name")
+        passed = check.get("passed")
+        severity = check.get("severity")
+        if not isinstance(name, str) or not name:
+            errors.append(f"checks[{index}].name must be a nonempty string")
+            continue
+        if name in names:
+            errors.append(f"duplicate check name {name!r}")
+        names.add(name)
+        if not isinstance(passed, bool):
+            errors.append(f"check {name!r} must have a boolean passed value")
+            continue
+        if severity not in {None, "informational"}:
+            errors.append(f"check {name!r} has unsupported severity {severity!r}")
+            continue
+        if severity == "informational":
+            informational_names.add(name)
+            if not passed:
+                errors.append(f"failing check {name!r} cannot be informational")
+        else:
+            noninformational_outcomes.append(passed)
+
+    expected_informational = INFORMATIONAL_CHECK_ALLOWLIST.get(
+        relative_path, frozenset()
+    )
+    if informational_names != expected_informational:
+        errors.append(
+            "informational check set changed "
+            f"(expected={sorted(expected_informational)}, "
+            f"actual={sorted(informational_names)})"
+        )
+    expected_overall = all(noninformational_outcomes)
+    if overall_pass is not expected_overall:
+        errors.append(
+            f"overall_pass={overall_pass} but non-informational conjunction is "
+            f"{expected_overall}"
+        )
+    return errors
+
+
 def check_required_visuals(
     document: Any,
     validation_path: Path,
@@ -297,6 +371,10 @@ def check_repository(repo_root: Path, *, base_ref: str = "HEAD") -> list[str]:
 
         summary = compare_validation_documents(reference, candidate)
         errors.extend(f"{relative_path}: {error}" for error in summary.errors)
+        errors.extend(
+            f"{relative_path}: {error}"
+            for error in check_validation_semantics(candidate, relative_path)
+        )
         errors.extend(
             check_required_visuals(
                 candidate,

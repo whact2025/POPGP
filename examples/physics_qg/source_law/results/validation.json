@@ -128,25 +128,25 @@
       "relative_entropy": {
         "slope": 1.999683771505978,
         "intercept": -0.5218766103968699,
-        "slope_standard_error": 6.833867207855639e-05,
+        "slope_residual_scale": 6.833867207855639e-05,
         "r_squared": 0.9999999836492207
       },
       "modular_energy": {
         "slope": 0.9999999999995276,
         "intercept": -0.8588501615567374,
-        "slope_standard_error": 1.8074841977714659e-13,
+        "slope_residual_scale": 1.8074841977714659e-13,
         "r_squared": 1.0
       },
       "relative_entropy_phi": {
         "slope": 1.9996837715059763,
         "intercept": -1.623816689157661,
-        "slope_standard_error": 6.833867207862644e-05,
+        "slope_residual_scale": 6.833867207862644e-05,
         "r_squared": 0.9999999836492207
       },
       "modular_energy_phi": {
         "slope": 0.9999999999995274,
         "intercept": -1.9607902403175215,
-        "slope_standard_error": 1.8076424496968592e-13,
+        "slope_residual_scale": 1.8076424496968592e-13,
         "r_squared": 1.0
       }
     },
@@ -172,7 +172,7 @@
       "value": {
         "slope": 1.999683771505978,
         "intercept": -0.5218766103968699,
-        "slope_standard_error": 6.833867207855639e-05,
+        "slope_residual_scale": 6.833867207855639e-05,
         "r_squared": 0.9999999836492207
       },
       "passed": true
@@ -184,7 +184,7 @@
         "fit": {
           "slope": 0.9999999999995276,
           "intercept": -0.8588501615567374,
-          "slope_standard_error": 1.8074841977714659e-13,
+          "slope_residual_scale": 1.8074841977714659e-13,
           "r_squared": 1.0
         },
         "max_absolute_identity_error": 7.020209066843641e-17
@@ -198,13 +198,13 @@
         "relative_entropy_phi": {
           "slope": 1.9996837715059763,
           "intercept": -1.623816689157661,
-          "slope_standard_error": 6.833867207862644e-05,
+          "slope_residual_scale": 6.833867207862644e-05,
           "r_squared": 0.9999999836492207
         },
         "modular_energy_phi": {
           "slope": 0.9999999999995274,
           "intercept": -1.9607902403175215,
-          "slope_standard_error": 1.8076424496968592e-13,
+          "slope_residual_scale": 1.8076424496968592e-13,
           "r_squared": 1.0
         },
         "max_ratio_spread": 1.6653345369377348e-16

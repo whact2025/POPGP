@@ -14,16 +14,19 @@ The response family is
 
 - global relative entropy, modular energy, entropy change, and physical energy;
 - an explicit symmetric site-energy decomposition that sums to the Hamiltonian;
-- global-energy conservation together with spreading of that site-energy profile
-  under exact evolution (without a tested local continuity current); and
+- constancy of the measured global Hamiltonian under its own evolution as an
+  implementation-consistency identity, together with separately observed spreading
+  of that site-energy profile (without a tested local continuity current); and
 - the sign of a diagnostic graph potential sourced by negative local energy change.
 
 The quadratic claim now has four independent numerical gates: nested-window
 coefficients agree within `1e-3` relatively, the absolute log-log slope is within
 `0.02` of 2, normalized RMSE is at most `1e-2`, and the smallest response exceeds an
 absolute floating-point floor by at least `1000`. The fitted coefficient is also
-compared with the exact Kubo--Mori coefficient. A synthetic first-order response must
-fail the same gate.
+compared with the exact Kubo--Mori coefficient. The asymptotic coefficient is fitted
+in response space, which is equivalent to inverse-variance weighting after division
+by `epsilon^2` for an approximately constant absolute numerical floor. A synthetic
+first-order response must fail the same gate.
 
 First-order modular response is tested directly on the signed series using Richardson
 extrapolation. Its magnitude must exceed ten times the combined truncation/roundoff

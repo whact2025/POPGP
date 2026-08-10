@@ -23,7 +23,9 @@
 ## Resolved implementation defects in the hardening pass
 
 - The documented grid constructor now selects one-qubit cells and runs directly.
-- Hamiltonian family selection no longer silently ignores `ising`.
+- Exact Hamiltonian construction and the exact Π_res cell generators both honor the
+  configured `heisenberg` or `ising` family. The separate scalable mean-field backend
+  remains a Heisenberg-only approximation and is labelled accordingly.
 - Relative entropy preserves its exact support divergence instead of flooring zeros.
 - Product-state magnetization is no longer reported as mutual information.
 - CUDA edge updates are color-batched by the Python backend to prevent shared-node races.

@@ -15,6 +15,18 @@ def test_grid_convenience_config_has_valid_single_qubit_cells() -> None:
     assert config.pi_res.cell_dim == 1
 
 
+def test_ising_pi_res_selects_contiguous_two_site_cells() -> None:
+    config = SimulatorConfig.for_chain(n=4, beta=1.0)
+    config.substrate.hamiltonian = "ising"
+    config.pi_res.cell_dim = 2
+    simulator = Simulator(config)
+
+    result = simulator.run_pi_res(simulator.prepare())
+
+    assert result.cells == [[0, 1], [2, 3]]
+    assert result.leakage == pytest.approx(5.712651e-4, rel=1e-6)
+
+
 def test_unscreened_clock_solve_removes_constant_source_mode() -> None:
     weights = torch.tensor(
         [[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]],
@@ -282,6 +294,130 @@ def test_kms_energy_density_candidate_aggregates_partitioned_sites() -> None:
         * modular_energy_delta(state, reference),
         abs=2e-14,
     )
+
+
+def test_rank_deficient_mds_canonical_frame_fixes_degenerate_rotation() -> None:
+    represented = torch.tensor(
+        [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
+        dtype=torch.float64,
+    )
+    coords = torch.column_stack(
+        [represented, torch.zeros(4, dtype=torch.float64)]
+    )
+    angle = 0.731
+    rotation = torch.tensor(
+        [
+            [math.cos(angle), -math.sin(angle), 0.0],
+            [math.sin(angle), math.cos(angle), 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=torch.float64,
+    )
+
+    canonical = Simulator._canonicalize_embedding(coords)
+    rotated = Simulator._canonicalize_embedding(coords @ rotation)
+
+    assert torch.allclose(canonical, rotated, atol=1e-12, rtol=1e-12)
+    assert torch.count_nonzero(canonical[:, 2]).item() == 0
+
+
+def _grid_hop_distances(width: int, height: int) -> torch.Tensor:
+    coordinates = torch.tensor(
+        [(x, y) for y in range(height) for x in range(width)],
+        dtype=torch.float64,
+    )
+    return torch.cdist(coordinates, coordinates, p=1)
+
+
+@pytest.mark.parametrize(
+    ("distance_matrix", "maximum_dimension"),
+    [
+        (_grid_hop_distances(3, 3), 6),
+        (
+            torch.tensor(
+                [
+                    [0, 1, 2, 2, 1],
+                    [1, 0, 1, 2, 2],
+                    [2, 1, 0, 1, 2],
+                    [2, 2, 1, 0, 1],
+                    [1, 2, 2, 1, 0],
+                ],
+                dtype=torch.float64,
+            ),
+            3,
+        ),
+    ],
+)
+def test_classical_mds_is_invariant_to_degenerate_eigenbasis_for_every_dimension(
+    monkeypatch: pytest.MonkeyPatch,
+    distance_matrix: torch.Tensor,
+    maximum_dimension: int,
+) -> None:
+    n = distance_matrix.shape[0]
+    centering = torch.eye(n, dtype=torch.float64) - torch.ones(
+        (n, n), dtype=torch.float64
+    ) / n
+    gram = -0.5 * centering @ distance_matrix.square() @ centering
+    original_eigh = torch.linalg.eigh
+    eigenvalues, eigenvectors = original_eigh(gram)
+    alternative = eigenvectors.clone()
+    tolerance = 1e-10
+    for index in range(n - 1):
+        if (
+            eigenvalues[index] > tolerance
+            and abs(float(eigenvalues[index + 1] - eigenvalues[index])) < tolerance
+        ):
+            angle = 0.731
+            first = eigenvectors[:, index]
+            second = eigenvectors[:, index + 1]
+            alternative[:, index] = math.cos(angle) * first + math.sin(angle) * second
+            alternative[:, index + 1] = (
+                -math.sin(angle) * first + math.cos(angle) * second
+            )
+            break
+    else:
+        pytest.fail("fixture must contain a degenerate positive eigenspace")
+
+    expected = {
+        dimension: Simulator._classical_mds(distance_matrix, dimension)
+        for dimension in range(1, maximum_dimension + 1)
+    }
+
+    def alternative_eigh(matrix: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        if matrix.shape == gram.shape and torch.allclose(
+            matrix, gram, atol=1e-13, rtol=1e-13
+        ):
+            return eigenvalues.clone(), alternative.clone()
+        return original_eigh(matrix)
+
+    monkeypatch.setattr(torch.linalg, "eigh", alternative_eigh)
+    for dimension in range(1, maximum_dimension + 1):
+        actual = Simulator._classical_mds(distance_matrix, dimension)
+        assert torch.allclose(
+            actual,
+            expected[dimension],
+            atol=1e-11,
+            rtol=1e-11,
+        )
+
+
+def test_gravitational_redshift_is_independent_of_default_dtype() -> None:
+    original_dtype = torch.get_default_dtype()
+    try:
+        torch.set_default_dtype(torch.float64)
+        float64_result = Simulator.gravitational_redshift(
+            -0.009963709390575564,
+            0.0022578960410844567,
+        )
+        torch.set_default_dtype(torch.float32)
+        float32_result = Simulator.gravitational_redshift(
+            -0.009963709390575564,
+            0.0022578960410844567,
+        )
+    finally:
+        torch.set_default_dtype(original_dtype)
+
+    assert float32_result == float64_result
 
 
 def test_kms_energy_density_candidate_rejects_beta_mismatch() -> None:

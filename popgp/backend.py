@@ -82,6 +82,16 @@ class Backend(abc.ABC):
     def build_edges(self) -> list[tuple[int, int]]:
         """Return the interaction graph edges for the lattice topology."""
 
+    def build_cell_hamiltonian(self, cell_indices: list[int]) -> torch.Tensor:
+        """Restrict the configured interaction Hamiltonian to one cell.
+
+        Backends that support multi-site coarse graining override this method so the
+        leakage functional uses the same Hamiltonian family as the substrate.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide a cell Hamiltonian"
+        )
+
     # ── phase-flow σ_s ───────────────────────────────────────────────
 
     @abc.abstractmethod
@@ -205,6 +215,32 @@ class ExactBackend(Backend):
             local_terms[i] += 0.5 * interaction
             local_terms[j] += 0.5 * interaction
         return local_terms
+
+    def build_cell_hamiltonian(self, cell_indices: list[int]) -> torch.Tensor:
+        """Restrict the configured pair terms to ``cell_indices``.
+
+        The restriction is derived from :meth:`build_interaction_terms`, rather than
+        rebuilding a Hamiltonian-family approximation inside the coarse-graining
+        module. Partial tracing contributes an identity factor for every omitted site,
+        which is divided out to recover the operator on the cell Hilbert space.
+        """
+        if not cell_indices:
+            raise ValueError("cell_indices must be nonempty")
+        if len(set(cell_indices)) != len(cell_indices):
+            raise ValueError("cell_indices must be unique")
+        if any(site < 0 or site >= self._N for site in cell_indices):
+            raise IndexError(f"cell indices must lie in [0, {self._N})")
+
+        cell = set(cell_indices)
+        internal = torch.zeros(
+            (self._dim, self._dim), dtype=torch.complex128
+        )
+        for (i, j), interaction in self.build_interaction_terms():
+            if i in cell and j in cell:
+                internal += interaction
+
+        complement_dimension = 2 ** (self._N - len(cell_indices))
+        return self.reduced_state(internal, cell_indices) / complement_dimension
 
     # ── substrate ────────────────────────────────────────────────────
 
