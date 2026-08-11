@@ -25,7 +25,7 @@
     "candidate_commit": {"$ref": "#/$defs/fullHash"},
     "baseline_commit": {"$ref": "#/$defs/fullHash"},
     "tree_hash": {"$ref": "#/$defs/fullHash"},
-    "packet_freeze_version": {"const": "popgp-packet-freeze-v3"},
+    "packet_freeze_version": {"const": "popgp-packet-freeze-v4"},
     "requirements": {"$ref": "#/$defs/contentRef"},
     "contract_files": {
       "type": "array",

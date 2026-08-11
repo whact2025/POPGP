@@ -108,7 +108,8 @@ blind_custody:
     reveal_receipt_id: null
     retention_policy: retain according to the frozen campaign policy
     immutable_location: replace-with-archive-location
-# VIA-900 replaces null with the typed clean-room contract described in the runbook.
+# VIA-900 replaces null with the typed clean-room contract described in the runbook,
+# including a Git-bundle receipt and an adjudicator-computed output-comparison receipt.
 external_replication: null
 outcome_rules: null
 receipts: []

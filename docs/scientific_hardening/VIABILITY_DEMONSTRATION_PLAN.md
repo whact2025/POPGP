@@ -487,7 +487,8 @@ support.
 - Deposit a frozen theory/protocol package, input data, public calibration cases,
   cryptographic hashes, and blinded holdout predictions.
 - Recruit an unaffiliated group with a different operator, no shared private evaluator,
-  and independently written core implementation. Declare all prior exposure.
+  no shared orchestrator, and independently written core implementation. Declare all
+  prior exposure.
 - Have that group choose its own numerical methods within the frozen observable and
   outcome contract, reveal holdouts only after its outputs are committed, and publish
   code, raw data, failures, and environment details.
@@ -536,7 +537,7 @@ any particular Crucible schema. Its authoritative components are:
 Contract v2 is a breaking replacement for the reviewed v1 draft. The v1 schemas were
 withdrawn because their literals, review summaries, custody order, and hash fields were
 not fail closed; no v1 packet or campaign may be promoted or silently translated to v2.
-The current `popgp-packet-freeze-v3` digest also freezes preregistered seat organization
+The current `popgp-packet-freeze-v4` digest also freezes preregistered seat organization
 and typed external-replication content; older draft freeze digests must be recomputed
 before holdout execution.
 
@@ -610,14 +611,21 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
 For `VIA-900`, a raw Boolean named `unaffiliated-operator` is necessary but not
 sufficient. The packet must also carry a frozen typed `external_replication` contract.
 That contract records an external organization and operator, independent repository
-commit/tree provenance, zero prior candidate/output/conclusion exposure, a blinded
-prediction commitment and custodian reveal, an external output commitment, and the
-candidate/external result comparison. Organization, operator, agent, model, and session
-must all be distinct from every internal campaign seat, and the external repository
-cannot be the candidate repository. The named structured receipts must reproduce the
-contract exactly. Therefore the local validator can check a clean-room evidence package
-without converting a same-operator assertion into Tier E; an external maintainer must
-still verify that the off-system affiliation and authorship declarations are truthful.
+commit/tree provenance resolved from a content-addressed Git bundle, zero prior
+candidate/output/conclusion exposure, a blinded prediction commitment and custodian
+reveal, an external output commitment, and a typed candidate/external comparison.
+Organization, operator, agent, model, session, and orchestrator must all be distinct
+from every internal campaign seat. Canonical repository aliases, candidate commit/tree
+reuse, nonexistent bundle commits, and mismatched trees are rejected. The candidate
+side of the comparison is exactly the custody-committed raw result; candidate/external
+paths and bytes must differ. After reveal, the adjudicator records both hashes, the
+frozen JSON pointer and absolute tolerance, both measured values, and the recomputed
+agreement Boolean. A disagreement is valid failure evidence only when adjudication is
+`failed` with `external-replication-disagreed`; it is not discarded as an invalid run.
+The named structured receipts must reproduce the contract exactly. Therefore the local
+validator can check a clean-room evidence package without converting a same-operator
+assertion into Tier E; an external maintainer must still verify that off-system
+affiliation and independent authorship declarations are truthful.
 
 Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a
 SHA-256-verified `raw-results` JSON receipt, a JSON Pointer, and an exact JSON type.
@@ -665,10 +673,12 @@ reviews/viability/<campaign-id>/
     BUILDER-RESPONSE-<round>.md
     INDEPENDENT-REREVIEW-<round>.md
     EXTERNAL-IMPLEMENTATION-PROVENANCE.json
+    EXTERNAL-REPOSITORY.bundle
     BLINDED-PREDICTION.json
     PREDICTION-REVEAL.json
     EXTERNAL-OUTPUT.json
     EXTERNAL-OUTPUT-COMMITMENT.json
+    CROSS-IMPLEMENTATION-COMPARISON.json
     EXTERNAL-REPLICATION.json
     CLAIM-DIFF-<round>.md
     ADJUDICATION-<round>.md

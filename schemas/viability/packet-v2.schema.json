@@ -308,6 +308,7 @@
             "model_version",
             "operator",
             "session_id",
+            "orchestrator_id",
             "organization_id"
           ],
           "properties": {
@@ -316,6 +317,7 @@
             "model_version": {"type": "string", "minLength": 1},
             "operator": {"type": "string", "minLength": 1},
             "session_id": {"type": "string", "minLength": 1},
+            "orchestrator_id": {"type": "string", "minLength": 1},
             "organization_id": {"type": "string", "minLength": 1}
           }
         },
@@ -328,15 +330,19 @@
             "tree_hash",
             "independently_authored",
             "candidate_core_derived",
-            "provenance_receipt_id"
+            "provenance_receipt_id",
+            "repository_bundle_receipt_id",
+            "repository_bundle_sha256"
           ],
           "properties": {
-            "repository": {"type": "string", "minLength": 1},
+            "repository": {"type": "string", "format": "uri", "minLength": 1},
             "commit_hash": {"$ref": "#/$defs/fullHash"},
             "tree_hash": {"$ref": "#/$defs/fullHash"},
             "independently_authored": {"const": true},
             "candidate_core_derived": {"const": false},
-            "provenance_receipt_id": {"type": "string", "minLength": 1}
+            "provenance_receipt_id": {"type": "string", "minLength": 1},
+            "repository_bundle_receipt_id": {"type": "string", "minLength": 1},
+            "repository_bundle_sha256": {"$ref": "#/$defs/sha256"}
           }
         },
         "prior_exposure": {
@@ -399,14 +405,28 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "receipt_id",
             "candidate_output_receipt_id",
+            "candidate_output_sha256",
             "external_output_receipt_id",
-            "agreement_json_pointer"
+            "external_output_sha256",
+            "method",
+            "metric_json_pointer",
+            "absolute_tolerance",
+            "compared_by",
+            "compared_at"
           ],
           "properties": {
+            "receipt_id": {"type": "string", "minLength": 1},
             "candidate_output_receipt_id": {"type": "string", "minLength": 1},
+            "candidate_output_sha256": {"$ref": "#/$defs/sha256"},
             "external_output_receipt_id": {"type": "string", "minLength": 1},
-            "agreement_json_pointer": {"const": "/agreement"}
+            "external_output_sha256": {"$ref": "#/$defs/sha256"},
+            "method": {"const": "absolute-difference-v1"},
+            "metric_json_pointer": {"type": "string", "pattern": "^/"},
+            "absolute_tolerance": {"type": "number", "minimum": 0},
+            "compared_by": {"type": "string", "minLength": 1},
+            "compared_at": {"type": "string", "format": "date-time"}
           }
         }
       }
@@ -514,8 +534,10 @@
             "adjudication",
             "claim-diff",
             "independent-implementation",
+            "independent-repository-bundle",
             "refinement-results",
             "external-replication",
+            "cross-implementation-comparison",
             "blinded-prediction",
             "reveal-record",
             "output-commitment",

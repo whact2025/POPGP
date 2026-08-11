@@ -6,7 +6,7 @@
   "candidate_commit": "0000000000000000000000000000000000000000",
   "baseline_commit": "0000000000000000000000000000000000000000",
   "tree_hash": "0000000000000000000000000000000000000000",
-  "packet_freeze_version": "popgp-packet-freeze-v3",
+  "packet_freeze_version": "popgp-packet-freeze-v4",
   "requirements": {
     "path": "schemas/viability/requirements-v2.json",
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"

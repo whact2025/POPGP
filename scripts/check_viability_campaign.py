@@ -10,10 +10,13 @@ import math
 import re
 import subprocess
 import sys
+import tempfile
 from collections.abc import Mapping
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
@@ -21,7 +24,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 CONTRACT_VERSION = "popgp-viability-contract-v2"
 REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
 RULE_LANGUAGE = "popgp-bool-v2"
-PACKET_FREEZE_VERSION = "popgp-packet-freeze-v3"
+PACKET_FREEZE_VERSION = "popgp-packet-freeze-v4"
 KNOWN_REQUIREMENTS_SHA256 = (
     "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 )
@@ -1081,6 +1084,95 @@ def _structured_external_receipt(
         return None
 
 
+def _canonical_repository_identity(value: str) -> str:
+    """Normalize common Git URL/path aliases for repository-identity comparisons."""
+    raw = value.strip().replace("\\", "/")
+    scp_match = re.fullmatch(r"(?:[^@/]+@)?([^:/]+):(.+)", raw)
+    if scp_match and "://" not in raw:
+        raw = f"ssh://{scp_match.group(1)}/{scp_match.group(2)}"
+    try:
+        parsed = urlsplit(raw)
+    except ValueError:
+        return raw.rstrip("/").removesuffix(".git").lower()
+    if parsed.scheme and parsed.scheme != "file":
+        authority = parsed.netloc.rsplit("@", 1)[-1].lower()
+        path = unquote(parsed.path).replace("//", "/").rstrip("/")
+        if path.lower().endswith(".git"):
+            path = path[:-4]
+        return f"{authority}{path}".lower()
+    if parsed.scheme == "file":
+        raw = unquote(parsed.path)
+    try:
+        normalized = str(Path(raw).resolve()).replace("\\", "/").rstrip("/")
+    except OSError:
+        normalized = raw.rstrip("/")
+    if normalized.lower().endswith(".git"):
+        normalized = normalized[:-4]
+    return normalized.lower()
+
+
+def _external_git_bundle_errors(
+    receipts: Mapping[str, Any],
+    implementation: Mapping[str, Any],
+    packet_id: str,
+) -> list[str]:
+    """Resolve the declared external commit/tree from a content-addressed Git bundle."""
+    errors: list[str] = []
+    receipt_id = implementation["repository_bundle_receipt_id"]
+    receipt = receipts.get(receipt_id)
+    if receipt is None or receipt.get("kind") != "independent-repository-bundle":
+        return [f"packet {packet_id}: external repository bundle receipt is missing"]
+    if receipt.get("media_type") != "application/x-git-bundle":
+        errors.append(
+            f"packet {packet_id}: external repository bundle has wrong media type"
+        )
+    if receipt.get("sha256") != implementation["repository_bundle_sha256"]:
+        errors.append(f"packet {packet_id}: external repository bundle hash differs")
+    bundle_path = receipt.get("_resolved_path")
+    if not isinstance(bundle_path, Path) or not bundle_path.is_file():
+        errors.append(f"packet {packet_id}: external repository bundle is unavailable")
+        return errors
+    try:
+        with tempfile.TemporaryDirectory(prefix="popgp-external-bundle-") as temporary:
+            checkout = Path(temporary) / "repository"
+            result = subprocess.run(
+                [
+                    "git",
+                    "clone",
+                    "--quiet",
+                    "--no-checkout",
+                    str(bundle_path),
+                    str(checkout),
+                ],
+                check=False,
+                capture_output=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                detail = result.stderr.decode("utf-8", errors="replace").strip()
+                errors.append(
+                    f"packet {packet_id}: external repository bundle cannot be cloned: "
+                    f"{detail or result.returncode}"
+                )
+                return errors
+            commit = implementation["commit_hash"]
+            if not _git_commit_exists(checkout, commit):
+                errors.append(
+                    f"packet {packet_id}: external implementation commit is absent "
+                    "from repository bundle"
+                )
+            else:
+                observed_tree = _git_tree(checkout, commit)
+                if observed_tree != implementation["tree_hash"]:
+                    errors.append(
+                        f"packet {packet_id}: external implementation tree differs "
+                        "from repository bundle"
+                    )
+    except (OSError, subprocess.SubprocessError, UnicodeDecodeError, ValueError) as exc:
+        errors.append(f"packet {packet_id}: external repository bundle is invalid: {exc}")
+    return errors
+
+
 def _validate_external_replication(
     packet: Mapping[str, Any],
     receipts: Mapping[str, Any],
@@ -1109,8 +1201,10 @@ def _validate_external_replication(
         "agent identity": (operator["agent_identity"], "agent_identities"),
         "operator": (operator["operator"], "operators"),
         "organization": (organization["id"], "organizations"),
+        "organization name": (organization["name"], "organizations"),
         "model identity": (operator["model_identity"], "model_identities"),
         "session": (operator["session_id"], "session_ids"),
+        "orchestrator": (operator["orchestrator_id"], "orchestrator_ids"),
     }
     for label, (value, fact_key) in comparisons.items():
         if value in internal_facts[fact_key]:
@@ -1118,8 +1212,15 @@ def _validate_external_replication(
                 f"packet {packet_id}: external {label} is not distinct from internal campaign"
             )
     implementation = contract["implementation"]
-    if implementation["repository"] == campaign["repository"]:
+    if _canonical_repository_identity(
+        implementation["repository"]
+    ) == _canonical_repository_identity(campaign["repository"]):
         errors.append(f"packet {packet_id}: external implementation reuses candidate repository")
+    if implementation["commit_hash"] == campaign["candidate_commit"]:
+        errors.append(f"packet {packet_id}: external implementation reuses candidate commit")
+    if implementation["tree_hash"] == campaign["tree_hash"]:
+        errors.append(f"packet {packet_id}: external implementation reuses candidate tree")
+    errors.extend(_external_git_bundle_errors(receipts, implementation, packet_id))
 
     contract_document = _structured_external_receipt(
         receipts,
@@ -1132,7 +1233,6 @@ def _validate_external_replication(
     if contract_document is not None and contract_document != {
         "packet_id": packet_id,
         "contract": contract,
-        "agreement": True,
     }:
         errors.append(
             f"packet {packet_id}: external replication receipt differs from packet contract"
@@ -1220,16 +1320,6 @@ def _validate_external_replication(
         "raw output",
         errors,
     )
-    if output_document is not None:
-        try:
-            agreement = _json_pointer(
-                output_document, contract["comparison"]["agreement_json_pointer"]
-            )
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
-            errors.append(f"packet {packet_id}: external agreement cannot resolve: {exc}")
-        else:
-            if type(agreement) is not bool or not agreement:
-                errors.append(f"packet {packet_id}: cross-implementation agreement is false")
     if reproduction["committed_by"] != operator["agent_identity"]:
         errors.append(f"packet {packet_id}: external output has wrong committer")
     commitment_document = _structured_external_receipt(
@@ -1253,23 +1343,139 @@ def _validate_external_replication(
     candidate_receipt = receipts.get(comparison["candidate_output_receipt_id"])
     if candidate_receipt is None or candidate_receipt.get("kind") != "raw-results":
         errors.append(f"packet {packet_id}: comparison candidate output is missing")
+    custody_commitment = packet["blind_custody"]["output_commitment"]
+    if not isinstance(custody_commitment, Mapping):
+        errors.append(f"packet {packet_id}: comparison requires candidate output commitment")
+    else:
+        if (
+            comparison["candidate_output_receipt_id"]
+            != custody_commitment["output_receipt_id"]
+        ):
+            errors.append(
+                f"packet {packet_id}: comparison candidate output differs from custody output"
+            )
+        if comparison["candidate_output_sha256"] != custody_commitment["output_sha256"]:
+            errors.append(
+                f"packet {packet_id}: comparison candidate hash differs from custody output"
+            )
+    if candidate_receipt is not None and candidate_receipt.get("sha256") != comparison[
+        "candidate_output_sha256"
+    ]:
+        errors.append(f"packet {packet_id}: comparison candidate output hash differs")
     if comparison["external_output_receipt_id"] != reproduction["output_receipt_id"]:
         errors.append(f"packet {packet_id}: comparison external output differs")
+    if comparison["external_output_sha256"] != reproduction["output_sha256"]:
+        errors.append(f"packet {packet_id}: comparison external output hash differs")
     if comparison["candidate_output_receipt_id"] == comparison[
         "external_output_receipt_id"
     ]:
         errors.append(f"packet {packet_id}: comparison reuses one output receipt")
+    if candidate_receipt is not None and output_receipt is not None:
+        if candidate_receipt.get("sha256") == output_receipt.get("sha256"):
+            errors.append(f"packet {packet_id}: comparison output bytes are not distinct")
+        if candidate_receipt.get("_resolved_path") == output_receipt.get("_resolved_path"):
+            errors.append(f"packet {packet_id}: comparison output paths are not distinct")
+
+    candidate_document = _structured_external_receipt(
+        receipts,
+        comparison["candidate_output_receipt_id"],
+        "raw-results",
+        packet_id,
+        "candidate comparison output",
+        errors,
+    )
+    candidate_value: int | float | None = None
+    external_value: int | float | None = None
+    agreement: bool | None = None
+    if candidate_document is not None and output_document is not None:
+        try:
+            candidate_metric = _json_pointer(
+                candidate_document, comparison["metric_json_pointer"]
+            )
+            external_metric = _json_pointer(
+                output_document, comparison["metric_json_pointer"]
+            )
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            errors.append(f"packet {packet_id}: comparison metric cannot resolve: {exc}")
+        else:
+            tolerance = comparison["absolute_tolerance"]
+            numeric_values = (candidate_metric, external_metric, tolerance)
+            if any(type(value) not in {int, float} for value in numeric_values) or any(
+                type(value) is float and not math.isfinite(value)
+                for value in numeric_values
+            ):
+                errors.append(f"packet {packet_id}: comparison metrics must be finite numbers")
+            else:
+                try:
+                    difference = abs(
+                        Decimal(str(candidate_metric)) - Decimal(str(external_metric))
+                    )
+                    agreement = difference <= Decimal(str(tolerance))
+                except (InvalidOperation, ValueError):
+                    errors.append(
+                        f"packet {packet_id}: comparison metrics cannot be evaluated"
+                    )
+                else:
+                    candidate_value = candidate_metric
+                    external_value = external_metric
+
+    adjudicator = packet["seats"]["adjudicator"]["agent_identity"]
+    if comparison["compared_by"] != adjudicator:
+        errors.append(f"packet {packet_id}: comparison must be made by adjudicator")
+    comparison_document = _structured_external_receipt(
+        receipts,
+        comparison["receipt_id"],
+        "cross-implementation-comparison",
+        packet_id,
+        "comparison",
+        errors,
+    )
+    if agreement is not None:
+        expected_comparison = {
+            "packet_id": packet_id,
+            "compared_by": comparison["compared_by"],
+            "compared_at": comparison["compared_at"],
+            "method": comparison["method"],
+            "metric_json_pointer": comparison["metric_json_pointer"],
+            "absolute_tolerance": comparison["absolute_tolerance"],
+            "candidate_output_receipt_id": comparison["candidate_output_receipt_id"],
+            "candidate_output_sha256": comparison["candidate_output_sha256"],
+            "candidate_value": candidate_value,
+            "external_output_receipt_id": comparison["external_output_receipt_id"],
+            "external_output_sha256": comparison["external_output_sha256"],
+            "external_value": external_value,
+            "agreement": agreement,
+        }
+        if comparison_document is not None and comparison_document != expected_comparison:
+            errors.append(
+                f"packet {packet_id}: comparison receipt differs from computed outputs"
+            )
+        causes = set(packet["adjudication"]["cause_codes"])
+        outcome = packet["adjudication"]["packet_outcome"]
+        disagreement_cause = "external-replication-disagreed"
+        if agreement and disagreement_cause in causes:
+            errors.append(
+                f"packet {packet_id}: agreement cannot claim external disagreement cause"
+            )
+        if not agreement and (
+            outcome != "failed" or disagreement_cause not in causes
+        ):
+            errors.append(
+                f"packet {packet_id}: external disagreement requires failed adjudication"
+            )
 
     try:
         prediction_time = _parse_datetime(prediction["committed_at"])
         output_time = _parse_datetime(reproduction["committed_at"])
         reveal_time = _parse_datetime(packet["blind_custody"]["reveal"]["revealed_at"])
+        comparison_time = _parse_datetime(comparison["compared_at"])
     except (AttributeError, TypeError, ValueError) as exc:
         errors.append(f"packet {packet_id}: external replication timestamps are invalid: {exc}")
     else:
-        if not prediction_time < output_time < reveal_time:
+        if not prediction_time < output_time < reveal_time < comparison_time:
             errors.append(
-                f"packet {packet_id}: prediction, external output, and reveal order is invalid"
+                f"packet {packet_id}: prediction, external output, reveal, and comparison "
+                "order is invalid"
             )
     return errors
 
@@ -2194,6 +2400,7 @@ def validate_campaign(
         "organizations": set(),
         "model_identities": set(),
         "session_ids": set(),
+        "orchestrator_ids": set(),
     }
     fact_fields = {
         "agent_identity": "agent_identities",
@@ -2201,6 +2408,7 @@ def validate_campaign(
         "organization": "organizations",
         "model_identity": "model_identities",
         "session_id": "session_ids",
+        "orchestrator_id": "orchestrator_ids",
     }
     for packet, _packet_path in loaded.values():
         seats = packet.get("seats")
