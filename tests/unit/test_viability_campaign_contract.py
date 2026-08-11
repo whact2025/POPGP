@@ -2091,14 +2091,46 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
     tmp_path: Path,
 ) -> None:
     repository_aliases = {
-        "default-port": "https://github.com:443/whact2025/POPGP",
-        "dns-trailing-dot": "https://github.com./whact2025/POPGP",
-        "dot-segment": "https://github.com/whact2025/x/../POPGP",
-        "terminal-dot-git-segment": "https://github.com/whact2025/POPGP/.git",
+        "default-port": (
+            "https://github.com/whact2025/POPGP",
+            "https://github.com:443/whact2025/POPGP",
+        ),
+        "dns-trailing-dot": (
+            "https://github.com/whact2025/POPGP",
+            "https://github.com./whact2025/POPGP",
+        ),
+        "dot-segment": (
+            "https://github.com/whact2025/POPGP",
+            "https://github.com/whact2025/x/../POPGP",
+        ),
+        "terminal-dot-git-segment": (
+            "https://github.com/whact2025/POPGP",
+            "https://github.com/whact2025/POPGP/.git",
+        ),
+        "percent-encoded-host": (
+            "https://github.com/whact2025/POPGP",
+            "https://%67ithub.com/whact2025/POPGP",
+        ),
+        "expanded-ipv6": (
+            "https://[2001:db8::1]/repo",
+            "https://[2001:0db8:0:0:0:0:0:1]/repo",
+        ),
+        "windows-file-uri": (
+            "C:/src/same-repository",
+            "file:///C:/src/same-repository",
+        ),
+        "leading-zero-ipv4": (
+            "https://127.0.0.1/repo",
+            "https://127.000.000.001/repo",
+        ),
+        "git-plus-ssh": (
+            "ssh://github.com/whact2025/POPGP",
+            "git+ssh://github.com:22/whact2025/POPGP",
+        ),
     }
-    for label, repository in repository_aliases.items():
+    for label, (candidate_repository, external_repository) in repository_aliases.items():
         def reuse_candidate_repository(
-            external: dict[str, Any], *, value: str = repository
+            external: dict[str, Any], *, value: str = external_repository
         ) -> None:
             external["implementation"]["repository"] = value
 
@@ -2109,21 +2141,31 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
         campaign_path, _ = _make_campaign(
             tmp_path / f"repository-{label}-campaign", frozen, target_tier="E"
         )
+        campaign = _load(campaign_path)
+        campaign["repository"] = candidate_repository
+        _write_yaml(campaign_path, campaign)
         errors = validate_campaign(campaign_path, repo_root=frozen["root"])
         assert any("reuses candidate repository" in error for error in errors), errors
 
-    def unsafe_repository(external: dict[str, Any]) -> None:
-        external["implementation"]["repository"] = "file:///%00bad"
+    invalid_repositories = {
+        "control-character": "file:///%00bad",
+        "malformed-percent-escape": "https://example.com/%ZZ/repo",
+    }
+    for label, repository in invalid_repositories.items():
+        def unsafe_repository(
+            external: dict[str, Any], *, value: str = repository
+        ) -> None:
+            external["implementation"]["repository"] = value
 
-    frozen = _build_frozen_repo(
-        tmp_path / "repository-control-character-frozen",
-        external_mutation=unsafe_repository,
-    )
-    campaign_path, _ = _make_campaign(
-        tmp_path / "repository-control-character-campaign", frozen, target_tier="E"
-    )
-    errors = validate_campaign(campaign_path, repo_root=frozen["root"])
-    assert any("repository identity is invalid" in error for error in errors), errors
+        frozen = _build_frozen_repo(
+            tmp_path / f"repository-{label}-frozen",
+            external_mutation=unsafe_repository,
+        )
+        campaign_path, _ = _make_campaign(
+            tmp_path / f"repository-{label}-campaign", frozen, target_tier="E"
+        )
+        errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+        assert any("repository identity is invalid" in error for error in errors), errors
 
     comparison_substitutions = {
         "numeric-integer-agreement": ("agreement", 1),

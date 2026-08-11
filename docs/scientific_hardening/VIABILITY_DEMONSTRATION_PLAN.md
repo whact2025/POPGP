@@ -604,9 +604,9 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
   packet-specific protocol bytes absent or changed at the protocol commit, same-version
   requirements changes, or execution with contract files different from the protocol
   commit;
-- duplicate YAML/JSON mapping keys, malformed external types, unsafe decoded URI
-  control characters, and invalid repository identities without raising an uncaught
-  validator exception; and
+- duplicate YAML/JSON mapping keys, malformed external types, invalid percent escapes,
+  unsafe decoded URI control characters, and invalid repository identities without
+  raising an uncaught validator exception; and
 - a campaign outcome inconsistent with its required packet outcomes.
 
 For `VIA-900`, a raw Boolean named `unaffiliated-operator` is necessary but not
@@ -617,11 +617,12 @@ candidate/output/conclusion exposure, a blinded prediction commitment and custod
 reveal, an external output commitment, and a typed candidate/external comparison.
 Organization, operator, agent, model, session, and orchestrator must all be distinct
 from every internal campaign seat. Canonical repository aliases—including default
-ports, DNS trailing dots, dot segments, credentials, protocol spelling, and terminal
+ports, DNS trailing dots, percent-encoded hostnames, canonical IP literals, equivalent
+Windows/file-URI paths, dot segments, credentials, protocol spelling, and terminal
 `.git` path forms—candidate commit/tree reuse, nonexistent bundle commits, and
-mismatched trees are rejected. Invalid or control-bearing repository identities fail
-closed before filesystem access. The candidate side of the comparison is exactly the
-custody-committed raw result; candidate/external
+mismatched trees are rejected. Invalid, malformed-percent, or control-bearing
+repository identities fail closed before filesystem access. The candidate side of the
+comparison is exactly the custody-committed raw result; candidate/external
 paths and bytes must differ. After reveal, the adjudicator records both hashes, the
 frozen JSON pointer and absolute tolerance, both measured values, and the recomputed
 agreement Boolean. Structured receipts use strict JSON type equality: Boolean and

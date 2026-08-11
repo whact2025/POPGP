@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import functools
 import hashlib
+import ipaddress
 import json
 import math
 import posixpath
@@ -1087,6 +1088,8 @@ def _structured_external_receipt(
 
 def _repository_text_is_safe(value: str) -> bool:
     """Reject decoded control characters before any URL or filesystem operation."""
+    if re.search(r"%(?![0-9A-Fa-f]{2})", value):
+        return False
     try:
         decoded = unquote(value, errors="strict")
     except UnicodeDecodeError:
@@ -1134,17 +1137,39 @@ def _canonical_repository_identity(value: str) -> str | None:
             return None
         if not host:
             return None
+        try:
+            host = unquote(host, errors="strict")
+        except UnicodeDecodeError:
+            return None
+        if not _repository_text_is_safe(host) or any(
+            character in host for character in "/\\?#@[]"
+        ):
+            return None
         host = host.rstrip(".").lower()
         if not host:
             return None
-        if ":" not in host:
+        dotted_decimal = re.fullmatch(r"\d+(?:\.\d+){3}", host)
+        if dotted_decimal:
+            octets = [int(part, 10) for part in host.split(".")]
+            if any(octet > 255 for octet in octets):
+                return None
+            host = ".".join(str(octet) for octet in octets)
+        try:
+            host = ipaddress.ip_address(host).compressed
+        except ValueError:
             try:
                 host = host.encode("idna").decode("ascii")
             except UnicodeError:
                 return None
         scheme = parsed.scheme.lower()
-        default_ports = {"http": 80, "https": 443, "ssh": 22, "git": 9418}
-        authority = host
+        default_ports = {
+            "http": 80,
+            "https": 443,
+            "ssh": 22,
+            "git+ssh": 22,
+            "git": 9418,
+        }
+        authority = f"[{host}]" if ":" in host else host
         if port is not None and port != default_ports.get(scheme):
             authority = f"{authority}:{port}"
         path = _canonical_git_path(parsed.path)
@@ -1156,7 +1181,9 @@ def _canonical_repository_identity(value: str) -> str | None:
             local_path = unquote(parsed.path, errors="strict")
         except UnicodeDecodeError:
             return None
-        if parsed.netloc:
+        if re.match(r"^/[A-Za-z]:/", local_path):
+            local_path = local_path[1:]
+        if parsed.netloc and parsed.netloc.lower() != "localhost":
             local_path = f"//{parsed.netloc}{local_path}"
     else:
         local_path = raw
