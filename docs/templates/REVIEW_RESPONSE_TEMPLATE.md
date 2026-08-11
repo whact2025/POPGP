@@ -4,6 +4,10 @@ This is a builder artifact, not a re-review and not proof that a finding is reso
 Store completed responses under `reviews/codex/`. The independent reviewer assigns
 final finding outcomes in a later artifact.
 
+Completed responses used by a viability campaign must conform to
+[`review-response-v1.schema.json`](../../schemas/viability/review-response-v1.schema.json)
+and be named by an immutable `commit:path` reference in the packet review chain.
+
 ```yaml
 artifact_schema_version: 1
 response_id: ""

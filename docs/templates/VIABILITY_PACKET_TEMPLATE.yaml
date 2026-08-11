@@ -21,6 +21,27 @@ null_or_competitors:
 known_failure_to_retain: replace with a named negative result or none
 threat_model:
   - replace with a concrete adversarial threat
+preregistration:
+  parameters:
+    replace_parameter: replace-value
+  measurement_procedure: replace with the exact measurement procedure
+  uncertainty_procedure: replace with the exact uncertainty procedure
+  statistical_analysis: replace with the exact analysis and threshold policy
+  resource_budget:
+    wall_time_seconds: 1
+    memory_bytes: 1
+    accelerator_seconds: 0
+  commands:
+    - replace with an exact executable command
+  mutation_plan:
+    - replace with a preregistered adversarial mutation
+  protocol_artifacts:
+    - receipt_id: protocol
+      content_role: primary-protocol
+      campaign_path: ../receipts/VIA-000/protocol.json
+      protocol_path: protocols/POPGP-VIABILITY-REPLACE-ME/VIA-000.json
+      sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      media_type: application/json
 holdout_started: false
 seats:
   protocol_designer: &seat_protocol
@@ -89,8 +110,11 @@ outcome_rules: null
 receipts: []
 review_chain:
   initial_review_receipt: null
+  initial_review_ref: null
   response_receipts: []
+  response_refs: []
   rereview_receipts: []
+  rereview_refs: []
   findings: []
   requested_tests: []
 adjudication:

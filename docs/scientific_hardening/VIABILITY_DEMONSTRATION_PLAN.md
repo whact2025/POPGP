@@ -514,6 +514,12 @@ any particular Crucible schema. Its authoritative components are:
 - [`protocol-manifest-v2.schema.json`](../../schemas/viability/protocol-manifest-v2.schema.json),
   which binds the campaign, canonical requirements, contract files, and every packet's
   preregistered rules to bytes present at the named protocol commit;
+- [`independent-review-v1.schema.json`](../../schemas/viability/independent-review-v1.schema.json),
+  [`review-response-v1.schema.json`](../../schemas/viability/review-response-v1.schema.json),
+  and [`independent-rereview-v1.schema.json`](../../schemas/viability/independent-rereview-v1.schema.json),
+  which make reviewer identity, independence, evidence, builder disposition,
+  verification, references, and recommendation fields executable rather than optional
+  prose;
 - [`requirements-v2.json`](../../schemas/viability/requirements-v2.json), which owns
   tier membership, dependencies, execution waves, required capabilities, evidence
   ordering/floors, and receipt kinds;
@@ -530,7 +536,15 @@ not fail closed; no v1 packet or campaign may be promoted or silently translated
 
 Copy the templates into a new campaign and duplicate the packet template for every
 required packet. Populate the candidate/baseline/tree identities, rules, raw-result
-bindings, seat assignments, and hidden-manifest commitments before any holdout work.
+bindings, seat assignments, hidden-manifest commitments, and the complete
+`preregistration` block before any holdout work. That block records canonical
+parameters, measurement and uncertainty procedures, statistical analysis, resource
+budget, exact commands, mutation plan, and one or more protocol-artifact content
+references. Each referenced blob must already be stored at its repository-relative
+`protocol_path` with the recorded raw-byte SHA-256. Exactly one reference is the
+`primary-protocol`; its JSON parameters, procedures, analysis, budget, commands, and
+mutation plan must equal the canonical packet block. Other references are explicitly
+`supporting` rather than competing protocol definitions.
 Print each canonical packet-rule hash with:
 
 ```powershell
@@ -539,10 +553,11 @@ uv run python scripts/check_viability_campaign.py `
 ```
 
 Put those hashes and the Git-blob SHA-256 values for every required contract file into
-`PROTOCOL_MANIFEST.json`, commit that manifest and its referenced contract files, then
-record the resulting full `protocol_commit` and manifest hash in the campaign and all
-packets. The helper below hashes a file exactly as stored in that Git commit, avoiding
-checkout line-ending differences:
+`PROTOCOL_MANIFEST.json`. Commit the manifest, all referenced contract files, and every
+packet-specific protocol artifact in one immutable protocol snapshot. Then record the
+resulting full `protocol_commit` and manifest hash in the campaign and all packets. The
+helper below hashes a file exactly as stored in that Git commit, avoiding checkout
+line-ending differences:
 
 ```powershell
 uv run python scripts/check_viability_campaign.py `
@@ -564,16 +579,22 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
 - missing dependencies, cycles, same-wave prerequisites, and holdout execution before
   every dependency is adjudicated `passed`;
 - missing, out-of-tree, or SHA-256-mismatched receipts and empty decisive evidence;
-- review summaries that do not exactly reconcile to the hashed initial-review,
-  builder-response, and re-review artifact bytes, including dangling supersessions;
+- review summaries that do not exactly reconcile to schema-valid initial-review,
+  builder-response, and re-review artifact bytes at immutable `commit:path` refs,
+  including incomplete evidence, missing identity/independence fields, wrong candidate
+  bindings, omitted items, and dangling supersessions;
 - prohibited seat/session reuse or hidden-data exposure by a blind seat;
 - reveal not authorized by the evaluator/custodian, reveal before reproduced holdout
   execution, output commitments not made by the reproduction runner or not bound to its
   raw-result bytes, changed post-reveal manifests, missing custody metadata, or
   unsupported canonicalization;
 - nonexistent candidate/baseline/protocol commits, candidate/tree mismatches,
-  post-protocol packet-rule changes, same-version requirements changes, or execution
-  with contract files different from the protocol commit; and
+  post-protocol packet-rule changes, protocol receipt path/hash substitution,
+  packet-specific protocol bytes absent or changed at the protocol commit, same-version
+  requirements changes, or execution with contract files different from the protocol
+  commit;
+- duplicate YAML/JSON mapping keys and malformed external types without raising an
+  uncaught validator exception; and
 - a campaign outcome inconsistent with its required packet outcomes.
 
 Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a
@@ -627,7 +648,12 @@ reviews/viability/<campaign-id>/
     REVEAL-<round>.json
 ```
 
-Every receipt entry has an ID, kind, path, media type, and raw-byte SHA-256 hash. Large
+Every receipt entry has an ID, kind, path, media type, and raw-byte SHA-256 hash. A
+`protocol` receipt must exactly match a content reference in the frozen
+`preregistration.protocol_artifacts` array; changing either its campaign path or bytes
+after the protocol snapshot is rejected. Review, response, and re-review receipts also
+carry parallel immutable Git refs in `review_chain`; the validator compares their raw
+bytes to the named blobs before accepting any lifecycle outcome. Large
 raw arrays may live in a versioned external archive only after a retrieval adapter can
 verify the same fields; the v2 validator otherwise rejects unavailable paths rather
 than trusting a URI. Plots are diagnostic views; the decision must be reproducible
@@ -786,8 +812,8 @@ dependency is adjudicated `passed`.
 
 A campaign is complete when:
 
-- its target tier, candidate, baseline, tree, protocol, holdout-manifest, and seed hashes
-  are immutable and recorded;
+- its target tier, candidate, baseline, tree, protocol, complete preregistration content,
+  review artifacts, holdout-manifest, and seed hashes are immutable and recorded;
 - every required packet has a final `passed`, `failed`, or `blocked` adjudication;
 - the campaign, packets, dependency DAG, evidence floors, custody chain, receipts,
   review chain, and computed decision pass `scripts/check_viability_campaign.py`;

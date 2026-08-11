@@ -29,6 +29,9 @@ CONTRACT_PATHS = (
     "schemas/viability/campaign-v2.schema.json",
     "schemas/viability/packet-v2.schema.json",
     "schemas/viability/protocol-manifest-v2.schema.json",
+    "schemas/viability/independent-review-v1.schema.json",
+    "schemas/viability/independent-rereview-v1.schema.json",
+    "schemas/viability/review-response-v1.schema.json",
     "scripts/check_viability_campaign.py",
 )
 
@@ -39,6 +42,12 @@ def _sha256(path: Path) -> str:
 
 def _write_yaml(path: Path, document: dict[str, Any]) -> None:
     path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+
+def _write_json(path: Path, document: Any, *, indent: int | None = None) -> None:
+    path.write_bytes(
+        (json.dumps(document, indent=indent, sort_keys=True) + "\n").encode("utf-8")
+    )
 
 
 def _seat(name: str, *, evaluator: bool = False) -> dict[str, Any]:
@@ -69,6 +78,77 @@ def _receipt(
     }
 
 
+def _initial_review_document(packet_id: str, hashes: dict[str, str]) -> dict[str, Any]:
+    return {
+        "artifact_schema_version": 1,
+        "review_id": f"REVIEW-{packet_id}-1",
+        "review_kind": "initial",
+        "reviewer_seat": "independent-reviewer",
+        "reviewer_model_identity": "test-reviewer-model",
+        "reviewer_model_version": "1",
+        "reviewer_operator": "test-reviewer-operator",
+        "review_date": "2026-08-10",
+        "commit_reviewed": hashes["candidate_commit"],
+        "baseline_commit": hashes["baseline_commit"],
+        "prior_review_ref": "",
+        "builder_response_ref": "",
+        "context_hash": hashes["tree_hash"],
+        "context_hash_method": (
+            f"git rev-parse \"{hashes['candidate_commit']}^{{tree}}\""
+        ),
+        "files_reviewed": ["candidate.txt"],
+        "access_level": "test-repository-only",
+        "independence_statement": "Fresh test reviewer session with disclosed access.",
+        "independence_declaration": {
+            "shared_operator": False,
+            "shared_session": False,
+            "shared_orchestrator": False,
+            "builder_model_identity": "test-builder-model",
+            "reviewer_model_differs_from_builder": True,
+            "external_scientific_validation": False,
+        },
+        "hidden_access_declaration": {
+            "final_labels_seen": False,
+            "secret_seed_seen": False,
+            "private_evaluator_seen": False,
+        },
+        "summary": "No blocking contract finding in the positive fixture.",
+        "findings": [],
+        "requested_tests": [],
+        "prior_finding_results": [],
+        "prior_requested_test_results": [],
+        "predictions": {
+            "experiment_id": "",
+            "predicted_outcome": "",
+            "predicted_failure_mode": "",
+            "confidence_statement": "No prediction registered for this fixture.",
+        },
+        "recommendation": {
+            "approve": True,
+            "blocking_findings": 0,
+            "rationale": "The fixture review has no unresolved blockers.",
+        },
+    }
+
+
+def _protocol_document(packet_id: str) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "packet_id": packet_id,
+        "parameters": {"threshold": 0.95, "replicates": 3},
+        "measurement_procedure": "Measure the preregistered raw Boolean gates.",
+        "uncertainty_procedure": "Report the preregistered interval and failure rate.",
+        "statistical_analysis": "Apply the frozen threshold without reselection.",
+        "resource_budget": {
+            "wall_time_seconds": 3600,
+            "memory_bytes": 1073741824,
+            "accelerator_seconds": 0,
+        },
+        "commands": ["uv run python -m popgp.viability_fixture"],
+        "mutation_plan": ["invert each required Boolean gate"],
+    }
+
+
 def _make_packet(
     packet_id: str,
     campaign_id: str,
@@ -76,6 +156,8 @@ def _make_packet(
     holdout_path: Path,
     seed_path: Path,
     hashes: dict[str, str],
+    protocol_artifact: dict[str, str],
+    initial_review_ref: str,
 ) -> dict[str, Any]:
     requirement = REQUIREMENTS["packets"][packet_id]
     declared_evidence = (
@@ -87,9 +169,11 @@ def _make_packet(
     generic_path = receipt_dir / "evidence.json"
     raw_path = receipt_dir / "raw-results.json"
     review_path = receipt_dir / "independent-review.json"
+    protocol_path = receipt_dir / "protocol.json"
     output_commitment_path = receipt_dir / "output-commitment.json"
     reveal_record_path = receipt_dir / "reveal-record.json"
     generic_path.write_text('{"evidence": true}\n', encoding="utf-8")
+    _write_json(protocol_path, _protocol_document(packet_id))
     raw_document = {
         "metric": 1,
         "passed": True,
@@ -100,17 +184,8 @@ def _make_packet(
         },
     }
     raw_path.write_text(json.dumps(raw_document, sort_keys=True) + "\n", encoding="utf-8")
-    review_document = {
-        "artifact_schema_version": 1,
-        "review_id": f"REVIEW-{packet_id}-1",
-        "review_kind": "initial",
-        "findings": [],
-        "requested_tests": [],
-        "recommendation": {"approve": True, "blocking_findings": 0},
-    }
-    review_path.write_text(
-        json.dumps(review_document, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    review_document = _initial_review_document(packet_id, hashes)
+    _write_json(review_path, review_document)
     raw_hash = _sha256(raw_path)
     runner_identity = f"agent-{packet_id}-runner"
     custodian_identity = f"agent-{packet_id}-custodian"
@@ -153,6 +228,9 @@ def _make_packet(
         elif kind == "independent-review":
             path = review_path
             relative = f"{relative_prefix}/independent-review.json"
+        elif kind == "protocol":
+            path = protocol_path
+            relative = f"{relative_prefix}/protocol.json"
         elif kind == "reveal-record":
             path = reveal_record_path
             relative = f"{relative_prefix}/reveal-record.json"
@@ -241,6 +319,31 @@ def _make_packet(
         "null_or_competitors": ["The gate does not discriminate the candidate."],
         "known_failure_to_retain": "none",
         "threat_model": ["post-selection", "hidden-label leakage"],
+        "preregistration": {
+            "parameters": {"threshold": 0.95, "replicates": 3},
+            "measurement_procedure": "Measure the preregistered raw Boolean gates.",
+            "uncertainty_procedure": (
+                "Report the preregistered interval and failure rate."
+            ),
+            "statistical_analysis": "Apply the frozen threshold without reselection.",
+            "resource_budget": {
+                "wall_time_seconds": 3600,
+                "memory_bytes": 1073741824,
+                "accelerator_seconds": 0,
+            },
+            "commands": ["uv run python -m popgp.viability_fixture"],
+            "mutation_plan": ["invert each required Boolean gate"],
+            "protocol_artifacts": [
+                {
+                    "receipt_id": "protocol",
+                    "content_role": "primary-protocol",
+                    "campaign_path": f"{relative_prefix}/protocol.json",
+                    "protocol_path": protocol_artifact["path"],
+                    "sha256": protocol_artifact["sha256"],
+                    "media_type": "application/json",
+                }
+            ],
+        },
         "holdout_started": True,
         "seats": {
             "protocol_designer": _seat(f"{packet_id}-protocol"),
@@ -312,8 +415,11 @@ def _make_packet(
         "receipts": receipts,
         "review_chain": {
             "initial_review_receipt": "independent-review",
+            "initial_review_ref": initial_review_ref,
             "response_receipts": [],
+            "response_refs": [],
             "rereview_receipts": [],
+            "rereview_refs": [],
             "findings": [],
             "requested_tests": [],
         },
@@ -336,6 +442,192 @@ def _git(root: Path, *args: str) -> bytes:
         capture_output=True,
         timeout=30,
     ).stdout
+
+
+def _commit_json_artifact(
+    root: Path, relative: str, document: dict[str, Any]
+) -> tuple[str, bytes]:
+    destination = root / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _write_json(destination, document)
+    _git(root, "add", relative)
+    _git(root, "commit", "-q", "-m", f"add {Path(relative).name}")
+    commit = _git(root, "rev-parse", "HEAD").decode().strip()
+    return f"{commit}:{relative}", destination.read_bytes()
+
+
+def _finding(finding_id: str = "F-1") -> dict[str, Any]:
+    return {
+        "id": finding_id,
+        "severity": "high",
+        "category": "governance",
+        "location": "scripts/check_viability_campaign.py",
+        "evidence": "The adversarial fixture reproduced the finding.",
+        "finding": "A blocking fixture finding.",
+        "failure_scenario": "The contract accepts an invalid state.",
+        "consequence": "The campaign could pass incorrectly.",
+        "required_action": "Reject the invalid state.",
+        "verification": "confirmed-by-execution",
+        "blocking": True,
+    }
+
+
+def _requested_test(test_id: str = "T-1") -> dict[str, Any]:
+    return {
+        "id": test_id,
+        "description": "Run the adversarial contract mutation.",
+        "rationale": "The mutation must fail closed.",
+        "blocking": True,
+    }
+
+
+def _response_document(
+    review: dict[str, Any], review_ref: str, *, include_test: bool = False
+) -> dict[str, Any]:
+    review_commit, review_artifact = review_ref.split(":", 1)
+    return {
+        "artifact_schema_version": 1,
+        "response_id": "RESPONSE-VIA-000-1",
+        "response_round": 1,
+        "response_date": "2026-08-10",
+        "builder_seat": "builder",
+        "builder_model_identity": "test-builder-model",
+        "builder_model_version": "1",
+        "builder_operator": "test-builder-operator",
+        "review_id": review["review_id"],
+        "review_artifact": review_artifact,
+        "review_commit": review_commit,
+        "candidate_commit_reviewed": review["commit_reviewed"],
+        "access_declaration": {
+            "final_labels_seen": False,
+            "secret_seed_seen": False,
+            "private_evaluator_seen": False,
+            "notes": "No hidden fixture inputs were exposed.",
+        },
+        "summary": "The fixture finding was remediated.",
+        "finding_responses": [
+            {
+                "finding_id": "F-1",
+                "blocking_as_reported": True,
+                "disposition": "accepted",
+                "implementation_status": "implemented",
+                "rationale": "The mutation is valid and requires a fix.",
+                "changed_files": ["scripts/check_viability_campaign.py"],
+                "fix_commits": [],
+                "verification": [{"command": "uv run pytest", "result": "passed"}],
+                "residual_risk": "Synthetic fixture only.",
+                "disagreement_ref": "",
+            }
+        ],
+        "requested_test_responses": (
+            [
+                {
+                    "requested_test_id": "T-1",
+                    "disposition": "accepted",
+                    "implementation_status": "implemented",
+                    "test_locations": ["tests/unit/test_viability_campaign_contract.py"],
+                    "verification": [
+                        {"command": "uv run pytest", "result": "passed"}
+                    ],
+                    "rationale": "The regression is implemented.",
+                    "disagreement_ref": "",
+                }
+            ]
+            if include_test
+            else []
+        ),
+        "new_or_changed_risks": [],
+        "external_actions": [],
+        "rereview_request": {
+            "requested": True,
+            "scope": "all findings, requested tests, regressions, and new findings",
+            "handoff_commit": "recorded outside this artifact after it is committed",
+            "notes": "Review the exact candidate handoff.",
+        },
+    }
+
+
+def _rereview_document(
+    hashes: dict[str, str],
+    review_ref: str,
+    response_ref: str,
+    *,
+    finding_outcome: Any = "verified-resolved",
+    superseding_finding_id: str = "",
+    include_test: bool = False,
+) -> dict[str, Any]:
+    return {
+        "artifact_schema_version": 1,
+        "review_id": "REREVIEW-VIA-000-1",
+        "review_kind": "re-review",
+        "reviewer_seat": "independent-reviewer",
+        "reviewer_model_identity": "test-reviewer-model",
+        "reviewer_model_version": "1",
+        "reviewer_operator": "test-reviewer-operator",
+        "review_date": "2026-08-10",
+        "commit_reviewed": hashes["candidate_commit"],
+        "baseline_commit": hashes["baseline_commit"],
+        "prior_review_ref": review_ref,
+        "builder_response_ref": response_ref,
+        "context_hash": hashes["tree_hash"],
+        "context_hash_method": (
+            f"git rev-parse \"{hashes['candidate_commit']}^{{tree}}\""
+        ),
+        "files_reviewed": ["scripts/check_viability_campaign.py"],
+        "access_level": "test-repository-only",
+        "independence_statement": "Fresh test re-review with disclosed access.",
+        "independence_declaration": {
+            "shared_operator": False,
+            "shared_session": False,
+            "shared_orchestrator": False,
+            "builder_model_identity": "test-builder-model",
+            "reviewer_model_differs_from_builder": True,
+            "external_scientific_validation": False,
+        },
+        "hidden_access_declaration": {
+            "final_labels_seen": False,
+            "secret_seed_seen": False,
+            "private_evaluator_seen": False,
+        },
+        "summary": "The fixture remediation was independently checked.",
+        "findings": [],
+        "requested_tests": [],
+        "prior_finding_results": [
+            {
+                "finding_id": "F-1",
+                "outcome": finding_outcome,
+                "evidence": "The targeted mutation was independently rerun.",
+                "verification": "confirmed-by-execution",
+                "superseding_finding_id": superseding_finding_id,
+                "notes": "Synthetic fixture result.",
+            }
+        ],
+        "prior_requested_test_results": (
+            [
+                {
+                    "requested_test_id": "T-1",
+                    "outcome": "verified-satisfied",
+                    "evidence": "The regression failed before and passes after remediation.",
+                    "verification": "confirmed-by-execution",
+                    "superseding_requested_test_id": "",
+                    "notes": "Synthetic fixture result.",
+                }
+            ]
+            if include_test
+            else []
+        ),
+        "predictions": {
+            "experiment_id": "T-1" if include_test else "",
+            "predicted_outcome": "The invalid campaign is rejected.",
+            "predicted_failure_mode": "A missing binding would remain accepted.",
+            "confidence_statement": "High confidence in the fixture result.",
+        },
+        "recommendation": {
+            "approve": True,
+            "blocking_findings": 0,
+            "rationale": "No unresolved blocker is declared by this fixture artifact.",
+        },
+    }
 
 
 def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
@@ -363,6 +655,32 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         "protocol_commit": "0" * 40,
     }
 
+    review_paths: dict[str, str] = {}
+    for packet_id in REQUIREMENTS["packets"]:
+        relative = f"reviews/fixtures/{packet_id}-independent-review.json"
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(destination, _initial_review_document(packet_id, hashes))
+        review_paths[packet_id] = relative
+    _git(root, "add", "reviews/fixtures")
+    _git(root, "commit", "-q", "-m", "add fixture independent reviews")
+    review_commit = _git(root, "rev-parse", "HEAD").decode().strip()
+    initial_review_refs = {
+        packet_id: f"{review_commit}:{relative}"
+        for packet_id, relative in review_paths.items()
+    }
+
+    protocol_artifacts: dict[str, dict[str, str]] = {}
+    for packet_id in REQUIREMENTS["packets"]:
+        relative = f"protocols/POPGP-VIABILITY-TEST/{packet_id}.json"
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(destination, _protocol_document(packet_id))
+        protocol_artifacts[packet_id] = {
+            "path": relative,
+            "sha256": _sha256(destination),
+        }
+
     scratch = tmp_path / "manifest-scratch"
     scratch.mkdir()
     holdout_path = scratch / "holdout.json"
@@ -378,6 +696,8 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
             holdout_path,
             seed_path,
             hashes,
+            protocol_artifacts[packet_id],
+            initial_review_refs[packet_id],
         )
         packet_hashes[packet_id] = packet["protocol_rule_sha256"]
 
@@ -391,7 +711,7 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         "candidate_commit": candidate,
         "baseline_commit": baseline,
         "tree_hash": tree,
-        "packet_freeze_version": "popgp-packet-freeze-v1",
+        "packet_freeze_version": "popgp-packet-freeze-v2",
         "requirements": {
             "path": requirements_path,
             "sha256": hashlib.sha256(requirements_bytes).hexdigest(),
@@ -406,11 +726,11 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         "packet_rule_sha256": packet_hashes,
     }
     manifest_path = root / "protocols/POPGP-VIABILITY-TEST.json"
-    manifest_path.parent.mkdir()
+    manifest_path.parent.mkdir(exist_ok=True)
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    _git(root, "add", "protocols/POPGP-VIABILITY-TEST.json")
+    _git(root, "add", "protocols")
     _git(root, "commit", "-q", "-m", "freeze test protocol")
     protocol = _git(root, "rev-parse", "HEAD").decode().strip()
     manifest_bytes = _git(root, "show", "HEAD:protocols/POPGP-VIABILITY-TEST.json")
@@ -424,6 +744,8 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         "requirements_sha256": hashlib.sha256(requirements_bytes).hexdigest(),
         "protocol_manifest_path": "protocols/POPGP-VIABILITY-TEST.json",
         "protocol_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "protocol_artifacts": protocol_artifacts,
+        "initial_review_refs": initial_review_refs,
     }
 
 
@@ -464,6 +786,8 @@ def _make_campaign(
                     "tree_hash",
                     "protocol_commit",
                 )},
+                frozen["protocol_artifacts"][packet_id],
+                frozen["initial_review_refs"][packet_id],
             ),
         )
         packet_paths[packet_id] = packet_path
@@ -547,6 +871,123 @@ def _mutate_receipt_json(packet_path: Path, receipt_id: str, mutation: Any) -> N
             json.dumps(commitment_document, sort_keys=True) + "\n", encoding="utf-8"
         )
         commitment_receipt["sha256"] = _sha256(commitment_path)
+    _write_yaml(packet_path, packet)
+
+
+def _attach_review_round(
+    packet_path: Path,
+    frozen: dict[str, Any],
+    namespace: str,
+    *,
+    minimal_artifacts: bool = False,
+    malformed_outcome: Any | None = None,
+) -> None:
+    packet = _load(packet_path)
+    receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+    review_path = (packet_path.parent / receipt_by_id["independent-review"]["path"]).resolve()
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review.update(
+        findings=[_finding()],
+        requested_tests=[_requested_test()],
+        recommendation={
+            "approve": False,
+            "blocking_findings": 1,
+            "rationale": "The fixture blocker is unresolved.",
+        },
+    )
+    review_ref, review_bytes = _commit_json_artifact(
+        frozen["root"], f"reviews/fixtures/{namespace}-initial.json", review
+    )
+    review_path.write_bytes(review_bytes)
+    receipt_by_id["independent-review"]["sha256"] = _sha256(review_path)
+
+    if minimal_artifacts:
+        response = {
+            "response_id": "RESPONSE-VIA-000-1",
+            "review_id": review["review_id"],
+            "finding_responses": [{"finding_id": "F-1"}],
+            "requested_test_responses": [{"requested_test_id": "T-1"}],
+        }
+    else:
+        response = _response_document(review, review_ref, include_test=True)
+    response_ref, response_bytes = _commit_json_artifact(
+        frozen["root"], f"reviews/fixtures/{namespace}-response.json", response
+    )
+
+    if minimal_artifacts:
+        rereview = {
+            "review_id": "REREVIEW-VIA-000-1",
+            "review_kind": "re-review",
+            "prior_finding_results": [
+                {"finding_id": "F-1", "outcome": "verified-resolved"}
+            ],
+            "prior_requested_test_results": [
+                {"requested_test_id": "T-1", "outcome": "verified-satisfied"}
+            ],
+            "findings": [],
+            "requested_tests": [],
+            "recommendation": {"approve": True, "blocking_findings": 0},
+        }
+    else:
+        rereview = _rereview_document(
+            frozen,
+            review_ref,
+            response_ref,
+            finding_outcome=(
+                malformed_outcome
+                if malformed_outcome is not None
+                else "verified-resolved"
+            ),
+            include_test=True,
+        )
+    rereview_ref, rereview_bytes = _commit_json_artifact(
+        frozen["root"], f"reviews/fixtures/{namespace}-rereview.json", rereview
+    )
+
+    receipt_dir = review_path.parent
+    response_path = receipt_dir / f"{namespace}-response.json"
+    rereview_path = receipt_dir / f"{namespace}-rereview.json"
+    response_path.write_bytes(response_bytes)
+    rereview_path.write_bytes(rereview_bytes)
+    packet["receipts"].extend(
+        [
+            _receipt(
+                f"{namespace}-response",
+                "builder-response",
+                f"../receipts/VIA-000/{response_path.name}",
+                _sha256(response_path),
+            ),
+            _receipt(
+                f"{namespace}-rereview",
+                "independent-rereview",
+                f"../receipts/VIA-000/{rereview_path.name}",
+                _sha256(rereview_path),
+            ),
+        ]
+    )
+    packet["review_chain"].update(
+        initial_review_ref=review_ref,
+        response_receipts=[f"{namespace}-response"],
+        response_refs=[response_ref],
+        rereview_receipts=[f"{namespace}-rereview"],
+        rereview_refs=[rereview_ref],
+        findings=[
+            {
+                "id": "F-1",
+                "blocking": True,
+                "outcome": "verified-resolved",
+                "superseding_id": None,
+            }
+        ],
+        requested_tests=[
+            {
+                "id": "T-1",
+                "blocking": True,
+                "outcome": "verified-satisfied",
+                "superseding_id": None,
+            }
+        ],
+    )
     _write_yaml(packet_path, packet)
 
 
@@ -675,9 +1116,9 @@ def test_review_chain_is_reconciled_to_hashed_artifact_bytes(
     )
     errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
     assert any(
-        "declared findings differ from hashed review artifacts" in error for error in errors
+        "independent-review receipt bytes differ from immutable ref" in error
+        for error in errors
     )
-    assert any("blocking finding F-1 is unresolved" in error for error in errors)
 
     campaign_path, packets = _make_campaign(tmp_path / "dangling", frozen_repo)
     packet_path = packets["VIA-000"]
@@ -686,42 +1127,39 @@ def test_review_chain_is_reconciled_to_hashed_artifact_bytes(
     review_path = (packet_path.parent / receipt_by_id["independent-review"]["path"]).resolve()
     review = json.loads(review_path.read_text(encoding="utf-8"))
     review.update(
-        findings=[{"id": "F-1", "blocking": True}],
-        recommendation={"approve": False, "blocking_findings": 1},
+        findings=[_finding()],
+        recommendation={
+            "approve": False,
+            "blocking_findings": 1,
+            "rationale": "The fixture blocker is unresolved.",
+        },
     )
-    review_path.write_text(json.dumps(review, sort_keys=True) + "\n", encoding="utf-8")
+    review_ref, review_bytes = _commit_json_artifact(
+        frozen_repo["root"], "reviews/fixtures/dangling-initial.json", review
+    )
+    review_path.write_bytes(review_bytes)
     receipt_by_id["independent-review"]["sha256"] = _sha256(review_path)
+    packet["review_chain"]["initial_review_ref"] = review_ref
 
     receipt_dir = review_path.parent
     response_path = receipt_dir / "builder-response.json"
     rereview_path = receipt_dir / "independent-rereview.json"
-    response = {
-        "response_id": "RESPONSE-VIA-000-1",
-        "review_id": "REVIEW-VIA-000-1",
-        "finding_responses": [{"finding_id": "F-1"}],
-        "requested_test_responses": [],
-    }
-    rereview = {
-        "review_id": "REREVIEW-VIA-000-1",
-        "review_kind": "re-review",
-        "prior_finding_results": [
-            {
-                "finding_id": "F-1",
-                "outcome": "superseded",
-                "superseding_finding_id": "F-999",
-            }
-        ],
-        "prior_requested_test_results": [],
-        "findings": [],
-        "requested_tests": [],
-        "recommendation": {"approve": True, "blocking_findings": 0},
-    }
-    response_path.write_text(
-        json.dumps(response, sort_keys=True) + "\n", encoding="utf-8"
+    response = _response_document(review, review_ref)
+    response_ref, response_bytes = _commit_json_artifact(
+        frozen_repo["root"], "reviews/fixtures/dangling-response.json", response
     )
-    rereview_path.write_text(
-        json.dumps(rereview, sort_keys=True) + "\n", encoding="utf-8"
+    response_path.write_bytes(response_bytes)
+    rereview = _rereview_document(
+        frozen_repo,
+        review_ref,
+        response_ref,
+        finding_outcome="superseded",
+        superseding_finding_id="F-999",
     )
+    rereview_ref, rereview_bytes = _commit_json_artifact(
+        frozen_repo["root"], "reviews/fixtures/dangling-rereview.json", rereview
+    )
+    rereview_path.write_bytes(rereview_bytes)
     packet["receipts"].extend(
         [
             _receipt(
@@ -740,7 +1178,9 @@ def test_review_chain_is_reconciled_to_hashed_artifact_bytes(
     )
     packet["review_chain"].update(
         response_receipts=["builder-response-1"],
+        response_refs=[response_ref],
         rereview_receipts=["independent-rereview-1"],
+        rereview_refs=[rereview_ref],
         findings=[
             {
                 "id": "F-1",
@@ -773,6 +1213,152 @@ def test_review_chain_is_reconciled_to_hashed_artifact_bytes(
         "declared findings differ from hashed review artifacts",
         frozen_repo["root"],
     )
+
+
+@pytest.mark.negative_control
+def test_review_artifacts_are_schema_complete_immutable_and_total(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path / "complete", frozen_repo)
+    _attach_review_round(packets["VIA-000"], frozen_repo, "complete")
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
+
+    packet = _load(packets["VIA-000"])
+    packet["review_chain"]["response_refs"][0] = packet["review_chain"][
+        "initial_review_ref"
+    ]
+    _write_yaml(packets["VIA-000"], packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "builder-response receipt bytes differ from immutable ref" in error
+        for error in errors
+    )
+
+    campaign_path, packets = _make_campaign(tmp_path / "minimal", frozen_repo)
+    _attach_review_round(
+        packets["VIA-000"], frozen_repo, "minimal", minimal_artifacts=True
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "builder-response" in error and "required property" in error
+        for error in errors
+    )
+    assert any(
+        "independent-rereview" in error and "required property" in error
+        for error in errors
+    )
+
+    campaign_path, packets = _make_campaign(tmp_path / "malformed", frozen_repo)
+    _attach_review_round(
+        packets["VIA-000"],
+        frozen_repo,
+        "malformed",
+        malformed_outcome={},
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "independent-rereview" in error
+        and "prior_finding_results" in error
+        and "is not one of" in error
+        for error in errors
+    )
+
+    campaign_path, _ = _make_campaign(tmp_path / "duplicate-yaml", frozen_repo)
+    campaign_path.write_text(
+        campaign_path.read_text(encoding="utf-8")
+        + "\ndecision:\n  outcome: passed\n  authorized_by: duplicate\n"
+        + "  decided_at: '2026-08-10T14:00:00Z'\n",
+        encoding="utf-8",
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("duplicate key 'decision'" in error for error in errors)
+
+    campaign_path, packets = _make_campaign(tmp_path / "duplicate-json", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+    raw_receipt = receipt_by_id["raw-results"]
+    raw_path = (packet_path.parent / raw_receipt["path"]).resolve()
+    raw_text = raw_path.read_text(encoding="utf-8")
+    raw_path.write_text(
+        raw_text.replace('"passed": true', '"passed": true, "passed": false'),
+        encoding="utf-8",
+    )
+    raw_receipt["sha256"] = _sha256(raw_path)
+    packet["blind_custody"]["output_commitment"]["output_sha256"] = raw_receipt[
+        "sha256"
+    ]
+    commitment_receipt = receipt_by_id["output-commitment"]
+    commitment_path = (packet_path.parent / commitment_receipt["path"]).resolve()
+    commitment = json.loads(commitment_path.read_text(encoding="utf-8"))
+    commitment["output_sha256"] = raw_receipt["sha256"]
+    _write_json(commitment_path, commitment)
+    commitment_receipt["sha256"] = _sha256(commitment_path)
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("duplicate JSON key 'passed'" in error for error in errors)
+
+    malformed_requirements = copy.deepcopy(REQUIREMENTS)
+    malformed_requirements["packets"]["VIA-010"] = []
+    errors = validate_requirements(malformed_requirements)
+    assert any("VIA-010 must be an object" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_protocol_content_and_budget_are_frozen_before_holdout(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path / "bytes", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    protocol_receipt = next(
+        receipt for receipt in packet["receipts"] if receipt["id"] == "protocol"
+    )
+    protocol_path = (packet_path.parent / protocol_receipt["path"]).resolve()
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    protocol["parameters"]["threshold"] = 0.5
+    _write_json(protocol_path, protocol)
+    protocol_receipt["sha256"] = _sha256(protocol_path)
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "protocol receipt 'protocol' sha256 differs from frozen preregistration" in error
+        for error in errors
+    )
+
+    campaign_path, packets = _make_campaign(tmp_path / "path", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    protocol_receipt = next(
+        receipt for receipt in packet["receipts"] if receipt["id"] == "protocol"
+    )
+    original_path = (packet_path.parent / protocol_receipt["path"]).resolve()
+    substituted_path = original_path.with_name("protocol-substituted.json")
+    substituted = json.loads(original_path.read_text(encoding="utf-8"))
+    substituted["resource_budget"]["wall_time_seconds"] = 7200
+    _write_json(substituted_path, substituted)
+    protocol_receipt.update(
+        path=f"../receipts/VIA-000/{substituted_path.name}",
+        sha256=_sha256(substituted_path),
+    )
+    packet["preregistration"]["protocol_artifacts"][0].update(
+        campaign_path=protocol_receipt["path"],
+        sha256=protocol_receipt["sha256"],
+    )
+    packet["protocol_rule_sha256"] = packet_rule_sha256(packet)
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("packet rules differ from protocol snapshot" in error for error in errors)
+    assert any("preregistered protocol blob hash mismatch" in error for error in errors)
+
+    campaign_path, packets = _make_campaign(tmp_path / "budget", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    packet["preregistration"]["resource_budget"]["wall_time_seconds"] = 7200
+    packet["protocol_rule_sha256"] = packet_rule_sha256(packet)
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("packet rules differ from protocol snapshot" in error for error in errors)
 
 
 @pytest.mark.negative_control

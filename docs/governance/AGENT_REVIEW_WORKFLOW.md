@@ -75,6 +75,10 @@ re-review. Each re-review branch starts from the exact remediation candidate it 
 
 Create a fresh review branch/worktree at the exact candidate and use
 [the independent-review template](../templates/INDEPENDENT_REVIEW_TEMPLATE.md).
+When a review participates in a viability campaign, validate initial and later review
+receipts against the versioned schemas linked by that template and record the exact
+review-commit-and-path reference; a content hash without that immutable Git ref is not
+a complete campaign receipt.
 The reviewer must:
 
 - inspect the complete diff and relevant surrounding code, claims, tests, CI, and
@@ -95,6 +99,8 @@ The reviewer does not remediate implementation on the review branch.
 Start the remediation branch from the immutable review commit and use
 [the review-response template](../templates/REVIEW_RESPONSE_TEMPLATE.md). Include one
 response for every finding and every requested test, including non-blocking items.
+Viability-campaign responses must also conform to the versioned response schema and be
+committed before the later re-review records its `builder_response_ref`.
 
 Builder disposition and implementation status are separate:
 

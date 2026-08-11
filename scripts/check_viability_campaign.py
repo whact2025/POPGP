@@ -21,7 +21,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 CONTRACT_VERSION = "popgp-viability-contract-v2"
 REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
 RULE_LANGUAGE = "popgp-bool-v2"
-PACKET_FREEZE_VERSION = "popgp-packet-freeze-v1"
+PACKET_FREEZE_VERSION = "popgp-packet-freeze-v2"
 KNOWN_REQUIREMENTS_SHA256 = (
     "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 )
@@ -32,6 +32,9 @@ CONTRACT_FILE_PATHS = {
     "schemas/viability/campaign-v2.schema.json",
     "schemas/viability/packet-v2.schema.json",
     "schemas/viability/protocol-manifest-v2.schema.json",
+    "schemas/viability/independent-review-v1.schema.json",
+    "schemas/viability/independent-rereview-v1.schema.json",
+    "schemas/viability/review-response-v1.schema.json",
     "scripts/check_viability_campaign.py",
 }
 
@@ -52,8 +55,15 @@ PACKET_FREEZE_FIELDS = (
     "null_or_competitors",
     "known_failure_to_retain",
     "threat_model",
+    "preregistration",
     "outcome_rules",
 )
+
+REVIEW_SCHEMA_PATHS = {
+    "independent-review": "schemas/viability/independent-review-v1.schema.json",
+    "independent-rereview": "schemas/viability/independent-rereview-v1.schema.json",
+    "builder-response": "schemas/viability/review-response-v1.schema.json",
+}
 
 LIFECYCLE_ORDER = {
     "drafted": 0,
@@ -102,12 +112,70 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """YAML safe loader that rejects ambiguous duplicate mapping keys."""
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False
+) -> dict[Any, Any]:
+    loader.flatten_mapping(node)
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        try:
+            duplicate = key in mapping
+        except TypeError as exc:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                "found an unhashable mapping key",
+                key_node.start_mark,
+            ) from exc
+        if duplicate:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
+def _load_yaml_text(text: str) -> Any:
+    return yaml.load(text, Loader=_UniqueKeyLoader)
+
+
 def _load_yaml(path: Path) -> Any:
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    return _load_yaml_text(path.read_text(encoding="utf-8"))
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    document: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key {key!r}")
+        document[key] = value
+    return document
+
+
+def _load_json_bytes(content: bytes) -> Any:
+    return json.loads(content, object_pairs_hook=_unique_json_object)
+
+
+def _load_json_text(text: str) -> Any:
+    return json.loads(text, object_pairs_hook=_unique_json_object)
 
 
 def _load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return _load_json_text(path.read_text(encoding="utf-8"))
 
 
 def _format_path(parts: list[Any]) -> str:
@@ -149,6 +217,20 @@ def _canonical_json_bytes(document: Any) -> bytes:
 def packet_rule_sha256(packet: Mapping[str, Any]) -> str:
     """Return the v2 canonical hash of fields frozen before holdout execution."""
     frozen = {field: packet[field] for field in PACKET_FREEZE_FIELDS}
+    frozen["seat_assignments"] = {
+        seat_name: {
+            field: seat[field]
+            for field in (
+                "agent_identity",
+                "model_identity",
+                "model_version",
+                "operator",
+                "session_id",
+                "access_level",
+            )
+        }
+        for seat_name, seat in packet["seats"].items()
+    }
     custody = packet["blind_custody"]
     frozen["blind_custody"] = {
         "hash_algorithm": custody["hash_algorithm"],
@@ -266,8 +348,8 @@ def _validate_frozen_inputs(
             f"({observed_manifest_hash} != {campaign['protocol_manifest_sha256']})"
         )
     try:
-        manifest = json.loads(manifest_bytes)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        manifest = _load_json_bytes(manifest_bytes)
+    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
         errors.append(f"campaign: protocol manifest is not valid UTF-8 JSON: {exc}")
         return None, None, errors
     manifest_errors = _schema_errors(manifest, manifest_schema, "protocol_manifest")
@@ -337,8 +419,8 @@ def _validate_frozen_inputs(
             f"{observed_requirements_hash}; change the requirements version"
         )
     try:
-        frozen_requirements = json.loads(requirements_bytes)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        frozen_requirements = _load_json_bytes(requirements_bytes)
+    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
         errors.append(f"campaign: frozen requirements are not valid UTF-8 JSON: {exc}")
         return None, manifest, errors
     if supplied_requirements is not None and supplied_requirements != frozen_requirements:
@@ -405,7 +487,10 @@ def validate_requirements(requirements: Any) -> list[str]:
             if dependency not in packets:
                 errors.append(f"requirements: {packet_id} has unknown dependency {dependency}")
                 continue
-            dependency_wave = packets[dependency].get("execution_wave")
+            dependency_requirement = packets[dependency]
+            if not isinstance(dependency_requirement, Mapping):
+                continue
+            dependency_wave = dependency_requirement.get("execution_wave")
             if type(wave) is int and type(dependency_wave) is int:
                 if dependency_wave >= wave:
                     errors.append(
@@ -424,6 +509,10 @@ def validate_requirements(requirements: Any) -> list[str]:
             return
         visiting.add(packet_id)
         requirement = packets.get(packet_id, {})
+        if not isinstance(requirement, Mapping):
+            visiting.remove(packet_id)
+            visited.add(packet_id)
+            return
         for dependency in requirement.get("dependencies", []):
             if dependency in packets:
                 visit(dependency)
@@ -654,19 +743,188 @@ def _structured_receipt_document(receipt: Mapping[str, Any]) -> Mapping[str, Any
     media_type = receipt.get("media_type")
     text = path.read_text(encoding="utf-8")
     if media_type == "application/json":
-        document = json.loads(text)
+        document = _load_json_text(text)
     elif media_type in {"application/yaml", "text/yaml"}:
-        document = yaml.safe_load(text)
+        document = _load_yaml_text(text)
     elif media_type in {"text/markdown", "text/x-markdown"}:
         match = re.search(r"```yaml\s*(.*?)\s*```", text, flags=re.DOTALL)
         if match is None:
             raise ValueError("Markdown receipt lacks a fenced YAML artifact")
-        document = yaml.safe_load(match.group(1))
+        document = _load_yaml_text(match.group(1))
     else:
         raise ValueError(f"unsupported structured receipt media type {media_type!r}")
     if not isinstance(document, Mapping):
         raise ValueError("structured receipt must contain an object")
     return document
+
+
+def _artifact_ref_parts(artifact_ref: str) -> tuple[str, str]:
+    commit, separator, relative = artifact_ref.partition(":")
+    if (
+        not separator
+        or re.fullmatch(r"[0-9a-f]{40}", commit) is None
+        or not relative
+        or relative.startswith("/")
+        or ".." in Path(relative).parts
+    ):
+        raise ValueError(f"invalid immutable artifact ref {artifact_ref!r}")
+    return commit, relative
+
+
+def _artifact_ref_errors(
+    artifact_ref: str,
+    receipt: Mapping[str, Any],
+    root: Path,
+    packet_id: str,
+    label: str,
+) -> list[str]:
+    errors: list[str] = []
+    try:
+        commit, relative = _artifact_ref_parts(artifact_ref)
+    except (TypeError, ValueError) as exc:
+        return [f"packet {packet_id}: {label} has invalid immutable ref: {exc}"]
+    if not _git_commit_exists(root, commit):
+        return [f"packet {packet_id}: {label} ref commit does not exist: {commit}"]
+    try:
+        frozen_bytes = _git_blob(root, commit, relative)
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        return [f"packet {packet_id}: {label} ref blob is unavailable: {exc}"]
+    observed = _sha256_bytes(frozen_bytes)
+    if observed != receipt.get("sha256"):
+        errors.append(
+            f"packet {packet_id}: {label} receipt bytes differ from immutable ref "
+            f"({receipt.get('sha256')} != {observed})"
+        )
+    return errors
+
+
+def _review_commit_binding_errors(
+    document: Mapping[str, Any], packet: Mapping[str, Any], root: Path, packet_id: str
+) -> list[str]:
+    errors: list[str] = []
+    reviewed = document.get("commit_reviewed")
+    if not isinstance(reviewed, str) or not _git_commit_exists(root, reviewed):
+        return [f"packet {packet_id}: review commit_reviewed does not resolve: {reviewed!r}"]
+    try:
+        tree_hash = _git_tree(root, reviewed)
+    except (OSError, subprocess.SubprocessError, UnicodeDecodeError, ValueError) as exc:
+        errors.append(f"packet {packet_id}: cannot resolve review context tree: {exc}")
+    else:
+        if document.get("context_hash") != tree_hash:
+            errors.append(f"packet {packet_id}: review context_hash differs from reviewed tree")
+    if document.get("baseline_commit") != packet.get("baseline_commit"):
+        errors.append(f"packet {packet_id}: review baseline differs from packet baseline")
+    return errors
+
+
+def _validate_preregistration(
+    packet: Mapping[str, Any],
+    receipts: Mapping[str, Any],
+    packet_id: str,
+    root: Path,
+) -> list[str]:
+    errors: list[str] = []
+    artifacts = packet["preregistration"]["protocol_artifacts"]
+    receipt_ids = [artifact["receipt_id"] for artifact in artifacts]
+    protocol_paths = [artifact["protocol_path"] for artifact in artifacts]
+    if len(receipt_ids) != len(set(receipt_ids)):
+        errors.append(f"packet {packet_id}: preregistered protocol receipt ids must be unique")
+    if len(protocol_paths) != len(set(protocol_paths)):
+        errors.append(f"packet {packet_id}: preregistered protocol paths must be unique")
+    primary_artifacts = [
+        artifact
+        for artifact in artifacts
+        if artifact.get("content_role") == "primary-protocol"
+    ]
+    if len(primary_artifacts) != 1:
+        errors.append(f"packet {packet_id}: preregistration requires one primary protocol")
+    registered = set(receipt_ids)
+    declared = {
+        receipt_id
+        for receipt_id, receipt in receipts.items()
+        if receipt.get("kind") == "protocol"
+    }
+    if declared != registered:
+        errors.append(
+            f"packet {packet_id}: protocol receipts differ from frozen preregistration "
+            f"({sorted(declared)} != {sorted(registered)})"
+        )
+    for artifact in artifacts:
+        receipt_id = artifact["receipt_id"]
+        receipt = receipts.get(receipt_id)
+        if receipt is None:
+            errors.append(
+                f"packet {packet_id}: frozen protocol receipt {receipt_id!r} is missing"
+            )
+            continue
+        expected = {
+            "kind": "protocol",
+            "path": artifact["campaign_path"],
+            "sha256": artifact["sha256"],
+            "media_type": artifact["media_type"],
+        }
+        for field, value in expected.items():
+            if receipt.get(field) != value:
+                errors.append(
+                    f"packet {packet_id}: protocol receipt {receipt_id!r} {field} "
+                    "differs from frozen preregistration"
+                )
+        try:
+            frozen_bytes = _git_blob(
+                root, packet["protocol_commit"], artifact["protocol_path"]
+            )
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            errors.append(
+                f"packet {packet_id}: preregistered protocol blob "
+                f"{artifact['protocol_path']!r} is unavailable: {exc}"
+            )
+            continue
+        observed = _sha256_bytes(frozen_bytes)
+        if observed != artifact["sha256"]:
+            errors.append(
+                f"packet {packet_id}: preregistered protocol blob hash mismatch "
+                f"({observed} != {artifact['sha256']})"
+            )
+        if artifact.get("content_role") == "primary-protocol":
+            if receipt.get("media_type") != "application/json":
+                errors.append(
+                    f"packet {packet_id}: primary protocol must use application/json"
+                )
+                continue
+            try:
+                document = _structured_receipt_document(receipt)
+            except (
+                OSError,
+                UnicodeDecodeError,
+                ValueError,
+                json.JSONDecodeError,
+                yaml.YAMLError,
+            ) as exc:
+                errors.append(
+                    f"packet {packet_id}: primary protocol cannot be parsed: {exc}"
+                )
+                continue
+            expected_document_fields = {
+                field: packet["preregistration"][field]
+                for field in (
+                    "parameters",
+                    "measurement_procedure",
+                    "uncertainty_procedure",
+                    "statistical_analysis",
+                    "resource_budget",
+                    "commands",
+                    "mutation_plan",
+                )
+            }
+            if document.get("packet_id") != packet_id:
+                errors.append(f"packet {packet_id}: primary protocol packet_id differs")
+            for field, value in expected_document_fields.items():
+                if document.get(field) != value:
+                    errors.append(
+                        f"packet {packet_id}: primary protocol {field} differs from "
+                        "frozen preregistration"
+                    )
+    return errors
 
 
 def _validate_custody(
@@ -862,8 +1120,10 @@ def _artifact_items(
 def _receipt_artifact(
     receipts: Mapping[str, Any],
     receipt_id: str | None,
+    artifact_ref: str | None,
     expected_kind: str,
     packet_id: str,
+    root: Path,
     errors: list[str],
 ) -> Mapping[str, Any] | None:
     receipt = receipts.get(receipt_id)
@@ -872,13 +1132,29 @@ def _receipt_artifact(
             f"packet {packet_id}: invalid {expected_kind} receipt {receipt_id!r}"
         )
         return None
+    if not isinstance(artifact_ref, str):
+        errors.append(f"packet {packet_id}: {expected_kind} receipt lacks immutable ref")
+        return None
+    errors.extend(
+        _artifact_ref_errors(artifact_ref, receipt, root, packet_id, expected_kind)
+    )
     try:
-        return _structured_receipt_document(receipt)
+        document = _structured_receipt_document(receipt)
     except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         errors.append(
             f"packet {packet_id}: {expected_kind} receipt {receipt_id!r} cannot be parsed: {exc}"
         )
         return None
+    try:
+        schema = _load_json(root / REVIEW_SCHEMA_PATHS[expected_kind])
+    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"packet {packet_id}: cannot load {expected_kind} schema: {exc}")
+        return None
+    schema_errors = _schema_errors(document, schema, f"packet {packet_id} {expected_kind}")
+    errors.extend(schema_errors)
+    if schema_errors:
+        return None
+    return document
 
 
 def _review_recommendation_errors(
@@ -907,21 +1183,24 @@ def _review_recommendation_errors(
 
 
 def _validate_review_chain(
-    packet: Mapping[str, Any], receipts: Mapping[str, Any], packet_id: str
+    packet: Mapping[str, Any], receipts: Mapping[str, Any], packet_id: str, root: Path
 ) -> list[str]:
     errors: list[str] = []
     chain = packet["review_chain"]
     initial = _receipt_artifact(
         receipts,
         chain["initial_review_receipt"],
+        chain["initial_review_ref"],
         "independent-review",
         packet_id,
+        root,
         errors,
     )
     if initial is None:
         return errors
     if initial.get("review_kind") != "initial" or not initial.get("review_id"):
         errors.append(f"packet {packet_id}: initial review artifact identity is invalid")
+    errors.extend(_review_commit_binding_errors(initial, packet, root, packet_id))
 
     findings: dict[str, dict[str, Any]] = {}
     requested_tests: dict[str, dict[str, Any]] = {}
@@ -958,15 +1237,25 @@ def _validate_review_chain(
     errors.extend(_review_recommendation_errors(initial, findings, packet_id))
 
     responses = chain["response_receipts"]
+    response_refs = chain["response_refs"]
     rereviews = chain["rereview_receipts"]
-    if len(responses) != len(rereviews):
-        errors.append(f"packet {packet_id}: response/re-review round counts differ")
+    rereview_refs = chain["rereview_refs"]
+    if not (
+        len(responses)
+        == len(response_refs)
+        == len(rereviews)
+        == len(rereview_refs)
+    ):
+        errors.append(f"packet {packet_id}: response/re-review receipt/ref counts differ")
     if (findings or requested_tests) and not responses:
         errors.append(f"packet {packet_id}: findings/tests require response and re-review receipts")
 
     prior_review_id = initial.get("review_id")
-    for round_index, (response_id, rereview_id) in enumerate(
-        zip(responses, rereviews, strict=False), start=1
+    prior_review_ref = chain["initial_review_ref"]
+    prior_review_document = initial
+    final_review_document = initial
+    for round_index, (response_id, response_ref, rereview_id, rereview_ref) in enumerate(
+        zip(responses, response_refs, rereviews, rereview_refs, strict=False), start=1
     ):
         active_finding_ids = {
             identifier
@@ -979,10 +1268,22 @@ def _validate_review_chain(
             if result["outcome"] == "unresolved"
         }
         response = _receipt_artifact(
-            receipts, response_id, "builder-response", packet_id, errors
+            receipts,
+            response_id,
+            response_ref,
+            "builder-response",
+            packet_id,
+            root,
+            errors,
         )
         rereview = _receipt_artifact(
-            receipts, rereview_id, "independent-rereview", packet_id, errors
+            receipts,
+            rereview_id,
+            rereview_ref,
+            "independent-rereview",
+            packet_id,
+            root,
+            errors,
         )
         if response is None or rereview is None:
             continue
@@ -990,6 +1291,30 @@ def _validate_review_chain(
             errors.append(
                 f"packet {packet_id}: response round {round_index} targets the wrong review"
             )
+        if response.get("response_round") != round_index:
+            errors.append(f"packet {packet_id}: response round number is not sequential")
+        response_prior_ref = (
+            f"{response.get('review_commit')}:{response.get('review_artifact')}"
+        )
+        if response_prior_ref != prior_review_ref:
+            errors.append(
+                f"packet {packet_id}: response round {round_index} does not bind prior review ref"
+            )
+        if response.get("candidate_commit_reviewed") != prior_review_document.get(
+            "commit_reviewed"
+        ):
+            errors.append(
+                f"packet {packet_id}: response round {round_index} targets wrong candidate"
+            )
+        if rereview.get("prior_review_ref") != prior_review_ref:
+            errors.append(
+                f"packet {packet_id}: re-review round {round_index} prior ref mismatch"
+            )
+        if rereview.get("builder_response_ref") != response_ref:
+            errors.append(
+                f"packet {packet_id}: re-review round {round_index} response ref mismatch"
+            )
+        errors.extend(_review_commit_binding_errors(rereview, packet, root, packet_id))
         response_findings = _artifact_items(
             response, "finding_responses", "finding_id", packet_id, errors
         )
@@ -1047,7 +1372,11 @@ def _validate_review_chain(
                 continue
             outcome = result.get("outcome")
             successor = result.get("superseding_finding_id") or None
-            if outcome not in {"verified-resolved", "unresolved", "superseded"}:
+            if not isinstance(outcome, str) or outcome not in {
+                "verified-resolved",
+                "unresolved",
+                "superseded",
+            }:
                 errors.append(f"packet {packet_id}: finding {finding_id} has invalid outcome")
                 continue
             if outcome == "superseded" and successor not in new_finding_ids:
@@ -1066,7 +1395,11 @@ def _validate_review_chain(
                 continue
             outcome = result.get("outcome")
             successor = result.get("superseding_requested_test_id") or None
-            if outcome not in {"verified-satisfied", "unresolved", "superseded"}:
+            if not isinstance(outcome, str) or outcome not in {
+                "verified-satisfied",
+                "unresolved",
+                "superseded",
+            }:
                 errors.append(f"packet {packet_id}: requested test {test_id} has invalid outcome")
                 continue
             if outcome == "superseded" and successor not in new_test_ids:
@@ -1111,6 +1444,12 @@ def _validate_review_chain(
             }
         errors.extend(_review_recommendation_errors(rereview, findings, packet_id))
         prior_review_id = rereview.get("review_id")
+        prior_review_ref = rereview_ref
+        prior_review_document = rereview
+        final_review_document = rereview
+
+    if final_review_document.get("commit_reviewed") != packet.get("candidate_commit"):
+        errors.append(f"packet {packet_id}: final review does not audit packet candidate")
 
     declared_finding_ids = [item["id"] for item in chain["findings"]]
     declared_test_ids = [item["id"] for item in chain["requested_tests"]]
@@ -1264,6 +1603,8 @@ def _validate_packet(
 
     receipts, receipt_errors = _receipt_map(packet, packet_path, campaign_base)
     errors.extend(receipt_errors)
+    if LIFECYCLE_ORDER[phase] >= LIFECYCLE_ORDER["preregistered"]:
+        errors.extend(_validate_preregistration(packet, receipts, packet_id, root))
     errors.extend(_validate_custody(packet, receipts, packet_id))
 
     if packet["holdout_started"]:
@@ -1357,7 +1698,7 @@ def _validate_packet(
         )
 
     if computed in {"passed", "failed"}:
-        errors.extend(_validate_review_chain(packet, receipts, packet_id))
+        errors.extend(_validate_review_chain(packet, receipts, packet_id, root))
     if computed == "passed":
         achieved = adjudication["achieved_evidence"]
         if evidence_order.index(achieved) < evidence_order.index(declared):
@@ -1399,15 +1740,18 @@ def validate_campaign(
     """Return fail-closed validation errors for one campaign and its packets."""
     path = Path(campaign_path).resolve()
     root = Path(repo_root).resolve() if repo_root is not None else _repo_root()
-    campaign_schema = _load_json(root / "schemas/viability/campaign-v2.schema.json")
-    packet_schema = _load_json(root / "schemas/viability/packet-v2.schema.json")
-    manifest_schema = _load_json(
-        root / "schemas/viability/protocol-manifest-v2.schema.json"
-    )
+    try:
+        campaign_schema = _load_json(root / "schemas/viability/campaign-v2.schema.json")
+        packet_schema = _load_json(root / "schemas/viability/packet-v2.schema.json")
+        manifest_schema = _load_json(
+            root / "schemas/viability/protocol-manifest-v2.schema.json"
+        )
+    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+        return [f"campaign: cannot load contract schemas: {exc}"]
     errors: list[str] = []
     try:
         campaign = _load_yaml(path)
-    except (OSError, yaml.YAMLError) as exc:
+    except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError) as exc:
         return [f"campaign: cannot load {path}: {exc}"]
     errors.extend(_schema_errors(campaign, campaign_schema, "campaign"))
     if errors:
@@ -1456,7 +1800,7 @@ def validate_campaign(
             continue
         try:
             packet = _load_yaml(packet_path)
-        except (OSError, yaml.YAMLError) as exc:
+        except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError) as exc:
             errors.append(f"campaign: cannot load packet {packet_id}: {exc}")
             continue
         if not isinstance(packet, Mapping):
@@ -1467,8 +1811,11 @@ def validate_campaign(
                 f"campaign: packet key {packet_id} != document id {packet.get('packet_id')!r}"
             )
         loaded[packet_id] = (packet, packet_path)
-        preliminary_outcomes[packet_id] = packet.get("adjudication", {}).get(
-            "packet_outcome", "pending"
+        adjudication = packet.get("adjudication")
+        preliminary_outcomes[packet_id] = (
+            adjudication.get("packet_outcome", "pending")
+            if isinstance(adjudication, Mapping)
+            else "pending"
         )
 
     for packet_id, (packet, packet_path) in loaded.items():

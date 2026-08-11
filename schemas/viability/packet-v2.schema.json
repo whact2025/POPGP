@@ -24,6 +24,7 @@
     "null_or_competitors",
     "known_failure_to_retain",
     "threat_model",
+    "preregistration",
     "holdout_started",
     "seats",
     "blind_custody",
@@ -76,6 +77,7 @@
       "type": "array",
       "items": {"type": "string", "minLength": 1}
     },
+    "preregistration": {"$ref": "#/$defs/preregistration"},
     "holdout_started": {"type": "boolean"},
     "seats": {
       "type": "object",
@@ -377,6 +379,79 @@
         "media_type": {"type": "string", "minLength": 1}
       }
     },
+    "protocolArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_id",
+        "content_role",
+        "campaign_path",
+        "protocol_path",
+        "sha256",
+        "media_type"
+      ],
+      "properties": {
+        "receipt_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "content_role": {"enum": ["primary-protocol", "supporting"]},
+        "campaign_path": {"type": "string", "minLength": 1},
+        "protocol_path": {"$ref": "#/$defs/repoPath"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "media_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "resourceBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wall_time_seconds", "memory_bytes", "accelerator_seconds"],
+      "properties": {
+        "wall_time_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "memory_bytes": {"type": "integer", "minimum": 1},
+        "accelerator_seconds": {"type": "number", "minimum": 0}
+      }
+    },
+    "preregistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameters",
+        "measurement_procedure",
+        "uncertainty_procedure",
+        "statistical_analysis",
+        "resource_budget",
+        "commands",
+        "mutation_plan",
+        "protocol_artifacts"
+      ],
+      "properties": {
+        "parameters": {"type": "object"},
+        "measurement_procedure": {"type": "string", "minLength": 1},
+        "uncertainty_procedure": {"type": "string", "minLength": 1},
+        "statistical_analysis": {"type": "string", "minLength": 1},
+        "resource_budget": {"$ref": "#/$defs/resourceBudget"},
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "mutation_plan": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "protocol_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/protocolArtifact"}
+        }
+      }
+    },
+    "repoPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
     "findingResult": {
       "type": "object",
       "additionalProperties": false,
@@ -404,22 +479,36 @@
       "additionalProperties": false,
       "required": [
         "initial_review_receipt",
+        "initial_review_ref",
         "response_receipts",
+        "response_refs",
         "rereview_receipts",
+        "rereview_refs",
         "findings",
         "requested_tests"
       ],
       "properties": {
         "initial_review_receipt": {"type": ["string", "null"]},
+        "initial_review_ref": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}:[^/].+$"},
         "response_receipts": {
           "type": "array",
           "uniqueItems": true,
           "items": {"type": "string"}
         },
+        "response_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[0-9a-f]{40}:[^/].+$"}
+        },
         "rereview_receipts": {
           "type": "array",
           "uniqueItems": true,
           "items": {"type": "string"}
+        },
+        "rereview_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[0-9a-f]{40}:[^/].+$"}
         },
         "findings": {"type": "array", "items": {"$ref": "#/$defs/findingResult"}},
         "requested_tests": {

@@ -3,6 +3,13 @@
 Use this template for initial reviews and re-reviews. Store completed artifacts under
 `reviews/independent_reviewer/` and commit them on a reviewer branch.
 
+Completed initial reviews must conform to
+[`independent-review-v1.schema.json`](../../schemas/viability/independent-review-v1.schema.json);
+completed re-reviews must conform to
+[`independent-rereview-v1.schema.json`](../../schemas/viability/independent-rereview-v1.schema.json).
+The viability validator rejects duplicate YAML/JSON keys and validates the immutable
+`commit:path` receipt reference before using any result.
+
 ```yaml
 artifact_schema_version: 1
 review_id: ""
