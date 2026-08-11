@@ -604,8 +604,9 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
   packet-specific protocol bytes absent or changed at the protocol commit, same-version
   requirements changes, or execution with contract files different from the protocol
   commit;
-- duplicate YAML/JSON mapping keys and malformed external types without raising an
-  uncaught validator exception; and
+- duplicate YAML/JSON mapping keys, malformed external types, unsafe decoded URI
+  control characters, and invalid repository identities without raising an uncaught
+  validator exception; and
 - a campaign outcome inconsistent with its required packet outcomes.
 
 For `VIA-900`, a raw Boolean named `unaffiliated-operator` is necessary but not
@@ -615,13 +616,18 @@ commit/tree provenance resolved from a content-addressed Git bundle, zero prior
 candidate/output/conclusion exposure, a blinded prediction commitment and custodian
 reveal, an external output commitment, and a typed candidate/external comparison.
 Organization, operator, agent, model, session, and orchestrator must all be distinct
-from every internal campaign seat. Canonical repository aliases, candidate commit/tree
-reuse, nonexistent bundle commits, and mismatched trees are rejected. The candidate
-side of the comparison is exactly the custody-committed raw result; candidate/external
+from every internal campaign seat. Canonical repository aliases—including default
+ports, DNS trailing dots, dot segments, credentials, protocol spelling, and terminal
+`.git` path forms—candidate commit/tree reuse, nonexistent bundle commits, and
+mismatched trees are rejected. Invalid or control-bearing repository identities fail
+closed before filesystem access. The candidate side of the comparison is exactly the
+custody-committed raw result; candidate/external
 paths and bytes must differ. After reveal, the adjudicator records both hashes, the
 frozen JSON pointer and absolute tolerance, both measured values, and the recomputed
-agreement Boolean. A disagreement is valid failure evidence only when adjudication is
-`failed` with `external-replication-disagreed`; it is not discarded as an invalid run.
+agreement Boolean. Structured receipts use strict JSON type equality: Boolean and
+numeric representations are not interchangeable. A disagreement is valid failure
+evidence only when adjudication is `failed` with `external-replication-disagreed`; it
+is not discarded as an invalid run.
 The named structured receipts must reproduce the contract exactly. Therefore the local
 validator can check a clean-room evidence package without converting a same-operator
 assertion into Tier E; an external maintainer must still verify that off-system

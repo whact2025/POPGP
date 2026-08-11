@@ -2087,6 +2087,85 @@ def test_tier_e_binds_outputs_git_bundle_orchestrator_and_comparison(
 
 
 @pytest.mark.negative_control
+def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
+    tmp_path: Path,
+) -> None:
+    repository_aliases = {
+        "default-port": "https://github.com:443/whact2025/POPGP",
+        "dns-trailing-dot": "https://github.com./whact2025/POPGP",
+        "dot-segment": "https://github.com/whact2025/x/../POPGP",
+        "terminal-dot-git-segment": "https://github.com/whact2025/POPGP/.git",
+    }
+    for label, repository in repository_aliases.items():
+        def reuse_candidate_repository(
+            external: dict[str, Any], *, value: str = repository
+        ) -> None:
+            external["implementation"]["repository"] = value
+
+        frozen = _build_frozen_repo(
+            tmp_path / f"repository-{label}-frozen",
+            external_mutation=reuse_candidate_repository,
+        )
+        campaign_path, _ = _make_campaign(
+            tmp_path / f"repository-{label}-campaign", frozen, target_tier="E"
+        )
+        errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+        assert any("reuses candidate repository" in error for error in errors), errors
+
+    def unsafe_repository(external: dict[str, Any]) -> None:
+        external["implementation"]["repository"] = "file:///%00bad"
+
+    frozen = _build_frozen_repo(
+        tmp_path / "repository-control-character-frozen",
+        external_mutation=unsafe_repository,
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "repository-control-character-campaign", frozen, target_tier="E"
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+    assert any("repository identity is invalid" in error for error in errors), errors
+
+    comparison_substitutions = {
+        "numeric-integer-agreement": ("agreement", 1),
+        "numeric-float-agreement": ("agreement", 1.0),
+        "boolean-candidate-value": ("candidate_value", True),
+        "boolean-external-value": ("external_value", True),
+    }
+    for label, (field, value) in comparison_substitutions.items():
+        def substitute_comparison_type(
+            packet: dict[str, Any],
+            receipt_dir: Path,
+            *,
+            target_field: str = field,
+            replacement: Any = value,
+        ) -> None:
+            if packet["packet_id"] != "VIA-900":
+                return
+            receipt = next(
+                item
+                for item in packet["receipts"]
+                if item["id"] == "cross-implementation-comparison"
+            )
+            path = receipt_dir / "cross-implementation-comparison.json"
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document[target_field] = replacement
+            _write_json(path, document)
+            receipt["sha256"] = _sha256(path)
+
+        frozen = _build_frozen_repo(
+            tmp_path / f"comparison-{label}-frozen",
+            packet_mutation=substitute_comparison_type,
+        )
+        campaign_path, _ = _make_campaign(
+            tmp_path / f"comparison-{label}-campaign", frozen, target_tier="E"
+        )
+        errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+        assert any(
+            "comparison receipt differs from computed outputs" in error for error in errors
+        ), errors
+
+
+@pytest.mark.negative_control
 def test_requirements_reject_missing_cycles_and_invalid_waves() -> None:
     assert validate_requirements(REQUIREMENTS) == []
 

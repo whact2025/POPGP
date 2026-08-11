@@ -7,6 +7,7 @@ import functools
 import hashlib
 import json
 import math
+import posixpath
 import re
 import subprocess
 import sys
@@ -1084,31 +1085,106 @@ def _structured_external_receipt(
         return None
 
 
-def _canonical_repository_identity(value: str) -> str:
-    """Normalize common Git URL/path aliases for repository-identity comparisons."""
+def _repository_text_is_safe(value: str) -> bool:
+    """Reject decoded control characters before any URL or filesystem operation."""
+    try:
+        decoded = unquote(value, errors="strict")
+    except UnicodeDecodeError:
+        return False
+    return not any(ord(character) < 32 or ord(character) == 127 for character in decoded)
+
+
+def _canonical_git_path(value: str) -> str | None:
+    try:
+        path = unquote(value, errors="strict").replace("\\", "/")
+    except UnicodeDecodeError:
+        return None
+    if not _repository_text_is_safe(path):
+        return None
+    path = re.sub(r"/{2,}", "/", path)
+    path = posixpath.normpath(path) if path else ""
+    if path == ".":
+        path = ""
+    path = path.rstrip("/")
+    while path.lower().endswith("/.git"):
+        path = path[:-5].rstrip("/")
+    if path.lower().endswith(".git"):
+        path = path[:-4]
+    return path.lower()
+
+
+def _canonical_repository_identity(value: str) -> str | None:
+    """Normalize Git URL/path aliases, returning ``None`` for unsafe identities."""
     raw = value.strip().replace("\\", "/")
+    if not raw or not _repository_text_is_safe(raw):
+        return None
+    is_windows_drive = re.match(r"^[A-Za-z]:/", raw) is not None
     scp_match = re.fullmatch(r"(?:[^@/]+@)?([^:/]+):(.+)", raw)
-    if scp_match and "://" not in raw:
+    if scp_match and "://" not in raw and not is_windows_drive:
         raw = f"ssh://{scp_match.group(1)}/{scp_match.group(2)}"
     try:
         parsed = urlsplit(raw)
     except ValueError:
-        return raw.rstrip("/").removesuffix(".git").lower()
-    if parsed.scheme and parsed.scheme != "file":
-        authority = parsed.netloc.rsplit("@", 1)[-1].lower()
-        path = unquote(parsed.path).replace("//", "/").rstrip("/")
-        if path.lower().endswith(".git"):
-            path = path[:-4]
-        return f"{authority}{path}".lower()
-    if parsed.scheme == "file":
-        raw = unquote(parsed.path)
+        return None
+    if parsed.scheme and parsed.scheme.lower() != "file" and not is_windows_drive:
+        try:
+            host = parsed.hostname
+            port = parsed.port
+        except ValueError:
+            return None
+        if not host:
+            return None
+        host = host.rstrip(".").lower()
+        if not host:
+            return None
+        if ":" not in host:
+            try:
+                host = host.encode("idna").decode("ascii")
+            except UnicodeError:
+                return None
+        scheme = parsed.scheme.lower()
+        default_ports = {"http": 80, "https": 443, "ssh": 22, "git": 9418}
+        authority = host
+        if port is not None and port != default_ports.get(scheme):
+            authority = f"{authority}:{port}"
+        path = _canonical_git_path(parsed.path)
+        if path is None:
+            return None
+        return f"{authority}{path}"
+    if parsed.scheme.lower() == "file" and not is_windows_drive:
+        try:
+            local_path = unquote(parsed.path, errors="strict")
+        except UnicodeDecodeError:
+            return None
+        if parsed.netloc:
+            local_path = f"//{parsed.netloc}{local_path}"
+    else:
+        local_path = raw
+    if not _repository_text_is_safe(local_path):
+        return None
     try:
-        normalized = str(Path(raw).resolve()).replace("\\", "/").rstrip("/")
-    except OSError:
-        normalized = raw.rstrip("/")
-    if normalized.lower().endswith(".git"):
-        normalized = normalized[:-4]
-    return normalized.lower()
+        normalized = str(Path(local_path).resolve()).replace("\\", "/")
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return _canonical_git_path(normalized)
+
+
+def _strict_json_equal(actual: Any, expected: Any) -> bool:
+    """Compare JSON values without Python's Boolean/number equality coercion."""
+    if isinstance(actual, Mapping) or isinstance(expected, Mapping):
+        if not isinstance(actual, Mapping) or not isinstance(expected, Mapping):
+            return False
+        return set(actual) == set(expected) and all(
+            _strict_json_equal(actual[key], expected[key]) for key in actual
+        )
+    if isinstance(actual, list) or isinstance(expected, list):
+        if not isinstance(actual, list) or not isinstance(expected, list):
+            return False
+        return len(actual) == len(expected) and all(
+            _strict_json_equal(left, right)
+            for left, right in zip(actual, expected, strict=True)
+        )
+    return type(actual) is type(expected) and actual == expected
 
 
 def _external_git_bundle_errors(
@@ -1212,9 +1288,19 @@ def _validate_external_replication(
                 f"packet {packet_id}: external {label} is not distinct from internal campaign"
             )
     implementation = contract["implementation"]
-    if _canonical_repository_identity(
-        implementation["repository"]
-    ) == _canonical_repository_identity(campaign["repository"]):
+    external_repository = _canonical_repository_identity(implementation["repository"])
+    candidate_repository = _canonical_repository_identity(campaign["repository"])
+    if external_repository is None:
+        errors.append(
+            f"packet {packet_id}: external implementation repository identity is invalid"
+        )
+    if candidate_repository is None:
+        errors.append(f"packet {packet_id}: candidate repository identity is invalid")
+    if (
+        external_repository is not None
+        and candidate_repository is not None
+        and external_repository == candidate_repository
+    ):
         errors.append(f"packet {packet_id}: external implementation reuses candidate repository")
     if implementation["commit_hash"] == campaign["candidate_commit"]:
         errors.append(f"packet {packet_id}: external implementation reuses candidate commit")
@@ -1230,10 +1316,13 @@ def _validate_external_replication(
         "contract",
         errors,
     )
-    if contract_document is not None and contract_document != {
-        "packet_id": packet_id,
-        "contract": contract,
-    }:
+    if contract_document is not None and not _strict_json_equal(
+        contract_document,
+        {
+            "packet_id": packet_id,
+            "contract": contract,
+        },
+    ):
         errors.append(
             f"packet {packet_id}: external replication receipt differs from packet contract"
         )
@@ -1246,12 +1335,15 @@ def _validate_external_replication(
         "implementation provenance",
         errors,
     )
-    if provenance_document is not None and provenance_document != {
-        "packet_id": packet_id,
-        "organization": organization,
-        "operator": operator,
-        "implementation": implementation,
-    }:
+    if provenance_document is not None and not _strict_json_equal(
+        provenance_document,
+        {
+            "packet_id": packet_id,
+            "organization": organization,
+            "operator": operator,
+            "implementation": implementation,
+        },
+    ):
         errors.append(
             f"packet {packet_id}: independent implementation receipt differs from contract"
         )
@@ -1297,13 +1389,16 @@ def _validate_external_replication(
         errors,
     )
     evaluator = packet["seats"]["evaluator_custodian"]["agent_identity"]
-    if reveal_document is not None and reveal_document != {
-        "packet_id": packet_id,
-        "authorized_by": evaluator,
-        "revealed_at": packet["blind_custody"]["reveal"]["revealed_at"],
-        "prediction_receipt_id": prediction["receipt_id"],
-        "prediction_sha256": prediction["sha256"],
-    }:
+    if reveal_document is not None and not _strict_json_equal(
+        reveal_document,
+        {
+            "packet_id": packet_id,
+            "authorized_by": evaluator,
+            "revealed_at": packet["blind_custody"]["reveal"]["revealed_at"],
+            "prediction_receipt_id": prediction["receipt_id"],
+            "prediction_sha256": prediction["sha256"],
+        },
+    ):
         errors.append(f"packet {packet_id}: blinded prediction reveal differs from contract")
 
     reproduction = contract["reproduction"]
@@ -1330,13 +1425,16 @@ def _validate_external_replication(
         "output commitment",
         errors,
     )
-    if commitment_document is not None and commitment_document != {
-        "packet_id": packet_id,
-        "committed_by": reproduction["committed_by"],
-        "committed_at": reproduction["committed_at"],
-        "output_receipt_id": reproduction["output_receipt_id"],
-        "output_sha256": reproduction["output_sha256"],
-    }:
+    if commitment_document is not None and not _strict_json_equal(
+        commitment_document,
+        {
+            "packet_id": packet_id,
+            "committed_by": reproduction["committed_by"],
+            "committed_at": reproduction["committed_at"],
+            "output_receipt_id": reproduction["output_receipt_id"],
+            "output_sha256": reproduction["output_sha256"],
+        },
+    ):
         errors.append(f"packet {packet_id}: external output commitment differs")
 
     comparison = contract["comparison"]
@@ -1446,7 +1544,9 @@ def _validate_external_replication(
             "external_value": external_value,
             "agreement": agreement,
         }
-        if comparison_document is not None and comparison_document != expected_comparison:
+        if comparison_document is not None and not _strict_json_equal(
+            comparison_document, expected_comparison
+        ):
             errors.append(
                 f"packet {packet_id}: comparison receipt differs from computed outputs"
             )
