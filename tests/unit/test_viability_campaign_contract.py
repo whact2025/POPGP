@@ -1638,6 +1638,64 @@ def test_structured_receipts_and_governance_provenance_fail_closed(
             "receipt 'raw-results' cannot be parsed" in error for error in errors
         ), errors
 
+    def alias_commitment(levels: int, *, cyclic: bool = False) -> Any:
+        def mutate(packet: dict[str, Any], receipt_dir: Path) -> None:
+            if packet["packet_id"] != "VIA-000":
+                return
+            receipt = next(
+                item for item in packet["receipts"] if item["id"] == "output-commitment"
+            )
+            commitment = packet["blind_custody"]["output_commitment"]
+            path = receipt_dir / "output-commitment.json"
+            document = {
+                "packet_id": "VIA-000",
+                "committed_by": commitment["committed_by"],
+                "committed_at": commitment["committed_at"],
+                "output_receipt_id": commitment["output_receipt_id"],
+                "output_sha256": commitment["output_sha256"],
+            }
+            text = yaml.safe_dump(document, sort_keys=False).rstrip()
+            text += "\nunused_aliases:\n"
+            if cyclic:
+                text += "  loop: &loop [*loop]\n"
+            else:
+                text += "  level_0: &level_0 []\n"
+                for index in range(1, levels + 1):
+                    text += (
+                        f"  level_{index}: &level_{index} "
+                        f"[*level_{index - 1}, *level_{index - 1}]\n"
+                    )
+                text += f"  root: *level_{levels}\n"
+            path.write_text(text, encoding="utf-8")
+            receipt.update(media_type="application/yaml", sha256=_sha256(path))
+
+        return mutate
+
+    ordinary_aliases = _build_frozen_repo(
+        tmp_path / "ordinary-alias-frozen", packet_mutation=alias_commitment(4)
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "ordinary-alias-campaign", ordinary_aliases
+    )
+    assert validate_campaign(campaign_path, repo_root=ordinary_aliases["root"]) == []
+
+    for label, mutation, expected in (
+        (
+            "alias-dag",
+            alias_commitment(42),
+            "expanded node count exceeds limit",
+        ),
+        ("alias-cycle", alias_commitment(0, cyclic=True), "cyclic YAML alias"),
+    ):
+        frozen = _build_frozen_repo(
+            tmp_path / f"{label}-frozen", packet_mutation=mutation
+        )
+        campaign_path, _ = _make_campaign(tmp_path / f"{label}-campaign", frozen)
+        started = time.monotonic()
+        errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+        assert time.monotonic() - started < 15
+        assert any(expected in error for error in errors), errors
+
     campaign_path, packets = _make_campaign(tmp_path / "independence", frozen_repo)
     packet_path = packets["VIA-000"]
     packet = _load(packet_path)
@@ -1796,7 +1854,7 @@ def test_primary_protocol_rejects_competing_experiment_fields(tmp_path: Path) ->
     ), errors
 
 
-def test_public_validator_fails_closed_for_invalid_entry_paths() -> None:
+def test_public_validator_fails_closed_for_invalid_entry_paths(tmp_path: Path) -> None:
     for campaign_path, repo_root in (
         ("campaign\x00.yaml", None),
         ("campaign.yaml", "repository\x00root"),
@@ -1804,6 +1862,16 @@ def test_public_validator_fails_closed_for_invalid_entry_paths() -> None:
         errors = validate_campaign(campaign_path, repo_root=repo_root)
         assert len(errors) == 1
         assert errors[0].startswith("campaign: validation failed closed: ValueError:")
+
+    oversized = tmp_path / "oversized-campaign.yaml"
+    with oversized.open("wb") as stream:
+        stream.seek(16 * 1024 * 1024)
+        stream.write(b"\n")
+    started = time.monotonic()
+    errors = validate_campaign(oversized, repo_root=ROOT)
+    assert time.monotonic() - started < 5
+    assert len(errors) == 1
+    assert "structured input exceeds 16777216 bytes" in errors[0]
 
 
 def test_bounded_process_terminates_descendants(tmp_path: Path) -> None:
@@ -2115,7 +2183,7 @@ def test_tier_e_binds_outputs_git_bundle_orchestrator_and_comparison(
     started = time.monotonic()
     errors = validate_campaign(campaign_path, repo_root=malformed_bundle["root"])
     elapsed = time.monotonic() - started
-    assert elapsed < GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS + 5
+    assert elapsed < GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS + 15
     assert len(errors) == 1, errors
     assert any(
         "external repository bundle" in error

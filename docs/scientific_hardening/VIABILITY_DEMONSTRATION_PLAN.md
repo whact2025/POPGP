@@ -641,11 +641,14 @@ assertion into Tier E; an external maintainer must still verify that off-system
 affiliation and independent authorship declarations are truthful.
 
 Every hash-valid structured receipt is parsed, even when no outcome binding selects one
-of its fields. Receipts are bounded to 128 nested mapping/array levels, 256 characters
-per JSON number, and finite representable numeric values. JSON uses strict RFC
-constants, so `NaN`, infinities, exponent overflow, and exponent underflow to zero are
-invalid. Exact protocol-envelope and external-receipt comparisons use recursive JSON
-type equality;
+of its fields. Campaign, packet, schema, and structured-receipt text inputs are bounded
+to 16 MiB. Receipts are bounded to 128 nested mapping/array levels, 256 characters per
+JSON number, 100,000 logically expanded structured nodes, and finite representable
+numeric values. YAML aliases are evaluated with identity-aware size/height memoization;
+cycles and alias DAGs whose logical expansion exceeds the node limit are invalid. JSON
+uses strict RFC constants, so `NaN`, infinities, exponent overflow, and exponent
+underflow to zero are invalid. Exact protocol-envelope and external-receipt comparisons
+use recursive JSON type equality;
 Boolean, integer, and floating-point values cannot substitute for one another.
 
 Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a

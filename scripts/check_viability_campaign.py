@@ -31,6 +31,8 @@ REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
 RULE_LANGUAGE = "popgp-bool-v2"
 PACKET_FREEZE_VERSION = "popgp-packet-freeze-v4"
 MAX_STRUCTURED_NESTING = 128
+MAX_STRUCTURED_EXPANDED_NODES = 100_000
+MAX_STRUCTURED_INPUT_BYTES = 16 * 1024 * 1024
 MAX_JSON_NUMBER_CHARACTERS = 256
 GIT_BUNDLE_TIMEOUT_SECONDS = 30
 PROCESS_TREE_CLEANUP_SECONDS = 5
@@ -173,8 +175,18 @@ def _load_yaml_text(text: str) -> Any:
         raise ValueError("YAML nesting exceeds parser limit") from exc
 
 
+def _read_structured_text(path: Path) -> str:
+    with path.open("rb") as stream:
+        content = stream.read(MAX_STRUCTURED_INPUT_BYTES + 1)
+    if len(content) > MAX_STRUCTURED_INPUT_BYTES:
+        raise ValueError(
+            f"structured input exceeds {MAX_STRUCTURED_INPUT_BYTES} bytes"
+        )
+    return content.decode("utf-8")
+
+
 def _load_yaml(path: Path) -> Any:
-    return _load_yaml_text(path.read_text(encoding="utf-8"))
+    return _load_yaml_text(_read_structured_text(path))
 
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -241,6 +253,10 @@ def _check_json_nesting(text: str) -> None:
 
 
 def _load_json_bytes(content: bytes) -> Any:
+    if len(content) > MAX_STRUCTURED_INPUT_BYTES:
+        raise ValueError(
+            f"structured input exceeds {MAX_STRUCTURED_INPUT_BYTES} bytes"
+        )
     return _load_json_text(content.decode("utf-8"))
 
 
@@ -259,7 +275,7 @@ def _load_json_text(text: str) -> Any:
 
 
 def _load_json(path: Path) -> Any:
-    return _load_json_text(path.read_text(encoding="utf-8"))
+    return _load_json_text(_read_structured_text(path))
 
 
 def _format_path(parts: list[Any]) -> str:
@@ -861,7 +877,7 @@ def _structured_receipt_document(receipt: Mapping[str, Any]) -> Mapping[str, Any
     if not isinstance(path, Path) or not path.is_file():
         raise ValueError("receipt file is unavailable")
     media_type = receipt.get("media_type")
-    text = path.read_text(encoding="utf-8")
+    text = _read_structured_text(path)
     if media_type == "application/json":
         document = _load_json_text(text)
     elif media_type in {"application/yaml", "text/yaml"}:
@@ -873,19 +889,48 @@ def _structured_receipt_document(receipt: Mapping[str, Any]) -> Mapping[str, Any
         document = _load_yaml_text(match.group(1))
     else:
         raise ValueError(f"unsupported structured receipt media type {media_type!r}")
-    stack: list[tuple[Any, int]] = [(document, 0)]
-    while stack:
-        value, depth = stack.pop()
+
+    cache: dict[int, tuple[int, int]] = {}
+    active: set[int] = set()
+
+    def metrics(value: Any, depth: int) -> tuple[int, int]:
         if depth > MAX_STRUCTURED_NESTING:
             raise ValueError(
                 f"structured receipt nesting exceeds limit {MAX_STRUCTURED_NESTING}"
             )
         if type(value) is float and not math.isfinite(value):
             raise ValueError("structured receipt contains a non-finite number")
-        if isinstance(value, Mapping):
-            stack.extend((item, depth + 1) for item in value.values())
-        elif isinstance(value, list):
-            stack.extend((item, depth + 1) for item in value)
+        if not isinstance(value, (Mapping, list)):
+            return 1, 0
+        marker = id(value)
+        if marker in active:
+            raise ValueError("structured receipt contains a cyclic YAML alias")
+        if marker in cache:
+            expanded_nodes, height = cache[marker]
+            if depth + height > MAX_STRUCTURED_NESTING:
+                raise ValueError(
+                    f"structured receipt nesting exceeds limit {MAX_STRUCTURED_NESTING}"
+                )
+            return expanded_nodes, height
+
+        active.add(marker)
+        expanded_nodes = 1
+        height = 0
+        children = value.values() if isinstance(value, Mapping) else value
+        for child in children:
+            child_nodes, child_height = metrics(child, depth + 1)
+            expanded_nodes += child_nodes
+            if expanded_nodes > MAX_STRUCTURED_EXPANDED_NODES:
+                raise ValueError(
+                    "structured receipt expanded node count exceeds limit "
+                    f"{MAX_STRUCTURED_EXPANDED_NODES}"
+                )
+            height = max(height, child_height + 1)
+        active.remove(marker)
+        cache[marker] = (expanded_nodes, height)
+        return expanded_nodes, height
+
+    metrics(document, 0)
     if not isinstance(document, Mapping):
         raise ValueError("structured receipt must contain an object")
     return document
