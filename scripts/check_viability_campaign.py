@@ -168,11 +168,58 @@ _UniqueKeyLoader.add_constructor(
 )
 
 
+def _validate_structured_graph(document: Any) -> None:
+    """Bound depth and logical expansion for every parsed structured input."""
+    cache: dict[int, tuple[int, int]] = {}
+    active: set[int] = set()
+
+    def metrics(value: Any, depth: int) -> tuple[int, int]:
+        if depth > MAX_STRUCTURED_NESTING:
+            raise ValueError(
+                f"structured input nesting exceeds limit {MAX_STRUCTURED_NESTING}"
+            )
+        if type(value) is float and not math.isfinite(value):
+            raise ValueError("structured input contains a non-finite number")
+        if not isinstance(value, (Mapping, list)):
+            return 1, 0
+        marker = id(value)
+        if marker in active:
+            raise ValueError("structured input contains a cyclic YAML alias")
+        if marker in cache:
+            expanded_nodes, height = cache[marker]
+            if depth + height > MAX_STRUCTURED_NESTING:
+                raise ValueError(
+                    f"structured input nesting exceeds limit {MAX_STRUCTURED_NESTING}"
+                )
+            return expanded_nodes, height
+
+        active.add(marker)
+        expanded_nodes = 1
+        height = 0
+        children = value.values() if isinstance(value, Mapping) else value
+        for child in children:
+            child_nodes, child_height = metrics(child, depth + 1)
+            expanded_nodes += child_nodes
+            if expanded_nodes > MAX_STRUCTURED_EXPANDED_NODES:
+                raise ValueError(
+                    "structured input expanded node count exceeds limit "
+                    f"{MAX_STRUCTURED_EXPANDED_NODES}"
+                )
+            height = max(height, child_height + 1)
+        active.remove(marker)
+        cache[marker] = (expanded_nodes, height)
+        return expanded_nodes, height
+
+    metrics(document, 0)
+
+
 def _load_yaml_text(text: str) -> Any:
     try:
-        return yaml.load(text, Loader=_UniqueKeyLoader)
+        document = yaml.load(text, Loader=_UniqueKeyLoader)
     except RecursionError as exc:
         raise ValueError("YAML nesting exceeds parser limit") from exc
+    _validate_structured_graph(document)
+    return document
 
 
 def _read_structured_text(path: Path) -> str:
@@ -263,7 +310,7 @@ def _load_json_bytes(content: bytes) -> Any:
 def _load_json_text(text: str) -> Any:
     _check_json_nesting(text)
     try:
-        return json.loads(
+        document = json.loads(
             text,
             object_pairs_hook=_unique_json_object,
             parse_constant=_reject_json_constant,
@@ -272,6 +319,8 @@ def _load_json_text(text: str) -> Any:
         )
     except RecursionError as exc:
         raise ValueError("JSON nesting exceeds parser limit") from exc
+    _validate_structured_graph(document)
+    return document
 
 
 def _load_json(path: Path) -> Any:
@@ -316,6 +365,7 @@ def _canonical_json_bytes(document: Any) -> bytes:
 
 def packet_rule_sha256(packet: Mapping[str, Any]) -> str:
     """Return the v2 canonical hash of fields frozen before holdout execution."""
+    _validate_structured_graph(packet)
     frozen = {field: packet[field] for field in PACKET_FREEZE_FIELDS}
     frozen["seat_assignments"] = {
         seat_name: {
@@ -545,6 +595,10 @@ def validate_requirements(requirements: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(requirements, Mapping):
         return ["requirements: document must be an object"]
+    try:
+        _validate_structured_graph(requirements)
+    except ValueError as exc:
+        return [f"requirements: invalid structured graph: {exc}"]
     if requirements.get("version") != REQUIREMENTS_VERSION:
         errors.append(f"requirements: version must be {REQUIREMENTS_VERSION!r}")
 
@@ -889,48 +943,6 @@ def _structured_receipt_document(receipt: Mapping[str, Any]) -> Mapping[str, Any
         document = _load_yaml_text(match.group(1))
     else:
         raise ValueError(f"unsupported structured receipt media type {media_type!r}")
-
-    cache: dict[int, tuple[int, int]] = {}
-    active: set[int] = set()
-
-    def metrics(value: Any, depth: int) -> tuple[int, int]:
-        if depth > MAX_STRUCTURED_NESTING:
-            raise ValueError(
-                f"structured receipt nesting exceeds limit {MAX_STRUCTURED_NESTING}"
-            )
-        if type(value) is float and not math.isfinite(value):
-            raise ValueError("structured receipt contains a non-finite number")
-        if not isinstance(value, (Mapping, list)):
-            return 1, 0
-        marker = id(value)
-        if marker in active:
-            raise ValueError("structured receipt contains a cyclic YAML alias")
-        if marker in cache:
-            expanded_nodes, height = cache[marker]
-            if depth + height > MAX_STRUCTURED_NESTING:
-                raise ValueError(
-                    f"structured receipt nesting exceeds limit {MAX_STRUCTURED_NESTING}"
-                )
-            return expanded_nodes, height
-
-        active.add(marker)
-        expanded_nodes = 1
-        height = 0
-        children = value.values() if isinstance(value, Mapping) else value
-        for child in children:
-            child_nodes, child_height = metrics(child, depth + 1)
-            expanded_nodes += child_nodes
-            if expanded_nodes > MAX_STRUCTURED_EXPANDED_NODES:
-                raise ValueError(
-                    "structured receipt expanded node count exceeds limit "
-                    f"{MAX_STRUCTURED_EXPANDED_NODES}"
-                )
-            height = max(height, child_height + 1)
-        active.remove(marker)
-        cache[marker] = (expanded_nodes, height)
-        return expanded_nodes, height
-
-    metrics(document, 0)
     if not isinstance(document, Mapping):
         raise ValueError("structured receipt must contain an object")
     return document
@@ -2686,6 +2698,11 @@ def _validate_campaign(
     errors.extend(_schema_errors(campaign, campaign_schema, "campaign"))
     if errors:
         return errors
+    if requirements_document is not None:
+        try:
+            _validate_structured_graph(requirements_document)
+        except ValueError as exc:
+            return [f"requirements: invalid structured graph: {exc}"]
 
     requirements, protocol_manifest, freeze_errors = _validate_frozen_inputs(
         campaign, root, manifest_schema, requirements_document

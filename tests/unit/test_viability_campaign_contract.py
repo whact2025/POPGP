@@ -1638,6 +1638,12 @@ def test_structured_receipts_and_governance_provenance_fail_closed(
             "receipt 'raw-results' cannot be parsed" in error for error in errors
         ), errors
 
+    def alias_graph(levels: int) -> list[Any]:
+        graph: list[Any] = []
+        for _ in range(levels):
+            graph = [graph, graph]
+        return graph
+
     def alias_commitment(levels: int, *, cyclic: bool = False) -> Any:
         def mutate(packet: dict[str, Any], receipt_dir: Path) -> None:
             if packet["packet_id"] != "VIA-000":
@@ -1695,6 +1701,66 @@ def test_structured_receipts_and_governance_provenance_fail_closed(
         errors = validate_campaign(campaign_path, repo_root=frozen["root"])
         assert time.monotonic() - started < 15
         assert any(expected in error for error in errors), errors
+
+    def ordinary_alias_protocol(protocol: dict[str, Any]) -> None:
+        protocol["parameters"]["shared_alias"] = alias_graph(4)
+
+    def ordinary_alias_packet(packet: dict[str, Any], _: Path) -> None:
+        packet["preregistration"]["parameters"]["shared_alias"] = alias_graph(4)
+
+    ordinary_packet_aliases = _build_frozen_repo(
+        tmp_path / "ordinary-packet-alias-frozen",
+        protocol_mutation=ordinary_alias_protocol,
+        packet_mutation=ordinary_alias_packet,
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "ordinary-packet-alias-campaign", ordinary_packet_aliases
+    )
+    assert (
+        validate_campaign(campaign_path, repo_root=ordinary_packet_aliases["root"]) == []
+    )
+
+    campaign_path, packets = _make_campaign(
+        tmp_path / "packet-alias-dag", frozen_repo
+    )
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    packet["preregistration"]["parameters"]["alias_dag"] = alias_graph(42)
+    _write_yaml(packet_path, packet)
+    started = time.monotonic()
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert time.monotonic() - started < 15
+    assert any(
+        "cannot load packet VIA-000" in error
+        and "expanded node count exceeds limit" in error
+        for error in errors
+    ), errors
+
+    campaign_path, _ = _make_campaign(tmp_path / "campaign-alias-dag", frozen_repo)
+    campaign = _load(campaign_path)
+    campaign["decision"]["authorized_by"] = alias_graph(42)
+    _write_yaml(campaign_path, campaign)
+    started = time.monotonic()
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert time.monotonic() - started < 15
+    assert len(errors) == 1
+    assert "expanded node count exceeds limit" in errors[0]
+
+    aliased_requirements = copy.deepcopy(REQUIREMENTS)
+    aliased_requirements["alias_dag"] = alias_graph(42)
+    errors = validate_requirements(aliased_requirements)
+    assert len(errors) == 1
+    assert "invalid structured graph" in errors[0]
+    campaign_path, _ = _make_campaign(
+        tmp_path / "requirements-alias-dag", frozen_repo
+    )
+    errors = validate_campaign(
+        campaign_path,
+        repo_root=frozen_repo["root"],
+        requirements_document=aliased_requirements,
+    )
+    assert len(errors) == 1
+    assert "invalid structured graph" in errors[0]
 
     campaign_path, packets = _make_campaign(tmp_path / "independence", frozen_repo)
     packet_path = packets["VIA-000"]

@@ -644,8 +644,10 @@ Every hash-valid structured receipt is parsed, even when no outcome binding sele
 of its fields. Campaign, packet, schema, and structured-receipt text inputs are bounded
 to 16 MiB. Receipts are bounded to 128 nested mapping/array levels, 256 characters per
 JSON number, 100,000 logically expanded structured nodes, and finite representable
-numeric values. YAML aliases are evaluated with identity-aware size/height memoization;
-cycles and alias DAGs whose logical expansion exceeds the node limit are invalid. JSON
+numeric values. Every parsed campaign, packet, requirements override, schema, manifest,
+protocol, review artifact, and receipt is graph-validated before schema evaluation or
+canonicalization. YAML aliases use identity-aware size/height memoization; cycles and
+alias DAGs whose logical expansion exceeds the node limit are invalid. JSON
 uses strict RFC constants, so `NaN`, infinities, exponent overflow, and exponent
 underflow to zero are invalid. Exact protocol-envelope and external-receipt comparisons
 use recursive JSON type equality;
