@@ -10,6 +10,11 @@ contracts in the
 then apply this review runbook to each frozen implementation candidate. Packet
 adjudication does not replace independent implementation review.
 
+Before reviewing a preregistered or adjudicated campaign packet, run the executable
+contract command specified in the viability plan and retain its exact output. Schema
+validity alone is insufficient; the validator also enforces receipt hashes, custody,
+dependencies, outcome exclusivity, evidence floors, and review-chain closure.
+
 ## 1. Freeze and record the candidate
 
 From the POPGP repository root, confirm the intended branch is clean and commit the

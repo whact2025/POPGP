@@ -1,0 +1,99 @@
+# Copy once per packet and replace every placeholder before preregistration.
+# This drafted VIA-000 example is structurally valid but cannot pass a campaign.
+schema_version: 1
+contract_version: popgp-viability-contract-v1
+campaign_id: POPGP-VIABILITY-REPLACE-ME
+packet_id: VIA-000
+candidate_commit: "0000000000000000000000000000000000000000"
+baseline_commit: "0000000000000000000000000000000000000000"
+tree_hash: "0000000000000000000000000000000000000000"
+protocol_commit: "0000000000000000000000000000000000000000"
+lifecycle_phase: drafted
+claims: [C01]
+existing_gates: []
+declared_evidence_requirement: E3-adversarial-suite
+capabilities: []
+capability_rules: {}
+hypothesis: replace with one falsifiable statement
+null_or_competitors:
+  - replace with a serious competitor or null
+known_failure_to_retain: replace with a named negative result or none
+threat_model:
+  - replace with a concrete adversarial threat
+holdout_started: false
+seats:
+  protocol_designer: &seat_protocol
+    agent_identity: replace-protocol-agent
+    model_identity: unknown
+    model_version: unknown
+    operator: replace-operator
+    session_id: replace-protocol-session
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    <<: *seat_protocol
+    agent_identity: replace-builder-agent
+    session_id: replace-builder-session
+  falsifier:
+    <<: *seat_protocol
+    agent_identity: replace-falsifier-agent
+    session_id: replace-falsifier-session
+  statistical_auditor:
+    <<: *seat_protocol
+    agent_identity: replace-statistical-auditor
+    session_id: replace-statistics-session
+  reproduction_runner:
+    <<: *seat_protocol
+    agent_identity: replace-reproduction-runner
+    session_id: replace-runner-session
+  claim_auditor:
+    <<: *seat_protocol
+    agent_identity: replace-claim-auditor
+    session_id: replace-claim-session
+  adjudicator:
+    <<: *seat_protocol
+    agent_identity: replace-adjudicator
+    session_id: replace-adjudicator-session
+  evaluator_custodian:
+    <<: *seat_protocol
+    agent_identity: replace-evaluator-custodian
+    session_id: replace-custodian-session
+    access_level: hidden-manifest-custody
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: replace-with-custody-uri
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  secret_seed_manifest:
+    immutable_uri: replace-with-custody-uri
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    retention_policy: retain according to the frozen campaign policy
+    immutable_location: replace-with-archive-location
+outcome_rules: null
+receipts: []
+review_chain:
+  initial_review_receipt: null
+  response_receipts: []
+  rereview_receipts: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes: [not-run]
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

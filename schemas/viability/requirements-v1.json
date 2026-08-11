@@ -1,0 +1,242 @@
+{
+  "version": "popgp-viability-requirements-v1",
+  "evidence_order": [
+    "E0-proposal",
+    "E1-implementation",
+    "E2-selected-benchmark",
+    "E3-adversarial-suite",
+    "E4-convergent-replication",
+    "E5-external-empirical"
+  ],
+  "required_receipt_kinds": {
+    "E0-proposal": [],
+    "E1-implementation": ["environment", "run-log"],
+    "E2-selected-benchmark": ["raw-results"],
+    "E3-adversarial-suite": [
+      "protocol",
+      "attack-plan",
+      "statistical-audit",
+      "mutation-results",
+      "independent-review",
+      "adjudication",
+      "claim-diff"
+    ],
+    "E4-convergent-replication": [
+      "independent-implementation",
+      "refinement-results"
+    ],
+    "E5-external-empirical": [
+      "external-replication",
+      "blinded-prediction",
+      "reveal-record"
+    ]
+  },
+  "tiers": {
+    "R": [
+      "VIA-000",
+      "VIA-010",
+      "VIA-100",
+      "VIA-150",
+      "VIA-200",
+      "VIA-300",
+      "VIA-400"
+    ],
+    "G": [
+      "VIA-000",
+      "VIA-010",
+      "VIA-100",
+      "VIA-150",
+      "VIA-200",
+      "VIA-300",
+      "VIA-400",
+      "VIA-500",
+      "VIA-600",
+      "VIA-700"
+    ],
+    "E": [
+      "VIA-000",
+      "VIA-010",
+      "VIA-100",
+      "VIA-150",
+      "VIA-200",
+      "VIA-300",
+      "VIA-400",
+      "VIA-500",
+      "VIA-600",
+      "VIA-700",
+      "VIA-900"
+    ],
+    "extension": [
+      "VIA-000",
+      "VIA-010",
+      "VIA-100",
+      "VIA-150",
+      "VIA-200",
+      "VIA-300",
+      "VIA-400",
+      "VIA-500",
+      "VIA-600",
+      "VIA-700",
+      "VIA-800"
+    ]
+  },
+  "packets": {
+    "VIA-000": {
+      "dependencies": [],
+      "execution_wave": 0,
+      "minimum_evidence": "E3-adversarial-suite",
+      "required_capabilities": [
+        "evidence-contract",
+        "cross-platform-reproduction",
+        "mutation-rejection"
+      ]
+    },
+    "VIA-010": {
+      "dependencies": ["VIA-000"],
+      "execution_wave": 1,
+      "minimum_evidence": "E3-adversarial-suite",
+      "required_capabilities": [
+        "hidden-time-ledger",
+        "structural-prior-disclosure",
+        "evaluator-leakage-audit"
+      ]
+    },
+    "VIA-100": {
+      "dependencies": ["VIA-000", "VIA-010"],
+      "execution_wave": 2,
+      "minimum_evidence": "E3-adversarial-suite",
+      "required_capabilities": [
+        "nonidentity-response",
+        "local-continuity",
+        "convention-stability",
+        "temporal-averaging",
+        "holdout-prediction"
+      ]
+    },
+    "VIA-150": {
+      "dependencies": ["VIA-010", "VIA-300"],
+      "execution_wave": 2,
+      "minimum_evidence": "E3-adversarial-suite",
+      "required_capabilities": [
+        "derived-retention-budget",
+        "local-flow-agreement",
+        "capacity-model-comparison"
+      ]
+    },
+    "VIA-200": {
+      "dependencies": ["VIA-000", "VIA-010"],
+      "execution_wave": 2,
+      "minimum_evidence": "E3-adversarial-suite",
+      "required_capabilities": [
+        "blind-edge-recovery",
+        "nongeometric-rejection",
+        "explicit-abstention",
+        "permutation-equivariance"
+      ]
+    },
+    "VIA-300": {
+      "dependencies": ["VIA-000"],
+      "execution_wave": 1,
+      "minimum_evidence": "E4-convergent-replication",
+      "required_capabilities": [
+        "entangling-observables",
+        "exact-overlap",
+        "decreasing-error",
+        "four-level-ladder"
+      ]
+    },
+    "VIA-400": {
+      "dependencies": ["VIA-100", "VIA-150", "VIA-200", "VIA-300"],
+      "execution_wave": 3,
+      "minimum_evidence": "E4-convergent-replication",
+      "required_capabilities": [
+        "intrinsic-complex",
+        "four-level-refinement",
+        "holdout-convergence",
+        "nongeometric-control"
+      ]
+    },
+    "VIA-500": {
+      "dependencies": ["VIA-100", "VIA-300", "VIA-400"],
+      "execution_wave": 4,
+      "minimum_evidence": "E4-convergent-replication",
+      "required_capabilities": [
+        "independent-clock",
+        "weak-field-model-discrimination",
+        "fixed-normalization"
+      ]
+    },
+    "VIA-600": {
+      "dependencies": ["VIA-100", "VIA-400", "VIA-500"],
+      "execution_wave": 5,
+      "minimum_evidence": "E4-convergent-replication",
+      "required_capabilities": [
+        "tensor-closure",
+        "bianchi-divergence",
+        "source-continuity",
+        "global-coupling"
+      ]
+    },
+    "VIA-700": {
+      "dependencies": ["VIA-300", "VIA-400", "VIA-600"],
+      "execution_wave": 6,
+      "minimum_evidence": "E4-convergent-replication",
+      "required_capabilities": [
+        "three-dimensional-recovery",
+        "acceleration-geodesic-response",
+        "same-source-lensing",
+        "same-source-shapiro-delay",
+        "two-potential-consistency",
+        "laboratory-interference-statistics",
+        "laboratory-entanglement-statistics",
+        "lorentz-bounds",
+        "operational-no-signaling"
+      ]
+    },
+    "VIA-800": {
+      "dependencies": [
+        "VIA-000",
+        "VIA-010",
+        "VIA-100",
+        "VIA-150",
+        "VIA-200",
+        "VIA-300",
+        "VIA-400",
+        "VIA-500",
+        "VIA-600",
+        "VIA-700"
+      ],
+      "execution_wave": 7,
+      "minimum_evidence": "E4-convergent-replication",
+      "required_capabilities": [
+        "low-curvature-recovery",
+        "universal-high-curvature-rule",
+        "constraint-control",
+        "causal-extendibility"
+      ]
+    },
+    "VIA-900": {
+      "dependencies": [
+        "VIA-000",
+        "VIA-010",
+        "VIA-100",
+        "VIA-150",
+        "VIA-200",
+        "VIA-300",
+        "VIA-400",
+        "VIA-500",
+        "VIA-600",
+        "VIA-700"
+      ],
+      "execution_wave": 7,
+      "minimum_evidence": "E5-external-empirical",
+      "required_capabilities": [
+        "unaffiliated-operator",
+        "independent-core-code",
+        "blinded-prediction",
+        "prediction-reveal",
+        "cross-implementation-agreement"
+      ]
+    }
+  }
+}

@@ -181,6 +181,9 @@ energy-density convention is an explicit limitation.
 - `docs/scientific_hardening/`: claim classification, theory/code gaps, and staged
   falsification plan, including the
   [`adversarial viability demonstration plan`](docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md).
+- `schemas/viability/` and `scripts/check_viability_campaign.py`: versioned campaign
+  contracts plus the fail-closed dependency, custody, evidence, receipt, and outcome
+  validator used by adversarial-agent viability campaigns.
 - `popgp_engine/`: experimental CUDA components. The native clock solver is still
   an identity stub, and renderer curvature code is not integrated with the Python
   projection pipeline.

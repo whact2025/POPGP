@@ -29,7 +29,7 @@ target before work begins.
 | Decision tier | Meaning | Required packets |
 |---|---|---|
 | **R — mechanism viability** | The proposed source/locality/geometry mechanism survives preregistered controls, is not an artifact of hidden priors or one exact toy instance, and shows a controlled path to refinement. This justifies continued research; it is not a GR result. | `VIA-000`, `VIA-010`, `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300`, `VIA-400` |
-| **G — gravitational viability** | Tier R plus an independently measured clock response, a controlled weak-field limit, convergent discrete closure/conservation, and accessible-regime consistency. This supports a gravitational-framework claim, not a completed theory of nature. | Tier R plus `VIA-500`, `VIA-600`, `VIA-700` |
+| **G — gravitational viability** | Tier R plus 3D recovery, an independently measured clock, one-calibration acceleration/geodesic/redshift/lensing/Shapiro comparisons, convergent closure/conservation, laboratory quantum-statistics compatibility, and accessible-regime Lorentz/no-signaling consistency. This supports a gravitational-framework claim, not a completed theory of nature. | Tier R plus `VIA-500`, `VIA-600`, `VIA-700` |
 | **E — externally supported core framework** | Tier G has been reproduced by an unaffiliated group using independently written code and a blinded prediction package. | Tier G plus `VIA-900` |
 
 `VIA-800` tests the optional high-curvature/singularity program. It is required for a
@@ -99,13 +99,14 @@ every packet.
 
 ## 4. Crucible-compatible campaign lifecycle
 
-Each packet moves through a fail-closed state machine:
+Each packet has a lifecycle phase separate from its adjudicated outcome:
 
 ```text
 drafted -> preregistered -> implemented -> attacked -> reproduced -> adjudicated
-                                                                -> passed
-                                                                -> failed
-                                                                -> blocked
+
+adjudicated round_status: valid | invalid
+valid packet_outcome:     passed | failed | blocked
+invalid packet_outcome:   pending (a new round is required)
 ```
 
 - `preregistered` means the hypothesis, null, parameters, holdouts, statistics,
@@ -117,6 +118,10 @@ drafted -> preregistered -> implemented -> attacked -> reproduced -> adjudicated
 - `reproduced` means a clean runner executed the protocol from the locked environment
   without using the builder's runtime state or generated files.
 - `adjudicated` means a non-builder checked receipts against the frozen rule.
+- `invalid` records unusable evidence or protocol without turning it into a scientific
+  failure or infrastructure blockage. It is a round status, not a packet outcome.
+- Valid pass, fail, and blockage expressions must be mutually exclusive. If zero or
+  more than one evaluates true, the round is invalid with `rule-ambiguous`.
 - Any code, data, threshold, or interpretation change after preregistration creates a
   new candidate and invalidates unfinished downstream states.
 
@@ -131,28 +136,37 @@ drafted -> preregistered -> implemented -> attacked -> reproduced -> adjudicated
 | Reproduction runner | Executes the frozen protocol in a clean environment | Reusing builder caches or accepting summary-only evidence |
 | Claim auditor | Maps outcomes to `CLAIMS_MATRIX.md` wording | Promoting a failed or blocked gate |
 | Adjudicator | Verifies receipts and assigns `passed`, `failed`, or `blocked` | Deciding by model vote or unpublished information |
+| Evaluator/custodian | Commits hidden manifest hashes, protects labels/seeds, receives output commitments, and authorizes reveal | Building, running, falsifying, or adjudicating the same packet |
 | Maintainer/PI | Authorizes resources, external gates, and claim changes | Relabeling internal agent agreement as external replication |
 
 One agent may fill multiple design seats before preregistration, but builder,
-falsifier, reproduction runner, and adjudicator should use separate clean sessions.
-Shared operators, models, prompts, and orchestration must be disclosed.
+falsifier, reproduction runner, adjudicator, and evaluator/custodian **must** use
+separate validated session IDs. The evaluator/custodian cannot reuse the agent identity
+of any of those execution seats. Every seat records model, version, operator, session,
+access, and hidden-data exposure separately; shared operators, prompts, and
+orchestration remain disclosed.
 
 ## 5. Viability work-packet register
 
-| Packet | Question | Current state | Primary dependencies | Tier |
-|---|---|---|---|---|
-| `VIA-000` | Can an evaluator reproduce the candidate and trust its evidence contracts? | Internal CI/reproduction passes; native CUDA and current PDF evidence remain limited | none | R |
-| `VIA-010` | Does the mechanism avoid hidden time, target leakage, and undisclosed topology priors? | Open; code uses ordinary `dt` and Hamiltonians encode interaction graphs | `VIA-000` | R |
-| `VIA-100` | Is there a nontrivial, localized, conserved, and sufficiently convention-stable source response? | Partial finite KMS result; localization, averaging, covariance, and refinement open | `VIA-000`, `VIA-010` | R |
-| `VIA-150` | Does projection/capacity selection remain nontrivial and universal as scale changes? | Selected finite partition benchmark; retention budget and capacity law are imposed | `VIA-010`, `VIA-300` | R |
-| `VIA-200` | Can blind inference recover geometric families while rejecting non-geometric controls? | Selected chain/grid pass; perturbed Bell false positive and broader families open | `VIA-000`, `VIA-010` | R |
-| `VIA-300` | Can a scalable backend reproduce the exact observables needed by the full pipeline? | Open; current mean-field path cannot supply MI/QCMI | `VIA-000` | R |
-| `VIA-400` | Do intrinsic geometry, dimension, topology, metric, and curvature converge under refinement? | Not demonstrated | `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300` | R |
-| `VIA-500` | Does the candidate source predict an independently measured clock and weak-field law? | Numerical graph solve only; source/clock/Newtonian limit open | `VIA-100`, `VIA-300`, `VIA-400` | G |
-| `VIA-600` | Do source and intrinsic geometry satisfy convergent closure and conservation? | Not implemented | `VIA-100`, `VIA-400`, `VIA-500` | G |
-| `VIA-700` | Are accessible-regime Lorentz, quantum-statistical, and no-signaling constraints satisfied? | Mostly unimplemented or assumed | `VIA-300`, `VIA-400`, `VIA-600` | G |
-| `VIA-800` | Does a controlled high-curvature solution remain causally extendible without case tuning? | Not implemented | Tier G | extension |
-| `VIA-900` | Can an unaffiliated group reproduce the frozen core prediction independently? | Not attempted | target tier complete internally | E |
+| Packet | Question | Current state | Dependencies | Wave | Floor |
+|---|---|---|---|---:|---|
+| `VIA-000` | Can an evaluator reproduce the candidate and trust its evidence contracts? | Internal CI/reproduction passes; native CUDA and current PDF evidence remain limited | none | 0 | E3 |
+| `VIA-010` | Does the mechanism avoid hidden time, target leakage, and undisclosed topology priors? | Open; code uses ordinary `dt` and Hamiltonians encode interaction graphs | `VIA-000` | 1 | E3 |
+| `VIA-100` | Is there a nontrivial, localized, conserved, and sufficiently convention-stable source response? | Partial finite KMS result; localization, averaging, covariance, and refinement open | `VIA-000`, `VIA-010` | 2 | E3 |
+| `VIA-150` | Does projection/capacity selection remain nontrivial and universal as scale changes? | Selected finite partition benchmark; retention budget and capacity law are imposed | `VIA-010`, `VIA-300` | 2 | E3 |
+| `VIA-200` | Can blind inference recover geometric families while rejecting non-geometric controls? | Selected chain/grid pass; perturbed Bell false positive and broader families open | `VIA-000`, `VIA-010` | 2 | E3 |
+| `VIA-300` | Can a scalable backend reproduce the exact observables needed by the full pipeline? | Open; current mean-field path cannot supply MI/QCMI | `VIA-000` | 1 | E4 |
+| `VIA-400` | Do intrinsic geometry, dimension, topology, metric, and curvature converge under refinement? | Not demonstrated | `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300` | 3 | E4 |
+| `VIA-500` | Does the candidate source predict an independently measured clock and weak-field law? | Numerical graph solve only; source/clock/Newtonian limit open | `VIA-100`, `VIA-300`, `VIA-400` | 4 | E4 |
+| `VIA-600` | Do source and intrinsic geometry satisfy convergent closure and conservation? | Not implemented | `VIA-100`, `VIA-400`, `VIA-500` | 5 | E4 |
+| `VIA-700` | Does a 3D candidate satisfy gravitational and accessible-regime comparisons? | Mostly unimplemented or assumed | `VIA-300`, `VIA-400`, `VIA-600` | 6 | E4 |
+| `VIA-800` | Does a controlled high-curvature solution remain causally extendible without case tuning? | Not implemented | all Tier G packets | 7 | E4 |
+| `VIA-900` | Can an unaffiliated group reproduce the frozen core prediction independently? | Not attempted | all Tier G packets | 7 | E5 |
+
+The authoritative dependency lists, waves, capabilities, tier membership, evidence
+ordering, and floors are machine-owned by
+[`requirements-v1.json`](../../schemas/viability/requirements-v1.json). Packet authors
+may raise an evidence requirement but cannot lower that campaign floor.
 
 ## 6. Detailed work packets
 
@@ -405,29 +419,45 @@ limits; every structural mutation fails.
 conservation requires post-hoc projection, or coupling/boundary terms are retuned per
 fixture.
 
-### VIA-700 — accessible-regime consistency
+### VIA-700 — three-dimensional gravity and accessible-regime consistency
 
-**Objective:** ensure the viable core does not violate physics already tested in
-accessible regimes.
+**Objective:** require the Tier G candidate to recover three-dimensional behavior and
+the framework's own minimum same-source gravitational and laboratory comparisons.
 
 **Required work:**
 
+- Demonstrate a stable three-dimensional intrinsic geometry under the `VIA-400`
+  refinement and non-geometric-control rules. A successful 2D logarithmic model can be
+  a lower-dimensional result but cannot pass Tier G.
+- Predict acceleration/geodesic response and clock redshift from one frozen source and
+  calibration, rather than testing the potential alone.
+- Predict light bending and Shapiro time delay for that same source. Test both metric
+  potentials and their consistency without separately fitting lensing and clock data.
 - Measure excitation dispersion by direction, polarization/species, scale, and
   boost-like frame construction; estimate limiting speeds and infrared anisotropy.
 - Translate deviations into the appropriate current experimental bounds with an
   uncertainty and units audit. Bounds and external data versions must be frozen.
 - Verify operational no-signaling for every accessible junction configuration.
+- Reproduce preregistered standard laboratory interference and entanglement
+  statistics. If the Born rule is assumed, say so; matching under an assumed sampling
+  rule is compatibility evidence, not a derivation.
 - State which quantum probabilities are assumed and which are derived. Standard
   density-matrix sampling cannot be counted as a Born-rule derivation.
-- Attack preferred-frame choices, finite-volume dispersion, species-dependent
-  calibration, post-selected regimes, and signaling hidden by averaged marginals.
+- Attack dimensional post-selection, preferred-frame choices, finite-volume
+  dispersion, species-dependent calibration, independent retuning of the two metric
+  potentials, post-selected regimes, and signaling hidden by averaged marginals.
 
-**Pass rule:** all accessible-regime observables meet frozen experimental bounds
-without region/species tuning; no-signaling holds in each tested stratum; assumed and
-derived quantum-statistical content remains explicitly separated.
+**Pass rule:** the same globally calibrated 3D candidate predicts acceleration,
+geodesics, redshift, lensing, and Shapiro delay within frozen uncertainty; its two
+metric potentials obey the preregistered consistency relation; laboratory interference
+and entanglement statistics match their frozen controls; all Lorentz/no-signaling
+observables meet current bounds without region/species tuning; and assumed versus
+derived quantum-statistical content remains explicit.
 
-**Failure rule:** a robust excluded deviation appears, a common limiting behavior does
-not emerge, controllable signaling occurs, or agreement depends on post-selection.
+**Failure rule:** 3D recovery fails, any same-source gravitational comparison disagrees,
+the metric potentials require separate tuning, laboratory quantum statistics disagree,
+a robust excluded deviation appears, a common limiting behavior does not emerge,
+controllable signaling occurs, or agreement depends on post-selection.
 
 ### VIA-800 — controlled high-curvature completeness extension
 
@@ -473,89 +503,58 @@ must be labeled internal even when it uses a different model.
 
 ## 7. Portable packet contract
 
-The following is a portable orchestration contract, not an assertion about any
-particular Crucible schema. Store one completed file per packet and replace every
-placeholder before preregistration.
+The portable contract is executable and vendor-neutral. It is not an assertion about
+any particular Crucible schema. Its authoritative components are:
 
-```yaml
-schema_version: 1
-campaign_id: POPGP-VIABILITY-<n>
-target_tier: R|G|E|extension
-packet_id: VIA-<nnn>
-state: drafted|preregistered|implemented|attacked|reproduced|adjudicated|passed|failed|blocked
+- [`campaign-v1.schema.json`](../../schemas/viability/campaign-v1.schema.json), which
+  defines `CAMPAIGN.yaml`;
+- [`packet-v1.schema.json`](../../schemas/viability/packet-v1.schema.json), which
+  defines every `PACKET.yaml`, seat, custody record, receipt, review chain, expression,
+  and adjudication;
+- [`requirements-v1.json`](../../schemas/viability/requirements-v1.json), which owns
+  tier membership, dependencies, execution waves, required capabilities, evidence
+  ordering/floors, and receipt kinds;
+- [`VIABILITY_CAMPAIGN_TEMPLATE.yaml`](../templates/VIABILITY_CAMPAIGN_TEMPLATE.yaml)
+  and [`VIABILITY_PACKET_TEMPLATE.yaml`](../templates/VIABILITY_PACKET_TEMPLATE.yaml);
+  and
+- [`check_viability_campaign.py`](../../scripts/check_viability_campaign.py), the
+  fail-closed validator and campaign decision implementation.
 
-repository: https://github.com/whact2025/POPGP
-candidate_commit: <40-hex>
-baseline_commit: <40-hex>
-tree_hash: <40-hex>
-protocol_commit: <40-hex>
+Copy the templates into a new campaign, duplicate the packet template for every
+required packet, replace all placeholders, and validate before preregistration:
 
-claims: [C00]
-existing_gates: [GATE-NAME]
-dependencies: [VIA-000]
-evidence_level_required: E3-adversarial-suite
-
-hypothesis: <single falsifiable statement>
-null_or_competitors: []
-known_failure_to_retain: <existing negative result or none>
-threat_model: []
-
-public_calibration_cases: []
-hidden_holdout_manifest_hash: <hash held by evaluator>
-secret_seed_manifest_hash: <hash held by evaluator>
-frozen_parameters: {}
-statistics_and_uncertainty: <procedure>
-pass_rule: <executable Boolean rule>
-failure_rule: <executable Boolean rule>
-blockage_rule: <conditions that mean evidence unavailable rather than pass/fail>
-resource_budget: <compute, time, memory, and external-access ceiling>
-
-commands: []
-required_artifacts: []
-mutation_tests: []
-
-seats:
-  protocol_designer: <identity>
-  builder: <identity>
-  falsifier: <identity>
-  statistical_auditor: <identity>
-  reproduction_runner: <identity>
-  claim_auditor: <identity>
-  adjudicator: <identity>
-  operator: <human>
-
-access_declaration:
-  shared_operator: false
-  shared_session: false
-  shared_orchestrator: false
-  final_labels_seen_by_builder: false
-  secret_seeds_seen_by_builder: false
-  private_evaluator_seen_by_builder: false
-  external_scientific_validation: false
-
-receipts:
-  protocol: <path>
-  attack_plan: <path>
-  raw_results: <path>
-  run_log: <path>
-  environment: <path>
-  statistical_audit: <path>
-  independent_review: <path>
-  claim_diff: <path>
-  adjudication: <path>
-
-decision:
-  outcome: pending|passed|failed|blocked
-  evidence_level_achieved: E0-proposal
-  decisive_receipts: []
-  residual_risks: []
-  authorized_by: <maintainer-or-PI>
+```powershell
+uv run python scripts/check_viability_campaign.py `
+  reviews/viability/<campaign-id>/CAMPAIGN.yaml
 ```
 
-The evaluator stores secret manifests outside the builder worktree and commits their
-hashes before execution. After adjudication, reveal and archive the manifests unless
-an ongoing benchmark requires continued secrecy; in that case record the custodian
-and retention policy.
+The validator enforces JSON Schema structure and cross-document invariants. It rejects:
+
+- lifecycle/adjudication contradictions and nonexclusive pass/fail/block rules;
+- evidence achieved below the packet declaration or campaign-owned floor;
+- unknown claim, gate, packet, capability, or evidence identifiers;
+- missing dependencies, cycles, same-wave prerequisites, and holdout execution before
+  every dependency is adjudicated `passed`;
+- missing, out-of-tree, or SHA-256-mismatched receipts and empty decisive evidence;
+- incomplete review/response/re-review chains or unresolved blocking findings/tests;
+- prohibited seat/session reuse or hidden-data exposure by a blind seat;
+- reveal before output commitment, changed post-reveal manifest bytes, missing custody
+  metadata, or unsupported canonicalization; and
+- a campaign outcome inconsistent with its required packet outcomes.
+
+Outcome rules use the versioned `popgp-bool-v1` expression language. Bindings name a
+SHA-256-verified JSON receipt plus a JSON Pointer. Expressions combine Boolean
+`literal`, `all`, `any`, `not`, and typed `compare` nodes (`eq`, `ne`, `gt`, `ge`,
+`lt`, `le`). Every campaign-owned required capability has its own expression over the
+same verified bindings, and a passing packet requires all capability expressions to be
+true. Listing a capability name without a matching executable rule is rejected.
+Free-form prose is explanatory only and cannot adjudicate a packet.
+
+The evaluator/custodian commits raw-byte SHA-256 hashes for the hidden holdout and seed
+manifests. Builder, falsifier, and reproduction runner remain blind. The evaluator
+records an immutable output-commitment receipt before reveal. Adjudication requires
+the reveal authorization/time, matching post-reveal manifest receipts, archive
+location, and retention policy. A packet cannot pass on builder-only access booleans.
 
 ## 8. Required receipt layout
 
@@ -565,6 +564,11 @@ Use immutable, round-numbered artifacts. Do not overwrite a failed run.
 reviews/viability/<campaign-id>/
   CAMPAIGN.yaml
   DECISION.md
+  manifests/
+    HOLDOUT-MANIFEST.json
+    SEED-MANIFEST.json
+  packets/
+    <packet-id>.yaml
   <packet-id>/
     PACKET.yaml
     PROTOCOL.md
@@ -573,13 +577,21 @@ reviews/viability/<campaign-id>/
     RUN-<round>.log
     RESULTS-<round>.json
     STATISTICAL-AUDIT-<round>.md
+    MUTATION-RESULTS-<round>.json
+    INDEPENDENT-REVIEW-<round>.md
+    BUILDER-RESPONSE-<round>.md
+    INDEPENDENT-REREVIEW-<round>.md
     CLAIM-DIFF-<round>.md
     ADJUDICATION-<round>.md
+    OUTPUT-COMMITMENT-<round>.json
+    REVEAL-<round>.json
 ```
 
-Large raw arrays may live in a versioned external archive if the repository stores a
-content hash, schema, license, retrieval command, and immutable identifier. Plots are
-diagnostic views; the decision must be reproducible from machine-readable raw results.
+Every receipt entry has an ID, kind, path, media type, and raw-byte SHA-256 hash. Large
+raw arrays may live in a versioned external archive only after a retrieval adapter can
+verify the same fields; the v1 validator otherwise rejects unavailable paths rather
+than trusting a URI. Plots are diagnostic views; the decision must be reproducible
+from machine-readable raw results.
 
 Implementation changes discovered by a packet still use the existing review workflow:
 freeze a candidate, commit an independent review artifact, respond finding by finding,
@@ -609,7 +621,9 @@ the assumptions, numerical floor, parameter boundaries, hidden priors, controls,
 statistics, invariances, resource ceiling, and artifact contract named in the packet.
 Run executable counterexamples where feasible. Record unsuccessful attacks as attack
 receipts, but promote only evidence-supported failures to findings. Do not request or
-infer holdout labels, secret seeds, or private evaluator logic.
+infer holdout labels, secret seeds, or private evaluator logic. Record your own model,
+operator, session, access, and exposure fields; do not reuse the evaluator/custodian or
+builder session.
 
 Create <packet-dir>/ATTACK-PLAN.md and an independent review artifact using the
 repository template. Commit only review/attack artifacts on the review branch. Return
@@ -627,8 +641,10 @@ or verified clean worktree and a newly created locked environment. Do not use bu
 caches, generated artifacts, informal instructions, or expected numerical outputs.
 Execute the commands exactly within the frozen resource budget. Preserve stdout,
 stderr, environment details, raw results, artifact hashes, and any deviation from the
-protocol. A command that cannot run is blocked or failed according to PACKET.yaml; it
-is never silently skipped. Do not repair code or adjudicate the hypothesis.
+protocol. Commit the output receipt hash before the evaluator reveals holdouts. A
+command that cannot run is classified by the frozen cause-code rules; it is never
+silently skipped or automatically called blocked. Do not repair code or adjudicate the
+hypothesis.
 ```
 
 ### Adjudicator prompt
@@ -638,19 +654,36 @@ You occupy the adjudicator seat for POPGP packet <packet-id>.
 
 Do not modify implementation or thresholds. Verify commit hashes, access declarations,
 protocol freeze, required seats, complete receipts, mutations, hidden-holdout handling,
-and reproduction evidence. Recompute the executable pass and failure rules from raw
-results. Assign exactly one outcome: passed, failed, or blocked. Model agreement is not
-an outcome rule. If the run is invalid, identify the violated preregistration clause
-and require a new round. Map the outcome to claims-matrix wording without extending the
-claim beyond the evidence level achieved.
+and reproduction evidence. Run `scripts/check_viability_campaign.py` and recompute the
+versioned pass/fail/block expressions from hash-verified raw results. A valid round has
+exactly one outcome: passed, failed, or blocked. An invalid protocol, receipt, custody
+chain, dependency state, or ambiguous rule is recorded as `round_status: invalid` with
+`packet_outcome: pending`; it requires a new round and is not scientific failure.
+Model agreement is not an outcome rule. Map the result to claims-matrix wording without
+extending the claim beyond the evidence level achieved.
 ```
 
 ## 10. Adjudication and stop rules
 
-A packet is **passed** only when every conjunct in its frozen pass rule is true. It is
-**failed** when a frozen failure rule is triggered by a valid run. It is **blocked**
-only when the declared evidence cannot be obtained inside the resource/access ceiling
-and no scientific outcome follows.
+A packet is **passed** only when its pass expression alone is true. It is **failed**
+when its failure expression alone is true in a valid run. It is **blocked** only when
+its blockage expression alone is true because a prerequisite outside the tested claim
+was unavailable. Zero or multiple true expressions make the round **invalid** and
+leave the packet outcome pending.
+
+Cause codes pin the distinction:
+
+| Round/outcome | Allowed cause class | Example |
+|---|---|---|
+| invalid / pending | protocol, receipt, rule, custody, or dependency invalid | malformed protocol or hash mismatch |
+| valid / failed | scientific or tested capability failure | a scalable backend exhausts the budget that its packet claims it can meet |
+| valid / blocked | unavailable untested prerequisite | named CUDA hardware was not authorized or external access was unavailable |
+| valid / passed | pass rule satisfied | exactly the frozen pass expression is true |
+
+Resource exhaustion is failed when operating within that resource ceiling is itself a
+tested capability; it is blocked only when a separately declared prerequisite was not
+authorized or available. Missing/invalid evidence is never a scientific failure or a
+blockage. The validator enforces these mutually exclusive classes.
 
 The campaign stops and reports the result instead of recursively tuning when:
 
@@ -674,14 +707,16 @@ The campaign decision is mechanical:
 ```text
 target tier passes
   iff every required packet is adjudicated passed
-  and every required evidence level is achieved
+  and achieved evidence >= packet declaration >= campaign floor
   and no non-negotiable constraint is unresolved
-  and every blocking independent-review finding is verified resolved.
+  and every blocking independent-review finding/test is independently resolved
+  and scripts/check_viability_campaign.py reports no error.
 ```
 
 There is no partial-credit viability score. Report packet-level progress separately.
-If one required packet is failed, the target tier is failed for that candidate. If one
-is blocked, the tier is not demonstrated.
+If one required packet is failed, the target tier is failed for that candidate. If no
+packet failed but one is blocked, the tier is blocked/not demonstrated. Pending or
+invalid rounds keep the campaign pending.
 
 ## 11. Recommended execution waves
 
@@ -691,18 +726,21 @@ claims outrun their dependencies.
 | Wave | Parallel packets | Exit condition |
 |---|---|---|
 | 0 — freeze | `VIA-000`, campaign manifest, holdout custody | Reproducible baseline and immutable protocol hashes |
-| 1 — foundations | `VIA-010`, `VIA-100`, `VIA-200`, scalable-method design for `VIA-300` | Structural audit complete; source/topology candidates and attacks frozen |
-| 2 — scale | `VIA-150`, `VIA-300` | Nontrivial projection rule and full-pipeline size ladder available |
+| 1 — enabling foundations | `VIA-010`, `VIA-300` | Structural audit passed and full-pipeline scalable ladder available |
+| 2 — mechanism attacks | `VIA-100`, `VIA-150`, `VIA-200` | Source, projection/capacity, and blind-locality packets adjudicated |
 | 3 — convergence | `VIA-400` plus independent numerical cross-checks | Intrinsic refinement gate adjudicated |
-| 4 — gravity | `VIA-500`, then `VIA-600` | Independent clock/weak-field and closure gates adjudicated |
-| 5 — compatibility | `VIA-700` | Accessible-regime bounds adjudicated |
-| 6 — independence | `VIA-900` | Clean-room prediction reveal and replication adjudicated |
-| extension | `VIA-800` | Required only for high-curvature claims |
+| 4 — clock/weak field | `VIA-500` | Independent clock and weak-field gate adjudicated |
+| 5 — closure | `VIA-600` | Tensor closure/conservation gate adjudicated |
+| 6 — 3D compatibility | `VIA-700` | 3D same-source gravity, laboratory statistics, Lorentz, and no-signaling gates adjudicated |
+| 7 — independence | `VIA-900` | Clean-room prediction reveal and replication adjudicated |
+| 7 — extension | `VIA-800` | Required only for high-curvature claims |
 
 Start with the smallest counterexample capable of refuting a claim, but do not call a
 packet passed at that scale unless the packet explicitly requires only that scale.
 Parallel agents should receive bounded packet context, the same frozen hashes, and no
-other agent's conclusions until their initial artifacts are committed.
+other agent's conclusions until their initial artifacts are committed. Design work may
+start earlier, but hidden holdout execution is rejected until every machine-declared
+dependency is adjudicated `passed`.
 
 ## 12. Definition of a completed viability campaign
 
@@ -711,6 +749,8 @@ A campaign is complete when:
 - its target tier, candidate, baseline, tree, protocol, holdout-manifest, and seed hashes
   are immutable and recorded;
 - every required packet has a final `passed`, `failed`, or `blocked` adjudication;
+- the campaign, packets, dependency DAG, evidence floors, custody chain, receipts,
+  review chain, and computed decision pass `scripts/check_viability_campaign.py`;
 - commands, environments, raw results, mutations, attack attempts, reviews, and claim
   diffs are durable and independently readable;
 - every builder finding and requested test has a later independent outcome;

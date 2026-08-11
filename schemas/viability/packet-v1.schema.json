@@ -1,0 +1,450 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/packet-v1.schema.json",
+  "title": "POPGP viability packet contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_version",
+    "campaign_id",
+    "packet_id",
+    "candidate_commit",
+    "baseline_commit",
+    "tree_hash",
+    "protocol_commit",
+    "lifecycle_phase",
+    "claims",
+    "existing_gates",
+    "declared_evidence_requirement",
+    "capabilities",
+    "capability_rules",
+    "hypothesis",
+    "null_or_competitors",
+    "known_failure_to_retain",
+    "threat_model",
+    "holdout_started",
+    "seats",
+    "blind_custody",
+    "outcome_rules",
+    "receipts",
+    "review_chain",
+    "adjudication"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract_version": {"const": "popgp-viability-contract-v1"},
+    "campaign_id": {"type": "string", "pattern": "^POPGP-VIABILITY-[A-Za-z0-9._-]+$"},
+    "packet_id": {"type": "string", "pattern": "^VIA-[0-9]{3}$"},
+    "candidate_commit": {"$ref": "#/$defs/fullHash"},
+    "baseline_commit": {"$ref": "#/$defs/fullHash"},
+    "tree_hash": {"$ref": "#/$defs/fullHash"},
+    "protocol_commit": {"$ref": "#/$defs/fullHash"},
+    "lifecycle_phase": {
+      "enum": ["drafted", "preregistered", "implemented", "attacked", "reproduced", "adjudicated"]
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^C[0-9]{2}$"}
+    },
+    "existing_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^GATE-[A-Z0-9-]+$"}
+    },
+    "declared_evidence_requirement": {"$ref": "#/$defs/evidenceLevel"},
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    },
+    "capability_rules": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/expression"}
+    },
+    "hypothesis": {"type": "string", "minLength": 1},
+    "null_or_competitors": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "known_failure_to_retain": {"type": "string", "minLength": 1},
+    "threat_model": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "holdout_started": {"type": "boolean"},
+    "seats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_designer",
+        "builder",
+        "falsifier",
+        "statistical_auditor",
+        "reproduction_runner",
+        "claim_auditor",
+        "adjudicator",
+        "evaluator_custodian"
+      ],
+      "properties": {
+        "protocol_designer": {"$ref": "#/$defs/seat"},
+        "builder": {"$ref": "#/$defs/seat"},
+        "falsifier": {"$ref": "#/$defs/seat"},
+        "statistical_auditor": {"$ref": "#/$defs/seat"},
+        "reproduction_runner": {"$ref": "#/$defs/seat"},
+        "claim_auditor": {"$ref": "#/$defs/seat"},
+        "adjudicator": {"$ref": "#/$defs/seat"},
+        "evaluator_custodian": {"$ref": "#/$defs/seat"}
+      }
+    },
+    "blind_custody": {"$ref": "#/$defs/blindCustody"},
+    "outcome_rules": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["language", "bindings", "pass", "fail", "blocked"],
+          "properties": {
+            "language": {"const": "popgp-bool-v1"},
+            "bindings": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/$defs/binding"}
+            },
+            "pass": {"$ref": "#/$defs/expression"},
+            "fail": {"$ref": "#/$defs/expression"},
+            "blocked": {"$ref": "#/$defs/expression"}
+          }
+        }
+      ]
+    },
+    "receipts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/receipt"}
+    },
+    "review_chain": {"$ref": "#/$defs/reviewChain"},
+    "adjudication": {"$ref": "#/$defs/adjudication"}
+  },
+  "$defs": {
+    "fullHash": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidenceLevel": {
+      "enum": [
+        "E0-proposal",
+        "E1-implementation",
+        "E2-selected-benchmark",
+        "E3-adversarial-suite",
+        "E4-convergent-replication",
+        "E5-external-empirical"
+      ]
+    },
+    "exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["final_labels_seen", "secret_seed_seen", "private_evaluator_seen"],
+      "properties": {
+        "final_labels_seen": {"type": "boolean"},
+        "secret_seed_seen": {"type": "boolean"},
+        "private_evaluator_seen": {"type": "boolean"}
+      }
+    },
+    "seat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_identity",
+        "model_identity",
+        "model_version",
+        "operator",
+        "session_id",
+        "access_level",
+        "exposure"
+      ],
+      "properties": {
+        "agent_identity": {"type": "string", "minLength": 1},
+        "model_identity": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string", "minLength": 1},
+        "operator": {"type": "string", "minLength": 1},
+        "session_id": {"type": "string", "minLength": 1},
+        "access_level": {"type": "string", "minLength": 1},
+        "exposure": {"$ref": "#/$defs/exposure"}
+      }
+    },
+    "manifestCommitment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["immutable_uri", "sha256"],
+      "properties": {
+        "immutable_uri": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "outputCommitment": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["receipt_id", "committed_at"],
+          "properties": {
+            "receipt_id": {"type": "string", "minLength": 1},
+            "committed_at": {"type": "string", "format": "date-time"}
+          }
+        }
+      ]
+    },
+    "reveal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "authorized_by",
+        "revealed_at",
+        "post_reveal_holdout_sha256",
+        "post_reveal_seed_sha256",
+        "post_reveal_holdout_receipt_id",
+        "post_reveal_seed_receipt_id",
+        "retention_policy",
+        "immutable_location"
+      ],
+      "properties": {
+        "status": {"enum": ["unrevealed", "revealed"]},
+        "authorized_by": {"type": ["string", "null"]},
+        "revealed_at": {"type": ["string", "null"], "format": "date-time"},
+        "post_reveal_holdout_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "post_reveal_seed_sha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "post_reveal_holdout_receipt_id": {"type": ["string", "null"]},
+        "post_reveal_seed_receipt_id": {"type": ["string", "null"]},
+        "retention_policy": {"type": "string", "minLength": 1},
+        "immutable_location": {"type": "string", "minLength": 1}
+      }
+    },
+    "blindCustody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hash_algorithm",
+        "canonicalization",
+        "custodian_seat",
+        "hidden_holdout_manifest",
+        "secret_seed_manifest",
+        "output_commitment",
+        "reveal"
+      ],
+      "properties": {
+        "hash_algorithm": {"const": "sha256"},
+        "canonicalization": {"const": "raw-bytes-v1"},
+        "custodian_seat": {"const": "evaluator_custodian"},
+        "hidden_holdout_manifest": {"$ref": "#/$defs/manifestCommitment"},
+        "secret_seed_manifest": {"$ref": "#/$defs/manifestCommitment"},
+        "output_commitment": {"$ref": "#/$defs/outputCommitment"},
+        "reveal": {"$ref": "#/$defs/reveal"}
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_id", "json_pointer"],
+      "properties": {
+        "receipt_id": {"type": "string", "minLength": 1},
+        "json_pointer": {"type": "string", "pattern": "^/"}
+      }
+    },
+    "operand": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["binding"],
+          "properties": {"binding": {"type": "string", "minLength": 1}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value"],
+          "properties": {"value": {}}
+        }
+      ]
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["left", "op", "right"],
+      "properties": {
+        "left": {"$ref": "#/$defs/operand"},
+        "op": {"enum": ["eq", "ne", "gt", "ge", "lt", "le"]},
+        "right": {"$ref": "#/$defs/operand"}
+      }
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["literal"],
+          "properties": {"literal": {"type": "boolean"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all"],
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"$ref": "#/$defs/expression"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["any"],
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"$ref": "#/$defs/expression"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["not"],
+          "properties": {"not": {"$ref": "#/$defs/expression"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["compare"],
+          "properties": {"compare": {"$ref": "#/$defs/comparison"}}
+        }
+      ]
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "sha256", "media_type"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "kind": {
+          "enum": [
+            "environment",
+            "run-log",
+            "raw-results",
+            "protocol",
+            "attack-plan",
+            "statistical-audit",
+            "mutation-results",
+            "independent-review",
+            "builder-response",
+            "independent-rereview",
+            "adjudication",
+            "claim-diff",
+            "independent-implementation",
+            "refinement-results",
+            "external-replication",
+            "blinded-prediction",
+            "reveal-record",
+            "output-commitment",
+            "revealed-manifest",
+            "blockage-evidence"
+          ]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "media_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "findingResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "blocking", "outcome", "superseding_id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "blocking": {"type": "boolean"},
+        "outcome": {"enum": ["verified-resolved", "unresolved", "superseded"]},
+        "superseding_id": {"type": ["string", "null"]}
+      }
+    },
+    "requestedTestResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "blocking", "outcome", "superseding_id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "blocking": {"type": "boolean"},
+        "outcome": {"enum": ["verified-satisfied", "unresolved", "superseded"]},
+        "superseding_id": {"type": ["string", "null"]}
+      }
+    },
+    "reviewChain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "initial_review_receipt",
+        "response_receipts",
+        "rereview_receipts",
+        "findings",
+        "requested_tests"
+      ],
+      "properties": {
+        "initial_review_receipt": {"type": ["string", "null"]},
+        "response_receipts": {"type": "array", "items": {"type": "string"}},
+        "rereview_receipts": {"type": "array", "items": {"type": "string"}},
+        "findings": {"type": "array", "items": {"$ref": "#/$defs/findingResult"}},
+        "requested_tests": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/requestedTestResult"}
+        }
+      }
+    },
+    "adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "round_status",
+        "packet_outcome",
+        "cause_codes",
+        "decisive_receipts",
+        "achieved_evidence"
+      ],
+      "properties": {
+        "round_status": {"enum": ["not-run", "valid", "invalid"]},
+        "packet_outcome": {"enum": ["pending", "passed", "failed", "blocked"]},
+        "cause_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "not-run",
+              "pass-rule-satisfied",
+              "scientific-gate-failed",
+              "tested-capability-budget-exhausted",
+              "implementation-capability-failed",
+              "external-replication-disagreed",
+              "toolchain-unavailable",
+              "hardware-unavailable",
+              "external-access-unavailable",
+              "resource-not-authorized",
+              "protocol-invalid",
+              "receipt-invalid",
+              "rule-ambiguous",
+              "custody-invalid",
+              "dependency-invalid"
+            ]
+          }
+        },
+        "decisive_receipts": {"type": "array", "items": {"type": "string"}},
+        "achieved_evidence": {"$ref": "#/$defs/evidenceLevel"}
+      }
+    }
+  }
+}
