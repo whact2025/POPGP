@@ -138,12 +138,13 @@ class _UniqueKeyLoader(yaml.SafeLoader):
 def _construct_unique_mapping(
     loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False
 ) -> dict[Any, Any]:
-    loader.flatten_mapping(node)
-    mapping: dict[Any, Any] = {}
-    for key_node, value_node in node.value:
+    explicit_keys: set[Any] = set()
+    for key_node, _ in node.value:
+        if key_node.tag == "tag:yaml.org,2002:merge":
+            continue
         key = loader.construct_object(key_node, deep=deep)
         try:
-            duplicate = key in mapping
+            duplicate = key in explicit_keys
         except TypeError as exc:
             raise yaml.constructor.ConstructorError(
                 "while constructing a mapping",
@@ -158,6 +159,21 @@ def _construct_unique_mapping(
                 f"found duplicate key {key!r}",
                 key_node.start_mark,
             )
+        explicit_keys.add(key)
+
+    loader.flatten_mapping(node)
+    mapping: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        try:
+            hash(key)
+        except TypeError as exc:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                "found an unhashable mapping key",
+                key_node.start_mark,
+            ) from exc
         mapping[key] = loader.construct_object(value_node, deep=deep)
     return mapping
 

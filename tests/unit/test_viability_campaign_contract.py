@@ -18,6 +18,7 @@ from jsonschema import Draft202012Validator
 
 from scripts.check_viability_campaign import (
     GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS,
+    _load_yaml_text,
     _run_bounded_process,
     packet_rule_sha256,
     validate_campaign,
@@ -1284,9 +1285,10 @@ def test_shipped_templates_conform_to_versioned_schemas() -> None:
     campaign = yaml.safe_load(
         (ROOT / "docs/templates/VIABILITY_CAMPAIGN_TEMPLATE.yaml").read_text(encoding="utf-8")
     )
-    packet = yaml.safe_load(
-        (ROOT / "docs/templates/VIABILITY_PACKET_TEMPLATE.yaml").read_text(encoding="utf-8")
-    )
+    packet_template = ROOT / "docs/templates/VIABILITY_PACKET_TEMPLATE.yaml"
+    packet_text = packet_template.read_text(encoding="utf-8")
+    packet = yaml.safe_load(packet_text)
+    authoritative_packet = _load_yaml_text(packet_text)
     manifest = json.loads(
         (ROOT / "docs/templates/VIABILITY_PROTOCOL_MANIFEST_TEMPLATE.json").read_text(
             encoding="utf-8"
@@ -1295,6 +1297,28 @@ def test_shipped_templates_conform_to_versioned_schemas() -> None:
     assert list(Draft202012Validator(campaign_schema).iter_errors(campaign)) == []
     assert list(Draft202012Validator(packet_schema).iter_errors(packet)) == []
     assert list(Draft202012Validator(manifest_schema).iter_errors(manifest)) == []
+    assert authoritative_packet == packet
+    assert authoritative_packet["seats"]["builder"]["agent_identity"] == (
+        "replace-builder-agent"
+    )
+    assert authoritative_packet["seats"]["builder"]["operator"] == "replace-operator"
+    with pytest.raises(yaml.constructor.ConstructorError, match="duplicate key 'packet_id'"):
+        _load_yaml_text(packet_text + "\npacket_id: VIA-DUPLICATE\n")
+    packet_hash = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/check_viability_campaign.py"),
+            "--packet-rule-sha256",
+            str(packet_template),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    ).stdout.strip()
+    assert len(packet_hash) == 64
+    assert all(character in "0123456789abcdef" for character in packet_hash)
 
 
 @pytest.mark.negative_control

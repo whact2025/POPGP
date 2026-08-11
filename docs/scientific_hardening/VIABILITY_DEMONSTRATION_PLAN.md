@@ -604,7 +604,7 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
   packet-specific protocol bytes absent or changed at the protocol commit, same-version
   requirements changes, or execution with contract files different from the protocol
   commit;
-- duplicate YAML/JSON mapping keys, malformed external types, invalid percent escapes,
+- duplicate explicit YAML/JSON mapping keys, malformed external types, invalid percent escapes,
   non-finite JSON constants, excessive structured nesting, unsafe decoded URI/path
   control characters, adversarial host lengths, and invalid repository or receipt paths
   without raising an uncaught validator exception; and
@@ -646,8 +646,9 @@ to 16 MiB. Receipts are bounded to 128 nested mapping/array levels, 256 characte
 JSON number, 100,000 logically expanded structured nodes, and finite representable
 numeric values. Every parsed campaign, packet, requirements override, schema, manifest,
 protocol, review artifact, and receipt is graph-validated before schema evaluation or
-canonicalization. YAML aliases use identity-aware size/height memoization; cycles and
-alias DAGs whose logical expansion exceeds the node limit are invalid. JSON
+canonicalization. YAML aliases use identity-aware size/height memoization; legal merge
+defaults may be explicitly overridden, while repeated explicit keys, cycles, and alias
+DAGs whose logical expansion exceeds the node limit are invalid. JSON
 uses strict RFC constants, so `NaN`, infinities, exponent overflow, and exponent
 underflow to zero are invalid. Exact protocol-envelope and external-receipt comparisons
 use recursive JSON type equality;
