@@ -6,7 +6,7 @@
   "candidate_commit": "0000000000000000000000000000000000000000",
   "baseline_commit": "0000000000000000000000000000000000000000",
   "tree_hash": "0000000000000000000000000000000000000000",
-  "packet_freeze_version": "popgp-packet-freeze-v2",
+  "packet_freeze_version": "popgp-packet-freeze-v3",
   "requirements": {
     "path": "schemas/viability/requirements-v2.json",
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
@@ -33,15 +33,19 @@
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
-      "path": "schemas/viability/independent-review-v1.schema.json",
+      "path": "schemas/viability/primary-protocol-v1.schema.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
-      "path": "schemas/viability/independent-rereview-v1.schema.json",
+      "path": "schemas/viability/independent-review-v2.schema.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
-      "path": "schemas/viability/review-response-v1.schema.json",
+      "path": "schemas/viability/independent-rereview-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/review-response-v2.schema.json",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {

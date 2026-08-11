@@ -514,9 +514,12 @@ any particular Crucible schema. Its authoritative components are:
 - [`protocol-manifest-v2.schema.json`](../../schemas/viability/protocol-manifest-v2.schema.json),
   which binds the campaign, canonical requirements, contract files, and every packet's
   preregistered rules to bytes present at the named protocol commit;
-- [`independent-review-v1.schema.json`](../../schemas/viability/independent-review-v1.schema.json),
-  [`review-response-v1.schema.json`](../../schemas/viability/review-response-v1.schema.json),
-  and [`independent-rereview-v1.schema.json`](../../schemas/viability/independent-rereview-v1.schema.json),
+- [`primary-protocol-v1.schema.json`](../../schemas/viability/primary-protocol-v1.schema.json),
+  which closes the authoritative experiment envelope and rejects competing top-level
+  thresholds, exclusions, commands, or resource overrides;
+- [`independent-review-v2.schema.json`](../../schemas/viability/independent-review-v2.schema.json),
+  [`review-response-v2.schema.json`](../../schemas/viability/review-response-v2.schema.json),
+  and [`independent-rereview-v2.schema.json`](../../schemas/viability/independent-rereview-v2.schema.json),
   which make reviewer identity, independence, evidence, builder disposition,
   verification, references, and recommendation fields executable rather than optional
   prose;
@@ -533,6 +536,9 @@ any particular Crucible schema. Its authoritative components are:
 Contract v2 is a breaking replacement for the reviewed v1 draft. The v1 schemas were
 withdrawn because their literals, review summaries, custody order, and hash fields were
 not fail closed; no v1 packet or campaign may be promoted or silently translated to v2.
+The current `popgp-packet-freeze-v3` digest also freezes preregistered seat organization
+and typed external-replication content; older draft freeze digests must be recomputed
+before holdout execution.
 
 Copy the templates into a new campaign and duplicate the packet template for every
 required packet. Populate the candidate/baseline/tree identities, rules, raw-result
@@ -543,7 +549,8 @@ budget, exact commands, mutation plan, and one or more protocol-artifact content
 references. Each referenced blob must already be stored at its repository-relative
 `protocol_path` with the recorded raw-byte SHA-256. Exactly one reference is the
 `primary-protocol`; its JSON parameters, procedures, analysis, budget, commands, and
-mutation plan must equal the canonical packet block. Other references are explicitly
+mutation plan must equal the complete canonical packet envelope byte-for-semantics;
+the versioned schema has `additionalProperties: false`. Other references are explicitly
 `supporting` rather than competing protocol definitions.
 Print each canonical packet-rule hash with:
 
@@ -583,6 +590,9 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
   builder-response, and re-review artifact bytes at immutable `commit:path` refs,
   including incomplete evidence, missing identity/independence fields, wrong candidate
   bindings, omitted items, and dangling supersessions;
+- contradictory reviewer/builder operator or model-separation declarations,
+  noncanonical context-tree methods, unrelated response identities, and fix commits
+  that do not exist or precede the candidate under re-review;
 - prohibited seat/session reuse or hidden-data exposure by a blind seat;
 - reveal not authorized by the evaluator/custodian, reveal before reproduced holdout
   execution, output commitments not made by the reproduction runner or not bound to its
@@ -596,6 +606,18 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
 - duplicate YAML/JSON mapping keys and malformed external types without raising an
   uncaught validator exception; and
 - a campaign outcome inconsistent with its required packet outcomes.
+
+For `VIA-900`, a raw Boolean named `unaffiliated-operator` is necessary but not
+sufficient. The packet must also carry a frozen typed `external_replication` contract.
+That contract records an external organization and operator, independent repository
+commit/tree provenance, zero prior candidate/output/conclusion exposure, a blinded
+prediction commitment and custodian reveal, an external output commitment, and the
+candidate/external result comparison. Organization, operator, agent, model, and session
+must all be distinct from every internal campaign seat, and the external repository
+cannot be the candidate repository. The named structured receipts must reproduce the
+contract exactly. Therefore the local validator can check a clean-room evidence package
+without converting a same-operator assertion into Tier E; an external maintainer must
+still verify that the off-system affiliation and authorship declarations are truthful.
 
 Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a
 SHA-256-verified `raw-results` JSON receipt, a JSON Pointer, and an exact JSON type.
@@ -642,6 +664,12 @@ reviews/viability/<campaign-id>/
     INDEPENDENT-REVIEW-<round>.md
     BUILDER-RESPONSE-<round>.md
     INDEPENDENT-REREVIEW-<round>.md
+    EXTERNAL-IMPLEMENTATION-PROVENANCE.json
+    BLINDED-PREDICTION.json
+    PREDICTION-REVEAL.json
+    EXTERNAL-OUTPUT.json
+    EXTERNAL-OUTPUT-COMMITMENT.json
+    EXTERNAL-REPLICATION.json
     CLAIM-DIFF-<round>.md
     ADJUDICATION-<round>.md
     OUTPUT-COMMITMENT-<round>.json

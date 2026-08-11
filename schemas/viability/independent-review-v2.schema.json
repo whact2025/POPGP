@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/independent-review-v2.schema.json",
+  "title": "POPGP independent review artifact v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_schema_version",
+    "review_id",
+    "review_kind",
+    "reviewer_seat",
+    "reviewer_model_identity",
+    "reviewer_model_version",
+    "reviewer_operator",
+    "reviewer_session_id",
+    "reviewer_orchestrator_id",
+    "review_date",
+    "commit_reviewed",
+    "baseline_commit",
+    "prior_review_ref",
+    "builder_response_ref",
+    "context_hash",
+    "context_hash_method",
+    "files_reviewed",
+    "access_level",
+    "independence_statement",
+    "independence_declaration",
+    "hidden_access_declaration",
+    "summary",
+    "findings",
+    "requested_tests",
+    "prior_finding_results",
+    "prior_requested_test_results",
+    "predictions",
+    "recommendation"
+  ],
+  "properties": {
+    "artifact_schema_version": {"const": 2},
+    "review_id": {"type": "string", "minLength": 1},
+    "review_kind": {"const": "initial"},
+    "reviewer_seat": {"const": "independent-reviewer"},
+    "reviewer_model_identity": {"type": "string", "minLength": 1},
+    "reviewer_model_version": {"type": "string", "minLength": 1},
+    "reviewer_operator": {"type": "string", "minLength": 1},
+    "reviewer_session_id": {"type": "string", "minLength": 1},
+    "reviewer_orchestrator_id": {"type": "string", "minLength": 1},
+    "review_date": {"type": "string", "format": "date"},
+    "commit_reviewed": {"$ref": "#/$defs/fullHash"},
+    "baseline_commit": {"$ref": "#/$defs/fullHash"},
+    "prior_review_ref": {"const": ""},
+    "builder_response_ref": {"const": ""},
+    "context_hash": {"$ref": "#/$defs/fullHash"},
+    "context_hash_method": {"type": "string", "minLength": 1},
+    "files_reviewed": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "access_level": {"type": "string", "minLength": 1},
+    "independence_statement": {"type": "string", "minLength": 1},
+    "independence_declaration": {"$ref": "#/$defs/independence"},
+    "hidden_access_declaration": {"$ref": "#/$defs/hiddenAccess"},
+    "summary": {"type": "string", "minLength": 1},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    "requested_tests": {"type": "array", "items": {"$ref": "#/$defs/requestedTest"}},
+    "prior_finding_results": {"type": "array", "maxItems": 0},
+    "prior_requested_test_results": {"type": "array", "maxItems": 0},
+    "predictions": {"$ref": "#/$defs/predictions"},
+    "recommendation": {"$ref": "#/$defs/recommendation"}
+  },
+  "$defs": {
+    "fullHash": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "verification": {"enum": ["confirmed-by-execution", "read-only", "unverified"]},
+    "independence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shared_operator",
+        "shared_session",
+        "shared_orchestrator",
+        "builder_model_identity",
+        "builder_session_id",
+        "builder_orchestrator_id",
+        "reviewer_model_differs_from_builder",
+        "external_scientific_validation"
+      ],
+      "properties": {
+        "shared_operator": {"type": "boolean"},
+        "shared_session": {"type": "boolean"},
+        "shared_orchestrator": {"type": "boolean"},
+        "builder_model_identity": {"type": "string", "minLength": 1},
+        "builder_session_id": {"type": "string", "minLength": 1},
+        "builder_orchestrator_id": {"type": "string", "minLength": 1},
+        "reviewer_model_differs_from_builder": {"type": "boolean"},
+        "external_scientific_validation": {"const": false}
+      }
+    },
+    "hiddenAccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["final_labels_seen", "secret_seed_seen", "private_evaluator_seen"],
+      "properties": {
+        "final_labels_seen": {"type": "boolean"},
+        "secret_seed_seen": {"type": "boolean"},
+        "private_evaluator_seen": {"type": "boolean"}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "severity",
+        "category",
+        "location",
+        "evidence",
+        "finding",
+        "failure_scenario",
+        "consequence",
+        "required_action",
+        "verification",
+        "blocking"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["critical", "high", "medium", "low"]},
+        "category": {"enum": ["science", "statistics", "code", "energy", "hardware", "governance", "claim"]},
+        "location": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "minLength": 1},
+        "finding": {"type": "string", "minLength": 1},
+        "failure_scenario": {"type": "string", "minLength": 1},
+        "consequence": {"type": "string", "minLength": 1},
+        "required_action": {"type": "string", "minLength": 1},
+        "verification": {"$ref": "#/$defs/verification"},
+        "blocking": {"type": "boolean"}
+      }
+    },
+    "requestedTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "rationale", "blocking"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "rationale": {"type": "string", "minLength": 1},
+        "blocking": {"type": "boolean"}
+      }
+    },
+    "predictions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["experiment_id", "predicted_outcome", "predicted_failure_mode", "confidence_statement"],
+      "properties": {
+        "experiment_id": {"type": "string"},
+        "predicted_outcome": {"type": "string"},
+        "predicted_failure_mode": {"type": "string"},
+        "confidence_statement": {"type": "string", "minLength": 1}
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approve", "blocking_findings", "rationale"],
+      "properties": {
+        "approve": {"type": "boolean"},
+        "blocking_findings": {"type": "integer", "minimum": 0},
+        "rationale": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

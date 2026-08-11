@@ -25,11 +25,11 @@
     "candidate_commit": {"$ref": "#/$defs/fullHash"},
     "baseline_commit": {"$ref": "#/$defs/fullHash"},
     "tree_hash": {"$ref": "#/$defs/fullHash"},
-    "packet_freeze_version": {"const": "popgp-packet-freeze-v2"},
+    "packet_freeze_version": {"const": "popgp-packet-freeze-v3"},
     "requirements": {"$ref": "#/$defs/contentRef"},
     "contract_files": {
       "type": "array",
-      "minItems": 9,
+      "minItems": 10,
       "items": {"$ref": "#/$defs/contentRef"}
     },
     "packet_rule_sha256": {

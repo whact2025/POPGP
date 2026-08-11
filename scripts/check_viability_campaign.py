@@ -21,7 +21,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 CONTRACT_VERSION = "popgp-viability-contract-v2"
 REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
 RULE_LANGUAGE = "popgp-bool-v2"
-PACKET_FREEZE_VERSION = "popgp-packet-freeze-v2"
+PACKET_FREEZE_VERSION = "popgp-packet-freeze-v3"
 KNOWN_REQUIREMENTS_SHA256 = (
     "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 )
@@ -32,9 +32,10 @@ CONTRACT_FILE_PATHS = {
     "schemas/viability/campaign-v2.schema.json",
     "schemas/viability/packet-v2.schema.json",
     "schemas/viability/protocol-manifest-v2.schema.json",
-    "schemas/viability/independent-review-v1.schema.json",
-    "schemas/viability/independent-rereview-v1.schema.json",
-    "schemas/viability/review-response-v1.schema.json",
+    "schemas/viability/primary-protocol-v1.schema.json",
+    "schemas/viability/independent-review-v2.schema.json",
+    "schemas/viability/independent-rereview-v2.schema.json",
+    "schemas/viability/review-response-v2.schema.json",
     "scripts/check_viability_campaign.py",
 }
 
@@ -56,13 +57,14 @@ PACKET_FREEZE_FIELDS = (
     "known_failure_to_retain",
     "threat_model",
     "preregistration",
+    "external_replication",
     "outcome_rules",
 )
 
 REVIEW_SCHEMA_PATHS = {
-    "independent-review": "schemas/viability/independent-review-v1.schema.json",
-    "independent-rereview": "schemas/viability/independent-rereview-v1.schema.json",
-    "builder-response": "schemas/viability/review-response-v1.schema.json",
+    "independent-review": "schemas/viability/independent-review-v2.schema.json",
+    "independent-rereview": "schemas/viability/independent-rereview-v2.schema.json",
+    "builder-response": "schemas/viability/review-response-v2.schema.json",
 }
 
 LIFECYCLE_ORDER = {
@@ -226,6 +228,8 @@ def packet_rule_sha256(packet: Mapping[str, Any]) -> str:
                 "model_version",
                 "operator",
                 "session_id",
+                "orchestrator_id",
+                "organization",
                 "access_level",
             )
         }
@@ -282,6 +286,16 @@ def _git_path_matches_commit(root: Path, commit: str, relative_path: str) -> boo
 @functools.lru_cache(maxsize=256)
 def _git_tree(root: Path, commit: str) -> str:
     return _git_output(root, "rev-parse", f"{commit}^{{tree}}").decode("ascii").strip()
+
+
+def _git_is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", ancestor, descendant],
+        check=False,
+        capture_output=True,
+        timeout=15,
+    )
+    return result.returncode == 0
 
 
 def _resolve_inside(base: Path, relative: str, root: Path) -> Path | None:
@@ -513,7 +527,10 @@ def validate_requirements(requirements: Any) -> list[str]:
             visiting.remove(packet_id)
             visited.add(packet_id)
             return
-        for dependency in requirement.get("dependencies", []):
+        dependencies = requirement.get("dependencies", [])
+        if not isinstance(dependencies, list):
+            dependencies = []
+        for dependency in dependencies:
             if dependency in packets:
                 visit(dependency)
         visiting.remove(packet_id)
@@ -814,6 +831,97 @@ def _review_commit_binding_errors(
             errors.append(f"packet {packet_id}: review context_hash differs from reviewed tree")
     if document.get("baseline_commit") != packet.get("baseline_commit"):
         errors.append(f"packet {packet_id}: review baseline differs from packet baseline")
+    expected_method = f'git rev-parse "{reviewed}^{{tree}}"'
+    if document.get("context_hash_method") != expected_method:
+        errors.append(f"packet {packet_id}: review context_hash_method is not canonical")
+    builder = packet["seats"]["builder"]
+    declaration = document["independence_declaration"]
+    if declaration["builder_model_identity"] != builder["model_identity"]:
+        errors.append(
+            f"packet {packet_id}: review builder model differs from packet builder"
+        )
+    model_differs = document["reviewer_model_identity"] != builder["model_identity"]
+    if declaration["reviewer_model_differs_from_builder"] != model_differs:
+        errors.append(
+            f"packet {packet_id}: reviewer model-separation declaration is contradictory"
+        )
+    shared_operator = document["reviewer_operator"] == builder["operator"]
+    if declaration["shared_operator"] != shared_operator:
+        errors.append(
+            f"packet {packet_id}: reviewer shared-operator declaration is contradictory"
+        )
+    if declaration["builder_session_id"] != builder["session_id"]:
+        errors.append(f"packet {packet_id}: review builder session differs from packet builder")
+    shared_session = document["reviewer_session_id"] == builder["session_id"]
+    if declaration["shared_session"] != shared_session:
+        errors.append(
+            f"packet {packet_id}: reviewer shared-session declaration is contradictory"
+        )
+    if declaration["builder_orchestrator_id"] != builder["orchestrator_id"]:
+        errors.append(
+            f"packet {packet_id}: review builder orchestrator differs from packet builder"
+        )
+    shared_orchestrator = (
+        document["reviewer_orchestrator_id"] == builder["orchestrator_id"]
+    )
+    if declaration["shared_orchestrator"] != shared_orchestrator:
+        errors.append(
+            f"packet {packet_id}: reviewer shared-orchestrator declaration is contradictory"
+        )
+    return errors
+
+
+def _response_provenance_errors(
+    response: Mapping[str, Any],
+    rereview: Mapping[str, Any],
+    packet: Mapping[str, Any],
+    root: Path,
+    packet_id: str,
+    round_index: int,
+) -> list[str]:
+    errors: list[str] = []
+    builder = packet["seats"]["builder"]
+    if response.get("builder_model_identity") != builder["model_identity"]:
+        errors.append(
+            f"packet {packet_id}: response round {round_index} builder model is unrelated"
+        )
+    if response.get("builder_operator") != builder["operator"]:
+        errors.append(
+            f"packet {packet_id}: response round {round_index} builder operator is unrelated"
+        )
+    if response.get("builder_session_id") != builder["session_id"]:
+        errors.append(
+            f"packet {packet_id}: response round {round_index} builder session is unrelated"
+        )
+    if response.get("builder_orchestrator_id") != builder["orchestrator_id"]:
+        errors.append(
+            f"packet {packet_id}: response round {round_index} builder orchestrator is unrelated"
+        )
+    if response.get("builder_organization") != builder["organization"]:
+        errors.append(
+            f"packet {packet_id}: response round {round_index} builder organization is unrelated"
+        )
+    rereview_declaration = rereview["independence_declaration"]
+    if rereview_declaration["builder_model_identity"] != response.get(
+        "builder_model_identity"
+    ):
+        errors.append(
+            f"packet {packet_id}: re-review round {round_index} builder identity differs "
+            "from response"
+        )
+    reviewed_commit = rereview["commit_reviewed"]
+    for item in response["finding_responses"]:
+        for fix_commit in item["fix_commits"]:
+            if not _git_commit_exists(root, fix_commit):
+                errors.append(
+                    f"packet {packet_id}: response round {round_index} fix commit "
+                    f"does not exist: {fix_commit}"
+                )
+            elif not _git_is_ancestor(root, fix_commit, reviewed_commit):
+                errors.append(
+                    f"packet {packet_id}: response round {round_index} fix commit "
+                    f"is not an ancestor of reviewed candidate: {fix_commit}"
+                )
     return errors
 
 
@@ -904,26 +1012,265 @@ def _validate_preregistration(
                     f"packet {packet_id}: primary protocol cannot be parsed: {exc}"
                 )
                 continue
-            expected_document_fields = {
-                field: packet["preregistration"][field]
-                for field in (
-                    "parameters",
-                    "measurement_procedure",
-                    "uncertainty_procedure",
-                    "statistical_analysis",
-                    "resource_budget",
-                    "commands",
-                    "mutation_plan",
+            try:
+                primary_schema = _load_json(
+                    root / "schemas/viability/primary-protocol-v1.schema.json"
                 )
-            }
-            if document.get("packet_id") != packet_id:
-                errors.append(f"packet {packet_id}: primary protocol packet_id differs")
-            for field, value in expected_document_fields.items():
-                if document.get(field) != value:
-                    errors.append(
-                        f"packet {packet_id}: primary protocol {field} differs from "
-                        "frozen preregistration"
+            except (OSError, UnicodeDecodeError, ValueError) as exc:
+                errors.append(f"packet {packet_id}: cannot load primary protocol schema: {exc}")
+                continue
+            protocol_schema_errors = _schema_errors(
+                document, primary_schema, f"packet {packet_id} primary-protocol"
+            )
+            errors.extend(protocol_schema_errors)
+            expected_document = {
+                "schema_version": 1,
+                "packet_id": packet_id,
+                **{
+                    field: packet["preregistration"][field]
+                    for field in (
+                        "parameters",
+                        "measurement_procedure",
+                        "uncertainty_procedure",
+                        "statistical_analysis",
+                        "resource_budget",
+                        "commands",
+                        "mutation_plan",
                     )
+                },
+            }
+            if document != expected_document:
+                errors.append(
+                    f"packet {packet_id}: primary protocol differs from exact "
+                    "frozen preregistration envelope"
+                )
+    return errors
+
+
+def _structured_external_receipt(
+    receipts: Mapping[str, Any],
+    receipt_id: str,
+    expected_kind: str,
+    packet_id: str,
+    label: str,
+    errors: list[str],
+) -> Mapping[str, Any] | None:
+    receipt = receipts.get(receipt_id)
+    if receipt is None or receipt.get("kind") != expected_kind:
+        errors.append(
+            f"packet {packet_id}: external replication {label} receipt is missing or mistyped"
+        )
+        return None
+    if receipt.get("media_type") != "application/json":
+        errors.append(
+            f"packet {packet_id}: external replication {label} must use application/json"
+        )
+        return None
+    try:
+        return _structured_receipt_document(receipt)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+        json.JSONDecodeError,
+        yaml.YAMLError,
+    ) as exc:
+        errors.append(
+            f"packet {packet_id}: external replication {label} receipt cannot be parsed: {exc}"
+        )
+        return None
+
+
+def _validate_external_replication(
+    packet: Mapping[str, Any],
+    receipts: Mapping[str, Any],
+    packet_id: str,
+    campaign: Mapping[str, Any],
+    internal_facts: Mapping[str, set[str]],
+) -> list[str]:
+    errors: list[str] = []
+    contract = packet["external_replication"]
+    if packet_id != "VIA-900":
+        if contract is not None:
+            errors.append(
+                f"packet {packet_id}: external replication contract is reserved for VIA-900"
+            )
+        return errors
+    if contract is None:
+        if LIFECYCLE_ORDER[packet["lifecycle_phase"]] >= LIFECYCLE_ORDER["preregistered"]:
+            errors.append(f"packet {packet_id}: Tier E requires external replication contract")
+        return errors
+
+    organization = contract["organization"]
+    operator = contract["operator"]
+    if operator["organization_id"] != organization["id"]:
+        errors.append(f"packet {packet_id}: external operator organization id differs")
+    comparisons = {
+        "agent identity": (operator["agent_identity"], "agent_identities"),
+        "operator": (operator["operator"], "operators"),
+        "organization": (organization["id"], "organizations"),
+        "model identity": (operator["model_identity"], "model_identities"),
+        "session": (operator["session_id"], "session_ids"),
+    }
+    for label, (value, fact_key) in comparisons.items():
+        if value in internal_facts[fact_key]:
+            errors.append(
+                f"packet {packet_id}: external {label} is not distinct from internal campaign"
+            )
+    implementation = contract["implementation"]
+    if implementation["repository"] == campaign["repository"]:
+        errors.append(f"packet {packet_id}: external implementation reuses candidate repository")
+
+    contract_document = _structured_external_receipt(
+        receipts,
+        contract["receipt_id"],
+        "external-replication",
+        packet_id,
+        "contract",
+        errors,
+    )
+    if contract_document is not None and contract_document != {
+        "packet_id": packet_id,
+        "contract": contract,
+        "agreement": True,
+    }:
+        errors.append(
+            f"packet {packet_id}: external replication receipt differs from packet contract"
+        )
+
+    provenance_document = _structured_external_receipt(
+        receipts,
+        implementation["provenance_receipt_id"],
+        "independent-implementation",
+        packet_id,
+        "implementation provenance",
+        errors,
+    )
+    if provenance_document is not None and provenance_document != {
+        "packet_id": packet_id,
+        "organization": organization,
+        "operator": operator,
+        "implementation": implementation,
+    }:
+        errors.append(
+            f"packet {packet_id}: independent implementation receipt differs from contract"
+        )
+
+    prediction = contract["prediction"]
+    prediction_receipt = receipts.get(prediction["receipt_id"])
+    prediction_document = _structured_external_receipt(
+        receipts,
+        prediction["receipt_id"],
+        "blinded-prediction",
+        packet_id,
+        "blinded prediction",
+        errors,
+    )
+    if prediction_receipt is not None and prediction_receipt.get("sha256") != prediction[
+        "sha256"
+    ]:
+        errors.append(f"packet {packet_id}: blinded prediction hash differs from receipt")
+    if prediction["committed_by"] != operator["agent_identity"]:
+        errors.append(f"packet {packet_id}: blinded prediction has wrong committer")
+    if prediction_document is not None:
+        if set(prediction_document) != {
+            "packet_id",
+            "committed_by",
+            "committed_at",
+            "predictions",
+        }:
+            errors.append(f"packet {packet_id}: blinded prediction envelope is invalid")
+        if any(
+            prediction_document.get(field) != prediction[field]
+            for field in ("committed_by", "committed_at")
+        ) or prediction_document.get("packet_id") != packet_id:
+            errors.append(f"packet {packet_id}: blinded prediction metadata differs")
+        if not isinstance(prediction_document.get("predictions"), list):
+            errors.append(f"packet {packet_id}: blinded predictions must be an array")
+
+    reveal_document = _structured_external_receipt(
+        receipts,
+        prediction["reveal_receipt_id"],
+        "reveal-record",
+        packet_id,
+        "prediction reveal",
+        errors,
+    )
+    evaluator = packet["seats"]["evaluator_custodian"]["agent_identity"]
+    if reveal_document is not None and reveal_document != {
+        "packet_id": packet_id,
+        "authorized_by": evaluator,
+        "revealed_at": packet["blind_custody"]["reveal"]["revealed_at"],
+        "prediction_receipt_id": prediction["receipt_id"],
+        "prediction_sha256": prediction["sha256"],
+    }:
+        errors.append(f"packet {packet_id}: blinded prediction reveal differs from contract")
+
+    reproduction = contract["reproduction"]
+    output_receipt = receipts.get(reproduction["output_receipt_id"])
+    if output_receipt is None or output_receipt.get("kind") != "raw-results":
+        errors.append(f"packet {packet_id}: external raw output receipt is missing")
+    elif output_receipt.get("sha256") != reproduction["output_sha256"]:
+        errors.append(f"packet {packet_id}: external raw output hash differs")
+    output_document = _structured_external_receipt(
+        receipts,
+        reproduction["output_receipt_id"],
+        "raw-results",
+        packet_id,
+        "raw output",
+        errors,
+    )
+    if output_document is not None:
+        try:
+            agreement = _json_pointer(
+                output_document, contract["comparison"]["agreement_json_pointer"]
+            )
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            errors.append(f"packet {packet_id}: external agreement cannot resolve: {exc}")
+        else:
+            if type(agreement) is not bool or not agreement:
+                errors.append(f"packet {packet_id}: cross-implementation agreement is false")
+    if reproduction["committed_by"] != operator["agent_identity"]:
+        errors.append(f"packet {packet_id}: external output has wrong committer")
+    commitment_document = _structured_external_receipt(
+        receipts,
+        reproduction["commitment_receipt_id"],
+        "output-commitment",
+        packet_id,
+        "output commitment",
+        errors,
+    )
+    if commitment_document is not None and commitment_document != {
+        "packet_id": packet_id,
+        "committed_by": reproduction["committed_by"],
+        "committed_at": reproduction["committed_at"],
+        "output_receipt_id": reproduction["output_receipt_id"],
+        "output_sha256": reproduction["output_sha256"],
+    }:
+        errors.append(f"packet {packet_id}: external output commitment differs")
+
+    comparison = contract["comparison"]
+    candidate_receipt = receipts.get(comparison["candidate_output_receipt_id"])
+    if candidate_receipt is None or candidate_receipt.get("kind") != "raw-results":
+        errors.append(f"packet {packet_id}: comparison candidate output is missing")
+    if comparison["external_output_receipt_id"] != reproduction["output_receipt_id"]:
+        errors.append(f"packet {packet_id}: comparison external output differs")
+    if comparison["candidate_output_receipt_id"] == comparison[
+        "external_output_receipt_id"
+    ]:
+        errors.append(f"packet {packet_id}: comparison reuses one output receipt")
+
+    try:
+        prediction_time = _parse_datetime(prediction["committed_at"])
+        output_time = _parse_datetime(reproduction["committed_at"])
+        reveal_time = _parse_datetime(packet["blind_custody"]["reveal"]["revealed_at"])
+    except (AttributeError, TypeError, ValueError) as exc:
+        errors.append(f"packet {packet_id}: external replication timestamps are invalid: {exc}")
+    else:
+        if not prediction_time < output_time < reveal_time:
+            errors.append(
+                f"packet {packet_id}: prediction, external output, and reveal order is invalid"
+            )
     return errors
 
 
@@ -1032,7 +1379,13 @@ def _validate_custody(
             if receipt is not None and receipt.get("kind") == "output-commitment":
                 try:
                     receipt_document = _structured_receipt_document(receipt)
-                except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+                except (
+                    OSError,
+                    UnicodeDecodeError,
+                    ValueError,
+                    json.JSONDecodeError,
+                    yaml.YAMLError,
+                ) as exc:
                     errors.append(
                         f"packet {packet_id}: output commitment receipt cannot be parsed: {exc}"
                     )
@@ -1062,7 +1415,13 @@ def _validate_custody(
         else:
             try:
                 reveal_document = _structured_receipt_document(reveal_receipt)
-            except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+            except (
+                OSError,
+                UnicodeDecodeError,
+                ValueError,
+                json.JSONDecodeError,
+                yaml.YAMLError,
+            ) as exc:
                 errors.append(f"packet {packet_id}: reveal record cannot be parsed: {exc}")
             else:
                 expected_reveal = {
@@ -1315,6 +1674,11 @@ def _validate_review_chain(
                 f"packet {packet_id}: re-review round {round_index} response ref mismatch"
             )
         errors.extend(_review_commit_binding_errors(rereview, packet, root, packet_id))
+        errors.extend(
+            _response_provenance_errors(
+                response, rereview, packet, root, packet_id, round_index
+            )
+        )
         response_findings = _artifact_items(
             response, "finding_responses", "finding_id", packet_id, errors
         )
@@ -1486,6 +1850,7 @@ def _validate_packet(
     campaign_base: Path,
     packet_outcomes: Mapping[str, str],
     packet_schema: Mapping[str, Any],
+    internal_facts: Mapping[str, set[str]],
 ) -> list[str]:
     packet_id = str(packet.get("packet_id", "<unknown>"))
     errors = _schema_errors(packet, packet_schema, f"packet {packet_id}")
@@ -1605,6 +1970,11 @@ def _validate_packet(
     errors.extend(receipt_errors)
     if LIFECYCLE_ORDER[phase] >= LIFECYCLE_ORDER["preregistered"]:
         errors.extend(_validate_preregistration(packet, receipts, packet_id, root))
+        errors.extend(
+            _validate_external_replication(
+                packet, receipts, packet_id, campaign, internal_facts
+            )
+        )
     errors.extend(_validate_custody(packet, receipts, packet_id))
 
     if packet["holdout_started"]:
@@ -1818,6 +2188,32 @@ def validate_campaign(
             else "pending"
         )
 
+    internal_facts: dict[str, set[str]] = {
+        "agent_identities": set(),
+        "operators": set(),
+        "organizations": set(),
+        "model_identities": set(),
+        "session_ids": set(),
+    }
+    fact_fields = {
+        "agent_identity": "agent_identities",
+        "operator": "operators",
+        "organization": "organizations",
+        "model_identity": "model_identities",
+        "session_id": "session_ids",
+    }
+    for packet, _packet_path in loaded.values():
+        seats = packet.get("seats")
+        if not isinstance(seats, Mapping):
+            continue
+        for seat in seats.values():
+            if not isinstance(seat, Mapping):
+                continue
+            for field, fact_key in fact_fields.items():
+                value = seat.get(field)
+                if isinstance(value, str):
+                    internal_facts[fact_key].add(value)
+
     for packet_id, (packet, packet_path) in loaded.items():
         errors.extend(
             _validate_packet(
@@ -1830,6 +2226,7 @@ def validate_campaign(
                 path.parent,
                 preliminary_outcomes,
                 packet_schema,
+                internal_facts,
             )
         )
 

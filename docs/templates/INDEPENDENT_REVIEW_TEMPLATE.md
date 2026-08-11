@@ -4,20 +4,22 @@ Use this template for initial reviews and re-reviews. Store completed artifacts 
 `reviews/independent_reviewer/` and commit them on a reviewer branch.
 
 Completed initial reviews must conform to
-[`independent-review-v1.schema.json`](../../schemas/viability/independent-review-v1.schema.json);
+[`independent-review-v2.schema.json`](../../schemas/viability/independent-review-v2.schema.json);
 completed re-reviews must conform to
-[`independent-rereview-v1.schema.json`](../../schemas/viability/independent-rereview-v1.schema.json).
+[`independent-rereview-v2.schema.json`](../../schemas/viability/independent-rereview-v2.schema.json).
 The viability validator rejects duplicate YAML/JSON keys and validates the immutable
 `commit:path` receipt reference before using any result.
 
 ```yaml
-artifact_schema_version: 1
+artifact_schema_version: 2
 review_id: ""
 review_kind: initial|re-review
 reviewer_seat: independent-reviewer
 reviewer_model_identity: ""       # exact model id supplied by the operator
 reviewer_model_version: ""        # version/snapshot, or "unknown"
 reviewer_operator: ""
+reviewer_session_id: ""
+reviewer_orchestrator_id: ""
 review_date: ""
 commit_reviewed: ""               # full 40-character hash
 baseline_commit: ""               # full baseline hash
@@ -34,6 +36,8 @@ independence_declaration:
   shared_session: false
   shared_orchestrator: false
   builder_model_identity: ""
+  builder_session_id: ""
+  builder_orchestrator_id: ""
   reviewer_model_differs_from_builder: false
   external_scientific_validation: false
 
@@ -103,6 +107,10 @@ recommendation:
   claim execution for a read-only inference.
 - `context_hash_method` must be reproducible, for example
   `git rev-parse "<commit>^{tree}"`.
+- In a viability campaign, the validator requires the canonical command above and
+  reconciles `shared_operator`, `builder_model_identity`, and
+  `reviewer_model_differs_from_builder`, plus builder/reviewer session and orchestrator
+  declarations, to the packet's builder seat.
 - `external_scientific_validation` is always false for an agent review under this
   workflow, even when builder and reviewer use different models.
 - `approve: true` requires zero unresolved blocking findings.

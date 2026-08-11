@@ -29,9 +29,10 @@ CONTRACT_PATHS = (
     "schemas/viability/campaign-v2.schema.json",
     "schemas/viability/packet-v2.schema.json",
     "schemas/viability/protocol-manifest-v2.schema.json",
-    "schemas/viability/independent-review-v1.schema.json",
-    "schemas/viability/independent-rereview-v1.schema.json",
-    "schemas/viability/review-response-v1.schema.json",
+    "schemas/viability/primary-protocol-v1.schema.json",
+    "schemas/viability/independent-review-v2.schema.json",
+    "schemas/viability/independent-rereview-v2.schema.json",
+    "schemas/viability/review-response-v2.schema.json",
     "scripts/check_viability_campaign.py",
 )
 
@@ -57,6 +58,8 @@ def _seat(name: str, *, evaluator: bool = False) -> dict[str, Any]:
         "model_version": "1",
         "operator": "test-operator",
         "session_id": f"session-{name}",
+        "orchestrator_id": "test-builder-orchestrator",
+        "organization": "test-organization",
         "access_level": "test",
         "exposure": {
             "final_labels_seen": evaluator,
@@ -80,13 +83,15 @@ def _receipt(
 
 def _initial_review_document(packet_id: str, hashes: dict[str, str]) -> dict[str, Any]:
     return {
-        "artifact_schema_version": 1,
+        "artifact_schema_version": 2,
         "review_id": f"REVIEW-{packet_id}-1",
         "review_kind": "initial",
         "reviewer_seat": "independent-reviewer",
         "reviewer_model_identity": "test-reviewer-model",
         "reviewer_model_version": "1",
         "reviewer_operator": "test-reviewer-operator",
+        "reviewer_session_id": "test-reviewer-session",
+        "reviewer_orchestrator_id": "test-reviewer-orchestrator",
         "review_date": "2026-08-10",
         "commit_reviewed": hashes["candidate_commit"],
         "baseline_commit": hashes["baseline_commit"],
@@ -103,7 +108,9 @@ def _initial_review_document(packet_id: str, hashes: dict[str, str]) -> dict[str
             "shared_operator": False,
             "shared_session": False,
             "shared_orchestrator": False,
-            "builder_model_identity": "test-builder-model",
+            "builder_model_identity": "test-model",
+            "builder_session_id": f"session-{packet_id}-builder",
+            "builder_orchestrator_id": "test-builder-orchestrator",
             "reviewer_model_differs_from_builder": True,
             "external_scientific_validation": False,
         },
@@ -156,8 +163,9 @@ def _make_packet(
     holdout_path: Path,
     seed_path: Path,
     hashes: dict[str, str],
-    protocol_artifact: dict[str, str],
+    protocol_artifact: dict[str, Any],
     initial_review_ref: str,
+    external_mutation: Any | None = None,
 ) -> dict[str, Any]:
     requirement = REQUIREMENTS["packets"][packet_id]
     declared_evidence = (
@@ -173,7 +181,9 @@ def _make_packet(
     output_commitment_path = receipt_dir / "output-commitment.json"
     reveal_record_path = receipt_dir / "reveal-record.json"
     generic_path.write_text('{"evidence": true}\n', encoding="utf-8")
-    _write_json(protocol_path, _protocol_document(packet_id))
+    _write_json(
+        protocol_path, protocol_artifact.get("document", _protocol_document(packet_id))
+    )
     raw_document = {
         "metric": 1,
         "passed": True,
@@ -213,6 +223,132 @@ def _make_packet(
         json.dumps(reveal_document, sort_keys=True) + "\n", encoding="utf-8"
     )
     relative_prefix = f"../receipts/{packet_id}"
+    external_replication: dict[str, Any] | None = None
+    external_paths: dict[str, Path] = {}
+    if packet_id == "VIA-900":
+        external_paths = {
+            "provenance": receipt_dir / "external-provenance.json",
+            "prediction": receipt_dir / "blinded-prediction.json",
+            "prediction_reveal": receipt_dir / "prediction-reveal.json",
+            "output": receipt_dir / "external-output.json",
+            "commitment": receipt_dir / "external-output-commitment.json",
+            "contract": receipt_dir / "external-replication.json",
+        }
+        external_operator = {
+            "agent_identity": "external-agent",
+            "model_identity": "external-model",
+            "model_version": "1",
+            "operator": "external-operator",
+            "session_id": "external-session",
+            "organization_id": "external-organization",
+        }
+        implementation = {
+            "repository": "https://example.invalid/independent-popgp-replication",
+            "commit_hash": "1" * 40,
+            "tree_hash": "2" * 40,
+            "independently_authored": True,
+            "candidate_core_derived": False,
+            "provenance_receipt_id": "independent-implementation",
+        }
+        external_base = {
+            "organization": {
+                "id": "external-organization",
+                "name": "External Test Laboratory",
+            },
+            "operator": external_operator,
+            "implementation": implementation,
+            "prior_exposure": {
+                "candidate_source_seen": False,
+                "candidate_outputs_seen": False,
+                "builder_conclusions_seen": False,
+                "final_labels_seen": False,
+                "secret_seed_seen": False,
+                "private_evaluator_seen": False,
+            },
+        }
+        if external_mutation is not None:
+            external_mutation(external_base)
+        external_operator = external_base["operator"]
+        implementation = external_base["implementation"]
+        _write_json(
+            external_paths["provenance"],
+            {
+                "packet_id": packet_id,
+                "organization": external_base["organization"],
+                "operator": external_operator,
+                "implementation": implementation,
+            },
+        )
+        _write_json(
+            external_paths["prediction"],
+            {
+                "packet_id": packet_id,
+                "committed_by": external_operator["agent_identity"],
+                "committed_at": "2026-08-10T10:00:00Z",
+                "predictions": [{"observable": "agreement", "value": True}],
+            },
+        )
+        _write_json(
+            external_paths["output"],
+            {"agreement": True, "implementation": "independent", "metric": 1.0},
+        )
+        external_output_hash = _sha256(external_paths["output"])
+        _write_json(
+            external_paths["commitment"],
+            {
+                "packet_id": packet_id,
+                "committed_by": external_operator["agent_identity"],
+                "committed_at": "2026-08-10T11:00:00Z",
+                "output_receipt_id": "external-raw-results",
+                "output_sha256": external_output_hash,
+            },
+        )
+        prediction_hash = _sha256(external_paths["prediction"])
+        _write_json(
+            external_paths["prediction_reveal"],
+            {
+                "packet_id": packet_id,
+                "authorized_by": custodian_identity,
+                "revealed_at": "2026-08-10T13:00:00Z",
+                "prediction_receipt_id": "blinded-prediction",
+                "prediction_sha256": prediction_hash,
+            },
+        )
+        external_replication = {
+            "schema_version": 1,
+            "receipt_id": "external-replication",
+            "organization": external_base["organization"],
+            "operator": external_operator,
+            "implementation": implementation,
+            "prior_exposure": external_base["prior_exposure"],
+            "prediction": {
+                "receipt_id": "blinded-prediction",
+                "sha256": prediction_hash,
+                "committed_by": external_operator["agent_identity"],
+                "committed_at": "2026-08-10T10:00:00Z",
+                "reveal_receipt_id": "prediction-reveal",
+            },
+            "reproduction": {
+                "output_receipt_id": "external-raw-results",
+                "commitment_receipt_id": "external-output-commitment",
+                "output_sha256": external_output_hash,
+                "committed_by": external_operator["agent_identity"],
+                "committed_at": "2026-08-10T11:00:00Z",
+            },
+            "comparison": {
+                "candidate_output_receipt_id": "raw-results",
+                "external_output_receipt_id": "external-raw-results",
+                "agreement_json_pointer": "/agreement",
+            },
+        }
+        _write_json(
+            external_paths["contract"],
+            {
+                "packet_id": packet_id,
+                "contract": external_replication,
+                "agreement": True,
+            },
+        )
     evidence_kinds = sorted(
         {
             kind
@@ -234,6 +370,15 @@ def _make_packet(
         elif kind == "reveal-record":
             path = reveal_record_path
             relative = f"{relative_prefix}/reveal-record.json"
+        elif packet_id == "VIA-900" and kind == "independent-implementation":
+            path = external_paths["provenance"]
+            relative = f"{relative_prefix}/{path.name}"
+        elif packet_id == "VIA-900" and kind == "blinded-prediction":
+            path = external_paths["prediction"]
+            relative = f"{relative_prefix}/{path.name}"
+        elif packet_id == "VIA-900" and kind == "external-replication":
+            path = external_paths["contract"]
+            relative = f"{relative_prefix}/{path.name}"
         else:
             path = generic_path
             relative = f"{relative_prefix}/evidence.json"
@@ -266,6 +411,29 @@ def _make_packet(
             ),
         ]
     )
+    if packet_id == "VIA-900":
+        receipts.extend(
+            [
+                _receipt(
+                    "external-raw-results",
+                    "raw-results",
+                    f"{relative_prefix}/{external_paths['output'].name}",
+                    _sha256(external_paths["output"]),
+                ),
+                _receipt(
+                    "external-output-commitment",
+                    "output-commitment",
+                    f"{relative_prefix}/{external_paths['commitment'].name}",
+                    _sha256(external_paths["commitment"]),
+                ),
+                _receipt(
+                    "prediction-reveal",
+                    "reveal-record",
+                    f"{relative_prefix}/{external_paths['prediction_reveal'].name}",
+                    _sha256(external_paths["prediction_reveal"]),
+                ),
+            ]
+        )
     bindings = {
         "result_passed": {
             "receipt_id": "raw-results",
@@ -387,6 +555,7 @@ def _make_packet(
                 "immutable_location": "archive://campaign/manifests",
             },
         },
+        "external_replication": external_replication,
         "outcome_rules": {
             "language": "popgp-bool-v2",
             "bindings": bindings,
@@ -486,14 +655,17 @@ def _response_document(
 ) -> dict[str, Any]:
     review_commit, review_artifact = review_ref.split(":", 1)
     return {
-        "artifact_schema_version": 1,
+        "artifact_schema_version": 2,
         "response_id": "RESPONSE-VIA-000-1",
         "response_round": 1,
         "response_date": "2026-08-10",
         "builder_seat": "builder",
-        "builder_model_identity": "test-builder-model",
+        "builder_model_identity": "test-model",
         "builder_model_version": "1",
-        "builder_operator": "test-builder-operator",
+        "builder_operator": "test-operator",
+        "builder_session_id": "session-VIA-000-builder",
+        "builder_orchestrator_id": "test-builder-orchestrator",
+        "builder_organization": "test-organization",
         "review_id": review["review_id"],
         "review_artifact": review_artifact,
         "review_commit": review_commit,
@@ -557,13 +729,15 @@ def _rereview_document(
     include_test: bool = False,
 ) -> dict[str, Any]:
     return {
-        "artifact_schema_version": 1,
+        "artifact_schema_version": 2,
         "review_id": "REREVIEW-VIA-000-1",
         "review_kind": "re-review",
         "reviewer_seat": "independent-reviewer",
         "reviewer_model_identity": "test-reviewer-model",
         "reviewer_model_version": "1",
         "reviewer_operator": "test-reviewer-operator",
+        "reviewer_session_id": "test-rereviewer-session",
+        "reviewer_orchestrator_id": "test-reviewer-orchestrator",
         "review_date": "2026-08-10",
         "commit_reviewed": hashes["candidate_commit"],
         "baseline_commit": hashes["baseline_commit"],
@@ -580,7 +754,9 @@ def _rereview_document(
             "shared_operator": False,
             "shared_session": False,
             "shared_orchestrator": False,
-            "builder_model_identity": "test-builder-model",
+            "builder_model_identity": "test-model",
+            "builder_session_id": "session-VIA-000-builder",
+            "builder_orchestrator_id": "test-builder-orchestrator",
             "reviewer_model_differs_from_builder": True,
             "external_scientific_validation": False,
         },
@@ -630,9 +806,14 @@ def _rereview_document(
     }
 
 
-def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
+def _build_frozen_repo(
+    tmp_path: Path,
+    *,
+    protocol_mutation: Any | None = None,
+    external_mutation: Any | None = None,
+) -> dict[str, Any]:
     root = tmp_path / "repo"
-    root.mkdir()
+    root.mkdir(parents=True)
     for relative in (*CONTRACT_PATHS, "schemas/viability/requirements-v2.json"):
         destination = root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -670,15 +851,19 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         for packet_id, relative in review_paths.items()
     }
 
-    protocol_artifacts: dict[str, dict[str, str]] = {}
+    protocol_artifacts: dict[str, dict[str, Any]] = {}
     for packet_id in REQUIREMENTS["packets"]:
         relative = f"protocols/POPGP-VIABILITY-TEST/{packet_id}.json"
         destination = root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
-        _write_json(destination, _protocol_document(packet_id))
+        protocol_document = _protocol_document(packet_id)
+        if protocol_mutation is not None:
+            protocol_mutation(protocol_document)
+        _write_json(destination, protocol_document)
         protocol_artifacts[packet_id] = {
             "path": relative,
             "sha256": _sha256(destination),
+            "document": protocol_document,
         }
 
     scratch = tmp_path / "manifest-scratch"
@@ -698,6 +883,7 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
             hashes,
             protocol_artifacts[packet_id],
             initial_review_refs[packet_id],
+            external_mutation,
         )
         packet_hashes[packet_id] = packet["protocol_rule_sha256"]
 
@@ -711,7 +897,7 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         "candidate_commit": candidate,
         "baseline_commit": baseline,
         "tree_hash": tree,
-        "packet_freeze_version": "popgp-packet-freeze-v2",
+        "packet_freeze_version": "popgp-packet-freeze-v3",
         "requirements": {
             "path": requirements_path,
             "sha256": hashlib.sha256(requirements_bytes).hexdigest(),
@@ -746,6 +932,7 @@ def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
         "protocol_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "protocol_artifacts": protocol_artifacts,
         "initial_review_refs": initial_review_refs,
+        "external_mutation": external_mutation,
     }
 
 
@@ -788,6 +975,7 @@ def _make_campaign(
                 )},
                 frozen["protocol_artifacts"][packet_id],
                 frozen["initial_review_refs"][packet_id],
+                frozen.get("external_mutation"),
             ),
         )
         packet_paths[packet_id] = packet_path
@@ -881,6 +1069,7 @@ def _attach_review_round(
     *,
     minimal_artifacts: bool = False,
     malformed_outcome: Any | None = None,
+    response_mutation: Any | None = None,
 ) -> None:
     packet = _load(packet_path)
     receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
@@ -910,6 +1099,8 @@ def _attach_review_round(
         }
     else:
         response = _response_document(review, review_ref, include_test=True)
+    if response_mutation is not None:
+        response_mutation(response)
     response_ref, response_bytes = _commit_json_artifact(
         frozen["root"], f"reviews/fixtures/{namespace}-response.json", response
     )
@@ -1303,6 +1494,86 @@ def test_review_artifacts_are_schema_complete_immutable_and_total(
     errors = validate_requirements(malformed_requirements)
     assert any("VIA-010 must be an object" in error for error in errors)
 
+    malformed_requirements = copy.deepcopy(REQUIREMENTS)
+    malformed_requirements["packets"]["VIA-010"]["dependencies"] = 7
+    errors = validate_requirements(malformed_requirements)
+    assert any("VIA-010 dependencies must be a unique array" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_structured_receipts_and_governance_provenance_fail_closed(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path / "malformed-yaml", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+    commitment_receipt = receipt_by_id["output-commitment"]
+    commitment_path = (packet_path.parent / commitment_receipt["path"]).resolve()
+    commitment_path.write_text("packet_id: [unterminated\n", encoding="utf-8")
+    commitment_receipt.update(
+        media_type="application/yaml", sha256=_sha256(commitment_path)
+    )
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("output commitment receipt cannot be parsed" in error for error in errors)
+
+    campaign_path, packets = _make_campaign(tmp_path / "independence", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+    review_receipt = receipt_by_id["independent-review"]
+    review_path = (packet_path.parent / review_receipt["path"]).resolve()
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review.update(
+        reviewer_model_identity="test-model",
+        reviewer_operator="test-operator",
+        reviewer_session_id="session-VIA-000-builder",
+        reviewer_orchestrator_id="test-builder-orchestrator",
+        context_hash_method="unreproducible method",
+    )
+    review["independence_declaration"].update(
+        shared_operator=False,
+        reviewer_model_differs_from_builder=True,
+    )
+    review_ref, review_bytes = _commit_json_artifact(
+        frozen_repo["root"], "reviews/fixtures/contradictory-review.json", review
+    )
+    review_path.write_bytes(review_bytes)
+    review_receipt["sha256"] = _sha256(review_path)
+    packet["review_chain"]["initial_review_ref"] = review_ref
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("context_hash_method is not canonical" in error for error in errors)
+    assert any("model-separation declaration is contradictory" in error for error in errors)
+    assert any("shared-operator declaration is contradictory" in error for error in errors)
+    assert any("shared-session declaration is contradictory" in error for error in errors)
+    assert any("shared-orchestrator declaration is contradictory" in error for error in errors)
+
+    campaign_path, packets = _make_campaign(tmp_path / "response", frozen_repo)
+
+    def unrelated_response(response: dict[str, Any]) -> None:
+        response["builder_model_identity"] = "unrelated-model"
+        response["builder_operator"] = "unrelated-operator"
+        response["builder_session_id"] = "unrelated-session"
+        response["builder_orchestrator_id"] = "unrelated-orchestrator"
+        response["builder_organization"] = "unrelated-organization"
+        response["finding_responses"][0]["fix_commits"] = ["f" * 40]
+
+    _attach_review_round(
+        packets["VIA-000"],
+        frozen_repo,
+        "unrelated",
+        response_mutation=unrelated_response,
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("builder model is unrelated" in error for error in errors)
+    assert any("builder operator is unrelated" in error for error in errors)
+    assert any("builder session is unrelated" in error for error in errors)
+    assert any("builder orchestrator is unrelated" in error for error in errors)
+    assert any("builder organization is unrelated" in error for error in errors)
+    assert any("fix commit does not exist" in error for error in errors)
+
 
 @pytest.mark.negative_control
 def test_protocol_content_and_budget_are_frozen_before_holdout(
@@ -1359,6 +1630,111 @@ def test_protocol_content_and_budget_are_frozen_before_holdout(
     _write_yaml(packet_path, packet)
     errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
     assert any("packet rules differ from protocol snapshot" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_primary_protocol_rejects_competing_experiment_fields(tmp_path: Path) -> None:
+    def add_competing_fields(protocol: dict[str, Any]) -> None:
+        protocol.update(
+            execution_threshold_override=0.10,
+            unregistered_exclusion_rule="discard all nonpassing replicates",
+            measurement_override="use selected replicates only",
+            command_override="run-after-inspecting-output",
+            resource_override={"wall_time_seconds": 999999},
+        )
+
+    frozen = _build_frozen_repo(
+        tmp_path / "frozen", protocol_mutation=add_competing_fields
+    )
+    campaign_path, _ = _make_campaign(tmp_path / "campaign", frozen)
+    errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+    assert any(
+        "primary-protocol" in error and "Additional properties are not allowed" in error
+        for error in errors
+    )
+    assert any(
+        "primary protocol differs from exact frozen preregistration envelope" in error
+        for error in errors
+    )
+
+
+@pytest.mark.negative_control
+def test_tier_e_requires_typed_unaffiliated_clean_room(tmp_path: Path) -> None:
+    positive = _build_frozen_repo(tmp_path / "positive-frozen")
+    campaign_path, _ = _make_campaign(
+        tmp_path / "positive-campaign", positive, target_tier="E"
+    )
+    assert validate_campaign(campaign_path, repo_root=positive["root"]) == []
+
+    def reuse_internal_identity(external: dict[str, Any]) -> None:
+        external["organization"].update(
+            id="test-organization", name="Internal Test Organization"
+        )
+        external["operator"].update(
+            agent_identity="agent-VIA-900-builder",
+            model_identity="test-model",
+            model_version="1",
+            operator="test-operator",
+            session_id="session-VIA-900-builder",
+            organization_id="test-organization",
+        )
+        external["implementation"]["repository"] = (
+            "https://github.com/whact2025/POPGP"
+        )
+
+    same_identity = _build_frozen_repo(
+        tmp_path / "same-frozen", external_mutation=reuse_internal_identity
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "same-campaign", same_identity, target_tier="E"
+    )
+    errors = validate_campaign(campaign_path, repo_root=same_identity["root"])
+    for label in (
+        "agent identity",
+        "operator",
+        "organization",
+        "model identity",
+        "session",
+    ):
+        assert any(f"external {label} is not distinct" in error for error in errors)
+    assert any("reuses candidate repository" in error for error in errors)
+
+    generic_receipts = {
+        "external-replication": "external replication receipt differs",
+        "independent-implementation": "implementation receipt differs",
+        "blinded-prediction": "blinded prediction",
+        "external-output-commitment": "external output commitment differs",
+    }
+    for index, (receipt_id, expected) in enumerate(generic_receipts.items()):
+        campaign_path, packets = _make_campaign(
+            tmp_path / f"generic-campaign-{index}", positive, target_tier="E"
+        )
+        packet_path = packets["VIA-900"]
+        packet = _load(packet_path)
+        receipt = next(
+            item for item in packet["receipts"] if item["id"] == receipt_id
+        )
+        receipt_path = (packet_path.parent / receipt["path"]).resolve()
+        _write_json(receipt_path, {"evidence": True})
+        receipt["sha256"] = _sha256(receipt_path)
+        _write_yaml(packet_path, packet)
+        errors = validate_campaign(campaign_path, repo_root=positive["root"])
+        assert any(expected in error for error in errors), errors
+
+    def copied_candidate_core(external: dict[str, Any]) -> None:
+        external["implementation"]["candidate_core_derived"] = True
+
+    copied = _build_frozen_repo(
+        tmp_path / "copied-frozen", external_mutation=copied_candidate_core
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "copied-campaign", copied, target_tier="E"
+    )
+    errors = validate_campaign(campaign_path, repo_root=copied["root"])
+    assert any(
+        "external_replication" in error and "is not valid under any" in error
+        for error in errors
+    )
 
 
 @pytest.mark.negative_control

@@ -28,6 +28,7 @@
     "holdout_started",
     "seats",
     "blind_custody",
+    "external_replication",
     "outcome_rules",
     "receipts",
     "review_chain",
@@ -104,6 +105,12 @@
       }
     },
     "blind_custody": {"$ref": "#/$defs/blindCustody"},
+    "external_replication": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/externalReplication"}
+      ]
+    },
     "outcome_rules": {
       "oneOf": [
         {"type": "null"},
@@ -163,6 +170,8 @@
         "model_version",
         "operator",
         "session_id",
+        "orchestrator_id",
+        "organization",
         "access_level",
         "exposure"
       ],
@@ -172,6 +181,8 @@
         "model_version": {"type": "string", "minLength": 1},
         "operator": {"type": "string", "minLength": 1},
         "session_id": {"type": "string", "minLength": 1},
+        "orchestrator_id": {"type": "string", "minLength": 1},
+        "organization": {"type": "string", "minLength": 1},
         "access_level": {"type": "string", "minLength": 1},
         "exposure": {"$ref": "#/$defs/exposure"}
       }
@@ -260,6 +271,144 @@
         "secret_seed_manifest": {"$ref": "#/$defs/manifestCommitment"},
         "output_commitment": {"$ref": "#/$defs/outputCommitment"},
         "reveal": {"$ref": "#/$defs/reveal"}
+      }
+    },
+    "externalReplication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt_id",
+        "organization",
+        "operator",
+        "implementation",
+        "prior_exposure",
+        "prediction",
+        "reproduction",
+        "comparison"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "receipt_id": {"type": "string", "minLength": 1},
+        "organization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "name"],
+          "properties": {
+            "id": {"type": "string", "minLength": 1},
+            "name": {"type": "string", "minLength": 1}
+          }
+        },
+        "operator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agent_identity",
+            "model_identity",
+            "model_version",
+            "operator",
+            "session_id",
+            "organization_id"
+          ],
+          "properties": {
+            "agent_identity": {"type": "string", "minLength": 1},
+            "model_identity": {"type": "string", "minLength": 1},
+            "model_version": {"type": "string", "minLength": 1},
+            "operator": {"type": "string", "minLength": 1},
+            "session_id": {"type": "string", "minLength": 1},
+            "organization_id": {"type": "string", "minLength": 1}
+          }
+        },
+        "implementation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "commit_hash",
+            "tree_hash",
+            "independently_authored",
+            "candidate_core_derived",
+            "provenance_receipt_id"
+          ],
+          "properties": {
+            "repository": {"type": "string", "minLength": 1},
+            "commit_hash": {"$ref": "#/$defs/fullHash"},
+            "tree_hash": {"$ref": "#/$defs/fullHash"},
+            "independently_authored": {"const": true},
+            "candidate_core_derived": {"const": false},
+            "provenance_receipt_id": {"type": "string", "minLength": 1}
+          }
+        },
+        "prior_exposure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate_source_seen",
+            "candidate_outputs_seen",
+            "builder_conclusions_seen",
+            "final_labels_seen",
+            "secret_seed_seen",
+            "private_evaluator_seen"
+          ],
+          "properties": {
+            "candidate_source_seen": {"const": false},
+            "candidate_outputs_seen": {"const": false},
+            "builder_conclusions_seen": {"const": false},
+            "final_labels_seen": {"const": false},
+            "secret_seed_seen": {"const": false},
+            "private_evaluator_seen": {"const": false}
+          }
+        },
+        "prediction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "receipt_id",
+            "sha256",
+            "committed_by",
+            "committed_at",
+            "reveal_receipt_id"
+          ],
+          "properties": {
+            "receipt_id": {"type": "string", "minLength": 1},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "committed_by": {"type": "string", "minLength": 1},
+            "committed_at": {"type": "string", "format": "date-time"},
+            "reveal_receipt_id": {"type": "string", "minLength": 1}
+          }
+        },
+        "reproduction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "output_receipt_id",
+            "commitment_receipt_id",
+            "output_sha256",
+            "committed_by",
+            "committed_at"
+          ],
+          "properties": {
+            "output_receipt_id": {"type": "string", "minLength": 1},
+            "commitment_receipt_id": {"type": "string", "minLength": 1},
+            "output_sha256": {"$ref": "#/$defs/sha256"},
+            "committed_by": {"type": "string", "minLength": 1},
+            "committed_at": {"type": "string", "format": "date-time"}
+          }
+        },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate_output_receipt_id",
+            "external_output_receipt_id",
+            "agreement_json_pointer"
+          ],
+          "properties": {
+            "candidate_output_receipt_id": {"type": "string", "minLength": 1},
+            "external_output_receipt_id": {"type": "string", "minLength": 1},
+            "agreement_json_pointer": {"const": "/agreement"}
+          }
+        }
       }
     },
     "binding": {
