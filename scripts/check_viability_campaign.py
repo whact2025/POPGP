@@ -304,10 +304,10 @@ def _git_is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
 
 
 def _resolve_inside(base: Path, relative: str, root: Path) -> Path | None:
-    candidate = (base / relative).resolve()
     try:
+        candidate = (base / relative).resolve()
         candidate.relative_to(root.resolve())
-    except ValueError:
+    except (OSError, RuntimeError, ValueError):
         return None
     return candidate
 
@@ -1122,8 +1122,9 @@ def _canonical_repository_identity(value: str) -> str | None:
     if not raw or not _repository_text_is_safe(raw):
         return None
     is_windows_drive = re.match(r"^[A-Za-z]:/", raw) is not None
+    is_file_uri = raw.lower().startswith("file:")
     scp_match = re.fullmatch(r"(?:[^@/]+@)?([^:/]+):(.+)", raw)
-    if scp_match and "://" not in raw and not is_windows_drive:
+    if scp_match and "://" not in raw and not is_windows_drive and not is_file_uri:
         raw = f"ssh://{scp_match.group(1)}/{scp_match.group(2)}"
     try:
         parsed = urlsplit(raw)
@@ -1146,21 +1147,28 @@ def _canonical_repository_identity(value: str) -> str | None:
         ):
             return None
         host = host.rstrip(".").lower()
-        if not host:
+        if not host or len(host) > 253:
             return None
         dotted_decimal = re.fullmatch(r"\d+(?:\.\d+){3}", host)
         if dotted_decimal:
-            octets = [int(part, 10) for part in host.split(".")]
+            parts = host.split(".")
+            if any(len(part) > 3 for part in parts):
+                return None
+            octets = [int(part, 10) for part in parts]
             if any(octet > 255 for octet in octets):
                 return None
             host = ".".join(str(octet) for octet in octets)
         try:
-            host = ipaddress.ip_address(host).compressed
+            address = ipaddress.ip_address(host)
         except ValueError:
             try:
                 host = host.encode("idna").decode("ascii")
             except UnicodeError:
                 return None
+        else:
+            if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+                address = address.ipv4_mapped
+            host = address.compressed
         scheme = parsed.scheme.lower()
         default_ports = {
             "http": 80,

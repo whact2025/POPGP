@@ -2119,9 +2119,17 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
             "C:/src/same-repository",
             "file:///C:/src/same-repository",
         ),
+        "opaque-windows-file-uri": (
+            "C:/src/same-repository",
+            "file:C:/src/same-repository",
+        ),
         "leading-zero-ipv4": (
             "https://127.0.0.1/repo",
             "https://127.000.000.001/repo",
+        ),
+        "ipv4-mapped-ipv6": (
+            "https://127.0.0.1/repo",
+            "https://[::ffff:127.0.0.1]/repo",
         ),
         "git-plus-ssh": (
             "ssh://github.com/whact2025/POPGP",
@@ -2150,6 +2158,7 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
     invalid_repositories = {
         "control-character": "file:///%00bad",
         "malformed-percent-escape": "https://example.com/%ZZ/repo",
+        "overlong-dotted-host": f"https://{'9' * 5000}.0.0.1/repo",
     }
     for label, repository in invalid_repositories.items():
         def unsafe_repository(
@@ -2166,6 +2175,24 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
         )
         errors = validate_campaign(campaign_path, repo_root=frozen["root"])
         assert any("repository identity is invalid" in error for error in errors), errors
+
+    def nul_receipt_path(packet: dict[str, Any], _: Path) -> None:
+        if packet["packet_id"] != "VIA-900":
+            return
+        receipt = next(
+            item for item in packet["receipts"] if item["id"] == "output-commitment"
+        )
+        receipt["path"] = "../receipts/VIA-900/output-\x00commitment.json"
+
+    frozen = _build_frozen_repo(
+        tmp_path / "nul-receipt-path-frozen",
+        packet_mutation=nul_receipt_path,
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "nul-receipt-path-campaign", frozen, target_tier="E"
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+    assert any("receipt 'output-commitment' path escapes" in error for error in errors), errors
 
     comparison_substitutions = {
         "numeric-integer-agreement": ("agreement", 1),
