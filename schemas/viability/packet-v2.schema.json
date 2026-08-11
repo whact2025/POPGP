@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/whact2025/POPGP/schemas/viability/packet-v1.schema.json",
-  "title": "POPGP viability packet contract v1",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/packet-v2.schema.json",
+  "title": "POPGP viability packet contract v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,6 +13,7 @@
     "baseline_commit",
     "tree_hash",
     "protocol_commit",
+    "protocol_rule_sha256",
     "lifecycle_phase",
     "claims",
     "existing_gates",
@@ -32,14 +33,15 @@
     "adjudication"
   ],
   "properties": {
-    "schema_version": {"const": 1},
-    "contract_version": {"const": "popgp-viability-contract-v1"},
+    "schema_version": {"const": 2},
+    "contract_version": {"const": "popgp-viability-contract-v2"},
     "campaign_id": {"type": "string", "pattern": "^POPGP-VIABILITY-[A-Za-z0-9._-]+$"},
     "packet_id": {"type": "string", "pattern": "^VIA-[0-9]{3}$"},
     "candidate_commit": {"$ref": "#/$defs/fullHash"},
     "baseline_commit": {"$ref": "#/$defs/fullHash"},
     "tree_hash": {"$ref": "#/$defs/fullHash"},
     "protocol_commit": {"$ref": "#/$defs/fullHash"},
+    "protocol_rule_sha256": {"$ref": "#/$defs/sha256"},
     "lifecycle_phase": {
       "enum": ["drafted", "preregistered", "implemented", "attacked", "reproduced", "adjudicated"]
     },
@@ -108,7 +110,7 @@
           "additionalProperties": false,
           "required": ["language", "bindings", "pass", "fail", "blocked"],
           "properties": {
-            "language": {"const": "popgp-bool-v1"},
+            "language": {"const": "popgp-bool-v2"},
             "bindings": {
               "type": "object",
               "additionalProperties": {"$ref": "#/$defs/binding"}
@@ -187,10 +189,19 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["receipt_id", "committed_at"],
+          "required": [
+            "receipt_id",
+            "committed_by",
+            "committed_at",
+            "output_receipt_id",
+            "output_sha256"
+          ],
           "properties": {
             "receipt_id": {"type": "string", "minLength": 1},
-            "committed_at": {"type": "string", "format": "date-time"}
+            "committed_by": {"type": "string", "minLength": 1},
+            "committed_at": {"type": "string", "format": "date-time"},
+            "output_receipt_id": {"type": "string", "minLength": 1},
+            "output_sha256": {"$ref": "#/$defs/sha256"}
           }
         }
       ]
@@ -206,6 +217,7 @@
         "post_reveal_seed_sha256",
         "post_reveal_holdout_receipt_id",
         "post_reveal_seed_receipt_id",
+        "reveal_receipt_id",
         "retention_policy",
         "immutable_location"
       ],
@@ -221,6 +233,7 @@
         },
         "post_reveal_holdout_receipt_id": {"type": ["string", "null"]},
         "post_reveal_seed_receipt_id": {"type": ["string", "null"]},
+        "reveal_receipt_id": {"type": ["string", "null"]},
         "retention_policy": {"type": "string", "minLength": 1},
         "immutable_location": {"type": "string", "minLength": 1}
       }
@@ -250,10 +263,11 @@
     "binding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["receipt_id", "json_pointer"],
+      "required": ["receipt_id", "json_pointer", "expected_type"],
       "properties": {
         "receipt_id": {"type": "string", "minLength": 1},
-        "json_pointer": {"type": "string", "pattern": "^/"}
+        "json_pointer": {"type": "string", "pattern": "^/"},
+        "expected_type": {"enum": ["boolean", "number", "string", "null"]}
       }
     },
     "operand": {
@@ -397,8 +411,16 @@
       ],
       "properties": {
         "initial_review_receipt": {"type": ["string", "null"]},
-        "response_receipts": {"type": "array", "items": {"type": "string"}},
-        "rereview_receipts": {"type": "array", "items": {"type": "string"}},
+        "response_receipts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "rereview_receipts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
         "findings": {"type": "array", "items": {"$ref": "#/$defs/findingResult"}},
         "requested_tests": {
           "type": "array",

@@ -165,7 +165,7 @@ orchestration remain disclosed.
 
 The authoritative dependency lists, waves, capabilities, tier membership, evidence
 ordering, and floors are machine-owned by
-[`requirements-v1.json`](../../schemas/viability/requirements-v1.json). Packet authors
+[`requirements-v2.json`](../../schemas/viability/requirements-v2.json). Packet authors
 may raise an evidence requirement but cannot lower that campaign floor.
 
 ## 6. Detailed work packets
@@ -506,22 +506,50 @@ must be labeled internal even when it uses a different model.
 The portable contract is executable and vendor-neutral. It is not an assertion about
 any particular Crucible schema. Its authoritative components are:
 
-- [`campaign-v1.schema.json`](../../schemas/viability/campaign-v1.schema.json), which
+- [`campaign-v2.schema.json`](../../schemas/viability/campaign-v2.schema.json), which
   defines `CAMPAIGN.yaml`;
-- [`packet-v1.schema.json`](../../schemas/viability/packet-v1.schema.json), which
+- [`packet-v2.schema.json`](../../schemas/viability/packet-v2.schema.json), which
   defines every `PACKET.yaml`, seat, custody record, receipt, review chain, expression,
   and adjudication;
-- [`requirements-v1.json`](../../schemas/viability/requirements-v1.json), which owns
+- [`protocol-manifest-v2.schema.json`](../../schemas/viability/protocol-manifest-v2.schema.json),
+  which binds the campaign, canonical requirements, contract files, and every packet's
+  preregistered rules to bytes present at the named protocol commit;
+- [`requirements-v2.json`](../../schemas/viability/requirements-v2.json), which owns
   tier membership, dependencies, execution waves, required capabilities, evidence
   ordering/floors, and receipt kinds;
 - [`VIABILITY_CAMPAIGN_TEMPLATE.yaml`](../templates/VIABILITY_CAMPAIGN_TEMPLATE.yaml)
-  and [`VIABILITY_PACKET_TEMPLATE.yaml`](../templates/VIABILITY_PACKET_TEMPLATE.yaml);
+  [`VIABILITY_PACKET_TEMPLATE.yaml`](../templates/VIABILITY_PACKET_TEMPLATE.yaml), and
+  [`VIABILITY_PROTOCOL_MANIFEST_TEMPLATE.json`](../templates/VIABILITY_PROTOCOL_MANIFEST_TEMPLATE.json);
   and
 - [`check_viability_campaign.py`](../../scripts/check_viability_campaign.py), the
   fail-closed validator and campaign decision implementation.
 
-Copy the templates into a new campaign, duplicate the packet template for every
-required packet, replace all placeholders, and validate before preregistration:
+Contract v2 is a breaking replacement for the reviewed v1 draft. The v1 schemas were
+withdrawn because their literals, review summaries, custody order, and hash fields were
+not fail closed; no v1 packet or campaign may be promoted or silently translated to v2.
+
+Copy the templates into a new campaign and duplicate the packet template for every
+required packet. Populate the candidate/baseline/tree identities, rules, raw-result
+bindings, seat assignments, and hidden-manifest commitments before any holdout work.
+Print each canonical packet-rule hash with:
+
+```powershell
+uv run python scripts/check_viability_campaign.py `
+  --packet-rule-sha256 reviews/viability/<campaign-id>/packets/<packet-id>.yaml
+```
+
+Put those hashes and the Git-blob SHA-256 values for every required contract file into
+`PROTOCOL_MANIFEST.json`, commit that manifest and its referenced contract files, then
+record the resulting full `protocol_commit` and manifest hash in the campaign and all
+packets. The helper below hashes a file exactly as stored in that Git commit, avoiding
+checkout line-ending differences:
+
+```powershell
+uv run python scripts/check_viability_campaign.py `
+  --git-blob-sha256 <protocol-commit> <repository-relative-path>
+```
+
+Only then validate the preregistered campaign:
 
 ```powershell
 uv run python scripts/check_viability_campaign.py `
@@ -536,24 +564,35 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
 - missing dependencies, cycles, same-wave prerequisites, and holdout execution before
   every dependency is adjudicated `passed`;
 - missing, out-of-tree, or SHA-256-mismatched receipts and empty decisive evidence;
-- incomplete review/response/re-review chains or unresolved blocking findings/tests;
+- review summaries that do not exactly reconcile to the hashed initial-review,
+  builder-response, and re-review artifact bytes, including dangling supersessions;
 - prohibited seat/session reuse or hidden-data exposure by a blind seat;
-- reveal before output commitment, changed post-reveal manifest bytes, missing custody
-  metadata, or unsupported canonicalization; and
+- reveal not authorized by the evaluator/custodian, reveal before reproduced holdout
+  execution, output commitments not made by the reproduction runner or not bound to its
+  raw-result bytes, changed post-reveal manifests, missing custody metadata, or
+  unsupported canonicalization;
+- nonexistent candidate/baseline/protocol commits, candidate/tree mismatches,
+  post-protocol packet-rule changes, same-version requirements changes, or execution
+  with contract files different from the protocol commit; and
 - a campaign outcome inconsistent with its required packet outcomes.
 
-Outcome rules use the versioned `popgp-bool-v1` expression language. Bindings name a
-SHA-256-verified JSON receipt plus a JSON Pointer. Expressions combine Boolean
+Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a
+SHA-256-verified `raw-results` JSON receipt, a JSON Pointer, and an exact JSON type.
+Boolean and numeric values are not interchangeable. Expressions combine Boolean
 `literal`, `all`, `any`, `not`, and typed `compare` nodes (`eq`, `ne`, `gt`, `ge`,
-`lt`, `le`). Every campaign-owned required capability has its own expression over the
-same verified bindings, and a passing packet requires all capability expressions to be
-true. Listing a capability name without a matching executable rule is rejected.
-Free-form prose is explanatory only and cannot adjudicate a packet.
+`lt`, `le`), but every pass/fail/block expression must consume at least one verified
+binding. Every campaign-owned capability has a same-named Boolean binding at
+`/capabilities/<capability>` and the canonical rule `<capability> == true`; a passing
+packet requires every such raw gate to be true. Binding-free literals, alternate
+pointers, or merely listing a capability name are rejected. Free-form prose is
+explanatory only and cannot adjudicate a packet.
 
 The evaluator/custodian commits raw-byte SHA-256 hashes for the hidden holdout and seed
-manifests. Builder, falsifier, and reproduction runner remain blind. The evaluator
-records an immutable output-commitment receipt before reveal. Adjudication requires
-the reveal authorization/time, matching post-reveal manifest receipts, archive
+manifests. Builder, falsifier, and reproduction runner remain blind. The reproduction
+runner signs an immutable output-commitment receipt that identifies and hashes its
+`raw-results` receipt. Only the evaluator/custodian identity may authorize reveal, and
+reveal is rejected until holdout execution reaches the reproduced phase. Adjudication
+requires a hash-verified reveal receipt, matching post-reveal manifests, archive
 location, and retention policy. A packet cannot pass on builder-only access booleans.
 
 ## 8. Required receipt layout
@@ -563,6 +602,7 @@ Use immutable, round-numbered artifacts. Do not overwrite a failed run.
 ```text
 reviews/viability/<campaign-id>/
   CAMPAIGN.yaml
+  PROTOCOL_MANIFEST.json
   DECISION.md
   manifests/
     HOLDOUT-MANIFEST.json
@@ -589,7 +629,7 @@ reviews/viability/<campaign-id>/
 
 Every receipt entry has an ID, kind, path, media type, and raw-byte SHA-256 hash. Large
 raw arrays may live in a versioned external archive only after a retrieval adapter can
-verify the same fields; the v1 validator otherwise rejects unavailable paths rather
+verify the same fields; the v2 validator otherwise rejects unavailable paths rather
 than trusting a URI. Plots are diagnostic views; the decision must be reproducible
 from machine-readable raw results.
 

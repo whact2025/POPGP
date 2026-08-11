@@ -1,5 +1,5 @@
 {
-  "version": "popgp-viability-requirements-v1",
+  "version": "popgp-viability-requirements-v2",
   "evidence_order": [
     "E0-proposal",
     "E1-implementation",

@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -10,18 +12,25 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from scripts.check_viability_campaign import validate_campaign, validate_requirements
+from scripts.check_viability_campaign import (
+    packet_rule_sha256,
+    validate_campaign,
+    validate_requirements,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 REQUIREMENTS = json.loads(
-    (ROOT / "schemas/viability/requirements-v1.json").read_text(encoding="utf-8")
+    (ROOT / "schemas/viability/requirements-v2.json").read_text(encoding="utf-8")
 )
-HASHES = {
-    "candidate_commit": "a" * 40,
-    "baseline_commit": "b" * 40,
-    "tree_hash": "c" * 40,
-    "protocol_commit": "d" * 40,
-}
+
+CONTRACT_PATHS = (
+    "docs/scientific_hardening/CLAIMS_MATRIX.md",
+    "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
+    "schemas/viability/campaign-v2.schema.json",
+    "schemas/viability/packet-v2.schema.json",
+    "schemas/viability/protocol-manifest-v2.schema.json",
+    "scripts/check_viability_campaign.py",
+)
 
 
 def _sha256(path: Path) -> str:
@@ -48,27 +57,87 @@ def _seat(name: str, *, evaluator: bool = False) -> dict[str, Any]:
     }
 
 
-def _receipt(receipt_id: str, kind: str, path: str, digest: str) -> dict[str, str]:
+def _receipt(
+    receipt_id: str, kind: str, path: str, digest: str, media_type: str = "application/json"
+) -> dict[str, str]:
     return {
         "id": receipt_id,
         "kind": kind,
         "path": path,
         "sha256": digest,
-        "media_type": "application/json",
+        "media_type": media_type,
     }
 
 
 def _make_packet(
     packet_id: str,
     campaign_id: str,
-    evidence_path: Path,
+    receipt_dir: Path,
     holdout_path: Path,
     seed_path: Path,
+    hashes: dict[str, str],
 ) -> dict[str, Any]:
     requirement = REQUIREMENTS["packets"][packet_id]
-    evidence_hash = _sha256(evidence_path)
+    declared_evidence = (
+        "E4-convergent-replication"
+        if packet_id == "VIA-000"
+        else requirement["minimum_evidence"]
+    )
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    generic_path = receipt_dir / "evidence.json"
+    raw_path = receipt_dir / "raw-results.json"
+    review_path = receipt_dir / "independent-review.json"
+    output_commitment_path = receipt_dir / "output-commitment.json"
+    reveal_record_path = receipt_dir / "reveal-record.json"
+    generic_path.write_text('{"evidence": true}\n', encoding="utf-8")
+    raw_document = {
+        "metric": 1,
+        "passed": True,
+        "failed": False,
+        "blocked": False,
+        "capabilities": {
+            capability: True for capability in requirement["required_capabilities"]
+        },
+    }
+    raw_path.write_text(json.dumps(raw_document, sort_keys=True) + "\n", encoding="utf-8")
+    review_document = {
+        "artifact_schema_version": 1,
+        "review_id": f"REVIEW-{packet_id}-1",
+        "review_kind": "initial",
+        "findings": [],
+        "requested_tests": [],
+        "recommendation": {"approve": True, "blocking_findings": 0},
+    }
+    review_path.write_text(
+        json.dumps(review_document, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    raw_hash = _sha256(raw_path)
+    runner_identity = f"agent-{packet_id}-runner"
+    custodian_identity = f"agent-{packet_id}-custodian"
+    output_commitment_document = {
+        "packet_id": packet_id,
+        "committed_by": runner_identity,
+        "committed_at": "2026-08-10T12:00:00Z",
+        "output_receipt_id": "raw-results",
+        "output_sha256": raw_hash,
+    }
+    output_commitment_path.write_text(
+        json.dumps(output_commitment_document, sort_keys=True) + "\n", encoding="utf-8"
+    )
     holdout_hash = _sha256(holdout_path)
     seed_hash = _sha256(seed_path)
+    reveal_document = {
+        "packet_id": packet_id,
+        "authorized_by": custodian_identity,
+        "revealed_at": "2026-08-10T13:00:00Z",
+        "output_commitment_receipt_id": "output-commitment",
+        "post_reveal_holdout_sha256": holdout_hash,
+        "post_reveal_seed_sha256": seed_hash,
+    }
+    reveal_record_path.write_text(
+        json.dumps(reveal_document, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    relative_prefix = f"../receipts/{packet_id}"
     evidence_kinds = sorted(
         {
             kind
@@ -76,23 +145,34 @@ def _make_packet(
             for kind in kinds
         }
     )
-    receipts = [
-        _receipt(kind, kind, "../receipts/evidence.json", evidence_hash)
-        for kind in evidence_kinds
-    ]
+    receipts = []
+    for kind in evidence_kinds:
+        if kind == "raw-results":
+            path = raw_path
+            relative = f"{relative_prefix}/raw-results.json"
+        elif kind == "independent-review":
+            path = review_path
+            relative = f"{relative_prefix}/independent-review.json"
+        elif kind == "reveal-record":
+            path = reveal_record_path
+            relative = f"{relative_prefix}/reveal-record.json"
+        else:
+            path = generic_path
+            relative = f"{relative_prefix}/evidence.json"
+        receipts.append(_receipt(kind, kind, relative, _sha256(path)))
     receipts.extend(
         [
             _receipt(
                 "output-commitment",
                 "output-commitment",
-                "../receipts/evidence.json",
-                evidence_hash,
+                f"{relative_prefix}/output-commitment.json",
+                _sha256(output_commitment_path),
             ),
             _receipt(
                 "blockage-evidence",
                 "blockage-evidence",
-                "../receipts/evidence.json",
-                evidence_hash,
+                f"{relative_prefix}/evidence.json",
+                _sha256(generic_path),
             ),
             _receipt(
                 "revealed-holdout",
@@ -108,19 +188,53 @@ def _make_packet(
             ),
         ]
     )
-    return {
-        "schema_version": 1,
-        "contract_version": "popgp-viability-contract-v1",
+    bindings = {
+        "result_passed": {
+            "receipt_id": "raw-results",
+            "json_pointer": "/passed",
+            "expected_type": "boolean",
+        },
+        "result_blocked": {
+            "receipt_id": "raw-results",
+            "json_pointer": "/blocked",
+            "expected_type": "boolean",
+        },
+        "result_failed": {
+            "receipt_id": "raw-results",
+            "json_pointer": "/failed",
+            "expected_type": "boolean",
+        },
+    }
+    bindings.update(
+        {
+            capability: {
+                "receipt_id": "raw-results",
+                "json_pointer": f"/capabilities/{capability}",
+                "expected_type": "boolean",
+            }
+            for capability in requirement["required_capabilities"]
+        }
+    )
+    packet = {
+        "schema_version": 2,
+        "contract_version": "popgp-viability-contract-v2",
         "campaign_id": campaign_id,
         "packet_id": packet_id,
-        **HASHES,
+        **hashes,
+        "protocol_rule_sha256": "0" * 64,
         "lifecycle_phase": "adjudicated",
         "claims": ["C01"],
         "existing_gates": [],
-        "declared_evidence_requirement": requirement["minimum_evidence"],
+        "declared_evidence_requirement": declared_evidence,
         "capabilities": requirement["required_capabilities"],
         "capability_rules": {
-            capability: {"literal": True}
+            capability: {
+                "compare": {
+                    "left": {"binding": capability},
+                    "op": "eq",
+                    "right": {"value": True},
+                }
+            }
             for capability in requirement["required_capabilities"]
         },
         "hypothesis": "The frozen packet satisfies its preregistered gate.",
@@ -152,28 +266,27 @@ def _make_packet(
             },
             "output_commitment": {
                 "receipt_id": "output-commitment",
+                "committed_by": runner_identity,
                 "committed_at": "2026-08-10T12:00:00Z",
+                "output_receipt_id": "raw-results",
+                "output_sha256": raw_hash,
             },
             "reveal": {
                 "status": "revealed",
-                "authorized_by": "maintainer",
+                "authorized_by": custodian_identity,
                 "revealed_at": "2026-08-10T13:00:00Z",
                 "post_reveal_holdout_sha256": holdout_hash,
                 "post_reveal_seed_sha256": seed_hash,
                 "post_reveal_holdout_receipt_id": "revealed-holdout",
                 "post_reveal_seed_receipt_id": "revealed-seed",
+                "reveal_receipt_id": "reveal-record",
                 "retention_policy": "retain immutable manifests with campaign receipts",
                 "immutable_location": "archive://campaign/manifests",
             },
         },
         "outcome_rules": {
-            "language": "popgp-bool-v1",
-            "bindings": {
-                "result_passed": {
-                    "receipt_id": "raw-results",
-                    "json_pointer": "/passed",
-                }
-            },
+            "language": "popgp-bool-v2",
+            "bindings": bindings,
             "pass": {
                 "compare": {
                     "left": {"binding": "result_passed"},
@@ -183,12 +296,18 @@ def _make_packet(
             },
             "fail": {
                 "compare": {
-                    "left": {"binding": "result_passed"},
+                    "left": {"binding": "result_failed"},
                     "op": "eq",
-                    "right": {"value": False},
+                    "right": {"value": True},
                 }
             },
-            "blocked": {"literal": False},
+            "blocked": {
+                "compare": {
+                    "left": {"binding": "result_blocked"},
+                    "op": "eq",
+                    "right": {"value": True},
+                }
+            },
         },
         "receipts": receipts,
         "review_chain": {
@@ -203,21 +322,126 @@ def _make_packet(
             "packet_outcome": "passed",
             "cause_codes": ["pass-rule-satisfied"],
             "decisive_receipts": ["raw-results"],
-            "achieved_evidence": requirement["minimum_evidence"],
+            "achieved_evidence": declared_evidence,
         },
+    }
+    packet["protocol_rule_sha256"] = packet_rule_sha256(packet)
+    return packet
+
+
+def _git(root: Path, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        check=True,
+        capture_output=True,
+        timeout=30,
+    ).stdout
+
+
+def _build_frozen_repo(tmp_path: Path) -> dict[str, Any]:
+    root = tmp_path / "repo"
+    root.mkdir()
+    for relative in (*CONTRACT_PATHS, "schemas/viability/requirements-v2.json"):
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    _git(root, "init", "-q")
+    _git(root, "config", "user.name", "POPGP Test")
+    _git(root, "config", "user.email", "popgp-test@example.invalid")
+    _git(root, "add", ".")
+    _git(root, "commit", "-q", "-m", "baseline contract")
+    baseline = _git(root, "rev-parse", "HEAD").decode().strip()
+    (root / "candidate.txt").write_text("frozen candidate\n", encoding="utf-8")
+    _git(root, "add", "candidate.txt")
+    _git(root, "commit", "-q", "-m", "candidate")
+    candidate = _git(root, "rev-parse", "HEAD").decode().strip()
+    tree = _git(root, "rev-parse", "HEAD^{tree}").decode().strip()
+    hashes = {
+        "candidate_commit": candidate,
+        "baseline_commit": baseline,
+        "tree_hash": tree,
+        "protocol_commit": "0" * 40,
+    }
+
+    scratch = tmp_path / "manifest-scratch"
+    scratch.mkdir()
+    holdout_path = scratch / "holdout.json"
+    seed_path = scratch / "seed.json"
+    holdout_path.write_text('{"labels": [0, 1]}\n', encoding="utf-8")
+    seed_path.write_text('{"seeds": [17, 29]}\n', encoding="utf-8")
+    packet_hashes = {}
+    for packet_id in REQUIREMENTS["packets"]:
+        packet = _make_packet(
+            packet_id,
+            "POPGP-VIABILITY-TEST",
+            scratch / packet_id,
+            holdout_path,
+            seed_path,
+            hashes,
+        )
+        packet_hashes[packet_id] = packet["protocol_rule_sha256"]
+
+    requirements_path = "schemas/viability/requirements-v2.json"
+    requirements_bytes = _git(root, "show", f"HEAD:{requirements_path}")
+    manifest = {
+        "schema_version": 2,
+        "contract_version": "popgp-viability-contract-v2",
+        "requirements_version": "popgp-viability-requirements-v2",
+        "campaign_id": "POPGP-VIABILITY-TEST",
+        "candidate_commit": candidate,
+        "baseline_commit": baseline,
+        "tree_hash": tree,
+        "packet_freeze_version": "popgp-packet-freeze-v1",
+        "requirements": {
+            "path": requirements_path,
+            "sha256": hashlib.sha256(requirements_bytes).hexdigest(),
+        },
+        "contract_files": [
+            {
+                "path": relative,
+                "sha256": hashlib.sha256(_git(root, "show", f"HEAD:{relative}")).hexdigest(),
+            }
+            for relative in CONTRACT_PATHS
+        ],
+        "packet_rule_sha256": packet_hashes,
+    }
+    manifest_path = root / "protocols/POPGP-VIABILITY-TEST.json"
+    manifest_path.parent.mkdir()
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    _git(root, "add", "protocols/POPGP-VIABILITY-TEST.json")
+    _git(root, "commit", "-q", "-m", "freeze test protocol")
+    protocol = _git(root, "rev-parse", "HEAD").decode().strip()
+    manifest_bytes = _git(root, "show", "HEAD:protocols/POPGP-VIABILITY-TEST.json")
+    return {
+        "root": root,
+        "candidate_commit": candidate,
+        "baseline_commit": baseline,
+        "tree_hash": tree,
+        "protocol_commit": protocol,
+        "requirements_path": requirements_path,
+        "requirements_sha256": hashlib.sha256(requirements_bytes).hexdigest(),
+        "protocol_manifest_path": "protocols/POPGP-VIABILITY-TEST.json",
+        "protocol_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
     }
 
 
-def _make_campaign(tmp_path: Path, target_tier: str = "R") -> tuple[Path, dict[str, Path]]:
+@pytest.fixture(scope="module")
+def frozen_repo(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
+    return _build_frozen_repo(tmp_path_factory.mktemp("viability-frozen-repo"))
+
+
+def _make_campaign(
+    tmp_path: Path, frozen: dict[str, Any], target_tier: str = "R"
+) -> tuple[Path, dict[str, Path]]:
     campaign_dir = tmp_path / "campaign"
     packet_dir = campaign_dir / "packets"
     receipt_dir = campaign_dir / "receipts"
     packet_dir.mkdir(parents=True)
     receipt_dir.mkdir()
-    evidence_path = receipt_dir / "evidence.json"
     holdout_path = receipt_dir / "holdout.json"
     seed_path = receipt_dir / "seed.json"
-    evidence_path.write_text('{"metric": 1, "passed": true}\n', encoding="utf-8")
     holdout_path.write_text('{"labels": [0, 1]}\n', encoding="utf-8")
     seed_path.write_text('{"seeds": [17, 29]}\n', encoding="utf-8")
 
@@ -228,19 +452,40 @@ def _make_campaign(tmp_path: Path, target_tier: str = "R") -> tuple[Path, dict[s
         packet_path = packet_dir / f"{packet_id}.yaml"
         _write_yaml(
             packet_path,
-            _make_packet(packet_id, campaign_id, evidence_path, holdout_path, seed_path),
+            _make_packet(
+                packet_id,
+                campaign_id,
+                receipt_dir / packet_id,
+                holdout_path,
+                seed_path,
+                {key: frozen[key] for key in (
+                    "candidate_commit",
+                    "baseline_commit",
+                    "tree_hash",
+                    "protocol_commit",
+                )},
+            ),
         )
         packet_paths[packet_id] = packet_path
         packet_files[packet_id] = f"packets/{packet_id}.yaml"
 
     campaign = {
-        "schema_version": 1,
-        "contract_version": "popgp-viability-contract-v1",
-        "requirements_version": "popgp-viability-requirements-v1",
+        "schema_version": 2,
+        "contract_version": "popgp-viability-contract-v2",
+        "requirements_version": "popgp-viability-requirements-v2",
         "campaign_id": campaign_id,
         "target_tier": target_tier,
         "repository": "https://github.com/whact2025/POPGP",
-        **HASHES,
+        **{key: frozen[key] for key in (
+            "candidate_commit",
+            "baseline_commit",
+            "tree_hash",
+            "protocol_commit",
+            "requirements_path",
+            "requirements_sha256",
+            "protocol_manifest_path",
+            "protocol_manifest_sha256",
+        )},
         "packet_files": packet_files,
         "decision": {
             "outcome": "passed",
@@ -262,12 +507,13 @@ def _assert_mutation_fails(
     packet_path: Path,
     mutation: Any,
     expected: str,
+    repo_root: Path,
 ) -> None:
     original = packet_path.read_text(encoding="utf-8")
     packet = yaml.safe_load(original)
     mutation(packet)
     _write_yaml(packet_path, packet)
-    errors = validate_campaign(campaign_path, repo_root=ROOT)
+    errors = validate_campaign(campaign_path, repo_root=repo_root)
     packet_path.write_text(original, encoding="utf-8")
     assert any(expected in error for error in errors), errors
 
@@ -281,12 +527,40 @@ def _set_campaign_outcome(campaign_path: Path, outcome: str) -> None:
     _write_yaml(campaign_path, campaign)
 
 
+def _mutate_receipt_json(packet_path: Path, receipt_id: str, mutation: Any) -> None:
+    packet = _load(packet_path)
+    receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+    receipt = receipt_by_id[receipt_id]
+    receipt_path = (packet_path.parent / receipt["path"]).resolve()
+    document = json.loads(receipt_path.read_text(encoding="utf-8"))
+    mutation(document)
+    receipt_path.write_text(json.dumps(document, sort_keys=True) + "\n", encoding="utf-8")
+    receipt["sha256"] = _sha256(receipt_path)
+    if receipt_id == "raw-results":
+        commitment = packet["blind_custody"]["output_commitment"]
+        commitment["output_sha256"] = receipt["sha256"]
+        commitment_receipt = receipt_by_id["output-commitment"]
+        commitment_path = (packet_path.parent / commitment_receipt["path"]).resolve()
+        commitment_document = json.loads(commitment_path.read_text(encoding="utf-8"))
+        commitment_document["output_sha256"] = receipt["sha256"]
+        commitment_path.write_text(
+            json.dumps(commitment_document, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        commitment_receipt["sha256"] = _sha256(commitment_path)
+    _write_yaml(packet_path, packet)
+
+
 def test_shipped_templates_conform_to_versioned_schemas() -> None:
     campaign_schema = json.loads(
-        (ROOT / "schemas/viability/campaign-v1.schema.json").read_text(encoding="utf-8")
+        (ROOT / "schemas/viability/campaign-v2.schema.json").read_text(encoding="utf-8")
     )
     packet_schema = json.loads(
-        (ROOT / "schemas/viability/packet-v1.schema.json").read_text(encoding="utf-8")
+        (ROOT / "schemas/viability/packet-v2.schema.json").read_text(encoding="utf-8")
+    )
+    manifest_schema = json.loads(
+        (ROOT / "schemas/viability/protocol-manifest-v2.schema.json").read_text(
+            encoding="utf-8"
+        )
     )
     campaign = yaml.safe_load(
         (ROOT / "docs/templates/VIABILITY_CAMPAIGN_TEMPLATE.yaml").read_text(encoding="utf-8")
@@ -294,50 +568,65 @@ def test_shipped_templates_conform_to_versioned_schemas() -> None:
     packet = yaml.safe_load(
         (ROOT / "docs/templates/VIABILITY_PACKET_TEMPLATE.yaml").read_text(encoding="utf-8")
     )
+    manifest = json.loads(
+        (ROOT / "docs/templates/VIABILITY_PROTOCOL_MANIFEST_TEMPLATE.json").read_text(
+            encoding="utf-8"
+        )
+    )
     assert list(Draft202012Validator(campaign_schema).iter_errors(campaign)) == []
     assert list(Draft202012Validator(packet_schema).iter_errors(packet)) == []
+    assert list(Draft202012Validator(manifest_schema).iter_errors(manifest)) == []
 
 
 @pytest.mark.negative_control
-def test_schema_contract_rejects_cross_field_and_receipt_mutations(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path)
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+def test_schema_contract_rejects_cross_field_and_receipt_mutations(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo)
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
 
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-000"],
         lambda packet: packet.update(lifecycle_phase="drafted"),
         "non-adjudicated packet must remain not-run/pending",
+        frozen_repo["root"],
     )
+
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-000"],
         lambda packet: packet["claims"].append("C99"),
         "unknown claim id C99",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-000"],
         lambda packet: packet["existing_gates"].append("GATE-UNKNOWN"),
         "unknown gate id GATE-UNKNOWN",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-000"],
         lambda packet: packet["receipts"][0].update(path="../receipts/missing.json"),
         "does not exist",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-000"],
         lambda packet: packet["receipts"][0].update(sha256="0" * 64),
         "hash mismatch",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-000"],
         lambda packet: packet["adjudication"].update(decisive_receipts=[]),
         "requires decisive receipts",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
@@ -346,12 +635,15 @@ def test_schema_contract_rejects_cross_field_and_receipt_mutations(tmp_path: Pat
             json_pointer="/missing"
         ),
         "binding 'result_passed' cannot resolve",
+        frozen_repo["root"],
     )
 
 
 @pytest.mark.negative_control
-def test_schema_contract_rejects_unresolved_or_incomplete_review_chain(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path)
+def test_schema_contract_rejects_unresolved_or_incomplete_review_chain(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo)
 
     def unresolved(packet: dict[str, Any]) -> None:
         packet["review_chain"]["findings"] = [
@@ -359,7 +651,109 @@ def test_schema_contract_rejects_unresolved_or_incomplete_review_chain(tmp_path:
         ]
 
     _assert_mutation_fails(
-        campaign_path, packets["VIA-000"], unresolved, "blocking finding F-1 is unresolved"
+        campaign_path,
+        packets["VIA-000"],
+        unresolved,
+        "declared findings differ from hashed review artifacts",
+        frozen_repo["root"],
+    )
+
+
+@pytest.mark.negative_control
+def test_review_chain_is_reconciled_to_hashed_artifact_bytes(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path / "omitted", frozen_repo)
+    packet_path = packets["VIA-000"]
+    _mutate_receipt_json(
+        packet_path,
+        "independent-review",
+        lambda review: review.update(
+            findings=[{"id": "F-1", "blocking": True}],
+            recommendation={"approve": False, "blocking_findings": 1},
+        ),
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "declared findings differ from hashed review artifacts" in error for error in errors
+    )
+    assert any("blocking finding F-1 is unresolved" in error for error in errors)
+
+    campaign_path, packets = _make_campaign(tmp_path / "dangling", frozen_repo)
+    packet_path = packets["VIA-000"]
+    packet = _load(packet_path)
+    receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+    review_path = (packet_path.parent / receipt_by_id["independent-review"]["path"]).resolve()
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review.update(
+        findings=[{"id": "F-1", "blocking": True}],
+        recommendation={"approve": False, "blocking_findings": 1},
+    )
+    review_path.write_text(json.dumps(review, sort_keys=True) + "\n", encoding="utf-8")
+    receipt_by_id["independent-review"]["sha256"] = _sha256(review_path)
+
+    receipt_dir = review_path.parent
+    response_path = receipt_dir / "builder-response.json"
+    rereview_path = receipt_dir / "independent-rereview.json"
+    response = {
+        "response_id": "RESPONSE-VIA-000-1",
+        "review_id": "REVIEW-VIA-000-1",
+        "finding_responses": [{"finding_id": "F-1"}],
+        "requested_test_responses": [],
+    }
+    rereview = {
+        "review_id": "REREVIEW-VIA-000-1",
+        "review_kind": "re-review",
+        "prior_finding_results": [
+            {
+                "finding_id": "F-1",
+                "outcome": "superseded",
+                "superseding_finding_id": "F-999",
+            }
+        ],
+        "prior_requested_test_results": [],
+        "findings": [],
+        "requested_tests": [],
+        "recommendation": {"approve": True, "blocking_findings": 0},
+    }
+    response_path.write_text(
+        json.dumps(response, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    rereview_path.write_text(
+        json.dumps(rereview, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    packet["receipts"].extend(
+        [
+            _receipt(
+                "builder-response-1",
+                "builder-response",
+                f"../receipts/VIA-000/{response_path.name}",
+                _sha256(response_path),
+            ),
+            _receipt(
+                "independent-rereview-1",
+                "independent-rereview",
+                f"../receipts/VIA-000/{rereview_path.name}",
+                _sha256(rereview_path),
+            ),
+        ]
+    )
+    packet["review_chain"].update(
+        response_receipts=["builder-response-1"],
+        rereview_receipts=["independent-rereview-1"],
+        findings=[
+            {
+                "id": "F-1",
+                "blocking": True,
+                "outcome": "superseded",
+                "superseding_id": "F-999",
+            }
+        ],
+    )
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "superseded finding F-1 has no declared successor" in error for error in errors
     )
 
     def incomplete(packet: dict[str, Any]) -> None:
@@ -376,7 +770,8 @@ def test_schema_contract_rejects_unresolved_or_incomplete_review_chain(tmp_path:
         campaign_path,
         packets["VIA-000"],
         incomplete,
-        "findings/tests require response and re-review receipts",
+        "declared findings differ from hashed review artifacts",
+        frozen_repo["root"],
     )
 
 
@@ -401,8 +796,10 @@ def test_requirements_reject_missing_cycles_and_invalid_waves() -> None:
 
 
 @pytest.mark.negative_control
-def test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path)
+def test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo)
     packet_path = packets["VIA-000"]
 
     _assert_mutation_fails(
@@ -412,13 +809,18 @@ def test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations(tmp_path:
             final_labels_seen=True
         ),
         "blind seat reproduction_runner records prohibited exposure",
+        frozen_repo["root"],
     )
 
     def shared_session(packet: dict[str, Any]) -> None:
         packet["seats"]["falsifier"]["session_id"] = packet["seats"]["builder"]["session_id"]
 
     _assert_mutation_fails(
-        campaign_path, packet_path, shared_session, "prohibited shared session"
+        campaign_path,
+        packet_path,
+        shared_session,
+        "prohibited shared session",
+        frozen_repo["root"],
     )
 
     def reused_custodian(packet: dict[str, Any]) -> None:
@@ -427,13 +829,63 @@ def test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations(tmp_path:
         ]["agent_identity"]
 
     _assert_mutation_fails(
-        campaign_path, packet_path, reused_custodian, "may not also be builder"
+        campaign_path,
+        packet_path,
+        reused_custodian,
+        "may not also be builder",
+        frozen_repo["root"],
+    )
+    _assert_mutation_fails(
+        campaign_path,
+        packet_path,
+        lambda packet: packet["blind_custody"]["reveal"].update(
+            authorized_by=packet["seats"]["builder"]["agent_identity"]
+        ),
+        "reveal must be authorized by evaluator_custodian",
+        frozen_repo["root"],
+    )
+
+    def premature_reveal(packet: dict[str, Any]) -> None:
+        packet["lifecycle_phase"] = "preregistered"
+        packet["holdout_started"] = False
+        packet["adjudication"].update(
+            round_status="not-run",
+            packet_outcome="pending",
+            cause_codes=["not-run"],
+            decisive_receipts=[],
+        )
+
+    _assert_mutation_fails(
+        campaign_path,
+        packet_path,
+        premature_reveal,
+        "reveal cannot precede holdout execution",
+        frozen_repo["root"],
+    )
+    _assert_mutation_fails(
+        campaign_path,
+        packet_path,
+        lambda packet: packet["blind_custody"]["output_commitment"].update(
+            committed_by=packet["seats"]["builder"]["agent_identity"]
+        ),
+        "output commitment must be made by reproduction_runner",
+        frozen_repo["root"],
+    )
+    _assert_mutation_fails(
+        campaign_path,
+        packet_path,
+        lambda packet: packet["blind_custody"]["output_commitment"].update(
+            output_sha256="0" * 64
+        ),
+        "output commitment hash differs from runner output",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packet_path,
         lambda packet: packet["blind_custody"].update(canonicalization="sorted-json-v1"),
         "raw-bytes-v1",
+        frozen_repo["root"],
     )
 
     def reveal_early(packet: dict[str, Any]) -> None:
@@ -441,32 +893,46 @@ def test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations(tmp_path:
             "2026-08-10T15:00:00Z"
         )
 
-    _assert_mutation_fails(campaign_path, packet_path, reveal_early, "reveal must follow")
+    _assert_mutation_fails(
+        campaign_path,
+        packet_path,
+        reveal_early,
+        "reveal must follow",
+        frozen_repo["root"],
+    )
 
     def post_reveal_substitution(packet: dict[str, Any]) -> None:
         packet["blind_custody"]["reveal"]["post_reveal_holdout_sha256"] = "0" * 64
 
     _assert_mutation_fails(
-        campaign_path, packet_path, post_reveal_substitution, "differs from commitment"
+        campaign_path,
+        packet_path,
+        post_reveal_substitution,
+        "differs from commitment",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packet_path,
         lambda packet: packet["blind_custody"]["reveal"].update(retention_policy=""),
         "should be non-empty",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packet_path,
         lambda packet: packet["seats"].pop("evaluator_custodian"),
         "evaluator_custodian",
+        frozen_repo["root"],
     )
 
 
 @pytest.mark.negative_control
-def test_tier_g_countermodel_cannot_omit_minimum_physics_comparisons(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path, target_tier="G")
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+def test_tier_g_countermodel_cannot_omit_minimum_physics_comparisons(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo, target_tier="G")
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
 
     def remove_framework_gates(packet: dict[str, Any]) -> None:
         omitted = {
@@ -492,6 +958,46 @@ def test_tier_g_countermodel_cannot_omit_minimum_physics_comparisons(tmp_path: P
         packets["VIA-700"],
         remove_framework_gates,
         "missing required capabilities",
+        frozen_repo["root"],
+    )
+
+    packet_path = packets["VIA-700"]
+    _mutate_receipt_json(
+        packet_path,
+        "raw-results",
+        lambda document: document["capabilities"].update(
+            {
+                "three-dimensional-recovery": False,
+                "same-source-lensing": False,
+            }
+        ),
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "passing outcome has failed capabilities" in error
+        and "three-dimensional-recovery" in error
+        and "same-source-lensing" in error
+        for error in errors
+    )
+
+    _mutate_receipt_json(
+        packet_path,
+        "raw-results",
+        lambda document: (
+            document["capabilities"].update(
+                {
+                    "three-dimensional-recovery": True,
+                    "same-source-lensing": True,
+                }
+            ),
+            document.update(passed=1),
+        ),
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "binding 'result_passed' cannot resolve" in error
+        and "expected boolean, observed number" in error
+        for error in errors
     )
 
     _assert_mutation_fails(
@@ -500,7 +1006,8 @@ def test_tier_g_countermodel_cannot_omit_minimum_physics_comparisons(tmp_path: P
         lambda packet: packet["capability_rules"].update(
             {"same-source-lensing": {"literal": False}}
         ),
-        "passing outcome has failed capabilities ['same-source-lensing']",
+        "must use its canonical raw Boolean gate",
+        frozen_repo["root"],
     )
 
 
@@ -514,14 +1021,14 @@ def _set_packet_decision(
     outcome: str,
     cause: str,
 ) -> None:
+    _mutate_receipt_json(
+        packet_path,
+        "raw-results",
+        lambda document: document.update(
+            passed=pass_value, failed=fail_value, blocked=blocked_value
+        ),
+    )
     packet = _load(packet_path)
-    packet["outcome_rules"] = {
-        "language": "popgp-bool-v1",
-        "bindings": {},
-        "pass": {"literal": pass_value},
-        "fail": {"literal": fail_value},
-        "blocked": {"literal": blocked_value},
-    }
     packet["adjudication"]["round_status"] = round_status
     packet["adjudication"]["packet_outcome"] = outcome
     packet["adjudication"]["cause_codes"] = [cause]
@@ -529,10 +1036,38 @@ def _set_packet_decision(
 
 
 @pytest.mark.negative_control
-def test_outcome_truth_table_is_deterministic(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path)
+def test_outcome_truth_table_is_deterministic(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo)
     leaf = packets["VIA-400"]
 
+    # Valid scientific negative.
+    _set_packet_decision(
+        leaf,
+        pass_value=False,
+        fail_value=True,
+        blocked_value=False,
+        round_status="valid",
+        outcome="failed",
+        cause="scientific-gate-failed",
+    )
+    _set_campaign_outcome(campaign_path, "failed")
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
+
+    # Candidate implementation defect that validly fails a capability claim.
+    _set_packet_decision(
+        leaf,
+        pass_value=False,
+        fail_value=True,
+        blocked_value=False,
+        round_status="valid",
+        outcome="failed",
+        cause="implementation-capability-failed",
+    )
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
+
+    # Resource exhaustion is a failure when scalability is the tested capability.
     _set_packet_decision(
         leaf,
         pass_value=False,
@@ -542,21 +1077,56 @@ def test_outcome_truth_table_is_deterministic(tmp_path: Path) -> None:
         outcome="failed",
         cause="tested-capability-budget-exhausted",
     )
-    _set_campaign_outcome(campaign_path, "failed")
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
 
+    # Unavailable TeX, CUDA-class hardware, and external access are blockages.
+    for cause in (
+        "toolchain-unavailable",
+        "hardware-unavailable",
+        "external-access-unavailable",
+    ):
+        _set_packet_decision(
+            leaf,
+            pass_value=False,
+            fail_value=False,
+            blocked_value=True,
+            round_status="valid",
+            outcome="blocked",
+            cause=cause,
+        )
+        _set_campaign_outcome(campaign_path, "blocked")
+        assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
+
+    # A valid-round pending declaration must return errors, never raise.
     _set_packet_decision(
         leaf,
-        pass_value=False,
+        pass_value=True,
         fail_value=False,
-        blocked_value=True,
+        blocked_value=False,
         round_status="valid",
-        outcome="blocked",
-        cause="toolchain-unavailable",
+        outcome="pending",
+        cause="pass-rule-satisfied",
     )
-    _set_campaign_outcome(campaign_path, "blocked")
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+    _set_campaign_outcome(campaign_path, "pending")
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("declared outcome pending != computed passed" in error for error in errors)
 
+    # A missing receipt fails closed.
+    raw_receipt_path = (
+        leaf.parent
+        / next(
+            receipt["path"]
+            for receipt in _load(leaf)["receipts"]
+            if receipt["id"] == "raw-results"
+        )
+    ).resolve()
+    saved_raw = raw_receipt_path.read_bytes()
+    raw_receipt_path.unlink()
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any("receipt 'raw-results' does not exist" in error for error in errors)
+    raw_receipt_path.write_bytes(saved_raw)
+
+    # Simultaneous failure/blockage predicates are rejected for a valid round.
     _set_packet_decision(
         leaf,
         pass_value=False,
@@ -566,24 +1136,37 @@ def test_outcome_truth_table_is_deterministic(tmp_path: Path) -> None:
         outcome="failed",
         cause="scientific-gate-failed",
     )
-    errors = validate_campaign(campaign_path, repo_root=ROOT)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
     assert any("outcome rules are nonexclusive" in error for error in errors)
 
+    # The same ambiguity is representable only as an invalid round.
     packet = _load(leaf)
-    packet["outcome_rules"] = None
     packet["adjudication"].update(
         round_status="invalid",
         packet_outcome="pending",
-        cause_codes=["protocol-invalid"],
+        cause_codes=["rule-ambiguous"],
     )
     _write_yaml(leaf, packet)
     _set_campaign_outcome(campaign_path, "pending")
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
+
+    # Protocol-invalid and receipt-invalid rounds remain pending and deterministic.
+    for invalid_cause in ("protocol-invalid", "receipt-invalid"):
+        packet = _load(leaf)
+        packet["adjudication"].update(
+            round_status="invalid",
+            packet_outcome="pending",
+            cause_codes=[invalid_cause],
+        )
+        _write_yaml(leaf, packet)
+        assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
 
 
 @pytest.mark.negative_control
-def test_holdout_cannot_start_until_dependencies_pass(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path)
+def test_holdout_cannot_start_until_dependencies_pass(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo)
     dependency = _load(packets["VIA-010"])
     dependency["lifecycle_phase"] = "preregistered"
     dependency["holdout_started"] = False
@@ -595,7 +1178,7 @@ def test_holdout_cannot_start_until_dependencies_pass(tmp_path: Path) -> None:
     )
     _write_yaml(packets["VIA-010"], dependency)
     _set_campaign_outcome(campaign_path, "pending")
-    errors = validate_campaign(campaign_path, repo_root=ROOT)
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
     assert any(
         "VIA-100: holdout started before dependency VIA-010 passed" in error
         for error in errors
@@ -607,15 +1190,18 @@ def test_holdout_cannot_start_until_dependencies_pass(tmp_path: Path) -> None:
 
 
 @pytest.mark.negative_control
-def test_campaign_owned_evidence_floors_cannot_be_downgraded(tmp_path: Path) -> None:
-    campaign_path, packets = _make_campaign(tmp_path, target_tier="E")
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+def test_campaign_owned_evidence_floors_cannot_be_downgraded(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo, target_tier="E")
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
 
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-300"],
         lambda packet: packet.update(declared_evidence_requirement="E3-adversarial-suite"),
         "below campaign floor E4-convergent-replication",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
@@ -624,22 +1210,84 @@ def test_campaign_owned_evidence_floors_cannot_be_downgraded(tmp_path: Path) -> 
             achieved_evidence="E3-adversarial-suite"
         ),
         "below declared E4-convergent-replication",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-900"],
         lambda packet: packet.update(declared_evidence_requirement="E4-convergent-replication"),
         "below campaign floor E5-external-empirical",
+        frozen_repo["root"],
     )
     _assert_mutation_fails(
         campaign_path,
         packets["VIA-900"],
         lambda packet: packet.update(declared_evidence_requirement="E9-unknown"),
         "is not one of",
+        frozen_repo["root"],
     )
 
-    stricter = _load(packets["VIA-000"])
-    stricter["declared_evidence_requirement"] = "E4-convergent-replication"
-    stricter["adjudication"]["achieved_evidence"] = "E4-convergent-replication"
-    _write_yaml(packets["VIA-000"], stricter)
-    assert validate_campaign(campaign_path, repo_root=ROOT) == []
+    assert _load(packets["VIA-000"])["declared_evidence_requirement"] == (
+        "E4-convergent-replication"
+    )
+    assert validate_campaign(campaign_path, repo_root=frozen_repo["root"]) == []
+
+
+@pytest.mark.negative_control
+def test_campaign_is_bound_to_frozen_git_and_protocol_content(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo, target_tier="G")
+    repo_root = frozen_repo["root"]
+    assert validate_campaign(campaign_path, repo_root=repo_root) == []
+    original_campaign = campaign_path.read_text(encoding="utf-8")
+
+    for field in ("candidate_commit", "baseline_commit", "protocol_commit"):
+        campaign = yaml.safe_load(original_campaign)
+        campaign[field] = "f" * 40
+        _write_yaml(campaign_path, campaign)
+        errors = validate_campaign(campaign_path, repo_root=repo_root)
+        assert any(f"{field} does not resolve to a Git commit" in error for error in errors)
+    campaign_path.write_text(original_campaign, encoding="utf-8")
+
+    campaign = yaml.safe_load(original_campaign)
+    campaign["tree_hash"] = "0" * 40
+    _write_yaml(campaign_path, campaign)
+    errors = validate_campaign(campaign_path, repo_root=repo_root)
+    assert any("tree_hash does not match candidate commit tree" in error for error in errors)
+    campaign_path.write_text(original_campaign, encoding="utf-8")
+
+    packet_path = packets["VIA-700"]
+    packet = _load(packet_path)
+    packet["outcome_rules"]["pass"]["compare"]["right"]["value"] = False
+    packet["protocol_rule_sha256"] = packet_rule_sha256(packet)
+    _write_yaml(packet_path, packet)
+    errors = validate_campaign(campaign_path, repo_root=repo_root)
+    assert any("packet rules differ from protocol snapshot" in error for error in errors)
+
+    mutated_requirements = copy.deepcopy(REQUIREMENTS)
+    mutated_requirements["packets"]["VIA-700"]["required_capabilities"].remove(
+        "three-dimensional-recovery"
+    )
+    errors = validate_campaign(
+        campaign_path,
+        repo_root=repo_root,
+        requirements_document=mutated_requirements,
+    )
+    assert any(
+        "supplied requirements differ from frozen protocol requirements" in error
+        for error in errors
+    )
+
+    protocol_script = repo_root / "scripts/check_viability_campaign.py"
+    original_script = protocol_script.read_bytes()
+    protocol_script.write_bytes(original_script + b"\n# post-freeze mutation\n")
+    try:
+        errors = validate_campaign(campaign_path, repo_root=repo_root)
+        assert any(
+            "executing contract file 'scripts/check_viability_campaign.py' differs"
+            in error
+            for error in errors
+        )
+    finally:
+        protocol_script.write_bytes(original_script)

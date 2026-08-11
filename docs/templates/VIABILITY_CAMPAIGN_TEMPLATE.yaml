@@ -1,8 +1,8 @@
 # Copy this file into reviews/viability/<campaign-id>/CAMPAIGN.yaml.
 # Replace every zero hash and placeholder before preregistration.
-schema_version: 1
-contract_version: popgp-viability-contract-v1
-requirements_version: popgp-viability-requirements-v1
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+requirements_version: popgp-viability-requirements-v2
 campaign_id: POPGP-VIABILITY-REPLACE-ME
 target_tier: R
 repository: https://github.com/whact2025/POPGP
@@ -10,6 +10,10 @@ candidate_commit: "0000000000000000000000000000000000000000"
 baseline_commit: "0000000000000000000000000000000000000000"
 tree_hash: "0000000000000000000000000000000000000000"
 protocol_commit: "0000000000000000000000000000000000000000"
+requirements_path: schemas/viability/requirements-v2.json
+requirements_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+protocol_manifest_path: reviews/viability/REPLACE-ME/PROTOCOL_MANIFEST.json
+protocol_manifest_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
 packet_files:
   VIA-000: packets/VIA-000.yaml
   VIA-010: packets/VIA-010.yaml

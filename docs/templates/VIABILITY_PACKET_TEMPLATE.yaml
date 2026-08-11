@@ -1,13 +1,14 @@
 # Copy once per packet and replace every placeholder before preregistration.
 # This drafted VIA-000 example is structurally valid but cannot pass a campaign.
-schema_version: 1
-contract_version: popgp-viability-contract-v1
+schema_version: 2
+contract_version: popgp-viability-contract-v2
 campaign_id: POPGP-VIABILITY-REPLACE-ME
 packet_id: VIA-000
 candidate_commit: "0000000000000000000000000000000000000000"
 baseline_commit: "0000000000000000000000000000000000000000"
 tree_hash: "0000000000000000000000000000000000000000"
 protocol_commit: "0000000000000000000000000000000000000000"
+protocol_rule_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
 lifecycle_phase: drafted
 claims: [C01]
 existing_gates: []
@@ -81,6 +82,7 @@ blind_custody:
     post_reveal_seed_sha256: null
     post_reveal_holdout_receipt_id: null
     post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
     retention_policy: retain according to the frozen campaign policy
     immutable_location: replace-with-archive-location
 outcome_rules: null

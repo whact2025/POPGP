@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/protocol-manifest-v2.schema.json",
+  "title": "POPGP viability protocol freeze manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_version",
+    "requirements_version",
+    "campaign_id",
+    "candidate_commit",
+    "baseline_commit",
+    "tree_hash",
+    "packet_freeze_version",
+    "requirements",
+    "contract_files",
+    "packet_rule_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": 2},
+    "contract_version": {"const": "popgp-viability-contract-v2"},
+    "requirements_version": {"const": "popgp-viability-requirements-v2"},
+    "campaign_id": {"type": "string", "pattern": "^POPGP-VIABILITY-[A-Za-z0-9._-]+$"},
+    "candidate_commit": {"$ref": "#/$defs/fullHash"},
+    "baseline_commit": {"$ref": "#/$defs/fullHash"},
+    "tree_hash": {"$ref": "#/$defs/fullHash"},
+    "packet_freeze_version": {"const": "popgp-packet-freeze-v1"},
+    "requirements": {"$ref": "#/$defs/contentRef"},
+    "contract_files": {
+      "type": "array",
+      "minItems": 6,
+      "items": {"$ref": "#/$defs/contentRef"}
+    },
+    "packet_rule_sha256": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^VIA-[0-9]{3}$": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "$defs": {
+    "fullHash": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "repoPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "contentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/repoPath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}
