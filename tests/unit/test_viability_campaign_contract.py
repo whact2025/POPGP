@@ -1739,6 +1739,34 @@ def test_primary_protocol_rejects_competing_experiment_fields(tmp_path: Path) ->
         for error in errors
     )
 
+    def boolean_protocol_parameter(protocol: dict[str, Any]) -> None:
+        protocol["parameters"]["replicates"] = True
+
+    def numeric_packet_parameter(packet: dict[str, Any], _: Path) -> None:
+        packet["preregistration"]["parameters"]["replicates"] = 1
+
+    frozen = _build_frozen_repo(
+        tmp_path / "strict-type-frozen",
+        protocol_mutation=boolean_protocol_parameter,
+        packet_mutation=numeric_packet_parameter,
+    )
+    campaign_path, _ = _make_campaign(tmp_path / "strict-type-campaign", frozen)
+    errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+    assert any(
+        "primary protocol differs from exact frozen preregistration envelope" in error
+        for error in errors
+    ), errors
+
+
+def test_public_validator_fails_closed_for_invalid_entry_paths() -> None:
+    for campaign_path, repo_root in (
+        ("campaign\x00.yaml", None),
+        ("campaign.yaml", "repository\x00root"),
+    ):
+        errors = validate_campaign(campaign_path, repo_root=repo_root)
+        assert len(errors) == 1
+        assert errors[0].startswith("campaign: validation failed closed: ValueError:")
+
 
 @pytest.mark.negative_control
 def test_tier_e_requires_typed_unaffiliated_clean_room(tmp_path: Path) -> None:
@@ -2158,6 +2186,7 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
     invalid_repositories = {
         "control-character": "file:///%00bad",
         "malformed-percent-escape": "https://example.com/%ZZ/repo",
+        "residual-percent-host": "https://%2567ithub.com/independent/repo",
         "overlong-dotted-host": f"https://{'9' * 5000}.0.0.1/repo",
     }
     for label, repository in invalid_repositories.items():
@@ -2193,6 +2222,58 @@ def test_tier_e_rejects_repository_aliases_and_json_type_substitution(
     )
     errors = validate_campaign(campaign_path, repo_root=frozen["root"])
     assert any("receipt 'output-commitment' path escapes" in error for error in errors), errors
+
+    for label in ("nonfinite-json", "excessive-json-nesting"):
+        def malformed_prediction_receipt(
+            packet: dict[str, Any], receipt_dir: Path, *, mode: str = label
+        ) -> None:
+            if packet["packet_id"] != "VIA-900":
+                return
+            receipts = {item["id"]: item for item in packet["receipts"]}
+            contract = packet["external_replication"]
+            prediction_path = receipt_dir / "blinded-prediction.json"
+            prediction_document = {
+                "packet_id": "VIA-900",
+                "committed_by": contract["prediction"]["committed_by"],
+                "committed_at": contract["prediction"]["committed_at"],
+                "predictions": [],
+            }
+            if mode == "nonfinite-json":
+                prediction_document["predictions"] = [float("nan")]
+                _write_json(prediction_path, prediction_document)
+            else:
+                payload = json.dumps(prediction_document, sort_keys=True)
+                nested = "[" * 1500 + "true" + "]" * 1500
+                payload = payload.replace('"predictions": []', f'"predictions": {nested}')
+                prediction_path.write_text(payload + "\n", encoding="utf-8")
+            prediction_hash = _sha256(prediction_path)
+            receipts["blinded-prediction"]["sha256"] = prediction_hash
+            contract["prediction"]["sha256"] = prediction_hash
+
+            reveal_path = receipt_dir / "prediction-reveal.json"
+            reveal_document = json.loads(reveal_path.read_text(encoding="utf-8"))
+            reveal_document["prediction_sha256"] = prediction_hash
+            _write_json(reveal_path, reveal_document)
+            receipts["prediction-reveal"]["sha256"] = _sha256(reveal_path)
+
+            contract_path = receipt_dir / "external-replication.json"
+            _write_json(
+                contract_path,
+                {"packet_id": "VIA-900", "contract": contract},
+            )
+            receipts["external-replication"]["sha256"] = _sha256(contract_path)
+
+        frozen = _build_frozen_repo(
+            tmp_path / f"prediction-{label}-frozen",
+            packet_mutation=malformed_prediction_receipt,
+        )
+        campaign_path, _ = _make_campaign(
+            tmp_path / f"prediction-{label}-campaign", frozen, target_tier="E"
+        )
+        errors = validate_campaign(campaign_path, repo_root=frozen["root"])
+        assert any(
+            "blinded prediction receipt cannot be parsed" in error for error in errors
+        ), errors
 
     comparison_substitutions = {
         "numeric-integer-agreement": ("agreement", 1),

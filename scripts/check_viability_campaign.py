@@ -27,6 +27,7 @@ CONTRACT_VERSION = "popgp-viability-contract-v2"
 REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
 RULE_LANGUAGE = "popgp-bool-v2"
 PACKET_FREEZE_VERSION = "popgp-packet-freeze-v4"
+MAX_STRUCTURED_NESTING = 128
 KNOWN_REQUIREMENTS_SHA256 = (
     "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 )
@@ -157,7 +158,10 @@ _UniqueKeyLoader.add_constructor(
 
 
 def _load_yaml_text(text: str) -> Any:
-    return yaml.load(text, Loader=_UniqueKeyLoader)
+    try:
+        return yaml.load(text, Loader=_UniqueKeyLoader)
+    except RecursionError as exc:
+        raise ValueError("YAML nesting exceeds parser limit") from exc
 
 
 def _load_yaml(path: Path) -> Any:
@@ -173,12 +177,49 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return document
 
 
+def _reject_json_constant(value: str) -> Any:
+    raise ValueError(f"invalid JSON constant {value!r}")
+
+
+def _check_json_nesting(text: str) -> None:
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > MAX_STRUCTURED_NESTING:
+                raise ValueError(
+                    f"JSON nesting exceeds limit {MAX_STRUCTURED_NESTING}"
+                )
+        elif character in "]}":
+            depth -= 1
+
+
 def _load_json_bytes(content: bytes) -> Any:
-    return json.loads(content, object_pairs_hook=_unique_json_object)
+    return _load_json_text(content.decode("utf-8"))
 
 
 def _load_json_text(text: str) -> Any:
-    return json.loads(text, object_pairs_hook=_unique_json_object)
+    _check_json_nesting(text)
+    try:
+        return json.loads(
+            text,
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
+        )
+    except RecursionError as exc:
+        raise ValueError("JSON nesting exceeds parser limit") from exc
 
 
 def _load_json(path: Path) -> Any:
@@ -775,6 +816,19 @@ def _structured_receipt_document(receipt: Mapping[str, Any]) -> Mapping[str, Any
         document = _load_yaml_text(match.group(1))
     else:
         raise ValueError(f"unsupported structured receipt media type {media_type!r}")
+    stack: list[tuple[Any, int]] = [(document, 0)]
+    while stack:
+        value, depth = stack.pop()
+        if depth > MAX_STRUCTURED_NESTING:
+            raise ValueError(
+                f"structured receipt nesting exceeds limit {MAX_STRUCTURED_NESTING}"
+            )
+        if type(value) is float and not math.isfinite(value):
+            raise ValueError("structured receipt contains a non-finite number")
+        if isinstance(value, Mapping):
+            stack.extend((item, depth + 1) for item in value.values())
+        elif isinstance(value, list):
+            stack.extend((item, depth + 1) for item in value)
     if not isinstance(document, Mapping):
         raise ValueError("structured receipt must contain an object")
     return document
@@ -1044,7 +1098,7 @@ def _validate_preregistration(
                     )
                 },
             }
-            if document != expected_document:
+            if not _strict_json_equal(document, expected_document):
                 errors.append(
                     f"packet {packet_id}: primary protocol differs from exact "
                     "frozen preregistration envelope"
@@ -1102,7 +1156,7 @@ def _canonical_git_path(value: str) -> str | None:
         path = unquote(value, errors="strict").replace("\\", "/")
     except UnicodeDecodeError:
         return None
-    if not _repository_text_is_safe(path):
+    if "%" in path or not _repository_text_is_safe(path):
         return None
     path = re.sub(r"/{2,}", "/", path)
     path = posixpath.normpath(path) if path else ""
@@ -1142,7 +1196,7 @@ def _canonical_repository_identity(value: str) -> str | None:
             host = unquote(host, errors="strict")
         except UnicodeDecodeError:
             return None
-        if not _repository_text_is_safe(host) or any(
+        if "%" in host or not _repository_text_is_safe(host) or any(
             character in host for character in "/\\?#@[]"
         ):
             return None
@@ -2442,7 +2496,7 @@ def _campaign_outcome(required_packets: list[str], outcomes: Mapping[str, str]) 
     return "pending"
 
 
-def validate_campaign(
+def _validate_campaign(
     campaign_path: Path | str,
     *,
     repo_root: Path | str | None = None,
@@ -2586,6 +2640,24 @@ def validate_campaign(
         if not campaign["decision"]["authorized_by"] or not campaign["decision"]["decided_at"]:
             errors.append("campaign: terminal decision requires authorization and timestamp")
     return errors
+
+
+def validate_campaign(
+    campaign_path: Path | str,
+    *,
+    repo_root: Path | str | None = None,
+    requirements_document: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Return fail-closed errors without propagating hostile-input failures."""
+    try:
+        return _validate_campaign(
+            campaign_path,
+            repo_root=repo_root,
+            requirements_document=requirements_document,
+        )
+    except Exception as exc:
+        # Campaigns and their referenced artifacts are untrusted review inputs.
+        return [f"campaign: validation failed closed: {type(exc).__name__}: {exc}"]
 
 
 def main(argv: list[str] | None = None) -> int:

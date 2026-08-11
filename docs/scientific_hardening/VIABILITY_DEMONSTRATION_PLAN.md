@@ -605,8 +605,9 @@ The validator enforces JSON Schema structure and cross-document invariants. It r
   requirements changes, or execution with contract files different from the protocol
   commit;
 - duplicate YAML/JSON mapping keys, malformed external types, invalid percent escapes,
-  unsafe decoded URI/path control characters, adversarial host lengths, and invalid
-  repository or receipt paths without raising an uncaught validator exception; and
+  non-finite JSON constants, excessive structured nesting, unsafe decoded URI/path
+  control characters, adversarial host lengths, and invalid repository or receipt paths
+  without raising an uncaught validator exception; and
 - a campaign outcome inconsistent with its required packet outcomes.
 
 For `VIA-900`, a raw Boolean named `unaffiliated-operator` is necessary but not
@@ -622,7 +623,8 @@ literals, equivalent hierarchical or opaque Windows/file-URI paths, dot segments
 credentials, protocol spelling, and terminal `.git` path forms—candidate commit/tree
 reuse, nonexistent bundle commits, and mismatched trees are rejected. Invalid,
 malformed-percent, overlong-host, or control-bearing repository identities and receipt
-paths fail closed before filesystem access. The candidate side of the comparison is
+paths fail closed before filesystem access. Residual percent escapes after one URI
+decode are invalid rather than reinterpreted. The candidate side of the comparison is
 exactly the custody-committed raw result; candidate/external
 paths and bytes must differ. After reveal, the adjudicator records both hashes, the
 frozen JSON pointer and absolute tolerance, both measured values, and the recomputed
@@ -634,6 +636,11 @@ The named structured receipts must reproduce the contract exactly. Therefore the
 validator can check a clean-room evidence package without converting a same-operator
 assertion into Tier E; an external maintainer must still verify that off-system
 affiliation and independent authorship declarations are truthful.
+
+Every structured receipt is bounded to 128 nested mapping/array levels and finite JSON
+numbers. JSON uses strict RFC constants, so `NaN` and infinities are invalid. Exact
+protocol-envelope and external-receipt comparisons use recursive JSON type equality;
+Boolean, integer, and floating-point values cannot substitute for one another.
 
 Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a
 SHA-256-verified `raw-results` JSON receipt, a JSON Pointer, and an exact JSON type.
