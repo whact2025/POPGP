@@ -8,11 +8,14 @@ import hashlib
 import ipaddress
 import json
 import math
+import os
 import posixpath
 import re
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -28,6 +31,12 @@ REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
 RULE_LANGUAGE = "popgp-bool-v2"
 PACKET_FREEZE_VERSION = "popgp-packet-freeze-v4"
 MAX_STRUCTURED_NESTING = 128
+MAX_JSON_NUMBER_CHARACTERS = 256
+GIT_BUNDLE_TIMEOUT_SECONDS = 30
+PROCESS_TREE_CLEANUP_SECONDS = 5
+GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS = (
+    GIT_BUNDLE_TIMEOUT_SECONDS + PROCESS_TREE_CLEANUP_SECONDS
+)
 KNOWN_REQUIREMENTS_SHA256 = (
     "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 )
@@ -181,6 +190,31 @@ def _reject_json_constant(value: str) -> Any:
     raise ValueError(f"invalid JSON constant {value!r}")
 
 
+def _parse_json_integer(value: str) -> int:
+    if len(value) > MAX_JSON_NUMBER_CHARACTERS:
+        raise ValueError(
+            f"JSON integer exceeds {MAX_JSON_NUMBER_CHARACTERS} characters"
+        )
+    return int(value)
+
+
+def _parse_json_float(value: str) -> float:
+    if len(value) > MAX_JSON_NUMBER_CHARACTERS:
+        raise ValueError(
+            f"JSON number exceeds {MAX_JSON_NUMBER_CHARACTERS} characters"
+        )
+    try:
+        exact = Decimal(value)
+        parsed = float(value)
+    except (InvalidOperation, OverflowError, ValueError) as exc:
+        raise ValueError(f"invalid JSON number {value!r}") from exc
+    if not exact.is_finite() or not math.isfinite(parsed):
+        raise ValueError(f"JSON number is outside the finite float range: {value!r}")
+    if exact != 0 and parsed == 0:
+        raise ValueError(f"JSON number underflows the finite float range: {value!r}")
+    return parsed
+
+
 def _check_json_nesting(text: str) -> None:
     depth = 0
     in_string = False
@@ -217,6 +251,8 @@ def _load_json_text(text: str) -> Any:
             text,
             object_pairs_hook=_unique_json_object,
             parse_constant=_reject_json_constant,
+            parse_float=_parse_json_float,
+            parse_int=_parse_json_integer,
         )
     except RecursionError as exc:
         raise ValueError("JSON nesting exceeds parser limit") from exc
@@ -648,6 +684,27 @@ def _receipt_map(
                 f"packet {packet.get('packet_id')}: receipt {receipt_id!r} hash mismatch "
                 f"({observed} != {receipt.get('sha256')})"
             )
+            continue
+        if receipt.get("media_type") in {
+            "application/json",
+            "application/yaml",
+            "text/yaml",
+            "text/markdown",
+            "text/x-markdown",
+        }:
+            try:
+                _structured_receipt_document(receipt)
+            except (
+                OSError,
+                UnicodeDecodeError,
+                ValueError,
+                json.JSONDecodeError,
+                yaml.YAMLError,
+            ) as exc:
+                errors.append(
+                    f"packet {packet.get('packet_id')}: receipt {receipt_id!r} "
+                    f"cannot be parsed: {exc}"
+                )
     return receipts, errors
 
 
@@ -1276,6 +1333,72 @@ def _strict_json_equal(actual: Any, expected: Any) -> bool:
     return type(actual) is type(expected) and actual == expected
 
 
+def _terminate_process_tree(process: subprocess.Popen[Any]) -> None:
+    """Terminate a bounded subprocess and every descendant it created."""
+    if process.poll() is not None:
+        return
+    cleanup_deadline = time.monotonic() + PROCESS_TREE_CLEANUP_SECONDS
+
+    def remaining() -> float:
+        return max(0.0, cleanup_deadline - time.monotonic())
+
+    if os.name == "nt":
+        try:
+            result = subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=max(0.1, remaining()),
+            )
+            if result.returncode != 0:
+                process.kill()
+        except (OSError, subprocess.SubprocessError):
+            try:
+                process.kill()
+            except OSError:
+                pass
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            try:
+                process.kill()
+            except OSError:
+                pass
+    try:
+        process.wait(timeout=remaining())
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=remaining())
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def _run_bounded_process(command: list[str], *, timeout: int | float) -> int:
+    """Run without captured pipes and enforce one deadline over the process tree."""
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=os.name != "nt",
+        creationflags=(
+            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            if os.name == "nt"
+            else 0
+        ),
+    )
+    try:
+        return process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _terminate_process_tree(process)
+        raise
+
+
 def _external_git_bundle_errors(
     receipts: Mapping[str, Any],
     implementation: Mapping[str, Any],
@@ -1300,7 +1423,7 @@ def _external_git_bundle_errors(
     try:
         with tempfile.TemporaryDirectory(prefix="popgp-external-bundle-") as temporary:
             checkout = Path(temporary) / "repository"
-            result = subprocess.run(
+            returncode = _run_bounded_process(
                 [
                     "git",
                     "clone",
@@ -1309,15 +1432,12 @@ def _external_git_bundle_errors(
                     str(bundle_path),
                     str(checkout),
                 ],
-                check=False,
-                capture_output=True,
-                timeout=30,
+                timeout=GIT_BUNDLE_TIMEOUT_SECONDS,
             )
-            if result.returncode != 0:
-                detail = result.stderr.decode("utf-8", errors="replace").strip()
+            if returncode != 0:
                 errors.append(
                     f"packet {packet_id}: external repository bundle cannot be cloned: "
-                    f"{detail or result.returncode}"
+                    f"git exited with status {returncode}"
                 )
                 return errors
             commit = implementation["commit_hash"]

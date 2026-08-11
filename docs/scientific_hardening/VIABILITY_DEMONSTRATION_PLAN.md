@@ -624,7 +624,10 @@ credentials, protocol spelling, and terminal `.git` path forms—candidate commi
 reuse, nonexistent bundle commits, and mismatched trees are rejected. Invalid,
 malformed-percent, overlong-host, or control-bearing repository identities and receipt
 paths fail closed before filesystem access. Residual percent escapes after one URI
-decode are invalid rather than reinterpreted. The candidate side of the comparison is
+decode are invalid rather than reinterpreted. Git-bundle cloning has a 30-second
+execution deadline plus a cleanup-inclusive 35-second total bound over the spawned
+process tree. Timeout terminates descendants, uses no captured pipes, and removes the
+temporary checkout. The candidate side of the comparison is
 exactly the custody-committed raw result; candidate/external
 paths and bytes must differ. After reveal, the adjudicator records both hashes, the
 frozen JSON pointer and absolute tolerance, both measured values, and the recomputed
@@ -637,9 +640,12 @@ validator can check a clean-room evidence package without converting a same-oper
 assertion into Tier E; an external maintainer must still verify that off-system
 affiliation and independent authorship declarations are truthful.
 
-Every structured receipt is bounded to 128 nested mapping/array levels and finite JSON
-numbers. JSON uses strict RFC constants, so `NaN` and infinities are invalid. Exact
-protocol-envelope and external-receipt comparisons use recursive JSON type equality;
+Every hash-valid structured receipt is parsed, even when no outcome binding selects one
+of its fields. Receipts are bounded to 128 nested mapping/array levels, 256 characters
+per JSON number, and finite representable numeric values. JSON uses strict RFC
+constants, so `NaN`, infinities, exponent overflow, and exponent underflow to zero are
+invalid. Exact protocol-envelope and external-receipt comparisons use recursive JSON
+type equality;
 Boolean, integer, and floating-point values cannot substitute for one another.
 
 Outcome rules use the versioned `popgp-bool-v2` expression language. Bindings name a

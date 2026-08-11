@@ -6,6 +6,9 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +17,8 @@ import yaml
 from jsonschema import Draft202012Validator
 
 from scripts.check_viability_campaign import (
+    GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS,
+    _run_bounded_process,
     packet_rule_sha256,
     validate_campaign,
     validate_requirements,
@@ -1600,6 +1605,39 @@ def test_structured_receipts_and_governance_provenance_fail_closed(
     errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
     assert any("output commitment receipt cannot be parsed" in error for error in errors)
 
+    for label, numeric_token in (
+        ("overflow", "1e999"),
+        ("underflow", "1e-999"),
+    ):
+        campaign_path, packets = _make_campaign(
+            tmp_path / f"numeric-{label}", frozen_repo
+        )
+        packet_path = packets["VIA-000"]
+        packet = _load(packet_path)
+        receipt_by_id = {receipt["id"]: receipt for receipt in packet["receipts"]}
+        raw_receipt = receipt_by_id["raw-results"]
+        raw_path = (packet_path.parent / raw_receipt["path"]).resolve()
+        raw_text = raw_path.read_text(encoding="utf-8").rstrip()
+        raw_path.write_text(
+            raw_text[:-1] + f', "unused_numeric": {numeric_token}}}\n',
+            encoding="utf-8",
+        )
+        raw_receipt["sha256"] = _sha256(raw_path)
+        packet["blind_custody"]["output_commitment"]["output_sha256"] = raw_receipt[
+            "sha256"
+        ]
+        commitment_receipt = receipt_by_id["output-commitment"]
+        commitment_path = (packet_path.parent / commitment_receipt["path"]).resolve()
+        commitment = json.loads(commitment_path.read_text(encoding="utf-8"))
+        commitment["output_sha256"] = raw_receipt["sha256"]
+        _write_json(commitment_path, commitment)
+        commitment_receipt["sha256"] = _sha256(commitment_path)
+        _write_yaml(packet_path, packet)
+        errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+        assert any(
+            "receipt 'raw-results' cannot be parsed" in error for error in errors
+        ), errors
+
     campaign_path, packets = _make_campaign(tmp_path / "independence", frozen_repo)
     packet_path = packets["VIA-000"]
     packet = _load(packet_path)
@@ -1766,6 +1804,43 @@ def test_public_validator_fails_closed_for_invalid_entry_paths() -> None:
         errors = validate_campaign(campaign_path, repo_root=repo_root)
         assert len(errors) == 1
         assert errors[0].startswith("campaign: validation failed closed: ValueError:")
+
+
+def test_bounded_process_terminates_descendants(tmp_path: Path) -> None:
+    heartbeat = tmp_path / "child-heartbeat.txt"
+    child_pid = tmp_path / "child.pid"
+    child_code = (
+        "import os,sys,time\n"
+        "from pathlib import Path\n"
+        "heartbeat=Path(sys.argv[1]); Path(sys.argv[2]).write_text(str(os.getpid()))\n"
+        "while True:\n"
+        "    with heartbeat.open('ab') as stream: stream.write(b'x')\n"
+        "    time.sleep(0.05)\n"
+    )
+    parent_code = (
+        "import subprocess,sys,time\n"
+        "subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2], sys.argv[3]])\n"
+        "time.sleep(60)\n"
+    )
+    started = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        _run_bounded_process(
+            [
+                sys.executable,
+                "-c",
+                parent_code,
+                child_code,
+                str(heartbeat),
+                str(child_pid),
+            ],
+            timeout=1,
+        )
+    assert time.monotonic() - started < 10
+    assert child_pid.is_file()
+    time.sleep(0.25)
+    stopped_size = heartbeat.stat().st_size
+    time.sleep(0.25)
+    assert heartbeat.stat().st_size == stopped_size
 
 
 @pytest.mark.negative_control
@@ -2005,6 +2080,49 @@ def test_tier_e_binds_outputs_git_bundle_orchestrator_and_comparison(
     )
     errors = validate_campaign(campaign_path, repo_root=wrong_tree["root"])
     assert any("implementation tree differs" in error for error in errors)
+
+    def sparse_malformed_bundle(packet: dict[str, Any], receipt_dir: Path) -> None:
+        if packet["packet_id"] != "VIA-900":
+            return
+        receipts = {item["id"]: item for item in packet["receipts"]}
+        bundle_path = receipt_dir / "external-repository.bundle"
+        with bundle_path.open("wb") as stream:
+            stream.seek(16 * 1024 * 1024 - 1)
+            stream.write(b"\0")
+        bundle_hash = _sha256(bundle_path)
+        receipts["external-repository-bundle"]["sha256"] = bundle_hash
+        contract = packet["external_replication"]
+        contract["implementation"]["repository_bundle_sha256"] = bundle_hash
+
+        provenance_path = receipt_dir / "external-provenance.json"
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+        provenance["implementation"] = contract["implementation"]
+        _write_json(provenance_path, provenance)
+        receipts["independent-implementation"]["sha256"] = _sha256(provenance_path)
+
+        contract_path = receipt_dir / "external-replication.json"
+        _write_json(contract_path, {"packet_id": "VIA-900", "contract": contract})
+        receipts["external-replication"]["sha256"] = _sha256(contract_path)
+
+    malformed_bundle = _build_frozen_repo(
+        tmp_path / "sparse-bundle-frozen", packet_mutation=sparse_malformed_bundle
+    )
+    campaign_path, _ = _make_campaign(
+        tmp_path / "sparse-bundle-campaign", malformed_bundle, target_tier="E"
+    )
+    temporary_root = Path(tempfile.gettempdir())
+    before_checkouts = set(temporary_root.glob("popgp-external-bundle-*"))
+    started = time.monotonic()
+    errors = validate_campaign(campaign_path, repo_root=malformed_bundle["root"])
+    elapsed = time.monotonic() - started
+    assert elapsed < GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS + 5
+    assert len(errors) == 1, errors
+    assert any(
+        "external repository bundle" in error
+        and ("cannot be cloned" in error or "is invalid" in error)
+        for error in errors
+    ), errors
+    assert set(temporary_root.glob("popgp-external-bundle-*")) <= before_checkouts
 
     positive = _build_frozen_repo(tmp_path / "comparison-positive-frozen")
     campaign_path, packets = _make_campaign(
