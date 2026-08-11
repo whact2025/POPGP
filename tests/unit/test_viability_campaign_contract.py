@@ -1304,6 +1304,15 @@ def test_shipped_templates_conform_to_versioned_schemas() -> None:
     assert authoritative_packet["seats"]["builder"]["operator"] == "replace-operator"
     with pytest.raises(yaml.constructor.ConstructorError, match="duplicate key 'packet_id'"):
         _load_yaml_text(packet_text + "\npacket_id: VIA-DUPLICATE\n")
+    with pytest.raises(yaml.constructor.ConstructorError, match="duplicate key 'threshold'"):
+        _load_yaml_text(
+            "preregistration:\n"
+            "  parameters:\n"
+            "    <<: &inline_duplicate_source\n"
+            "      threshold: 0.1\n"
+            "      threshold: 0.95\n"
+            "      replicates: 3\n"
+        )
     packet_hash = subprocess.run(
         [
             sys.executable,
@@ -1743,6 +1752,31 @@ def test_structured_receipts_and_governance_provenance_fail_closed(
     assert (
         validate_campaign(campaign_path, repo_root=ordinary_packet_aliases["root"]) == []
     )
+
+    campaign_path, packets = _make_campaign(
+        tmp_path / "inline-merge-duplicate", frozen_repo
+    )
+    packet_path = packets["VIA-000"]
+    packet_text = packet_path.read_text(encoding="utf-8")
+    parameter_block = "  parameters:\n    threshold: 0.95\n    replicates: 3\n"
+    assert parameter_block in packet_text
+    packet_path.write_text(
+        packet_text.replace(
+            parameter_block,
+            "  parameters:\n"
+            "    <<: &inline_duplicate_source\n"
+            "      threshold: 0.1\n"
+            "      threshold: 0.95\n"
+            "      replicates: 3\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "cannot load packet VIA-000" in error and "duplicate key 'threshold'" in error
+        for error in errors
+    ), errors
 
     campaign_path, packets = _make_campaign(
         tmp_path / "packet-alias-dag", frozen_repo

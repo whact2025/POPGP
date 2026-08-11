@@ -135,31 +135,56 @@ class _UniqueKeyLoader(yaml.SafeLoader):
     """YAML safe loader that rejects ambiguous duplicate mapping keys."""
 
 
+def _reject_duplicate_explicit_keys(
+    loader: _UniqueKeyLoader,
+    node: yaml.Node,
+    deep: bool,
+    checked: set[int],
+    active: set[int],
+) -> None:
+    marker = id(node)
+    if marker in checked or marker in active:
+        return
+    active.add(marker)
+    if isinstance(node, yaml.MappingNode):
+        explicit_keys: set[Any] = set()
+        for key_node, value_node in node.value:
+            if key_node.tag != "tag:yaml.org,2002:merge":
+                key = loader.construct_object(key_node, deep=deep)
+                try:
+                    duplicate = key in explicit_keys
+                except TypeError as exc:
+                    raise yaml.constructor.ConstructorError(
+                        "while constructing a mapping",
+                        node.start_mark,
+                        "found an unhashable mapping key",
+                        key_node.start_mark,
+                    ) from exc
+                if duplicate:
+                    raise yaml.constructor.ConstructorError(
+                        "while constructing a mapping",
+                        node.start_mark,
+                        f"found duplicate key {key!r}",
+                        key_node.start_mark,
+                    )
+                explicit_keys.add(key)
+            _reject_duplicate_explicit_keys(loader, key_node, deep, checked, active)
+            _reject_duplicate_explicit_keys(loader, value_node, deep, checked, active)
+    elif isinstance(node, yaml.SequenceNode):
+        for child in node.value:
+            _reject_duplicate_explicit_keys(loader, child, deep, checked, active)
+    active.remove(marker)
+    checked.add(marker)
+
+
 def _construct_unique_mapping(
     loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False
 ) -> dict[Any, Any]:
-    explicit_keys: set[Any] = set()
-    for key_node, _ in node.value:
-        if key_node.tag == "tag:yaml.org,2002:merge":
-            continue
-        key = loader.construct_object(key_node, deep=deep)
-        try:
-            duplicate = key in explicit_keys
-        except TypeError as exc:
-            raise yaml.constructor.ConstructorError(
-                "while constructing a mapping",
-                node.start_mark,
-                "found an unhashable mapping key",
-                key_node.start_mark,
-            ) from exc
-        if duplicate:
-            raise yaml.constructor.ConstructorError(
-                "while constructing a mapping",
-                node.start_mark,
-                f"found duplicate key {key!r}",
-                key_node.start_mark,
-            )
-        explicit_keys.add(key)
+    checked = getattr(loader, "_duplicate_key_checked_nodes", None)
+    if checked is None:
+        checked = set()
+        loader._duplicate_key_checked_nodes = checked
+    _reject_duplicate_explicit_keys(loader, node, deep, checked, set())
 
     loader.flatten_mapping(node)
     mapping: dict[Any, Any] = {}
