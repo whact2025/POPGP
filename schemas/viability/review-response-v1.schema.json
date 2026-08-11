@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/review-response-v1.schema.json",
+  "title": "POPGP builder review response artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_schema_version",
+    "response_id",
+    "response_round",
+    "response_date",
+    "builder_seat",
+    "builder_model_identity",
+    "builder_model_version",
+    "builder_operator",
+    "review_id",
+    "review_artifact",
+    "review_commit",
+    "candidate_commit_reviewed",
+    "access_declaration",
+    "summary",
+    "finding_responses",
+    "requested_test_responses",
+    "new_or_changed_risks",
+    "external_actions",
+    "rereview_request"
+  ],
+  "properties": {
+    "artifact_schema_version": {"const": 1},
+    "response_id": {"type": "string", "minLength": 1},
+    "response_round": {"type": "integer", "minimum": 1},
+    "response_date": {"type": "string", "format": "date"},
+    "builder_seat": {"const": "builder"},
+    "builder_model_identity": {"type": "string", "minLength": 1},
+    "builder_model_version": {"type": "string", "minLength": 1},
+    "builder_operator": {"type": "string", "minLength": 1},
+    "review_id": {"type": "string", "minLength": 1},
+    "review_artifact": {"$ref": "#/$defs/repoPath"},
+    "review_commit": {"$ref": "#/$defs/fullHash"},
+    "candidate_commit_reviewed": {"$ref": "#/$defs/fullHash"},
+    "access_declaration": {"$ref": "#/$defs/access"},
+    "summary": {"type": "string", "minLength": 1},
+    "finding_responses": {"type": "array", "items": {"$ref": "#/$defs/findingResponse"}},
+    "requested_test_responses": {"type": "array", "items": {"$ref": "#/$defs/testResponse"}},
+    "new_or_changed_risks": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "external_actions": {"type": "array", "items": {"$ref": "#/$defs/externalAction"}},
+    "rereview_request": {"$ref": "#/$defs/rereviewRequest"}
+  },
+  "$defs": {
+    "fullHash": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "repoPath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["final_labels_seen", "secret_seed_seen", "private_evaluator_seen", "notes"],
+      "properties": {
+        "final_labels_seen": {"type": "boolean"},
+        "secret_seed_seen": {"type": "boolean"},
+        "private_evaluator_seen": {"type": "boolean"},
+        "notes": {"type": "string"}
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "result"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "result": {"type": "string", "minLength": 1}
+      }
+    },
+    "findingResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["finding_id", "blocking_as_reported", "disposition", "implementation_status", "rationale", "changed_files", "fix_commits", "verification", "residual_risk", "disagreement_ref"],
+      "properties": {
+        "finding_id": {"type": "string", "minLength": 1},
+        "blocking_as_reported": {"type": "boolean"},
+        "disposition": {"enum": ["accepted", "partially-accepted", "disputed", "deferred"]},
+        "implementation_status": {"enum": ["implemented", "not-implemented", "external-action-required"]},
+        "rationale": {"type": "string", "minLength": 1},
+        "changed_files": {"type": "array", "items": {"$ref": "#/$defs/repoPath"}},
+        "fix_commits": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/fullHash"}},
+        "verification": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/verification"}},
+        "residual_risk": {"type": "string"},
+        "disagreement_ref": {"type": "string"}
+      }
+    },
+    "testResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_test_id", "disposition", "implementation_status", "test_locations", "verification", "rationale", "disagreement_ref"],
+      "properties": {
+        "requested_test_id": {"type": "string", "minLength": 1},
+        "disposition": {"enum": ["accepted", "partially-accepted", "disputed", "deferred"]},
+        "implementation_status": {"enum": ["implemented", "not-implemented", "external-action-required"]},
+        "test_locations": {"type": "array", "items": {"$ref": "#/$defs/repoPath"}},
+        "verification": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/verification"}},
+        "rationale": {"type": "string", "minLength": 1},
+        "disagreement_ref": {"type": "string"}
+      }
+    },
+    "externalAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "owner", "status", "evidence_ref"],
+      "properties": {
+        "action": {"type": "string", "minLength": 1},
+        "owner": {"type": "string", "minLength": 1},
+        "status": {"enum": ["pending", "complete"]},
+        "evidence_ref": {"type": "string"}
+      }
+    },
+    "rereviewRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "scope", "handoff_commit", "notes"],
+      "properties": {
+        "requested": {"const": true},
+        "scope": {"type": "string", "minLength": 1},
+        "handoff_commit": {"const": "recorded outside this artifact after it is committed"},
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}

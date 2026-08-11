@@ -179,7 +179,11 @@ energy-density convention is an explicit limitation.
 - `tests/scientific/`: source-law, sign, scaling, topology, and permutation tests.
 - `examples/physics_qg/`: reproducible finite toy models and validation JSON.
 - `docs/scientific_hardening/`: claim classification, theory/code gaps, and staged
-  falsification plan.
+  falsification plan, including the
+  [`adversarial viability demonstration plan`](docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md).
+- `schemas/viability/` and `scripts/check_viability_campaign.py`: versioned, Git-bound
+  campaign/protocol contracts plus the fail-closed dependency, custody, evidence,
+  receipt, review-chain, and outcome validator used by adversarial-agent campaigns.
 - `popgp_engine/`: experimental CUDA components. The native clock solver is still
   an identity stub, and renderer curvature code is not integrated with the Python
   projection pipeline.
@@ -205,7 +209,10 @@ energy-density convention is an explicit limitation.
 Each example writes `results/validation.json`; a passing JSON check supports only
 the criterion named in that check. Negative results are retained. See
 [`docs/scientific_hardening`](docs/scientific_hardening/) for claim-by-claim scope,
-acceptance criteria, and unresolved risks.
+acceptance criteria, and unresolved risks. The
+[`viability demonstration plan`](docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md)
+turns the open requirements into frozen, falsifiable work packets for gated
+adversarial-agent campaigns.
 
 Independent agent reviews follow the repository-authored
 [`agent review workflow`](docs/governance/AGENT_REVIEW_WORKFLOW.md). The

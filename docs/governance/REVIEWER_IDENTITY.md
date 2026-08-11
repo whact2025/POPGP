@@ -27,6 +27,8 @@ Every review artifact records these fields separately:
 | `reviewer_model_identity` | Exact model identifier supplied by the operator |
 | `reviewer_model_version` | Version/snapshot string, or `unknown` |
 | `reviewer_operator` | Human accountable for the run |
+| `reviewer_session_id` | Fresh task/session identifier |
+| `reviewer_orchestrator_id` | Orchestrator identifier, or a disclosed standalone value |
 | `access_level` | Information and systems available to the reviewer |
 | `independence_statement` | Shared prompts, context, operator, session, or conclusions |
 | `independence_declaration` | Typed shared-role and model-separation facts defined below |
@@ -56,6 +58,8 @@ independence_declaration:
   shared_session: false
   shared_orchestrator: false
   builder_model_identity: ""
+  builder_session_id: ""
+  builder_orchestrator_id: ""
   reviewer_model_differs_from_builder: false
   external_scientific_validation: false
 ```
@@ -63,6 +67,12 @@ independence_declaration:
 `external_scientific_validation` is false for every review conducted under this
 workflow. Only a replication by an unaffiliated group with independent code can set it
 true; no agent review may set it true.
+
+For machine-adjudicated viability campaigns, these declarations are cross-document
+facts rather than unchecked labels: the named builder model must match the packet
+builder seat, model separation must equal the actual model-identity comparison, and
+shared operator/session/orchestrator flags must equal their corresponding identity
+comparisons. Contradictory values invalidate the campaign receipt.
 
 ## Hidden-access declaration
 

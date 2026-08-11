@@ -1,5 +1,12 @@
 # Scientific hardening project plan
 
+Campaign-level viability tiers, dependency-ordered work packets, adversarial roles,
+portable orchestration fields, and fail-closed decision rules are defined in the
+[adversarial viability demonstration plan](VIABILITY_DEMONSTRATION_PLAN.md). Its
+versioned schemas, Git-bound protocol manifest, campaign-owned evidence
+floors/dependencies, and executable validator are under `schemas/viability/` and
+`scripts/check_viability_campaign.py`.
+
 ## PR 2 — source law and linear response
 
 **Objective:** determine which vacuum-relative quantities can source a weak clock

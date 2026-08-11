@@ -4,8 +4,12 @@ This is a builder artifact, not a re-review and not proof that a finding is reso
 Store completed responses under `reviews/codex/`. The independent reviewer assigns
 final finding outcomes in a later artifact.
 
+Completed responses used by a viability campaign must conform to
+[`review-response-v2.schema.json`](../../schemas/viability/review-response-v2.schema.json)
+and be named by an immutable `commit:path` reference in the packet review chain.
+
 ```yaml
-artifact_schema_version: 1
+artifact_schema_version: 2
 response_id: ""
 response_round: 1
 response_date: ""
@@ -14,6 +18,9 @@ builder_seat: builder
 builder_model_identity: ""
 builder_model_version: ""
 builder_operator: ""
+builder_session_id: ""
+builder_orchestrator_id: ""
+builder_organization: ""
 
 review_id: ""
 review_artifact: ""
@@ -79,5 +86,8 @@ rereview_request:
 - Record exact commands and outcomes; “tests pass” is insufficient.
 - `fix_commits` contains full hashes. If a fix and response share a commit, leave the
   list empty and identify changed files; the re-review binds the final handoff hash.
+- For viability campaigns, every nonempty `fix_commits` entry must exist and be an
+  ancestor of the candidate audited by the paired re-review. Builder model, operator,
+  session, orchestrator, and organization fields must match the packet's builder seat.
 - Do not guess the response-containing commit's hash inside itself. Put that hash in
   the handoff or pull request.

@@ -1,0 +1,59 @@
+{
+  "schema_version": 2,
+  "contract_version": "popgp-viability-contract-v2",
+  "requirements_version": "popgp-viability-requirements-v2",
+  "campaign_id": "POPGP-VIABILITY-REPLACE-ME",
+  "candidate_commit": "0000000000000000000000000000000000000000",
+  "baseline_commit": "0000000000000000000000000000000000000000",
+  "tree_hash": "0000000000000000000000000000000000000000",
+  "packet_freeze_version": "popgp-packet-freeze-v4",
+  "requirements": {
+    "path": "schemas/viability/requirements-v2.json",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "contract_files": [
+    {
+      "path": "docs/scientific_hardening/CLAIMS_MATRIX.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/campaign-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/packet-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/protocol-manifest-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/primary-protocol-v1.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/independent-review-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/independent-rereview-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "schemas/viability/review-response-v2.schema.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "path": "scripts/check_viability_campaign.py",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "packet_rule_sha256": {
+    "VIA-000": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

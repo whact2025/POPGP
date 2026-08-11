@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/campaign-v2.schema.json",
+  "title": "POPGP viability campaign contract v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_version",
+    "requirements_version",
+    "campaign_id",
+    "target_tier",
+    "repository",
+    "candidate_commit",
+    "baseline_commit",
+    "tree_hash",
+    "protocol_commit",
+    "requirements_path",
+    "requirements_sha256",
+    "protocol_manifest_path",
+    "protocol_manifest_sha256",
+    "packet_files",
+    "decision"
+  ],
+  "properties": {
+    "schema_version": {"const": 2},
+    "contract_version": {"const": "popgp-viability-contract-v2"},
+    "requirements_version": {"const": "popgp-viability-requirements-v2"},
+    "campaign_id": {"type": "string", "pattern": "^POPGP-VIABILITY-[A-Za-z0-9._-]+$"},
+    "target_tier": {"enum": ["R", "G", "E", "extension"]},
+    "repository": {"type": "string", "format": "uri"},
+    "candidate_commit": {"$ref": "#/$defs/fullHash"},
+    "baseline_commit": {"$ref": "#/$defs/fullHash"},
+    "tree_hash": {"$ref": "#/$defs/fullHash"},
+    "protocol_commit": {"$ref": "#/$defs/fullHash"},
+    "requirements_path": {"$ref": "#/$defs/repoPath"},
+    "requirements_sha256": {"$ref": "#/$defs/sha256"},
+    "protocol_manifest_path": {"$ref": "#/$defs/repoPath"},
+    "protocol_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "packet_files": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^VIA-[0-9]{3}$": {"type": "string", "minLength": 1}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "authorized_by", "decided_at"],
+      "properties": {
+        "outcome": {"enum": ["pending", "passed", "failed", "blocked"]},
+        "authorized_by": {"type": ["string", "null"]},
+        "decided_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    }
+  },
+  "$defs": {
+    "fullHash": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "repoPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    }
+  }
+}
