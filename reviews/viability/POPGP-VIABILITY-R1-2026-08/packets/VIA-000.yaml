@@ -2,11 +2,11 @@ schema_version: 2
 contract_version: popgp-viability-contract-v2
 campaign_id: POPGP-VIABILITY-R1-2026-08
 packet_id: VIA-000
-candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+candidate_commit: 3428a24bdd05b5742888bd204482d50a2f613cab
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
-tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+tree_hash: 42fcba754ed78145054f572bd0beedf8a157562a
 protocol_commit: aa19167d0642332bbca161612e730191419c6160
-protocol_rule_sha256: 8193ae01d3fa35ebd044af1eb719fb02d0e52a47937fbac3496537d5c4c6810f
+protocol_rule_sha256: 09aec80b27b84052021e08bd3bb0c7b5a832b138eb274c2e017cffd09e089e47
 lifecycle_phase: preregistered
 claims:
 - C03
@@ -67,14 +67,14 @@ threat_model:
 - silent check, threshold, shape, configuration, or visual weakening
 preregistration:
   parameters:
-    candidate_commit: 829b866d731865060927c365b7848ce0d710736c
-    candidate_tree: 5c1e11fa0003e0c94cda340077ab443275b87f80
+    candidate_commit: 3428a24bdd05b5742888bd204482d50a2f613cab
+    candidate_tree: 42fcba754ed78145054f572bd0beedf8a157562a
     dependency_lock: uv.lock
     python_minor: '3.11'
     platform_families:
     - ubuntu-latest-x86_64
     - windows-x86_64
-    required_test_count: 179
+    required_test_count: 180
     required_example_count: 6
     required_mutation_count: 6
     pdf_engine: pdfTeX-1.40.29-TeX-Live-2026
@@ -120,7 +120,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json
-    sha256: 604aca7196d36c181bb116299c6921e86c6a295025737ea4b05745ed17afe999
+    sha256: b31b4be11ef048bb98d797a8522cd009280f8efaca1504f8d48ede7101af5071
     media_type: application/json
 holdout_started: false
 seats:
@@ -325,7 +325,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 604aca7196d36c181bb116299c6921e86c6a295025737ea4b05745ed17afe999
+  sha256: b31b4be11ef048bb98d797a8522cd009280f8efaca1504f8d48ede7101af5071
   media_type: application/json
 review_chain:
   initial_review_receipt: null

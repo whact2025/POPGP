@@ -2,11 +2,11 @@ schema_version: 2
 contract_version: popgp-viability-contract-v2
 campaign_id: POPGP-VIABILITY-R1-2026-08
 packet_id: VIA-010
-candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+candidate_commit: 3428a24bdd05b5742888bd204482d50a2f613cab
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
-tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+tree_hash: 42fcba754ed78145054f572bd0beedf8a157562a
 protocol_commit: aa19167d0642332bbca161612e730191419c6160
-protocol_rule_sha256: fda8ad57e8ac19b96e2a8df6d329bbb6225325cf0520923fd7b176a7cd856ac5
+protocol_rule_sha256: 49d2d42e24db8a25ebcc4a00f87c7d1f00c6e5a2676450d7c1216990071cd1d5
 lifecycle_phase: drafted
 claims:
 - C01
