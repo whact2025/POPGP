@@ -1,0 +1,26 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+requirements_version: popgp-viability-requirements-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+target_tier: R
+repository: https://github.com/whact2025/POPGP
+candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+protocol_commit: '0000000000000000000000000000000000000000'
+requirements_path: schemas/viability/requirements-v2.json
+requirements_sha256: 632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20
+protocol_manifest_path: reviews/viability/POPGP-VIABILITY-R1-2026-08/PROTOCOL_MANIFEST.json
+protocol_manifest_sha256: 13dd7780b86cd8140d3a67312f795c7c11a5e8e47a582d6039335ffe91a37eb6
+packet_files:
+  VIA-000: packets/VIA-000.yaml
+  VIA-010: packets/VIA-010.yaml
+  VIA-100: packets/VIA-100.yaml
+  VIA-150: packets/VIA-150.yaml
+  VIA-200: packets/VIA-200.yaml
+  VIA-300: packets/VIA-300.yaml
+  VIA-400: packets/VIA-400.yaml
+decision:
+  outcome: pending
+  authorized_by: null
+  decided_at: null

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-400",
+  "parameters": {
+    "fit_refinement_levels": 4,
+    "holdout_refinement_levels": 1,
+    "holdout_relative_error_max": 0.1,
+    "late_level_error_ratio_max": 0.75,
+    "stable_dimension_required": true,
+    "stable_topology_required": true,
+    "nongeometric_false_positive_max": 0.0
+  },
+  "measurement_procedure": "Use one scale-matched flat, curved, boundary, noisy, and non-geometric family; construct intrinsic complexes, lengths, hinges, and dual volumes; measure dimension, distortion, metric conditioning, topology, curvature, boundary terms, and a held-out finer level.",
+  "uncertainty_procedure": "Fit the frozen model on exactly four levels, propagate metric/curvature/boundary uncertainty, and predict the fifth before reveal.",
+  "statistical_analysis": "Pass only with stable topology/dimension, decreasing errors at the frozen ratio, accurate fifth-level prediction, and zero geometric declarations on controls.",
+  "resource_budget": {
+    "wall_time_seconds": 28800,
+    "memory_bytes": 25769803776,
+    "accelerator_seconds": 14400
+  },
+  "commands": [
+    "uv run pytest -q tests/unit/test_geometry.py tests/scientific/test_topology_recovery.py",
+    "uv run python -m examples.physics_qg.grid_2d"
+  ],
+  "mutation_plan": [
+    "Use embedding Delaunay as intrinsic.",
+    "Retune the complex threshold.",
+    "Remove boundary terms.",
+    "Change regularization.",
+    "Drop a poor refinement level."
+  ]
+}

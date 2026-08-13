@@ -1,0 +1,335 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-400
+candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+protocol_commit: '0000000000000000000000000000000000000000'
+protocol_rule_sha256: 68aa0a600d609b18c2f71428e76c37a9be51fc76f47124cc10e53b7ebdcd7370
+lifecycle_phase: drafted
+claims:
+- C05
+- C08
+- C09
+- C13
+existing_gates:
+- GATE-NONGEOMETRIC-CONTROLS
+- GATE-PARAMETER-ROBUSTNESS
+declared_evidence_requirement: E4-convergent-replication
+capabilities:
+- intrinsic-complex
+- four-level-refinement
+- holdout-convergence
+- nongeometric-control
+capability_rules:
+  intrinsic-complex:
+    compare:
+      left:
+        binding: intrinsic-complex
+      op: eq
+      right:
+        value: true
+  four-level-refinement:
+    compare:
+      left:
+        binding: four-level-refinement
+      op: eq
+      right:
+        value: true
+  holdout-convergence:
+    compare:
+      left:
+        binding: holdout-convergence
+      op: eq
+      right:
+        value: true
+  nongeometric-control:
+    compare:
+      left:
+        binding: nongeometric-control
+      op: eq
+      right:
+        value: true
+hypothesis: One intrinsic construction yields stable topology/dimension and convergent metric/curvature
+  over four fit levels plus a held-out finer level.
+null_or_competitors:
+- Embedding Delaunay creates the result.
+- Boundary or regularization dominates.
+- The holdout misses the prediction.
+known_failure_to_retain: Retain that local metrics are embedding-coordinate prototypes and angle deficits
+  are proxy-only.
+threat_model:
+- scale post-selection
+- complex threshold
+- boundary removal
+- regularization
+- fit-level selection
+- false geometry
+preregistration:
+  parameters:
+    fit_refinement_levels: 4
+    holdout_refinement_levels: 1
+    holdout_relative_error_max: 0.1
+    late_level_error_ratio_max: 0.75
+    stable_dimension_required: true
+    stable_topology_required: true
+    nongeometric_false_positive_max: 0.0
+  measurement_procedure: Use one scale-matched flat, curved, boundary, noisy, and non-geometric family;
+    construct intrinsic complexes, lengths, hinges, and dual volumes; measure dimension, distortion, metric
+    conditioning, topology, curvature, boundary terms, and a held-out finer level.
+  uncertainty_procedure: Fit the frozen model on exactly four levels, propagate metric/curvature/boundary
+    uncertainty, and predict the fifth before reveal.
+  statistical_analysis: Pass only with stable topology/dimension, decreasing errors at the frozen ratio,
+    accurate fifth-level prediction, and zero geometric declarations on controls.
+  resource_budget:
+    wall_time_seconds: 28800
+    memory_bytes: 25769803776
+    accelerator_seconds: 14400
+  commands:
+  - uv run pytest -q tests/unit/test_geometry.py tests/scientific/test_topology_recovery.py
+  - uv run python -m examples.physics_qg.grid_2d
+  mutation_plan:
+  - Use embedding Delaunay as intrinsic.
+  - Retune the complex threshold.
+  - Remove boundary terms.
+  - Change regularization.
+  - Drop a poor refinement level.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-400/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-400.json
+    sha256: 9142b2becf21a17468518f6c491baa01e1693f11e35d2ed82c6739e81ee36452
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via400-protocol
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via400-builder
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via400-falsifier
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via400-statistics
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via400-runner
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via400-claims
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via400-adjudicator
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via400-custodian
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via400-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-400-hidden-holdout.json
+    sha256: 72953f654462a59e4bbd3212db107d8ccc0a7597824fad70a433daa1eb52de3f
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-400-secret-seed.json
+    sha256: eb75692f0d87da34c2ea7a6ba0b4588ec60f2a46371fa6c647f534b9e1c39e99
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-400
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    intrinsic-complex:
+      receipt_id: raw-results
+      json_pointer: /capabilities/intrinsic-complex
+      expected_type: boolean
+    four-level-refinement:
+      receipt_id: raw-results
+      json_pointer: /capabilities/four-level-refinement
+      expected_type: boolean
+    holdout-convergence:
+      receipt_id: raw-results
+      json_pointer: /capabilities/holdout-convergence
+      expected_type: boolean
+    nongeometric-control:
+      receipt_id: raw-results
+      json_pointer: /capabilities/nongeometric-control
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: intrinsic-complex
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: four-level-refinement
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: holdout-convergence
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: nongeometric-control
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-400/protocol.json
+  sha256: 9142b2becf21a17468518f6c491baa01e1693f11e35d2ed82c6739e81ee36452
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

@@ -1,0 +1,345 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-000
+candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+protocol_commit: '0000000000000000000000000000000000000000'
+protocol_rule_sha256: 397298419e54d5f20c5d36242a92abf401ac31cceb0e3a3254ec68170b7a37f3
+lifecycle_phase: preregistered
+claims:
+- C03
+- C04
+- C06
+- C08
+- C09
+- C10
+- C11
+- C12
+- C13
+existing_gates:
+- GATE-SOURCE-KMS-RESPONSE
+- GATE-ENTROPY-CONFOUND
+- GATE-MODULAR-LOCALIZATION
+- GATE-BLIND-TOPOLOGY
+- GATE-NONGEOMETRIC-CONTROLS
+- GATE-PARAMETER-ROBUSTNESS
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- evidence-contract
+- cross-platform-reproduction
+- mutation-rejection
+capability_rules:
+  evidence-contract:
+    compare:
+      left:
+        binding: evidence-contract
+      op: eq
+      right:
+        value: true
+  cross-platform-reproduction:
+    compare:
+      left:
+        binding: cross-platform-reproduction
+      op: eq
+      right:
+        value: true
+  mutation-rejection:
+    compare:
+      left:
+        binding: mutation-rejection
+      op: eq
+      right:
+        value: true
+hypothesis: The immutable candidate can be rebuilt on Linux and Windows with the locked environment, contract-equivalent
+  artifacts, a fresh manuscript PDF, and fail-closed rejection of every preregistered evidence corruption.
+null_or_competitors:
+- The passes depend on undeclared builder state or one operating system.
+- The semantic artifact checker accepts a preregistered corruption.
+- The manuscript cannot be rebuilt from the authoritative TeX source.
+known_failure_to_retain: Retain the CA failed headline, perturbed-Bell false geometry, raw-relative-entropy
+  source failure, entropy confound, and reduced-modular localization failure.
+threat_model:
+- undeclared local state
+- platform-specific numerical drift
+- regeneration without semantic equivalence
+- silent check, threshold, shape, configuration, or visual weakening
+preregistration:
+  parameters:
+    candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+    candidate_tree: 5c1e11fa0003e0c94cda340077ab443275b87f80
+    dependency_lock: uv.lock
+    python_minor: '3.11'
+    platform_families:
+    - ubuntu-latest-x86_64
+    - windows-x86_64
+    required_test_count: 179
+    required_example_count: 6
+    required_mutation_count: 6
+    pdf_engine: pdfTeX-1.40.29-TeX-Live-2026
+    pdf_pass_count: 2
+    native_or_scalable_claim_in_scope: false
+    seed_policy: Use committed seeds or the custodian seed; never reselect after output.
+  measurement_procedure: In disposable exact-SHA clones, retain environment and raw stdout/stderr for
+    locked sync, lint, TeX source validation, full tests, six examples, semantic artifact validation,
+    Git cleanliness, two pdflatex passes, and six frozen mutations.
+  uncertainty_procedure: Command exits, test counts, structure, mutation rejection, and Git cleanliness
+    are exact. Numeric drift uses only the committed semantic-checker tolerances.
+  statistical_analysis: Pass only if both platforms succeed at the exact candidate, Windows builds a nonempty
+    PDF, regeneration is contract-equivalent, all corruptions are rejected, and no required result exists
+    only in an agent summary. Missing commands, surviving mutations, dirty tracked outputs, or a platform-only
+    result are failures.
+  resource_budget:
+    wall_time_seconds: 3600
+    memory_bytes: 12884901888
+    accelerator_seconds: 0
+  commands:
+  - uv sync --frozen
+  - uv run ruff check .
+  - uv run python scripts/check_tex.py
+  - uv run pytest -q
+  - uv run python -m examples.physics_qg.chain_1d
+  - uv run python -m examples.physics_qg.grid_2d
+  - uv run python -m examples.physics_qg.gravity_well
+  - uv run python -m examples.physics_qg.source_law
+  - uv run python -m examples.physics_qg.source_law_many_body
+  - uv run python -m examples.physics_qg.ca_model
+  - uv run python scripts/check_validation_artifacts.py
+  - pdflatex -interaction=nonstopmode -halt-on-error docs/framework.tex
+  - git diff --exit-code
+  mutation_plan:
+  - Add an unregistered noninformational check identity; require rejection.
+  - Flip a required check pass outcome; require rejection.
+  - Change a measurement array shape; require rejection.
+  - Change a stable configuration beyond tolerance; require rejection.
+  - Make a required visual empty and untracked; require both defects.
+  - Move a sensitive scientific diagnostic beyond its frozen threshold; require rejection.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-000/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json
+    sha256: 604aca7196d36c181bb116299c6921e86c6a295025737ea4b05745ed17afe999
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via000-protocol
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via000-builder
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via000-falsifier
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via000-statistics
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via000-runner
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via000-claims
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via000-adjudicator
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via000-custodian
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via000-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-000-hidden-holdout.json
+    sha256: 7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-000-secret-seed.json
+    sha256: 13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-000
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    evidence-contract:
+      receipt_id: raw-results
+      json_pointer: /capabilities/evidence-contract
+      expected_type: boolean
+    cross-platform-reproduction:
+      receipt_id: raw-results
+      json_pointer: /capabilities/cross-platform-reproduction
+      expected_type: boolean
+    mutation-rejection:
+      receipt_id: raw-results
+      json_pointer: /capabilities/mutation-rejection
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: evidence-contract
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: cross-platform-reproduction
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: mutation-rejection
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-000/protocol.json
+  sha256: 604aca7196d36c181bb116299c6921e86c6a295025737ea4b05745ed17afe999
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

@@ -1,0 +1,331 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-300
+candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+protocol_commit: '0000000000000000000000000000000000000000'
+protocol_rule_sha256: b4c985c14a61ab4717ec30d0ef61d2e3be6aac24a25b6df5fa58d3b5fdfaf253
+lifecycle_phase: drafted
+claims:
+- C03
+- C06
+- C11
+existing_gates:
+- GATE-BLIND-TOPOLOGY
+- GATE-SOURCE-KMS-RESPONSE
+declared_evidence_requirement: E4-convergent-replication
+capabilities:
+- entangling-observables
+- exact-overlap
+- decreasing-error
+- four-level-ladder
+capability_rules:
+  entangling-observables:
+    compare:
+      left:
+        binding: entangling-observables
+      op: eq
+      right:
+        value: true
+  exact-overlap:
+    compare:
+      left:
+        binding: exact-overlap
+      op: eq
+      right:
+        value: true
+  decreasing-error:
+    compare:
+      left:
+        binding: decreasing-error
+      op: eq
+      right:
+        value: true
+  four-level-ladder:
+    compare:
+      left:
+        binding: four-level-ladder
+      op: eq
+      right:
+        value: true
+hypothesis: A scalable entangling backend reproduces all decision-relevant exact observables with decreasing
+  error and reaches four refinement levels.
+null_or_competitors:
+- The backend substitutes product proxies.
+- Errors do not decrease.
+- Scientific gate outcomes change.
+known_failure_to_retain: Retain that the current mean-field CUDA backend cannot compute MI/QCMI and is
+  Heisenberg-only.
+threat_model:
+- observable substitution
+- nonmonotone truncation
+- CUDA race
+- hardware gate change
+- unreachable ladder
+preregistration:
+  parameters:
+    minimum_refinement_levels: 4
+    observable_relative_error_max: 0.05
+    gate_outcome_agreement: 1.0
+    dimension_status_exact: true
+    strictly_decreasing_error: true
+    minimum_independent_implementations: 2
+  measurement_procedure: Compare reduced states, MI/QCMI, edges, source, current, geometry, clock, and
+    gate outcomes on exact-overlap sizes while refining bond dimension, truncation, timestep, precision,
+    and hardware; record four-level runtime and memory.
+  uncertainty_procedure: Propagate truncation/timestep estimates with a monotone empirical envelope; report
+    independent-library and CPU/native discrepancies separately.
+  statistical_analysis: Pass only if all observables clear budgets, gate and categorical outputs agree,
+    errors decrease, determinism/race attacks pass, and four levels complete in budget.
+  resource_budget:
+    wall_time_seconds: 28800
+    memory_bytes: 25769803776
+    accelerator_seconds: 14400
+  commands:
+  - uv run pytest -q tests/unit/test_backends.py tests/scientific/test_topology_recovery.py tests/scientific/test_many_body_source_law.py
+  mutation_plan:
+  - Replace MI with product magnetization.
+  - Increase truncation while claiming lower error.
+  - Reverse CUDA update ordering.
+  - Change one gate outcome.
+  - Remove the largest level.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-300/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-300.json
+    sha256: ea15d0a131322a55ed1a11a5e852fc467119dfd9920fe3a0bb9ee04cccfda7de
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via300-protocol
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via300-builder
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via300-falsifier
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via300-statistics
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via300-runner
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via300-claims
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via300-adjudicator
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via300-custodian
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via300-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-300-hidden-holdout.json
+    sha256: 4055a97c00f1b1f0ebc7d90d2581ff92e3745658b3f9f332f812cf6b5847fa6b
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-300-secret-seed.json
+    sha256: f1ef6b43384e69961fb40596623815e6a19f2af6e1994319698b538a960c81ae
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-300
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    entangling-observables:
+      receipt_id: raw-results
+      json_pointer: /capabilities/entangling-observables
+      expected_type: boolean
+    exact-overlap:
+      receipt_id: raw-results
+      json_pointer: /capabilities/exact-overlap
+      expected_type: boolean
+    decreasing-error:
+      receipt_id: raw-results
+      json_pointer: /capabilities/decreasing-error
+      expected_type: boolean
+    four-level-ladder:
+      receipt_id: raw-results
+      json_pointer: /capabilities/four-level-ladder
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: entangling-observables
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: exact-overlap
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: decreasing-error
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: four-level-ladder
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-300/protocol.json
+  sha256: ea15d0a131322a55ed1a11a5e852fc467119dfd9920fe3a0bb9ee04cccfda7de
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-010",
+  "parameters": {
+    "ledger_fields": [
+      "coordinates",
+      "labels",
+      "interaction_edges",
+      "target_family",
+      "target_dimension",
+      "dt",
+      "boundary_conditions",
+      "evaluator_labels",
+      "calibration_constants"
+    ],
+    "maximum_evaluator_to_inference_paths": 0,
+    "maximum_undisclosed_priors": 0,
+    "permutation_absolute_tolerance": 1e-10,
+    "time_claim_fallback": "ordinary-unitary-time-dynamics"
+  },
+  "measurement_procedure": "Trace every ledger field through Pi_res, Pi_loc, Pi_geom, and Pi_time; execute label, isomorphism, Hamiltonian-encoding, boundary, and time/order transformations with evaluator labels isolated.",
+  "uncertainty_procedure": "Report exact data-flow path counts and transformation residuals; use the frozen tolerance only for numeric equivariance residuals.",
+  "statistical_analysis": "Pass only with zero evaluator paths, zero undisclosed priors, all transformation residuals in tolerance, and either a failing-capable phase-order test or narrowed ordinary-time wording.",
+  "resource_budget": {
+    "wall_time_seconds": 3600,
+    "memory_bytes": 8589934592,
+    "accelerator_seconds": 0
+  },
+  "commands": [
+    "uv run pytest -q tests/scientific/test_topology_recovery.py tests/unit/test_simulator.py",
+    "uv run python scripts/check_validation_artifacts.py"
+  ],
+  "mutation_plan": [
+    "Inject one evaluator-only edge.",
+    "Permute nodes and labels.",
+    "Use an equivalent Hamiltonian encoding.",
+    "Rescale time without the frozen covariance transformation."
+  ]
+}

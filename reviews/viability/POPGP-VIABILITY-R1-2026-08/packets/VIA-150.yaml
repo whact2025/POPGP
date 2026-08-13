@@ -1,0 +1,310 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-150
+candidate_commit: 829b866d731865060927c365b7848ce0d710736c
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
+protocol_commit: '0000000000000000000000000000000000000000'
+protocol_rule_sha256: 93ecbd582cea3cfdbed56352c67b02097a4d55b766ad4fa199b2471c89efd075
+lifecycle_phase: drafted
+claims:
+- C03
+- C04
+- C05
+existing_gates:
+- GATE-PARAMETER-ROBUSTNESS
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- derived-retention-budget
+- local-flow-agreement
+- capacity-model-comparison
+capability_rules:
+  derived-retention-budget:
+    compare:
+      left:
+        binding: derived-retention-budget
+      op: eq
+      right:
+        value: true
+  local-flow-agreement:
+    compare:
+      left:
+        binding: local-flow-agreement
+      op: eq
+      right:
+        value: true
+  capacity-model-comparison:
+    compare:
+      left:
+        binding: capacity-model-comparison
+      op: eq
+      right:
+        value: true
+hypothesis: A globally derived retention/capacity rule selects stable partitions and an area-like law
+  without encoding the target.
+null_or_competitors:
+- The tolerance encodes the answer.
+- Volume and area laws are equally supported.
+- Local flow disagrees with exhaustive minima.
+known_failure_to_retain: Retain that exhaustive contiguous-block search is a finite surrogate and the
+  capacity scale is imposed.
+threat_model:
+- probe-seed selection
+- trivial information destruction
+- target constraint
+- post-selected scaling law
+preregistration:
+  parameters:
+    overlap_flow_agreement_min: 0.95
+    partition_stability_min: 0.9
+    area_vs_volume_delta_aic_min: 10.0
+    nongeometric_area_support_max: 0.1
+    minimum_refinement_levels: 4
+  measurement_procedure: Derive the retention budget independently; compare local flow with exhaustive
+    minima; sweep probes, sizes, perturbations, interactions, and resolution; compare area and volume
+    laws on blinded geometric and non-geometric families.
+  uncertainty_procedure: Report partition degeneracy, seed variability, model-selection uncertainty, and
+    refinement uncertainty with family-balanced aggregation.
+  statistical_analysis: Pass only when one global rule clears the stability, overlap, model-comparison,
+    and non-geometric bounds without target-derived constraints.
+  resource_budget:
+    wall_time_seconds: 14400
+    memory_bytes: 17179869184
+    accelerator_seconds: 0
+  commands:
+  - uv run pytest -q tests/unit/test_coarse_grain.py tests/unit/test_capacity.py
+  - uv run python -m examples.physics_qg.chain_1d
+  mutation_plan:
+  - Force a trivial partition.
+  - Choose the best seed after evaluation.
+  - Encode the desired partition in admissibility.
+  - Swap area and volume labels.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-150/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-150.json
+    sha256: 2624b74c334de0b24327b32a65d864d9045677f8edf51d1b5f222004a0f8078e
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via150-protocol
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via150-builder
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via150-falsifier
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via150-statistics
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via150-runner
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via150-claims
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via150-adjudicator
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via150-custodian
+    model_identity: openai-codex-gpt5
+    model_version: 2026-08
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via150-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-150-hidden-holdout.json
+    sha256: d55a2adf087f342e332cb00349a14bbab76ff36fad7c4d48c2db92acdcbc6035
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-150-secret-seed.json
+    sha256: 4bcf504836d02e1725cd16706ff3d31ce89a184fbb1da0ea495b5ec76b9c063e
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-150
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    derived-retention-budget:
+      receipt_id: raw-results
+      json_pointer: /capabilities/derived-retention-budget
+      expected_type: boolean
+    local-flow-agreement:
+      receipt_id: raw-results
+      json_pointer: /capabilities/local-flow-agreement
+      expected_type: boolean
+    capacity-model-comparison:
+      receipt_id: raw-results
+      json_pointer: /capabilities/capacity-model-comparison
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: derived-retention-budget
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: local-flow-agreement
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: capacity-model-comparison
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-150/protocol.json
+  sha256: 2624b74c334de0b24327b32a65d864d9045677f8edf51d1b5f222004a0f8078e
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

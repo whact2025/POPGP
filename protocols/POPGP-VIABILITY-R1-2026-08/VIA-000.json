@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-000",
+  "parameters": {
+    "candidate_commit": "829b866d731865060927c365b7848ce0d710736c",
+    "candidate_tree": "5c1e11fa0003e0c94cda340077ab443275b87f80",
+    "dependency_lock": "uv.lock",
+    "python_minor": "3.11",
+    "platform_families": [
+      "ubuntu-latest-x86_64",
+      "windows-x86_64"
+    ],
+    "required_test_count": 179,
+    "required_example_count": 6,
+    "required_mutation_count": 6,
+    "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",
+    "pdf_pass_count": 2,
+    "native_or_scalable_claim_in_scope": false,
+    "seed_policy": "Use committed seeds or the custodian seed; never reselect after output."
+  },
+  "measurement_procedure": "In disposable exact-SHA clones, retain environment and raw stdout/stderr for locked sync, lint, TeX source validation, full tests, six examples, semantic artifact validation, Git cleanliness, two pdflatex passes, and six frozen mutations.",
+  "uncertainty_procedure": "Command exits, test counts, structure, mutation rejection, and Git cleanliness are exact. Numeric drift uses only the committed semantic-checker tolerances.",
+  "statistical_analysis": "Pass only if both platforms succeed at the exact candidate, Windows builds a nonempty PDF, regeneration is contract-equivalent, all corruptions are rejected, and no required result exists only in an agent summary. Missing commands, surviving mutations, dirty tracked outputs, or a platform-only result are failures.",
+  "resource_budget": {
+    "wall_time_seconds": 3600,
+    "memory_bytes": 12884901888,
+    "accelerator_seconds": 0
+  },
+  "commands": [
+    "uv sync --frozen",
+    "uv run ruff check .",
+    "uv run python scripts/check_tex.py",
+    "uv run pytest -q",
+    "uv run python -m examples.physics_qg.chain_1d",
+    "uv run python -m examples.physics_qg.grid_2d",
+    "uv run python -m examples.physics_qg.gravity_well",
+    "uv run python -m examples.physics_qg.source_law",
+    "uv run python -m examples.physics_qg.source_law_many_body",
+    "uv run python -m examples.physics_qg.ca_model",
+    "uv run python scripts/check_validation_artifacts.py",
+    "pdflatex -interaction=nonstopmode -halt-on-error docs/framework.tex",
+    "git diff --exit-code"
+  ],
+  "mutation_plan": [
+    "Add an unregistered noninformational check identity; require rejection.",
+    "Flip a required check pass outcome; require rejection.",
+    "Change a measurement array shape; require rejection.",
+    "Change a stable configuration beyond tolerance; require rejection.",
+    "Make a required visual empty and untracked; require both defects.",
+    "Move a sensitive scientific diagnostic beyond its frozen threshold; require rejection."
+  ]
+}
