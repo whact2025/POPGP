@@ -6,7 +6,7 @@ candidate_commit: 829b866d731865060927c365b7848ce0d710736c
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
 tree_hash: 5c1e11fa0003e0c94cda340077ab443275b87f80
 protocol_commit: 3d5d7522335ae222ca21156377a93323ef49ed2d
-protocol_rule_sha256: 618297063005afa5f8719c72a85b0e969d1c8d09beabb993c037bbef8404922e
+protocol_rule_sha256: bec471177ade8667c146f9a548b351dc01f85a42c66a7ff0589ddc44d05a2afd
 lifecycle_phase: drafted
 claims:
 - C11
@@ -124,8 +124,8 @@ holdout_started: false
 seats:
   protocol_designer:
     agent_identity: codex-via100-protocol
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-protocol-session
     orchestrator_id: codex-desktop
@@ -137,8 +137,8 @@ seats:
       private_evaluator_seen: false
   builder:
     agent_identity: codex-via100-builder
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-builder-session
     orchestrator_id: codex-desktop
@@ -150,8 +150,8 @@ seats:
       private_evaluator_seen: false
   falsifier:
     agent_identity: codex-via100-falsifier
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-falsifier-session
     orchestrator_id: codex-desktop
@@ -163,8 +163,8 @@ seats:
       private_evaluator_seen: false
   statistical_auditor:
     agent_identity: codex-via100-statistics
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-statistics-session
     orchestrator_id: codex-desktop
@@ -176,8 +176,8 @@ seats:
       private_evaluator_seen: false
   reproduction_runner:
     agent_identity: codex-via100-runner
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-runner-session
     orchestrator_id: codex-desktop
@@ -189,8 +189,8 @@ seats:
       private_evaluator_seen: false
   claim_auditor:
     agent_identity: codex-via100-claims
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-claims-session
     orchestrator_id: codex-desktop
@@ -202,8 +202,8 @@ seats:
       private_evaluator_seen: false
   adjudicator:
     agent_identity: codex-via100-adjudicator
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-adjudicator-session
     orchestrator_id: codex-desktop
@@ -215,8 +215,8 @@ seats:
       private_evaluator_seen: false
   evaluator_custodian:
     agent_identity: codex-via100-custodian
-    model_identity: openai-codex-gpt5
-    model_version: 2026-08
+    model_identity: unknown
+    model_version: unknown
     operator: fuocor
     session_id: popgp-viability-r1-2026-08-via100-custodian-session
     orchestrator_id: codex-desktop
