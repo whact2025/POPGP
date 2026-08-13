@@ -5,7 +5,7 @@ packet_id: VIA-400
 candidate_commit: 3428a24bdd05b5742888bd204482d50a2f613cab
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
 tree_hash: 42fcba754ed78145054f572bd0beedf8a157562a
-protocol_commit: aa19167d0642332bbca161612e730191419c6160
+protocol_commit: 8c3c4d53cddf28b0c51dc7b6c21eab49d28d0f9d
 protocol_rule_sha256: ad9fe1a43bb5fd997f5ee6cccdff9cd9e5a8aa4aa0695eb3098476947d18b3eb
 lifecycle_phase: drafted
 claims:
