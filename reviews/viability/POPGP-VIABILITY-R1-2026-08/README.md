@@ -26,6 +26,10 @@ the physical mechanism or Tier R.
 - A builder-owned pre-freeze calibration is retained in
   [`calibration/VIA-000-2026-08-13.md`](calibration/VIA-000-2026-08-13.md). It is not a
   decisive campaign receipt and cannot satisfy the E3 evidence floor.
+- A builder-owned Blackwell/native calibration is retained in
+  [`calibration/VIA-300-Blackwell-2026-08-13.md`](calibration/VIA-300-Blackwell-2026-08-13.md).
+  It confirms executable CUDA hardware and native `sm_120` code, but it is not an
+  independent VIA-300 receipt and does not establish Tier R.
 
 ## Validation
 
@@ -39,4 +43,3 @@ uv run python scripts/check_viability_campaign.py `
 
 Only hashed receipts, reconciled independent review artifacts, custody reveal records,
 and a validator-clean adjudication can move a packet or campaign to a terminal outcome.
-
