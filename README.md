@@ -78,6 +78,21 @@ Exact density-matrix simulation is the supported end-to-end path. Above the exac
 threshold, the mean-field CUDA backend cannot compute mutual information and the
 locality stage fails explicitly instead of substituting a false MI proxy.
 
+The experimental native engine can be built separately. It requires a CUDA Toolkit,
+CMake, Ninja, and a supported C++ compiler; dependencies are pinned through the
+engine's vcpkg manifest. On Windows, from a developer shell or an ordinary shell with
+Visual Studio installed:
+
+```text
+cd popgp_engine
+build.bat --clean --test --cuda-arch native
+```
+
+Use an explicit architecture such as `--cuda-arch 120` when producing a frozen
+Blackwell build receipt. This validates the native mean-field kernels only; it does
+not lift the exact-backend limitation on MI/QCMI or establish scalable scientific
+viability.
+
 ## What is implemented
 
 ### Resolution selection (`Π_res`)

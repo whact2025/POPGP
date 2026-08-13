@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
 
-# Build for the Native GPU Architecture
+# Build for the GPU visible at configure time unless the caller pins an
+# architecture explicitly (for example, -DCMAKE_CUDA_ARCHITECTURES=120).
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-    set(CMAKE_CUDA_ARCHITECTURES "86")
+    set(CMAKE_CUDA_ARCHITECTURES "native")
 endif()
 
 project(popgp_engine LANGUAGES CXX CUDA)

@@ -13,3 +13,19 @@ This directory contains the high-performance implementation of the **Phase-Order
 - [x] Implement `apply_gate` device function for unitary evolution.
 - [x] Implement `phase_flow_kernel` with graph coloring for parallel safety.
 - [x] Implement `host_step` function to launch the kernel from Python.
+
+## Build and test
+
+The top-level engine build defaults to the GPU detected at configure time. For a
+frozen build, pass the numeric CUDA architecture explicitly:
+
+```text
+cd popgp_engine
+build.bat --clean --test --cuda-arch 120
+```
+
+The Windows script discovers the installed Visual Studio C++ environment, uses
+Ninja, bootstraps the pinned vcpkg commit, and fails if configure, compile, or any
+native test fails. Set `CUDA_PATH` when the toolkit is not installed in its default
+location. On Linux or macOS, use `build.sh --clean --test --cuda-arch <value>` with
+`VCPKG_ROOT` set.

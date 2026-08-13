@@ -4,6 +4,8 @@ Audit date: 2026-08-09 (America/New_York).
 
 Review-protocol remediation verified: 2026-08-10 (America/New_York).
 
+Blackwell native-build calibration verified: 2026-08-13 (America/New_York).
+
 ## Environment
 
 - Windows / PowerShell
@@ -11,14 +13,18 @@ Review-protocol remediation verified: 2026-08-10 (America/New_York).
 - uv 0.11.11
 - CMake 4.3.2
 - Locked environment from `uv.lock`
-- `nvcc`: unavailable
-- `pdflatex`: unavailable
+- NVIDIA RTX PRO 3000 Blackwell Generation Laptop GPU, compute capability 12.0,
+  driver 595.79, 12,227 MiB
+- CUDA 13.3.73 development tools in an isolated local extraction; the locked Python
+  environment remains CPU-only (`torch 2.10.0+cpu`)
+- pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
 - GitHub CLI 2.97.0; authenticated as `fuocor`
 
-The absent CUDA and TeX toolchains prevent native compilation/tests and a fresh PDF
-build in this environment. GitHub CLI access was verified against pull request #1.
-`docs/framework.tex` is authoritative for the revised manuscript; the committed PDF
-predates the claims audit and must be rebuilt when a TeX toolchain is available.
+GitHub CLI access was verified against pull request #1. `docs/framework.tex` is
+authoritative for the revised manuscript. A two-pass fresh PDF build produced an
+11-page, 535,368-byte artifact with SHA-256
+`8fd4be5c2003dde42f1ff390a0d3e4a955167e58524c16f5c7114944c9759323`;
+layout warnings and the missing bibliography remain recorded limitations.
 
 ## Commands
 
@@ -42,13 +48,22 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | ~821 s | 179 passed |
+| `pytest -q` | ~907 s | 180 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
 | source-law example | 7 s | RE slope≈1.9997; modular slope=1.0; negative result retained |
 | many-body source-law example | 9 s | direct quadratic/floor gates and Kubo--Mori/Richardson susceptibility pass through β=3, including β=2.5 |
 | CA analogy | 9 s | population declined 33 to 27; overall check fails; PNG/GIF/JSON regenerated |
+
+The experimental native engine was independently configured and compiled with
+MSVC 19.50, CUDA 13.3.73, and native `sm_120` cubins. Its four CUDA tests passed on
+the Blackwell device. The one-million-cell benchmark completed 100 two-color phase
+steps in 166.45 ms (approximately `6.01e8` cell-updates/s). A separate CUDA-enabled
+PyTorch 2.10 probe exercised the Python `GPUBackend` through the compiled DLL on 64
+cells; the step was finite and nontrivial, with maximum per-cell norm error
+`5.55e-16`. These are implementation and throughput calibrations, not evidence that
+the mean-field backend reproduces exact MI/QCMI or the full projection pipeline.
 
 All examples regenerated their committed `validation.json` artifacts. Wall-clock
 timestamps have been removed, and every result artifact was byte-identical across two

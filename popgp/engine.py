@@ -28,6 +28,7 @@ _LIB_DIR = Path(__file__).parent / "_lib"
 _ENGINE_ROOT = Path(__file__).resolve().parent.parent / "popgp_engine"
 
 _lib: ctypes.CDLL | None = None
+_dll_directory_handles: dict[Path, object] = {}
 
 
 def _lib_filename() -> str:
@@ -50,14 +51,17 @@ def _add_dll_directories() -> None:
     cuda_path = os.environ.get("CUDA_PATH")
     if cuda_path:
         dirs_to_add.append(Path(cuda_path) / "bin")
+        dirs_to_add.append(Path(cuda_path) / "bin" / "x64")
 
     vcpkg_bin = _ENGINE_ROOT / "build" / "vcpkg_installed" / "x64-windows" / "bin"
     dirs_to_add.append(vcpkg_bin)
 
     for d in dirs_to_add:
-        if d.is_dir():
+        if d.is_dir() and d not in _dll_directory_handles:
             try:
-                os.add_dll_directory(str(d))
+                # Keep the returned handle alive. Closing or garbage-collecting it
+                # removes the directory from Windows' DLL search path.
+                _dll_directory_handles[d] = os.add_dll_directory(str(d))
                 log.debug("DLL search path: %s", d)
             except OSError:
                 log.debug("Could not add DLL directory: %s", d)

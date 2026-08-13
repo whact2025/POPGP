@@ -51,6 +51,7 @@ target_link_libraries(popgp_sim PRIVATE phase_flow fmt::fmt-header-only CUDA::cu
 find_package(GTest CONFIG REQUIRED)
 
 add_executable(popgp_tests 
+    tests/test_main.cpp
     tests/test_phase_flow.cu
     tests/test_area_law.cu
 )
@@ -60,7 +61,7 @@ if(MSVC)
         $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>
     )
 endif()
-target_link_libraries(popgp_tests PRIVATE phase_flow GTest::gtest GTest::gtest_main)
+target_link_libraries(popgp_tests PRIVATE phase_flow GTest::gtest)
 
 # Register Tests
 include(GoogleTest)
