@@ -4,14 +4,14 @@ requirements_version: popgp-viability-requirements-v2
 campaign_id: POPGP-VIABILITY-R1-2026-08
 target_tier: R
 repository: https://github.com/whact2025/POPGP
-candidate_commit: 3428a24bdd05b5742888bd204482d50a2f613cab
+candidate_commit: e6f8dc5a55032f92ecfd5a18505705fd9387f1d4
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
-tree_hash: 42fcba754ed78145054f572bd0beedf8a157562a
+tree_hash: a5c44686e72ed9c2f99988b8136078151e59416d
 protocol_commit: 8c3c4d53cddf28b0c51dc7b6c21eab49d28d0f9d
 requirements_path: schemas/viability/requirements-v2.json
 requirements_sha256: 632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20
 protocol_manifest_path: reviews/viability/POPGP-VIABILITY-R1-2026-08/PROTOCOL_MANIFEST.json
-protocol_manifest_sha256: b9bf79f0c894002ce2dd0f876b470f1ba1469725fb21be02d6d103472a631851
+protocol_manifest_sha256: 865bea8fe38566e3acdb62c0ff6b92b00f28942fb41018fe5999193774526739
 packet_files:
   VIA-000: packets/VIA-000.yaml
   VIA-010: packets/VIA-010.yaml

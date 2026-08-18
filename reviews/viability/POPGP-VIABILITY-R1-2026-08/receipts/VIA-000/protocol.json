@@ -2,15 +2,15 @@
   "schema_version": 1,
   "packet_id": "VIA-000",
   "parameters": {
-    "candidate_commit": "3428a24bdd05b5742888bd204482d50a2f613cab",
-    "candidate_tree": "42fcba754ed78145054f572bd0beedf8a157562a",
+    "candidate_commit": "e6f8dc5a55032f92ecfd5a18505705fd9387f1d4",
+    "candidate_tree": "a5c44686e72ed9c2f99988b8136078151e59416d",
     "dependency_lock": "uv.lock",
     "python_minor": "3.11",
     "platform_families": [
       "ubuntu-latest-x86_64",
       "windows-x86_64"
     ],
-    "required_test_count": 180,
+    "required_test_count": 187,
     "required_example_count": 6,
     "required_mutation_count": 6,
     "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",

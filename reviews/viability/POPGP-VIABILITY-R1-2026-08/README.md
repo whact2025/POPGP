@@ -5,8 +5,8 @@ Tier R (mechanism viability) under
 [`VIABILITY_DEMONSTRATION_PLAN.md`](../../../docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md).
 
 The scientific candidate is immutable commit
-`3428a24bdd05b5742888bd204482d50a2f613cab` with tree
-`42fcba754ed78145054f572bd0beedf8a157562a`. The comparison baseline is
+`e6f8dc5a55032f92ecfd5a18505705fd9387f1d4` with tree
+`a5c44686e72ed9c2f99988b8136078151e59416d`. The comparison baseline is
 `70c867552279b74d5ce1a7bc5c50d5a980cf81e6`.
 
 The campaign is deliberately fail closed. `VIA-000` is preregistered first. The six
