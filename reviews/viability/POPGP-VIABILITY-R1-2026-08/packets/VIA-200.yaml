@@ -1,0 +1,335 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-200
+candidate_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
+protocol_commit: 792d2d2737dcf48cf14cbb3af78a64ba2daad1f6
+protocol_rule_sha256: d6d64c63493f42b0d8c225bbbb82b6a47fc0ce8cdf2ff8692864dc526e67437b
+lifecycle_phase: drafted
+claims:
+- C06
+- C07
+- C08
+- C09
+existing_gates:
+- GATE-BLIND-TOPOLOGY
+- GATE-NONGEOMETRIC-CONTROLS
+- GATE-PARAMETER-ROBUSTNESS
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- blind-edge-recovery
+- nongeometric-rejection
+- explicit-abstention
+- permutation-equivariance
+capability_rules:
+  blind-edge-recovery:
+    compare:
+      left:
+        binding: blind-edge-recovery
+      op: eq
+      right:
+        value: true
+  nongeometric-rejection:
+    compare:
+      left:
+        binding: nongeometric-rejection
+      op: eq
+      right:
+        value: true
+  explicit-abstention:
+    compare:
+      left:
+        binding: explicit-abstention
+      op: eq
+      right:
+        value: true
+  permutation-equivariance:
+    compare:
+      left:
+        binding: permutation-equivariance
+      op: eq
+      right:
+        value: true
+hypothesis: A frozen blind rule recovers held-out geometry and rejects or abstains on non-geometric controls
+  without evaluator leakage.
+null_or_competitors:
+- The result is tuned to chain/grid examples.
+- Non-geometric controls receive stable low-dimensional declarations.
+known_failure_to_retain: Retain the perturbed-Bell D*=1 false positive unless a label-independent frozen
+  rule rejects it.
+threat_model:
+- threshold tuning
+- dimension penalty
+- abstention hiding failures
+- node order
+- adversarial correlations
+preregistration:
+  parameters:
+    geometric_precision_min: 0.9
+    geometric_recall_min: 0.9
+    distance_distortion_max: 0.2
+    family_false_geometric_rate_max: 0.05
+    family_abstention_rate_max: 0.25
+    permutation_absolute_tolerance: 1.0e-10
+    perturbation_stability_min: 0.95
+  measurement_procedure: Evaluate held-out chain, square, triangular, 3D, long-range, expander, random-regular,
+    shuffled, uniform, Bell, and feasible topological controls; keep truth evaluator-only and report family-balanced
+    recovery, distortion, status, dimension, stress, calibration, and abstention.
+  uncertainty_procedure: Use family-level bootstrap intervals and exact permutation checks; no family
+    can be rescued by averaging with easier families.
+  statistical_analysis: Pass only if every geometric family clears recovery/distortion bounds, every control
+    stays below false geometry, abstention stays bounded, and equivariance/stability pass.
+  resource_budget:
+    wall_time_seconds: 14400
+    memory_bytes: 17179869184
+    accelerator_seconds: 0
+  commands:
+  - uv run pytest -q tests/scientific/test_topology_recovery.py tests/unit/test_geometry.py
+  - uv run python -m examples.physics_qg.chain_1d
+  - uv run python -m examples.physics_qg.grid_2d
+  mutation_plan:
+  - Perturb Bell controls.
+  - Sweep the dimension penalty.
+  - Permute labels.
+  - Inject symmetric noise.
+  - Construct an adversarial shuffled correlation matrix.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-200/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-200.json
+    sha256: 7dc9e222158058a8eaa4f2d316b7533153b369ff8702e7544226734543fd8941
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via200-protocol
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via200-builder
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via200-falsifier
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via200-statistics
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via200-runner
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via200-claims
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via200-adjudicator
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via200-custodian
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via200-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-200-hidden-holdout.json
+    sha256: 89fe0db40dfb8e10037176211cfdb57d89715458bab7042a6b251869a4276a5f
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-200-secret-seed.json
+    sha256: 81e93a4ec22be2225cc63ac4987bb345b8ba28dc2e15097b1c74ea9e7060ba2d
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-200
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    blind-edge-recovery:
+      receipt_id: raw-results
+      json_pointer: /capabilities/blind-edge-recovery
+      expected_type: boolean
+    nongeometric-rejection:
+      receipt_id: raw-results
+      json_pointer: /capabilities/nongeometric-rejection
+      expected_type: boolean
+    explicit-abstention:
+      receipt_id: raw-results
+      json_pointer: /capabilities/explicit-abstention
+      expected_type: boolean
+    permutation-equivariance:
+      receipt_id: raw-results
+      json_pointer: /capabilities/permutation-equivariance
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: blind-edge-recovery
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: nongeometric-rejection
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: explicit-abstention
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: permutation-equivariance
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-200/protocol.json
+  sha256: 7dc9e222158058a8eaa4f2d316b7533153b369ff8702e7544226734543fd8941
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

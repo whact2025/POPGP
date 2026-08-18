@@ -28,10 +28,16 @@ _LIB_DIR = Path(__file__).parent / "_lib"
 _ENGINE_ROOT = Path(__file__).resolve().parent.parent / "popgp_engine"
 
 _lib: ctypes.CDLL | None = None
+_dll_directory_handles: dict[Path, object] = {}
+
+
+def _is_windows() -> bool:
+    """Return whether the native loader should use Windows DLL semantics."""
+    return os.name == "nt"
 
 
 def _lib_filename() -> str:
-    if os.name == "nt":
+    if _is_windows():
         return "phase_flow.dll"
     elif sys.platform == "darwin":
         return "libphase_flow.dylib"
@@ -40,7 +46,7 @@ def _lib_filename() -> str:
 
 def _add_dll_directories() -> None:
     """Register directories that contain transitive DLL dependencies (Windows)."""
-    if os.name != "nt":
+    if not _is_windows():
         return
 
     dirs_to_add = [
@@ -50,14 +56,17 @@ def _add_dll_directories() -> None:
     cuda_path = os.environ.get("CUDA_PATH")
     if cuda_path:
         dirs_to_add.append(Path(cuda_path) / "bin")
+        dirs_to_add.append(Path(cuda_path) / "bin" / "x64")
 
     vcpkg_bin = _ENGINE_ROOT / "build" / "vcpkg_installed" / "x64-windows" / "bin"
     dirs_to_add.append(vcpkg_bin)
 
     for d in dirs_to_add:
-        if d.is_dir():
+        if d.is_dir() and d not in _dll_directory_handles:
             try:
-                os.add_dll_directory(str(d))
+                # Keep the returned handle alive. Closing or garbage-collecting it
+                # removes the directory from Windows' DLL search path.
+                _dll_directory_handles[d] = os.add_dll_directory(str(d))
                 log.debug("DLL search path: %s", d)
             except OSError:
                 log.debug("Could not add DLL directory: %s", d)
@@ -77,7 +86,7 @@ def _load_library() -> ctypes.CDLL:
     # winmode=0 is required on Windows Python 3.8+ so that directories
     # registered via os.add_dll_directory() are actually searched when
     # resolving transitive DLL dependencies (CUDA runtime, fmt, etc.).
-    load_kwargs = {"winmode": 0} if os.name == "nt" else {}
+    load_kwargs = {"winmode": 0} if _is_windows() else {}
 
     errors: list[str] = []
     for d in search_dirs:
@@ -142,7 +151,13 @@ class Engine:
         self.precision = precision
 
     def step(self, d_alphas, d_betas, d_src, d_dst, d_weights, dt: float):
-        """Run one phase-order step of the kernel (Section 4.4.1)."""
+        """Run one phase-order step of the kernel (Section 4.4.1).
+
+        The edge arrays must describe a node-disjoint batch: no source or
+        destination index may occur in more than one edge in this call. The
+        kernel updates endpoints in place and does not perform graph coloring;
+        callers such as ``GPUBackend`` must submit colored batches separately.
+        """
         lib = _get_lib()
 
         ptr_a = self._get_ptr(d_alphas)

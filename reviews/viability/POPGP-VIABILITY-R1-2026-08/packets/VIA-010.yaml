@@ -1,0 +1,319 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-010
+candidate_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
+protocol_commit: 792d2d2737dcf48cf14cbb3af78a64ba2daad1f6
+protocol_rule_sha256: 24929a18f6414e1bc4ebf153fc0b19d0b29238d4c2626d04f715e050b181daf1
+lifecycle_phase: drafted
+claims:
+- C01
+- C02
+- C06
+- C08
+existing_gates:
+- GATE-BLIND-TOPOLOGY
+- GATE-NONGEOMETRIC-CONTROLS
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- hidden-time-ledger
+- structural-prior-disclosure
+- evaluator-leakage-audit
+capability_rules:
+  hidden-time-ledger:
+    compare:
+      left:
+        binding: hidden-time-ledger
+      op: eq
+      right:
+        value: true
+  structural-prior-disclosure:
+    compare:
+      left:
+        binding: structural-prior-disclosure
+      op: eq
+      right:
+        value: true
+  evaluator-leakage-audit:
+    compare:
+      left:
+        binding: evaluator-leakage-audit
+      op: eq
+      right:
+        value: true
+hypothesis: Every structural and time input is disclosed, evaluator labels cannot reach inference, and
+  the surviving time claim has an operational falsifier.
+null_or_competitors:
+- Reference topology leaks into inference.
+- Atemporality is only ordinary dt relabeled.
+known_failure_to_retain: Retain that Hamiltonian adjacency and ordinary unitary dt are explicit inputs.
+threat_model:
+- target leakage
+- undisclosed topology prior
+- time reparameterization failure
+- label dependence
+preregistration:
+  parameters:
+    ledger_fields:
+    - coordinates
+    - labels
+    - interaction_edges
+    - target_family
+    - target_dimension
+    - dt
+    - boundary_conditions
+    - evaluator_labels
+    - calibration_constants
+    maximum_evaluator_to_inference_paths: 0
+    maximum_undisclosed_priors: 0
+    permutation_absolute_tolerance: 1.0e-10
+    time_claim_fallback: ordinary-unitary-time-dynamics
+  measurement_procedure: Trace every ledger field through Pi_res, Pi_loc, Pi_geom, and Pi_time; execute
+    label, isomorphism, Hamiltonian-encoding, boundary, and time/order transformations with evaluator
+    labels isolated.
+  uncertainty_procedure: Report exact data-flow path counts and transformation residuals; use the frozen
+    tolerance only for numeric equivariance residuals.
+  statistical_analysis: Pass only with zero evaluator paths, zero undisclosed priors, all transformation
+    residuals in tolerance, and either a failing-capable phase-order test or narrowed ordinary-time wording.
+  resource_budget:
+    wall_time_seconds: 3600
+    memory_bytes: 8589934592
+    accelerator_seconds: 0
+  commands:
+  - uv run pytest -q tests/scientific/test_topology_recovery.py tests/unit/test_simulator.py
+  - uv run python scripts/check_validation_artifacts.py
+  mutation_plan:
+  - Inject one evaluator-only edge.
+  - Permute nodes and labels.
+  - Use an equivalent Hamiltonian encoding.
+  - Rescale time without the frozen covariance transformation.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-010/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-010.json
+    sha256: 542baaf1a82d608df15390f71dcd4ba0dd8786aefa78e0a70bec982e9e11b205
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via010-protocol
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via010-builder
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via010-falsifier
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via010-statistics
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via010-runner
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via010-claims
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via010-adjudicator
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via010-custodian
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via010-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-010-hidden-holdout.json
+    sha256: 6313827dd3cf52b0032fa1a378f6b97497c6592213543e8693cc87c8068900ef
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-010-secret-seed.json
+    sha256: a06b191912edc4b6411870006ebf7b0f2762c70891b26a4f21333be8f6f09f55
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-010
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    hidden-time-ledger:
+      receipt_id: raw-results
+      json_pointer: /capabilities/hidden-time-ledger
+      expected_type: boolean
+    structural-prior-disclosure:
+      receipt_id: raw-results
+      json_pointer: /capabilities/structural-prior-disclosure
+      expected_type: boolean
+    evaluator-leakage-audit:
+      receipt_id: raw-results
+      json_pointer: /capabilities/evaluator-leakage-audit
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: hidden-time-ledger
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: structural-prior-disclosure
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: evaluator-leakage-audit
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-010/protocol.json
+  sha256: 542baaf1a82d608df15390f71dcd4ba0dd8786aefa78e0a70bec982e9e11b205
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

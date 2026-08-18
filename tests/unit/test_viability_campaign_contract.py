@@ -3013,6 +3013,34 @@ def test_outcome_truth_table_is_deterministic(
 
 
 @pytest.mark.negative_control
+def test_dependent_packet_cannot_be_preregistered_before_dependencies_pass(
+    tmp_path: Path, frozen_repo: dict[str, Any]
+) -> None:
+    campaign_path, packets = _make_campaign(tmp_path, frozen_repo)
+    dependency = _load(packets["VIA-000"])
+    dependency["lifecycle_phase"] = "preregistered"
+    dependency["holdout_started"] = False
+    dependency["adjudication"].update(
+        round_status="not-run",
+        packet_outcome="pending",
+        cause_codes=["not-run"],
+        decisive_receipts=[],
+    )
+    _write_yaml(packets["VIA-000"], dependency)
+    packet = _load(packets["VIA-300"])
+    packet["lifecycle_phase"] = "preregistered"
+    _write_yaml(packets["VIA-300"], packet)
+    _set_campaign_outcome(campaign_path, "pending")
+
+    errors = validate_campaign(campaign_path, repo_root=frozen_repo["root"])
+    assert any(
+        "VIA-300: lifecycle preregistered started before dependency VIA-000 passed"
+        in error
+        for error in errors
+    )
+
+
+@pytest.mark.negative_control
 def test_holdout_cannot_start_until_dependencies_pass(
     tmp_path: Path, frozen_repo: dict[str, Any]
 ) -> None:

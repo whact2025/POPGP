@@ -1,0 +1,363 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R1-2026-08
+packet_id: VIA-100
+candidate_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
+tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
+protocol_commit: 792d2d2737dcf48cf14cbb3af78a64ba2daad1f6
+protocol_rule_sha256: af35b67e9f046601ec08db70b41967ab52139694306244eedda5e62e8d72f202
+lifecycle_phase: drafted
+claims:
+- C11
+- C12
+existing_gates:
+- GATE-SOURCE-KMS-RESPONSE
+- GATE-ENTROPY-CONFOUND
+- GATE-MODULAR-LOCALIZATION
+- GATE-PARAMETER-ROBUSTNESS
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- nonidentity-response
+- local-continuity
+- convention-stability
+- temporal-averaging
+- holdout-prediction
+capability_rules:
+  nonidentity-response:
+    compare:
+      left:
+        binding: nonidentity-response
+      op: eq
+      right:
+        value: true
+  local-continuity:
+    compare:
+      left:
+        binding: local-continuity
+      op: eq
+      right:
+        value: true
+  convention-stability:
+    compare:
+      left:
+        binding: convention-stability
+      op: eq
+      right:
+        value: true
+  temporal-averaging:
+    compare:
+      left:
+        binding: temporal-averaging
+      op: eq
+      right:
+        value: true
+  holdout-prediction:
+    compare:
+      left:
+        binding: holdout-prediction
+      op: eq
+      right:
+        value: true
+hypothesis: A nontrivial KMS-family source survives continuity, decomposition, temporal, parameter, and
+  held-out-coupling tests with one calibration.
+null_or_competitors:
+- The response is an algebraic identity.
+- Localization is convention-dependent beyond bounds.
+- No local continuity law exists.
+known_failure_to_retain: Retain raw-relative-entropy, affine-identity, entropy-confound, and reduced-modular
+  negative results.
+threat_model:
+- identity regression
+- numerical floor
+- decomposition tuning
+- per-case calibration
+- global-only conservation
+preregistration:
+  parameters:
+    noncommuting_family_count: 2
+    commuting_family_count: 2
+    sizes:
+    - 3
+    - 5
+    - 7
+    betas:
+    - 0.5
+    - 1.0
+    - 2.0
+    - 2.5
+    - 3.0
+    continuity_normalized_residual_max: 1.0e-06
+    convention_relative_spread_max: 0.1
+    temporal_retained_fraction_min: 0.8
+    susceptibility_error_margin_min: 10.0
+    single_global_calibration: true
+  measurement_procedure: Compare four named sources over commuting/noncommuting, affine/non-affine, isospectral,
+    equal-energy entropy, boundary, location, temperature, size, and held-out coupling families; derive
+    a local current and propagate the winner through the clock solve.
+  uncertainty_procedure: Cross-check the weakest susceptibility with independent extended precision and
+    propagate eigensolver, Richardson, continuity, convention, temporal, and clock errors.
+  statistical_analysis: Pass only if one nonidentity candidate clears the floor, global-sum and continuity
+    laws, convention and temporal bounds, and held-out predictions with one calibration.
+  resource_budget:
+    wall_time_seconds: 14400
+    memory_bytes: 17179869184
+    accelerator_seconds: 0
+  commands:
+  - uv run pytest -q tests/scientific/test_many_body_source_law.py tests/scientific/test_source_law_controls.py
+    tests/unit/test_simulator.py
+  - uv run python -m examples.physics_qg.source_law_many_body
+  mutation_plan:
+  - Add a first-order relative-entropy term.
+  - Change the local energy decomposition.
+  - Break one current sign.
+  - Select the temporal window after holdout.
+  - Refit clock normalization per case.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-100/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-100.json
+    sha256: 42cbd7e7c2d250b5798157ecdaaac1e09eaa0fb0d20a354c553851c0abc88858
+    media_type: application/json
+holdout_started: false
+seats:
+  protocol_designer:
+    agent_identity: codex-via100-protocol
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-protocol-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  builder:
+    agent_identity: codex-via100-builder
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-builder-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  falsifier:
+    agent_identity: codex-via100-falsifier
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-falsifier-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  statistical_auditor:
+    agent_identity: codex-via100-statistics
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-statistics-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  reproduction_runner:
+    agent_identity: codex-via100-runner
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-runner-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  claim_auditor:
+    agent_identity: codex-via100-claims
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-claims-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  adjudicator:
+    agent_identity: codex-via100-adjudicator
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-adjudicator-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+  evaluator_custodian:
+    agent_identity: codex-via100-custodian
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    session_id: popgp-viability-r1-2026-08-via100-custodian-session
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-100-hidden-holdout.json
+    sha256: 41911584abe08e6219e4caf7a9cc021de9895bbeb3389cfbd20794ac00f9a970
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-100-secret-seed.json
+    sha256: 5591f051dc34dea9e82688fb0e577966adb77d543cb5156c4d1feaceac5f20ef
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-100
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    nonidentity-response:
+      receipt_id: raw-results
+      json_pointer: /capabilities/nonidentity-response
+      expected_type: boolean
+    local-continuity:
+      receipt_id: raw-results
+      json_pointer: /capabilities/local-continuity
+      expected_type: boolean
+    convention-stability:
+      receipt_id: raw-results
+      json_pointer: /capabilities/convention-stability
+      expected_type: boolean
+    temporal-averaging:
+      receipt_id: raw-results
+      json_pointer: /capabilities/temporal-averaging
+      expected_type: boolean
+    holdout-prediction:
+      receipt_id: raw-results
+      json_pointer: /capabilities/holdout-prediction
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: nonidentity-response
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: local-continuity
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: convention-stability
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: temporal-averaging
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: holdout-prediction
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-100/protocol.json
+  sha256: 42cbd7e7c2d250b5798157ecdaaac1e09eaa0fb0d20a354c553851c0abc88858
+  media_type: application/json
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal
