@@ -31,8 +31,13 @@ _lib: ctypes.CDLL | None = None
 _dll_directory_handles: dict[Path, object] = {}
 
 
+def _is_windows() -> bool:
+    """Return whether the native loader should use Windows DLL semantics."""
+    return os.name == "nt"
+
+
 def _lib_filename() -> str:
-    if os.name == "nt":
+    if _is_windows():
         return "phase_flow.dll"
     elif sys.platform == "darwin":
         return "libphase_flow.dylib"
@@ -41,7 +46,7 @@ def _lib_filename() -> str:
 
 def _add_dll_directories() -> None:
     """Register directories that contain transitive DLL dependencies (Windows)."""
-    if os.name != "nt":
+    if not _is_windows():
         return
 
     dirs_to_add = [
@@ -81,7 +86,7 @@ def _load_library() -> ctypes.CDLL:
     # winmode=0 is required on Windows Python 3.8+ so that directories
     # registered via os.add_dll_directory() are actually searched when
     # resolving transitive DLL dependencies (CUDA runtime, fmt, etc.).
-    load_kwargs = {"winmode": 0} if os.name == "nt" else {}
+    load_kwargs = {"winmode": 0} if _is_windows() else {}
 
     errors: list[str] = []
     for d in search_dirs:

@@ -28,7 +28,7 @@ def test_cuda_dll_directories_are_registered_once_and_kept_alive(
 
     monkeypatch.setattr(engine, "_LIB_DIR", lib_dir)
     monkeypatch.setattr(engine, "_ENGINE_ROOT", engine_root)
-    monkeypatch.setattr(engine.os, "name", "nt")
+    monkeypatch.setattr(engine, "_is_windows", lambda: True)
     monkeypatch.setattr(
         engine.os, "add_dll_directory", add_dll_directory, raising=False
     )
@@ -67,7 +67,7 @@ def test_load_library_uses_platform_specific_dll_search_semantics(
 
     monkeypatch.setattr(engine, "_LIB_DIR", lib_dir)
     monkeypatch.setattr(engine, "_ENGINE_ROOT", tmp_path / "missing-engine")
-    monkeypatch.setattr(engine.os, "name", os_name)
+    monkeypatch.setattr(engine, "_is_windows", lambda: os_name == "nt")
     monkeypatch.setattr(engine, "_lib_filename", lambda: library.name)
     monkeypatch.setattr(engine, "_add_dll_directories", lambda: None)
     monkeypatch.setattr(engine.ctypes, "CDLL", load_library)
