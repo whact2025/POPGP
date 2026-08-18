@@ -13,6 +13,7 @@ TEST(AreaLawTest, BoundaryCutCalculation) {
     int h_dst[] = {1, 2};
     double h_w[] = {1.0, 5.0}; 
     int h_mask[] = {1, 1, 0};
+    double h_ent[] = {1.0, 1.0, 1.0};
     
     int *d_src, *d_dst, *d_mask;
     double *d_w, *d_cut, *d_ent;
@@ -28,6 +29,7 @@ TEST(AreaLawTest, BoundaryCutCalculation) {
     cudaMemcpy(d_dst, h_dst, num_edges * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_w, h_w, num_edges * sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_mask, h_mask, num_nodes * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ent, h_ent, num_nodes * sizeof(double), cudaMemcpyHostToDevice);
     
     // Run Cut Calculation
     launch_area_law_pruning(d_src, d_dst, d_w, d_mask, d_cut, d_ent, num_edges, num_nodes);
@@ -52,5 +54,52 @@ TEST(AreaLawTest, BoundaryCutCalculation) {
     
     cudaFree(d_src); cudaFree(d_dst); cudaFree(d_w);
     cudaFree(d_mask); cudaFree(d_cut); cudaFree(d_ent);
+}
+
+TEST(AreaLawTest, PruningTransitionsAreApplied) {
+    constexpr int num_nodes = 2;
+    constexpr int num_edges = 1;
+
+    int h_src[] = {0};
+    int h_dst[] = {1};
+    double h_w[] = {1.0};
+    int h_mask[] = {1, 0};
+    double h_ent[] = {0.01, 0.0};
+
+    int *d_src, *d_dst, *d_mask;
+    double *d_w, *d_cut, *d_ent;
+    ASSERT_EQ(cudaMalloc(&d_src, sizeof(h_src)), cudaSuccess);
+    ASSERT_EQ(cudaMalloc(&d_dst, sizeof(h_dst)), cudaSuccess);
+    ASSERT_EQ(cudaMalloc(&d_w, sizeof(h_w)), cudaSuccess);
+    ASSERT_EQ(cudaMalloc(&d_mask, sizeof(h_mask)), cudaSuccess);
+    ASSERT_EQ(cudaMalloc(&d_cut, num_nodes * sizeof(double)), cudaSuccess);
+    ASSERT_EQ(cudaMalloc(&d_ent, sizeof(h_ent)), cudaSuccess);
+
+    ASSERT_EQ(cudaMemcpy(d_src, h_src, sizeof(h_src), cudaMemcpyHostToDevice), cudaSuccess);
+    ASSERT_EQ(cudaMemcpy(d_dst, h_dst, sizeof(h_dst), cudaMemcpyHostToDevice), cudaSuccess);
+    ASSERT_EQ(cudaMemcpy(d_w, h_w, sizeof(h_w), cudaMemcpyHostToDevice), cudaSuccess);
+    ASSERT_EQ(cudaMemcpy(d_mask, h_mask, sizeof(h_mask), cudaMemcpyHostToDevice), cudaSuccess);
+    ASSERT_EQ(cudaMemcpy(d_ent, h_ent, sizeof(h_ent), cudaMemcpyHostToDevice), cudaSuccess);
+
+    launch_area_law_pruning(
+        d_src, d_dst, d_w, d_mask, d_cut, d_ent, num_edges, num_nodes
+    );
+    ASSERT_EQ(cudaGetLastError(), cudaSuccess);
+    ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+
+    int observed_mask[num_nodes] = {};
+    ASSERT_EQ(
+        cudaMemcpy(observed_mask, d_mask, sizeof(observed_mask), cudaMemcpyDeviceToHost),
+        cudaSuccess
+    );
+    EXPECT_EQ(observed_mask[0], 0);
+    EXPECT_EQ(observed_mask[1], 1);
+
+    EXPECT_EQ(cudaFree(d_src), cudaSuccess);
+    EXPECT_EQ(cudaFree(d_dst), cudaSuccess);
+    EXPECT_EQ(cudaFree(d_w), cudaSuccess);
+    EXPECT_EQ(cudaFree(d_mask), cudaSuccess);
+    EXPECT_EQ(cudaFree(d_cut), cudaSuccess);
+    EXPECT_EQ(cudaFree(d_ent), cudaSuccess);
 }
 

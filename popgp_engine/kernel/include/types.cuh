@@ -32,7 +32,10 @@ extern "C" POPGP_API void launch_area_law_pruning(
     int num_edges, int num_nodes
 );
 
-extern "C" POPGP_API void solve_clock_potential(
+// The native clock solver is intentionally unavailable until the graph
+// Laplacian implementation is complete. Callers must check the returned status.
+constexpr int POPGP_STATUS_NOT_IMPLEMENTED = -1;
+extern "C" POPGP_API int solve_clock_potential(
     const int* src, const int* dst, const double* w,
     const double* rho, 
     double* phi,

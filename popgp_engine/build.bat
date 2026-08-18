@@ -40,6 +40,9 @@ shift
 goto parse_loop
 
 :check_env
+cmake -DPOPGP_CUDA_ARCHITECTURE=!CUDA_ARCH! -P cmake/ValidateCudaArchitecture.cmake
+if errorlevel 1 exit /b 1
+
 :: Check if we are already in a VS Command Prompt (cl.exe exists)
 where cl.exe >nul 2>nul
 if %errorlevel% equ 0 goto check_vcpkg
@@ -122,7 +125,7 @@ if errorlevel 1 (
     echo Error: ninja.exe not found. Install Ninja or add it to PATH.
     exit /b 1
 )
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=!CONFIG! -DCMAKE_CUDA_ARCHITECTURES=!CUDA_ARCH! "-DCMAKE_TOOLCHAIN_FILE=!VCPKG_CMAKE!"
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=!CONFIG! -DCMAKE_CUDA_ARCHITECTURES=!CUDA_ARCH! -DPOPGP_REQUIRE_VISIBLE_CUDA_ARCH=ON "-DCMAKE_TOOLCHAIN_FILE=!VCPKG_CMAKE!"
 if errorlevel 1 exit /b 1
 
 :: 3. Build
@@ -133,10 +136,10 @@ if errorlevel 1 exit /b 1
 :: 4. Tests
 if "%RUN_TESTS%"=="true" (
     echo Running Tests...
-    cd build
-    ctest -C !CONFIG! --output-on-failure
+    cmake "-DPOPGP_BUILD_DIR=%CD%/build" -DPOPGP_CONFIG=!CONFIG! -P cmake/VerifyCTestCount.cmake
     if errorlevel 1 exit /b 1
-    cd ..
+    ctest --test-dir build -C !CONFIG! --output-on-failure --no-tests=error
+    if errorlevel 1 exit /b 1
 )
 
 echo Build Complete!

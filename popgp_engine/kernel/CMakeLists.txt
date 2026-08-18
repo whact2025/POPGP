@@ -2,6 +2,12 @@
 
 # Find CUDA Toolkit for Runtime API (cudart) and Solvers
 find_package(CUDAToolkit REQUIRED)
+find_program(
+    POPGP_CUOBJDUMP_EXECUTABLE
+    NAMES cuobjdump
+    HINTS "${CUDAToolkit_BIN_DIR}"
+    REQUIRED
+)
 
 # Kernel Library (Phase Flow) - Build as SHARED for Python/DLL usage
 add_library(phase_flow SHARED
@@ -29,6 +35,12 @@ set_target_properties(phase_flow PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
 set(POPGP_PY_LIB_DIR "${CMAKE_SOURCE_DIR}/../popgp/_lib")
 
 add_custom_command(TARGET phase_flow POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+        "-DPOPGP_CUDA_BINARY=$<TARGET_FILE:phase_flow>"
+        "-DPOPGP_CUDA_ARCHITECTURE=${CMAKE_CUDA_ARCHITECTURES}"
+        "-DPOPGP_CUOBJDUMP_EXECUTABLE=${POPGP_CUOBJDUMP_EXECUTABLE}"
+        "-DPOPGP_REQUIRE_VISIBLE_CUDA_ARCH=${POPGP_REQUIRE_VISIBLE_CUDA_ARCH}"
+        -P "${CMAKE_SOURCE_DIR}/cmake/VerifyCudaBinary.cmake"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${POPGP_PY_LIB_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:phase_flow>
@@ -46,6 +58,7 @@ endif()
 
 # Link against phase_flow, fmt (header-only), and CUDA Runtime
 target_link_libraries(popgp_sim PRIVATE phase_flow fmt::fmt-header-only CUDA::cudart)
+add_test(NAME benchmark_validation COMMAND popgp_sim)
 
 # Unit Tests
 find_package(GTest CONFIG REQUIRED)
@@ -54,6 +67,7 @@ add_executable(popgp_tests
     tests/test_main.cpp
     tests/test_phase_flow.cu
     tests/test_area_law.cu
+    tests/test_clock.cu
 )
 if(MSVC)
     target_compile_options(popgp_tests PRIVATE 
@@ -66,4 +80,12 @@ target_link_libraries(popgp_tests PRIVATE phase_flow GTest::gtest)
 # Register Tests
 include(GoogleTest)
 gtest_discover_tests(popgp_tests)
+
+# Four phase/area tests existed before the remediation. The clock failure-mode
+# and pruning-behaviour tests add two, and benchmark_validation adds one.
+set(POPGP_EXPECTED_NATIVE_TESTS 7)
+file(GENERATE
+    OUTPUT "${CMAKE_BINARY_DIR}/popgp_expected_native_tests.txt"
+    CONTENT "${POPGP_EXPECTED_NATIVE_TESTS}\n"
+)
 

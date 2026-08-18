@@ -27,6 +27,9 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+cmake -DPOPGP_CUDA_ARCHITECTURE="$CUDA_ARCH" \
+    -P cmake/ValidateCudaArchitecture.cmake
+
 echo "--- POPGP Engine Build ($CONFIG, CUDA architecture $CUDA_ARCH) ---"
 
 # 1. Clean
@@ -47,7 +50,8 @@ else
 fi
 
 cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE="$CONFIG" \
-    -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCH" $TOOLCHAIN
+    -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCH" \
+    -DPOPGP_REQUIRE_VISIBLE_CUDA_ARCH=ON $TOOLCHAIN
 
 # 3. Build
 echo "Building..."
@@ -56,9 +60,9 @@ cmake --build build --config $CONFIG
 # 4. Tests
 if [ "$RUN_TESTS" = true ]; then
     echo "Running Tests..."
-    cd build
-    ctest -C $CONFIG --output-on-failure
-    cd ..
+    cmake -DPOPGP_BUILD_DIR="$PWD/build" -DPOPGP_CONFIG="$CONFIG" \
+        -P cmake/VerifyCTestCount.cmake
+    ctest --test-dir build -C "$CONFIG" --output-on-failure --no-tests=error
 fi
 
 echo "Build Complete!"

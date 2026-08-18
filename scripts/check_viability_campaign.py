@@ -2520,6 +2520,12 @@ def _validate_packet(
 
     phase = packet["lifecycle_phase"]
     if LIFECYCLE_ORDER[phase] >= LIFECYCLE_ORDER["preregistered"]:
+        for dependency in requirement["dependencies"]:
+            if packet_outcomes.get(dependency) != "passed":
+                errors.append(
+                    f"packet {packet_id}: lifecycle {phase} started before dependency "
+                    f"{dependency} passed"
+                )
         missing_capabilities = set(requirement["required_capabilities"]) - set(
             packet["capabilities"]
         )

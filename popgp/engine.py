@@ -146,7 +146,13 @@ class Engine:
         self.precision = precision
 
     def step(self, d_alphas, d_betas, d_src, d_dst, d_weights, dt: float):
-        """Run one phase-order step of the kernel (Section 4.4.1)."""
+        """Run one phase-order step of the kernel (Section 4.4.1).
+
+        The edge arrays must describe a node-disjoint batch: no source or
+        destination index may occur in more than one edge in this call. The
+        kernel updates endpoints in place and does not perform graph coloring;
+        callers such as ``GPUBackend`` must submit colored batches separately.
+        """
         lib = _get_lib()
 
         ptr_a = self._get_ptr(d_alphas)

@@ -6,6 +6,8 @@ Review-protocol remediation verified: 2026-08-10 (America/New_York).
 
 Blackwell native-build calibration verified: 2026-08-13 (America/New_York).
 
+Blackwell review remediation verified: 2026-08-17 (America/New_York).
+
 ## Environment
 
 - Windows / PowerShell
@@ -15,8 +17,10 @@ Blackwell native-build calibration verified: 2026-08-13 (America/New_York).
 - Locked environment from `uv.lock`
 - NVIDIA RTX PRO 3000 Blackwell Generation Laptop GPU, compute capability 12.0,
   driver 595.79, 12,227 MiB
-- CUDA 13.3.73 development tools in an isolated local extraction; the locked Python
-  environment remains CPU-only (`torch 2.10.0+cpu`)
+- CUDA 13.3.73 development tools in the isolated local extraction
+  `C:\src\POPGP-cuda-toolkit-13.3\local`; the installer URL and SHA-256 are pinned
+  in `popgp_engine/kernel/README.md`; the locked Python environment remains CPU-only
+  (`torch 2.10.0+cpu`)
 - pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
 - GitHub CLI 2.97.0; authenticated as `fuocor`
 
@@ -29,8 +33,8 @@ layout warnings and the missing bibliography remain recorded limitations.
 ## Commands
 
 ```text
-uv sync
-uv run ruff check popgp tests examples
+uv sync --frozen
+uv run ruff check .
 uv run pytest -q
 uv run python -m examples.physics_qg.chain_1d
 uv run python -m examples.physics_qg.grid_2d
@@ -48,7 +52,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | ~907 s | 180 passed |
+| `pytest -q` | 1119 s | 187 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -56,14 +60,25 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 | many-body source-law example | 9 s | direct quadratic/floor gates and Kubo--Mori/Richardson susceptibility pass through β=3, including β=2.5 |
 | CA analogy | 9 s | population declined 33 to 27; overall check fails; PNG/GIF/JSON regenerated |
 
-The experimental native engine was independently configured and compiled with
-MSVC 19.50, CUDA 13.3.73, and native `sm_120` cubins. Its four CUDA tests passed on
-the Blackwell device. The one-million-cell benchmark completed 100 two-color phase
-steps in 166.45 ms (approximately `6.01e8` cell-updates/s). A separate CUDA-enabled
-PyTorch 2.10 probe exercised the Python `GPUBackend` through the compiled DLL on 64
-cells; the step was finite and nontrivial, with maximum per-cell norm error
-`5.55e-16`. These are implementation and throughput calibrations, not evidence that
-the mean-field backend reproduces exact MI/QCMI or the full projection pipeline.
+The original 2026-08-13 native receipt is superseded as verification evidence because
+its CTest invocation could succeed with zero discovered tests and its benchmark did
+not validate kernel execution or output. The 2026-08-17 remediation build used MSVC
+19.50, CUDA 13.3.73, the pinned vcpkg commit, and explicit architecture 120. The build
+gate independently enumerated exactly seven CTest cases, all of which passed: three
+phase-flow controls, boundary-cut calculation, pruning transitions, explicit clock
+not-implemented behavior, and the self-validating benchmark. `cuobjdump --list-elf`
+reported three `sm_120` cubins.
+
+The hardened one-million-cell benchmark performed a warmup outside the timed region,
+checked every launch and synchronization, read the final state back, and rejected
+nonfinite or non-unit-norm output. A repeat completed 100 two-color steps in 448.57 ms
+(`2.23e8` edge-updates/s), emitted FNV-1a-64 state checksum
+`48e6ef8f40cb137c`, and reported maximum norm error
+`1.1435297153639112e-14`. A separate CUDA-enabled PyTorch 2.10 probe exercised the
+Python `GPUBackend` through the rebuilt DLL on 64 cells; the step was finite and
+nontrivial, with maximum per-cell norm error `5.55e-16`. These remain implementation
+and throughput calibrations, not evidence that the mean-field backend reproduces exact
+MI/QCMI or the full projection pipeline.
 
 All examples regenerated their committed `validation.json` artifacts. Wall-clock
 timestamps have been removed, and every result artifact was byte-identical across two
