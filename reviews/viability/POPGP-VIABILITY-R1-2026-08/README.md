@@ -28,8 +28,12 @@ the physical mechanism or Tier R.
   decisive campaign receipt and cannot satisfy the E3 evidence floor.
 - A builder-owned Blackwell/native calibration is retained in
   [`calibration/VIA-300-Blackwell-2026-08-13.md`](calibration/VIA-300-Blackwell-2026-08-13.md).
-  It confirms executable CUDA hardware and native `sm_120` code, but it is not an
-  independent VIA-300 receipt and does not establish Tier R.
+  Its native test and benchmark evidence is superseded by the hardened remediation
+  record in
+  [`calibration/VIA-300-Blackwell-remediation-2026-08-17.md`](calibration/VIA-300-Blackwell-remediation-2026-08-17.md).
+  The remediation confirms executable CUDA hardware and validated native `sm_120`
+  code, but remains builder-owned calibration, not an independent VIA-300 receipt,
+  and does not establish Tier R.
 
 ## Validation
 
