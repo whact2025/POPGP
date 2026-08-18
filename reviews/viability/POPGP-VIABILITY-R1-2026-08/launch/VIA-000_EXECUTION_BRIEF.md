@@ -11,8 +11,8 @@ that honest limitation or trigger a pre-holdout protocol amendment; it must not 
 
 ## Frozen identities
 
-- Scientific candidate: `e6f8dc5a55032f92ecfd5a18505705fd9387f1d4`
-- Candidate tree: `a5c44686e72ed9c2f99988b8136078151e59416d`
+- Scientific candidate: `9a29e05f803666bf0e3a28417ea399e3e26769fc`
+- Candidate tree: `358fb1af6ca587b6c71ff2ef0fb87e335163eeaf`
 - Baseline: `70c867552279b74d5ce1a7bc5c50d5a980cf81e6`
 - Protocol snapshot: `f2db74bdd57d6e112aae5f893a1969babb605c54`
 - Activated campaign handoff: `PENDING-ACTIVATION-COMMIT`
@@ -102,7 +102,7 @@ is popgp-viability-r1-2026-08-via000-runner-session.
 
 Start only after the packet is validator-clean in attacked/holdout-started state.
 Use fresh exact-SHA clones of scientific candidate
-e6f8dc5a55032f92ecfd5a18505705fd9387f1d4. Do not inspect the sealed holdout or seed.
+9a29e05f803666bf0e3a28417ea399e3e26769fc. Do not inspect the sealed holdout or seed.
 Run every command in protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json on Linux and
 Windows as specified, repeat the PDF command twice, execute the six committed mutation
 tests corresponding exactly to the mutation plan, and retain raw stdout/stderr,
@@ -141,7 +141,7 @@ popgp-viability-r1-2026-08-via000-claims-session.
 
 Read the required governance and docs/templates/INDEPENDENT_REVIEW_TEMPLATE.md plus
 schemas/viability/independent-review-v2.schema.json. Audit scientific candidate
-e6f8dc5a55032f92ecfd5a18505705fd9387f1d4 and the immutable VIA-000 evidence/attack/
+9a29e05f803666bf0e3a28417ea399e3e26769fc and the immutable VIA-000 evidence/attack/
 statistical receipts. Independently rerun targeted checks and counterexamples. Verify
 that a VIA-000 pass would establish only evidence integrity, not mechanism viability,
 GR, Lorentz recovery, continuum behavior, native scalability, or external empirical

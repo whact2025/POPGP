@@ -2,9 +2,9 @@ schema_version: 2
 contract_version: popgp-viability-contract-v2
 campaign_id: POPGP-VIABILITY-R1-2026-08
 packet_id: VIA-000
-candidate_commit: e6f8dc5a55032f92ecfd5a18505705fd9387f1d4
+candidate_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
-tree_hash: a5c44686e72ed9c2f99988b8136078151e59416d
+tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
 protocol_commit: f2db74bdd57d6e112aae5f893a1969babb605c54
 protocol_rule_sha256: 7442a27199884a16cd6fd9ba37300a7ec8f32d33b7a984c6b24e7b2ec85cf304
 lifecycle_phase: preregistered
@@ -67,8 +67,8 @@ threat_model:
 - silent check, threshold, shape, configuration, or visual weakening
 preregistration:
   parameters:
-    candidate_commit: e6f8dc5a55032f92ecfd5a18505705fd9387f1d4
-    candidate_tree: a5c44686e72ed9c2f99988b8136078151e59416d
+    candidate_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+    candidate_tree: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
     dependency_lock: uv.lock
     python_minor: '3.11'
     platform_families:
@@ -120,7 +120,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json
-    sha256: f4da0db041bcba6f4ad4c8082b8cd40fe1aaaf9b09fbbca9aea6013ff787ed05
+    sha256: cd55611ffa11e16ded3a336eeb3a6fa07b5136e43e3742d9db13a152c9bb7e44
     media_type: application/json
 holdout_started: false
 seats:
@@ -325,7 +325,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: f4da0db041bcba6f4ad4c8082b8cd40fe1aaaf9b09fbbca9aea6013ff787ed05
+  sha256: cd55611ffa11e16ded3a336eeb3a6fa07b5136e43e3742d9db13a152c9bb7e44
   media_type: application/json
 review_chain:
   initial_review_receipt: null

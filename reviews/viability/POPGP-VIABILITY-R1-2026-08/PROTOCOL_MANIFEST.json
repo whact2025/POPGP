@@ -3,9 +3,9 @@
     "contract_version":  "popgp-viability-contract-v2",
     "requirements_version":  "popgp-viability-requirements-v2",
     "campaign_id":  "POPGP-VIABILITY-R1-2026-08",
-    "candidate_commit":  "e6f8dc5a55032f92ecfd5a18505705fd9387f1d4",
+    "candidate_commit":  "9a29e05f803666bf0e3a28417ea399e3e26769fc",
     "baseline_commit":  "70c867552279b74d5ce1a7bc5c50d5a980cf81e6",
-    "tree_hash":  "a5c44686e72ed9c2f99988b8136078151e59416d",
+    "tree_hash":  "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
     "packet_freeze_version":  "popgp-packet-freeze-v4",
     "requirements":  {
                          "path":  "schemas/viability/requirements-v2.json",
@@ -54,12 +54,12 @@
                            }
                        ],
     "packet_rule_sha256":  {
-                               "VIA-000":  "7442a27199884a16cd6fd9ba37300a7ec8f32d33b7a984c6b24e7b2ec85cf304",
-                               "VIA-010":  "0a030693ec6acff7c3fc3be7b96d4f8f2a041cb128188a3d9390640c0f36c033",
-                               "VIA-100":  "e2d1ff13b90e1cadb9734f587f4aa1b563cadf1e335a16184c31b0ff63b4cdf3",
-                               "VIA-150":  "27760d7ea53b3096f69543cccf1783c4069137250ffa9b8d2fcdc70d97061fb1",
-                               "VIA-200":  "40376add3eba37341bbf5867787dbf1a691271fea0a05bbbd0dd0f038ac237eb",
-                               "VIA-300":  "7a2ac253e7f80789819df0259b7f1e9bbf7a259c98e79c467011f6be06c61228",
-                               "VIA-400":  "4b6f9ec2cec28f81e1d7fb591a969258935297e61ee95323ce5d19928e04ff2b"
+                               "VIA-000":  "7f888d469d840d9c04c81b4f3f6276d9a9f57b6859ffe447febb2d8b0f0f1f2a",
+                               "VIA-010":  "24929a18f6414e1bc4ebf153fc0b19d0b29238d4c2626d04f715e050b181daf1",
+                               "VIA-100":  "af35b67e9f046601ec08db70b41967ab52139694306244eedda5e62e8d72f202",
+                               "VIA-150":  "03226be4cd8317ad74349659969ab361bac6027cdc914410a0d33f54d76e6504",
+                               "VIA-200":  "d6d64c63493f42b0d8c225bbbb82b6a47fc0ce8cdf2ff8692864dc526e67437b",
+                               "VIA-300":  "4a58c1f7b8a20a7595bc2453b16e6088cd97e119a945b690f097bbb81ee53cc1",
+                               "VIA-400":  "c380dbc8cea736247c0e11d1e5c2029ebdb4525fc7e2280182ef1cdb09cc841c"
                            }
 }

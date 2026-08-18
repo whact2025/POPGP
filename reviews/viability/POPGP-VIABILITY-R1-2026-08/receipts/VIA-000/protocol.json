@@ -2,8 +2,8 @@
   "schema_version": 1,
   "packet_id": "VIA-000",
   "parameters": {
-    "candidate_commit": "e6f8dc5a55032f92ecfd5a18505705fd9387f1d4",
-    "candidate_tree": "a5c44686e72ed9c2f99988b8136078151e59416d",
+    "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+    "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
     "dependency_lock": "uv.lock",
     "python_minor": "3.11",
     "platform_families": [
