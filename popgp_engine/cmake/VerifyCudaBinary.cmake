@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.18)
+
 if(NOT DEFINED POPGP_CUDA_BINARY OR NOT EXISTS "${POPGP_CUDA_BINARY}")
     message(FATAL_ERROR "POPGP_CUDA_BINARY must name an existing binary")
 endif()
