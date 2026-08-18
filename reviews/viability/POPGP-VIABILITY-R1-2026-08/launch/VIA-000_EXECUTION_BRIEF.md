@@ -14,8 +14,8 @@ that honest limitation or trigger a pre-holdout protocol amendment; it must not 
 - Scientific candidate: `e6f8dc5a55032f92ecfd5a18505705fd9387f1d4`
 - Candidate tree: `a5c44686e72ed9c2f99988b8136078151e59416d`
 - Baseline: `70c867552279b74d5ce1a7bc5c50d5a980cf81e6`
-- Protocol snapshot: `8c3c4d53cddf28b0c51dc7b6c21eab49d28d0f9d`
-- Activated campaign handoff: `99f13dcc04d556892495e8e2361d257b1b2c113b`
+- Protocol snapshot: `f2db74bdd57d6e112aae5f893a1969babb605c54`
+- Activated campaign handoff: `PENDING-ACTIVATION-COMMIT`
 - Campaign: `reviews/viability/POPGP-VIABILITY-R1-2026-08/CAMPAIGN.yaml`
 - Packet: `reviews/viability/POPGP-VIABILITY-R1-2026-08/packets/VIA-000.yaml`
 - Primary protocol: `protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json`
@@ -82,7 +82,7 @@ Your frozen seat identity is codex-via000-falsifier and your session ID is
 popgp-viability-r1-2026-08-via000-falsifier-session.
 
 Use a fresh isolated task at activated handoff
-99f13dcc04d556892495e8e2361d257b1b2c113b. Read the required public files named in
+PENDING-ACTIVATION-COMMIT. Read the required public files named in
 VIA-000_EXECUTION_BRIEF.md. Do not request or inspect sealed manifests, final labels,
 or builder conclusions. Independently construct executable attacks for all six frozen
 mutation families and add boundary attacks for undeclared state, OS-only success,
