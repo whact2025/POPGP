@@ -1103,7 +1103,50 @@ def main() -> int:
             raise RuntimeError("pinned pdfTeX 1.40.29 / TeX Live 2026 is unavailable")
         protocol_result, external_pdf = run_main_protocol(harness)
         pdf_result = copy_pdf_evidence(external_pdf, output)
-        if protocol_result["all_commands_succeeded"]:
+        mutation_baseline_ready = protocol_result["all_commands_succeeded"]
+        mutation_baseline: dict[str, Any] = {
+            "ready": mutation_baseline_ready,
+            "restored_after_recorded_protocol_failure": False,
+            "restored_paths": [],
+            "command_ids": [],
+        }
+        command_by_id = {command["id"]: command for command in protocol_result["commands"]}
+        reproducible_dirty_regeneration = (
+            not mutation_baseline_ready
+            and protocol_result["required_test_count_met"]
+            and protocol_result["required_example_count_met"]
+            and command_by_id.get("semantic-checker", {}).get("exit_code") == 0
+            and command_by_id.get("pdflatex-pass-1", {}).get("exit_code") == 0
+            and command_by_id.get("pdflatex-pass-2", {}).get("exit_code") == 0
+            and command_by_id.get("git-diff", {}).get("exit_code") != 0
+            and command_by_id.get("postflight", {}).get("exit_code") != 0
+        )
+        if reproducible_dirty_regeneration:
+            changed = harness.run(
+                "mutation-baseline-changed-paths",
+                "git diff --name-only",
+                ["git", "diff", "--name-only"],
+                category="runner-control",
+            )
+            changed_paths = [
+                line.strip() for line in harness.stdout(changed).splitlines() if line.strip()
+            ]
+            if changed["exit_code"] == 0 and changed_paths:
+                harness.git_restore(*changed_paths)
+                restored_boundary = postflight(
+                    harness,
+                    "mutation-baseline-restored-postflight",
+                    category="runner-control",
+                )
+                mutation_baseline_ready = restored_boundary["exit_code"] == 0
+                mutation_baseline = {
+                    "ready": mutation_baseline_ready,
+                    "restored_after_recorded_protocol_failure": True,
+                    "restored_paths": changed_paths,
+                    "command_ids": [changed["id"], restored_boundary["id"]],
+                }
+        protocol_result["mutation_baseline"] = mutation_baseline
+        if mutation_baseline_ready:
             run_mutations(harness)
     except Exception as exc:  # evidence must survive unexpected runner failures
         harness_error = f"{type(exc).__name__}: {exc}"
