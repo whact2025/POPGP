@@ -157,12 +157,19 @@ if result.pi_time is not None:
     phi_mean = phi.mean()
 
     fig, ax = plt.subplots(figsize=(6, 5))
-    im = ax.imshow(phi_grid, cmap="inferno", origin="lower")
-    fig.colorbar(im, ax=ax, label="Phi (Clock-Rate Potential)")
     effective_source_norm = float(
         torch.linalg.vector_norm(result.pi_time.delta_rho).item()
     )
     placeholder_degenerate = effective_source_norm < 1e-12 and phi_range < 1e-12
+    display_phi_grid = np.zeros_like(phi_grid) if placeholder_degenerate else phi_grid
+    display_limits = {"vmin": -1e-12, "vmax": 1e-12} if placeholder_degenerate else {}
+    im = ax.imshow(
+        display_phi_grid,
+        cmap="inferno",
+        origin="lower",
+        **display_limits,
+    )
+    fig.colorbar(im, ax=ax, label="Phi (Clock-Rate Potential)")
     ax.set_title("Placeholder Clock Diagnostic (Constant Source Removed)")
     if placeholder_degenerate:
         ax.text(
@@ -176,7 +183,7 @@ if result.pi_time is not None:
 
     for iy in range(HEIGHT):
         for ix in range(WIDTH):
-            ax.text(ix, iy, f"{phi_grid[iy, ix]:.1f}",
+            ax.text(ix, iy, f"{display_phi_grid[iy, ix]:.1f}",
                     ha="center", va="center", fontsize=8, color="white")
 
     fig.tight_layout()

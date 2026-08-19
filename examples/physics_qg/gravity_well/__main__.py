@@ -327,13 +327,28 @@ print(f"Saved: {results / 'gravity_embedding.png'}")
 if phi_natural is not None:
     fig3, (ax4, ax5) = plt.subplots(1, 2, figsize=(12, 5))
 
-    im4 = ax4.imshow(phi_natural.reshape(HEIGHT, WIDTH), cmap="inferno",
-                      origin="lower", interpolation="bilinear")
+    natural_placeholder_degenerate = (
+        float(np.ptp(phi_natural)) < 1e-12
+        and float(np.max(np.abs(phi_natural))) < 1e-12
+    )
+    phi_natural_display = (
+        np.zeros_like(phi_natural) if natural_placeholder_degenerate else phi_natural
+    )
+    natural_display_limits = (
+        {"vmin": -1e-12, "vmax": 1e-12} if natural_placeholder_degenerate else {}
+    )
+    im4 = ax4.imshow(
+        phi_natural_display.reshape(HEIGHT, WIDTH),
+        cmap="inferno",
+        origin="lower",
+        interpolation="bilinear",
+        **natural_display_limits,
+    )
     fig3.colorbar(im4, ax=ax4, label="Phi")
     ax4.set_title("Pipeline Placeholder (von Neumann entropy)")
     for iy in range(HEIGHT):
         for ix in range(WIDTH):
-            val = phi_natural[iy * WIDTH + ix]
+            val = phi_natural_display[iy * WIDTH + ix]
             ax4.text(ix, iy, f"{val:.1f}", ha="center", va="center",
                      fontsize=9, fontweight="bold", color="white")
 

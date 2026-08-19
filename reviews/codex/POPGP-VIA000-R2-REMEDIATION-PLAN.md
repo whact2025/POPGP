@@ -26,6 +26,8 @@ fresh preregistration before any new holdout execution.
 2. Raster outputs compare format, geometry, mode, frame count, normalized mean pixel
    error, and the fraction of channels with a large error. Encoded bytes and metadata
    are not treated as scientific observables.
+   Plot fields already classified as zero at roundoff are rendered from canonical zero
+   display data with fixed color limits, while their raw diagnostics remain unchanged.
 3. Regeneration may modify only artifacts declared by the validation documents. Any
    source/configuration change or untracked repository residue fails closed.
 4. A base interpreter snapshots every `.pth`, `sitecustomize.py`, and
