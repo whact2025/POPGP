@@ -45,7 +45,7 @@ uv run --frozen --no-editable python -m examples.physics_qg.gravity_well
 uv run --frozen --no-editable python -m examples.physics_qg.source_law
 uv run --frozen --no-editable python -m examples.physics_qg.source_law_many_body
 uv run --frozen --no-editable python -m examples.physics_qg.ca_model
-uv run --frozen --no-editable python scripts/check_validation_artifacts.py --enforce-change-boundary
+uv run --frozen --no-editable python -m scripts.check_validation_artifacts --enforce-change-boundary
 ```
 
 `.github/workflows/ci.yml` is authoritative. The README and this runbook intentionally

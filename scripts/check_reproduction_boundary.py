@@ -80,7 +80,13 @@ def _process_boundary_errors() -> list[str]:
             os.path.normcase(str(Path(sys.executable).resolve()))
             == os.path.normcase(str(Path(base_executable).resolve()))
         )
-    if sys.prefix != sys.base_prefix or not running_base:
+    invoked_executable = Path(sys.executable).absolute()
+    environment_configuration = invoked_executable.parent.parent / "pyvenv.cfg"
+    invoked_from_environment = (
+        invoked_executable.parent.name.lower() in {"bin", "scripts"}
+        and environment_configuration.is_file()
+    )
+    if sys.prefix != sys.base_prefix or not running_base or invoked_from_environment:
         errors.append("base interpreter required")
     return errors
 

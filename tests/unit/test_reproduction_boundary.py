@@ -199,6 +199,35 @@ def test_snapshot_creation_requires_base_interpreter_and_clean_environment(
     with pytest.raises(ValueError, match="base interpreter|required|blocked environment"):
         write_snapshot(tmp_path, Path(".venv"), manifest_path)
 
+    real_environment = tmp_path / "real-environment"
+    subprocess.run(
+        [str(_base_python()), "-I", "-S", "-m", "venv", str(real_environment)],
+        check=True,
+        env=_base_environment(),
+    )
+    environment_python = real_environment / (
+        "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    )
+    environment_attempt = subprocess.run(
+        [
+            str(environment_python),
+            "-I",
+            "-S",
+            str(SCRIPT),
+            "--repo-root",
+            str(tmp_path),
+            "snapshot",
+            "--output",
+            str(manifest_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_base_environment(),
+    )
+    assert environment_attempt.returncode == 2
+    assert "base interpreter required" in environment_attempt.stderr
+
     completed = subprocess.run(
         [
             str(_base_python()),
