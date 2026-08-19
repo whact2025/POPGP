@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "receipt_kind": "claim-diff",
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "packet_id": "VIA-000",
+  "created_at": "2026-08-19T16:56:03.9699926Z",
+  "created_by": "codex-via000-claims",
+  "session_id": "popgp-viability-r1-2026-08-via000-claims-session",
+  "audit_mode": "receipt-only-no-candidate-rerun",
+  "audited_handoff_commit": "fe11cdd4e1d5ec1881cc1b224a3a9a62cbb1a617",
+  "audited_handoff_tree": "419b46498d7267f8554692963e9a267592770737",
+  "source_audit_ref": "e0bb7d3287997cec543980b1195f809922912070:reviews/independent_reviewer/POPGP-VIABILITY-R1-2026-08-VIA-000-CLAIM-AUDIT-1.md",
+  "source_audit_sha256": "2d7d6510c53c04d4e009b22e6ea028f933ad69a8b4cf2f9096395871a2f2e595",
+  "result": {
+    "claim_promotion_supported": false,
+    "tier_r_advance_supported": false,
+    "packet_failed": true,
+    "packet_blocked": false,
+    "capabilities": {
+      "evidence-contract": false,
+      "cross-platform-reproduction": false,
+      "mutation-rejection": false
+    },
+    "scope": "The frozen VIA-000 reproducibility and evidence-integrity hypothesis failed. This does not falsify the physical mechanism claims; their existing wording remains appropriately narrow."
+  },
+  "evidence": {
+    "raw_results_sha256": "7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641",
+    "output_commitment_sha256": "0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b",
+    "statistical_audit_sha256": "1c3d020ea76d5f049fedd0de68fe45db8722996119d755384b0fe0725947caf9",
+    "windows_protocol_passed": true,
+    "linux_functional_checks_passed": true,
+    "linux_clean_regeneration_passed": false,
+    "linux_exact_mutation_oracle_passed": false
+  },
+  "limitations": [
+    "This is internal process separation under the same operator and orchestrator, not external scientific validation.",
+    "The exact runtime model identity and version were not exposed.",
+    "The auditor read only public post-reveal receipts and did not rerun the candidate."
+  ]
+}

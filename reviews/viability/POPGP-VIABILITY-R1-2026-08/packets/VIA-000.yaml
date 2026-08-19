@@ -398,6 +398,16 @@ receipts:
   path: ../receipts/VIA-000/reveal-record.json
   sha256: dfaa18a6b1e8c4e7b8a3313a379d2c1cd5177d8aa89e9a3d32ea095f96d8a409
   media_type: application/json
+- id: statistical-audit
+  kind: statistical-audit
+  path: ../receipts/VIA-000/statistical-audit.json
+  sha256: 1c3d020ea76d5f049fedd0de68fe45db8722996119d755384b0fe0725947caf9
+  media_type: application/json
+- id: claim-diff
+  kind: claim-diff
+  path: ../receipts/VIA-000/claim-diff.json
+  sha256: abe6ba67c23b35504c7e23fc61528853b32c5a168e841c8bb34364fb55e50072
+  media_type: application/json
 review_chain:
   initial_review_receipt: null
   initial_review_ref: null

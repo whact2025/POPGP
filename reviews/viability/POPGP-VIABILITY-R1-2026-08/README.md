@@ -18,8 +18,9 @@ the physical mechanism or Tier R.
 ## Current state
 
 - Campaign decision: `pending`.
-- `VIA-000`: reproduced with a fail-closed raw result; independent audits, custody
-  reveal, and adjudication remain pending. The Windows run passed the frozen protocol
+- `VIA-000`: reproduced with a fail-closed raw result; the statistical and claim
+  audits and custody reveal are complete, while independent review and adjudication
+  remain pending. The Windows run passed the frozen protocol
   and rejected all ten mutations. The exact Linux run completed but failed the frozen
   cleanliness boundary after regeneration and did not reject the tenth mutation under
   the exact postflight oracle. Holdout started after the seventh clean falsifier
