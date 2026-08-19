@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import py_compile
 import subprocess
 import sys
 from pathlib import Path
@@ -64,6 +65,75 @@ def _environment(tmp_path: Path) -> Path:
     return environment
 
 
+def _initialize_repository(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=tmp_path)
+    subprocess.run(["git", "config", "user.name", "Boundary Test"], cwd=tmp_path)
+    (tmp_path / ".gitignore").write_text(".venv/\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=tmp_path, check=True)
+
+
+def test_repository_snapshot_binds_literal_worktree_and_git_object_bytes(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repo)
+    subprocess.run(["git", "config", "user.name", "Boundary Test"], cwd=repo)
+    source = repo / "source.py"
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "source.py"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=repo, check=True)
+    output = tmp_path / "source-manifest.json"
+
+    completed = subprocess.run(
+        [
+            str(_base_python()),
+            "-I",
+            "-S",
+            str(SCRIPT),
+            "--repo-root",
+            str(repo),
+            "source-snapshot",
+            "--output",
+            str(output),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=_base_environment(),
+    )
+    digest = completed.stdout.strip()
+    manifest = json.loads(output.read_text(encoding="utf-8"))
+
+    assert hashlib.sha256(output.read_bytes()).hexdigest() == digest
+    assert manifest["base_commit"] == subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert manifest["entries"] == [
+        {
+            "git_object_id": subprocess.run(
+                ["git", "rev-parse", "HEAD:source.py"],
+                cwd=repo,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip(),
+            "kind": "file",
+            "mode": "100644",
+            "path": "source.py",
+            "size_bytes": len(source.read_bytes()),
+            "worktree_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }
+    ]
+
+
 def test_platform_installed_startup_surface_is_measured_not_hardcoded(tmp_path: Path) -> None:
     environment = _environment(tmp_path)
     site_packages = environment / "Lib" / "site-packages"
@@ -107,7 +177,7 @@ def test_snapshot_hash_and_post_sync_surface_are_fail_closed(tmp_path: Path) -> 
         digest,
         enforce_process_environment=False,
     )
-    assert any("startup surface changed" in error for error in errors)
+    assert any("locked Python environment changed" in error for error in errors)
 
     manifest_path.write_text(json.dumps({"manifest_version": 1, "entries": []}), encoding="utf-8")
     errors = verify_snapshot(
@@ -159,6 +229,7 @@ def test_checked_command_rejects_transient_startup_carriers_before_execution(
     behavior: str,
 ) -> None:
     environment = _environment(tmp_path)
+    _initialize_repository(tmp_path)
     manifest_path = tmp_path.parent / f"{tmp_path.name}-{carrier_name}.json"
     carrier = environment / "Lib" / "site-packages" / carrier_name
     measured_content = "# measured startup surface\n"
@@ -211,6 +282,103 @@ def test_checked_command_rejects_transient_startup_carriers_before_execution(
 
 
 @pytest.mark.negative_control
+def test_checked_command_rejects_modified_installed_package_before_execution(
+    tmp_path: Path,
+) -> None:
+    environment = _environment(tmp_path)
+    _initialize_repository(tmp_path)
+    package = environment / "Lib" / "site-packages" / "measured_package.py"
+    package.write_text("VALUE = 1\n", encoding="utf-8")
+    runner = tmp_path / "runner.py"
+    marker = tmp_path.parent / f"{tmp_path.name}-package.marker"
+    runner.write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('child-ran')\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "runner.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "runner"], cwd=tmp_path, check=True)
+    manifest_path = tmp_path.parent / f"{tmp_path.name}-environment.json"
+    digest = _snapshot_with_base(tmp_path, manifest_path)
+    package.write_text("VALUE = 2\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            str(_base_python()),
+            "-I",
+            "-S",
+            str(SCRIPT),
+            "--repo-root",
+            str(tmp_path),
+            "run",
+            "--manifest",
+            str(manifest_path),
+            "--expected-sha256",
+            digest,
+            "--",
+            str(_base_python()),
+            str(runner),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_base_environment(),
+    )
+
+    assert completed.returncode == 1
+    assert "locked Python environment changed" in completed.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.negative_control
+def test_checked_command_rejects_byte_restoring_tracked_source_before_execution(
+    tmp_path: Path,
+) -> None:
+    _environment(tmp_path)
+    _initialize_repository(tmp_path)
+    runner = tmp_path / "runner.py"
+    original = "VALUE = 1\n"
+    runner.write_text(original, encoding="utf-8")
+    subprocess.run(["git", "add", "runner.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "runner"], cwd=tmp_path, check=True)
+    manifest_path = tmp_path.parent / f"{tmp_path.name}-source.json"
+    digest = _snapshot_with_base(tmp_path, manifest_path)
+    marker = tmp_path.parent / f"{tmp_path.name}-source.marker"
+    runner.write_text(
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('executed')\n"
+        f"Path(__file__).write_text({original!r})\n",
+        encoding="utf-8",
+    )
+
+    completed = subprocess.run(
+        [
+            str(_base_python()),
+            "-I",
+            "-S",
+            str(SCRIPT),
+            "--repo-root",
+            str(tmp_path),
+            "run",
+            "--manifest",
+            str(manifest_path),
+            "--expected-sha256",
+            digest,
+            "--",
+            str(_base_python()),
+            str(runner),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_base_environment(),
+    )
+
+    assert completed.returncode == 1
+    assert "unexpected tracked repository changes" in completed.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.negative_control
 def test_site_disabled_bootstrap_does_not_evaluate_measured_hooks(tmp_path: Path) -> None:
     environment = tmp_path / ".venv"
     subprocess.run(
@@ -229,12 +397,16 @@ def test_site_disabled_bootstrap_does_not_evaluate_measured_hooks(tmp_path: Path
     module = tmp_path / "target_module.py"
     module.write_text("VALUE = 'loaded'\n", encoding="utf-8")
     python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    pycache = tmp_path.parent / f"{tmp_path.name}-pycache"
+    pycache.mkdir()
 
     completed = subprocess.run(
         [
             str(python),
             "-I",
             "-S",
+            "-X",
+            f"pycache_prefix={pycache}",
             str(BOOTSTRAP),
             "--repo-root",
             str(tmp_path),
@@ -306,6 +478,43 @@ def test_repository_boundary_ignores_no_mutable_index_flags(
 
 
 @pytest.mark.negative_control
+def test_repository_boundary_ignores_no_git_clean_filter(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=tmp_path)
+    subprocess.run(["git", "config", "user.name", "Boundary Test"], cwd=tmp_path)
+    source = tmp_path / "source.py"
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "source.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=tmp_path, check=True)
+
+    info = tmp_path / ".git" / "info"
+    (info / "attributes").write_text("source.py filter=conceal\n", encoding="utf-8")
+    cleaner = info / "conceal.py"
+    cleaner.write_text("import sys\nsys.stdin.buffer.read()\nsys.stdout.write('VALUE = 1\\n')\n")
+    subprocess.run(
+        ["git", "config", "filter.conceal.clean", f'"{sys.executable}" "{cleaner}"'],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "filter.conceal.required", "true"],
+        cwd=tmp_path,
+        check=True,
+    )
+    source.write_text("VALUE = 999\nATTACK = True\n", encoding="utf-8")
+    hidden_by_git = subprocess.run(
+        ["git", "diff", "--quiet", "HEAD", "--", "source.py"],
+        cwd=tmp_path,
+        check=False,
+    )
+
+    errors = check_repository_residue(tmp_path, set())
+
+    assert hidden_by_git.returncode == 0
+    assert any("unexpected tracked" in error for error in errors)
+
+
+@pytest.mark.negative_control
 def test_repository_boundary_rejects_ignored_staged_deleted_and_renamed_state(
     tmp_path: Path,
 ) -> None:
@@ -333,6 +542,28 @@ def test_repository_boundary_rejects_ignored_staged_deleted_and_renamed_state(
     assert any("unexpected tracked" in error for error in errors)
     assert any("unexpected untracked" in error for error in errors)
     assert any("unexpected ignored" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_repository_boundary_rejects_ignored_executable_bytecode(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=tmp_path)
+    subprocess.run(["git", "config", "user.name", "Boundary Test"], cwd=tmp_path)
+    (tmp_path / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+    source = tmp_path / "checked_module.py"
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=tmp_path, check=True)
+    cache = tmp_path / "__pycache__" / "checked_module.cpython-311.pyc"
+    cache.parent.mkdir()
+    malicious = tmp_path / "malicious.py"
+    malicious.write_text("ATTACK = True\n", encoding="utf-8")
+    py_compile.compile(str(malicious), cfile=str(cache), doraise=True)
+    malicious.unlink()
+
+    errors = check_repository_residue(tmp_path, set())
+
+    assert any("unexpected ignored" in error and "pyc" in error for error in errors)
 
 
 @pytest.mark.negative_control

@@ -231,8 +231,9 @@ if result.pi_time is not None:
     fig, ax = plt.subplots(figsize=(6, 4))
     colors = ["silver" if v == 0.0 else "teal" for v in phi]
     bars = ax.bar(range(n_cells), phi, color=colors, edgecolor="black", linewidth=0.5)
+    displayed_phi_mean = 0.0 if abs(phi_mean) < 5e-12 else phi_mean
     ax.axhline(phi_mean, color="orange", linestyle="--", linewidth=1.5,
-               label=f"Mean = {phi_mean:.2f}")
+               label=f"Mean = {displayed_phi_mean:.2f}")
     ax.set_xlabel("Cell Index")
     ax.set_ylabel("Phi (Clock-Rate Potential)")
     ax.set_title("Emergent Clock Potential (Sec 4.4.5)")

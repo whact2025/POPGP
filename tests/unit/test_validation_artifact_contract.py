@@ -210,6 +210,18 @@ def test_visual_contract_accepts_equivalent_reencoding(tmp_path: Path) -> None:
     assert errors == []
 
 
+def test_visual_contract_accepts_only_calibrated_channel_noise(tmp_path: Path) -> None:
+    reference = _png_bytes((100, 100, 100, 255))
+    candidate_path = tmp_path / "plot.png"
+    candidate_path.write_bytes(_png_bytes((104, 96, 100, 255)))
+
+    assert compare_visual_artifact(reference, candidate_path) == []
+
+    candidate_path.write_bytes(_png_bytes((105, 100, 100, 255)))
+    errors = compare_visual_artifact(reference, candidate_path)
+    assert any("per-channel pixel error" in error for error in errors)
+
+
 @pytest.mark.negative_control
 def test_visual_contract_rejects_geometry_or_pixel_weakening(tmp_path: Path) -> None:
     candidate_path = tmp_path / "plot.png"
@@ -246,7 +258,7 @@ def test_visual_contract_rejects_localized_structured_corruption(tmp_path: Path)
 
     errors = compare_visual_artifact(reference, candidate_path)
 
-    assert any("local" in error or "connected high-error" in error for error in errors)
+    assert any("per-channel pixel error" in error for error in errors)
 
 
 @pytest.mark.negative_control
@@ -276,7 +288,60 @@ def test_visual_contract_rejects_thin_and_annotation_mutations(
 
     errors = compare_visual_artifact(reference.getvalue(), candidate_path)
 
-    assert any("local" in error or "connected high-error" in error for error in errors)
+    assert any("per-channel pixel error" in error for error in errors)
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "mutation",
+    ["compact_feature", "one_pixel_curve", "dashed_curve", "rendered_text"],
+)
+def test_visual_contract_rejects_small_meaningful_features(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    reference_image = Image.new("RGBA", (512, 512), (255, 255, 255, 255))
+    candidate_image = reference_image.copy()
+    draw = ImageDraw.Draw(reference_image)
+    if mutation == "compact_feature":
+        draw.rectangle((247, 247, 264, 264), fill=(0, 0, 0, 255))
+    elif mutation == "one_pixel_curve":
+        draw.line((20, 256, 491, 256), fill=(0, 0, 0, 255), width=1)
+    elif mutation == "dashed_curve":
+        for start in range(20, 492, 16):
+            draw.line((start, 256, min(start + 7, 491), 256), fill=(0, 0, 0, 255))
+    else:
+        draw.text((220, 250), "PASS=TRUE", fill=(0, 0, 0, 255))
+
+    reference = BytesIO()
+    reference_image.save(reference, format="PNG")
+    candidate_path = tmp_path / f"{mutation}.png"
+    candidate_image.save(candidate_path)
+
+    errors = compare_visual_artifact(reference.getvalue(), candidate_path)
+
+    assert any("per-channel pixel error" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_visual_contract_rejects_actual_plot_annotation_removal(tmp_path: Path) -> None:
+    source = Path(
+        "examples/physics_qg/gravity_well/results/source_comparison.png"
+    )
+    reference = source.read_bytes()
+    with Image.open(BytesIO(reference)) as image:
+        candidate = image.convert("RGBA")
+    # Remove the upper-left retained `0.0` annotation using the uniform heatmap
+    # background sampled next to it.  This is the real reviewer counterexample,
+    # not a dense annotation surrogate.
+    fill = candidate.getpixel((150, 202))
+    ImageDraw.Draw(candidate).rectangle((168, 187, 210, 216), fill=fill)
+    candidate_path = tmp_path / "source_comparison.png"
+    candidate.save(candidate_path)
+
+    errors = compare_visual_artifact(reference, candidate_path)
+
+    assert any("per-channel pixel error" in error for error in errors)
 
 
 @pytest.mark.negative_control
@@ -299,6 +364,86 @@ def test_threshold_crossing_operand_recomputes_failed_gate() -> None:
 
     assert comparison.passed  # The bounded portability comparison is not the decision oracle.
     assert any("recompute to False" in error for error in semantic_errors)
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    ("relative_path", "pipeline_path"),
+    [
+        (
+            "examples/physics_qg/gravity_well/results/validation.json",
+            ("pipeline", "gravity_test", "relative_constraint_residual"),
+        ),
+        (
+            "examples/physics_qg/chain_1d/results/validation.json",
+            ("pipeline", "pi_time", "constraint_residual"),
+        ),
+    ],
+)
+def test_threshold_crossing_pipeline_alias_cannot_leave_stale_check(
+    relative_path: str,
+    pipeline_path: tuple[str, ...],
+) -> None:
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    target = document
+    for part in pipeline_path[:-1]:
+        target = target[part]
+    target[pipeline_path[-1]] = 4e-9
+
+    errors = check_validation_semantics(document, relative_path)
+
+    assert any("authoritative retained field" in error for error in errors), errors
+
+
+@pytest.mark.negative_control
+def test_many_body_precision_floor_recomputes_from_raw_response() -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    check = next(
+        item
+        for item in document["checks"]
+        if item["name"] == "nonaffine_kms_response_orders"
+    )
+    for assessment in (
+        document["measurements"]["relative_entropy_quadratic_assessment"],
+        check["value"]["relative_entropy_quadratic_assessment"],
+    ):
+        assessment["full_window"]["absolute_precision_floor"] = 1e-10
+        assessment["lower_window"]["absolute_precision_floor"] = 1e-10
+
+    errors = check_validation_semantics(document, relative_path)
+
+    assert any("absolute_precision_floor" in error for error in errors), errors
+
+
+@pytest.mark.negative_control
+def test_many_body_consistent_but_insufficient_precision_floor_fails_gate() -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    check = next(
+        item
+        for item in document["checks"]
+        if item["name"] == "nonaffine_kms_response_orders"
+    )
+    floor = 1e-10
+    ratio = min(abs(item) for item in document["measurements"]["relative_entropy"]) / floor
+    document["measurements"]["absolute_precision_floor"] = floor
+    for assessment in (
+        document["measurements"]["relative_entropy_quadratic_assessment"],
+        check["value"]["relative_entropy_quadratic_assessment"],
+    ):
+        for window in ("full_window", "lower_window"):
+            assessment[window]["absolute_precision_floor"] = floor
+            assessment[window]["minimum_signal_to_floor"] = ratio
+
+    errors = check_validation_semantics(document, relative_path)
+
+    assert any("recomputed outcome is False" in error for error in errors), errors
+    assert any("recompute to False" in error for error in errors), errors
 
 
 DECISION_MARGIN_CASES = [

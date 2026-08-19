@@ -52,7 +52,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 237 passed |
+| `pytest -q` | about 1400 s | 252 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -90,19 +90,27 @@ strict; all numbers must be finite; ordinary diagnostics use narrow tolerances; 
 the small set of sensitive fit/error fields has an explicit bounded allowlist in
 `scripts/check_validation_artifacts.py`. Every registered check Boolean is also
 recomputed from its retained typed operands. Required raster outputs must preserve
-format/geometry and satisfy global, sliding-local, and connected-region pixel bounds;
-encoded PNG bytes and metadata are not compared across environments.
+format/geometry. After canonicalizing the one declared near-zero chain legend value,
+retained Windows/Linux evidence shows at most four intensity levels of per-channel
+drift, so every raster channel is bounded by 4. This calibrated maximum rejects
+compact features, one-pixel and dashed curves, rendered text, and actual plot-
+annotation removal; encoded PNG bytes and metadata are not compared across
+environments.
 
 The prospective VIA-000 R2 protocol adds stricter evidence-integrity execution beyond
-ordinary CI. A base interpreter invoked with `-I -S` creates the external startup
-snapshot, then `scripts/check_reproduction_boundary.py run` verifies that snapshot
-before and after each child. Python children use
-`scripts/run_without_startup_hooks.py` under isolated non-editable `python -I -S`,
-which inserts dependency directories directly and never evaluates `.pth`,
-`sitecustomize.py`, or `usercustomize.py`. The final repository boundary uses a fresh
-temporary Git index loaded from the frozen tree, rejects nonordinary index flags and
-staged state, and enumerates ignored residue. These mechanisms await a fresh
-preregistered two-platform R2 run; they are not a new viability result.
+ordinary CI. The workflow creates a fresh locked non-editable environment and every
+runtime cache outside the checkout. A base interpreter invoked with `-I -S` extracts
+the boundary checker from the frozen Git object database and creates complete external
+environment and literal-source manifests. `scripts/check_reproduction_boundary.py
+run` hashes every environment file/symlink and compares worktree bytes/modes directly
+to batched frozen Git blobs before and after each child; it does not trust index stat
+flags or clean filters, and it permits no ignored checkout state. Python children use
+`scripts/run_without_startup_hooks.py` under `-I -S` with an external bytecode cache;
+the bootstrap inserts dependency directories directly and never evaluates `.pth`,
+`sitecustomize.py`, or `usercustomize.py`. Every registered decision also binds
+duplicated pipeline fields and recomputes derived precision ratios from raw values.
+These mechanisms await a fresh preregistered two-platform R2 run; they are not a new
+viability result.
 
 ## Negative and sensitivity results
 

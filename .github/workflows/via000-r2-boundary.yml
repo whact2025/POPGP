@@ -16,7 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -41,30 +41,99 @@ jobs:
           Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
           Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue
 
+          $repo = (Resolve-Path .).Path
           $evidence = Join-Path $env:RUNNER_TEMP "via000-r2-boundary"
+          $environment = Join-Path $env:RUNNER_TEMP "via000-r2-python-environment"
+          $uvCache = Join-Path $env:RUNNER_TEMP "via000-r2-uv-cache"
+          $pythonCache = Join-Path $env:RUNNER_TEMP "via000-r2-python-cache"
+          $ruffCache = Join-Path $env:RUNNER_TEMP "via000-r2-ruff-cache"
+          $matplotlibCache = Join-Path $env:RUNNER_TEMP "via000-r2-matplotlib-cache"
+          $generalCache = Join-Path $env:RUNNER_TEMP "via000-r2-general-cache"
+          foreach ($path in @(
+            $evidence, $environment, $uvCache, $pythonCache,
+            $ruffCache, $matplotlibCache, $generalCache
+          )) {
+            if (Test-Path -LiteralPath $path) {
+              throw "fresh external path already exists: $path"
+            }
+          }
           New-Item -ItemType Directory -Path $evidence | Out-Null
-          $manifest = Join-Path $evidence "startup-surface.json"
-          $digestPath = Join-Path $evidence "startup-surface.sha256"
+          New-Item -ItemType Directory -Path $uvCache | Out-Null
+          New-Item -ItemType Directory -Path $pythonCache | Out-Null
+          New-Item -ItemType Directory -Path $ruffCache | Out-Null
+          New-Item -ItemType Directory -Path $matplotlibCache | Out-Null
+          New-Item -ItemType Directory -Path $generalCache | Out-Null
+          $environmentManifest = Join-Path $evidence "environment-manifest.json"
+          $environmentDigestPath = Join-Path $evidence "environment-manifest.sha256"
+          $sourceManifest = Join-Path $evidence "source-manifest.json"
+          $sourceDigestPath = Join-Path $evidence "source-manifest.sha256"
+          $trustedBoundary = Join-Path $evidence "check_reproduction_boundary.py"
+
+          # Materialize the checker from the frozen Git object database with a base
+          # interpreter.  Candidate worktree bytes, filters, index flags, and startup
+          # hooks cannot alter this trusted copy.
+          python -I -S -c "import pathlib, subprocess; pathlib.Path(r'$trustedBoundary').write_bytes(subprocess.run(['git','cat-file','blob','HEAD:scripts/check_reproduction_boundary.py'],check=True,capture_output=True).stdout)"
+          if ($LASTEXITCODE -ne 0) { throw "trusted boundary extraction failed" }
+
+          $env:UV_PROJECT_ENVIRONMENT = $environment
+          $env:UV_CACHE_DIR = $uvCache
+          $env:PYTHONPYCACHEPREFIX = $pythonCache
+          $env:PYTHONDONTWRITEBYTECODE = "1"
+          $env:RUFF_CACHE_DIR = $ruffCache
+          $env:MPLCONFIGDIR = $matplotlibCache
+          $env:XDG_CACHE_HOME = $generalCache
 
           uv sync --frozen --no-editable
           if ($LASTEXITCODE -ne 0) { throw "locked no-editable sync failed" }
+          Remove-Item Env:UV_PROJECT_ENVIRONMENT
 
-          $digest = (python -I -S scripts/check_reproduction_boundary.py `
-            --repo-root . --environment .venv snapshot --output $manifest).Trim()
-          if ($LASTEXITCODE -ne 0) { throw "startup snapshot failed" }
-          Set-Content -LiteralPath $digestPath -Value $digest -Encoding utf8NoBOM
+          if ($IsWindows) {
+            $environmentPython = Join-Path $environment "Scripts/python.exe"
+          } else {
+            $environmentPython = Join-Path $environment "bin/python"
+          }
+          if (-not (Test-Path -LiteralPath $environmentPython -PathType Leaf)) {
+            throw "locked environment Python not found: $environmentPython"
+          }
+
+          $environmentDigest = (python -I -S $trustedBoundary `
+            --repo-root $repo --environment $environment snapshot `
+            --output $environmentManifest).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "environment snapshot failed" }
+          Set-Content -LiteralPath $environmentDigestPath `
+            -Value $environmentDigest -Encoding utf8NoBOM
+
+          $sourceDigest = (python -I -S $trustedBoundary `
+            --repo-root $repo --environment $environment source-snapshot `
+            --output $sourceManifest --base-ref HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "source snapshot failed" }
+          Set-Content -LiteralPath $sourceDigestPath `
+            -Value $sourceDigest -Encoding utf8NoBOM
 
           function Invoke-CheckedModule {
             param(
               [Parameter(Mandatory = $true)][string]$Module,
-              [string[]]$ModuleArguments = @()
+              [string[]]$ModuleArguments = @(),
+              [string[]]$AllowedPaths = @()
             )
-            python -I -S scripts/check_reproduction_boundary.py `
-              --repo-root . --environment .venv run `
-              --manifest $manifest --expected-sha256 $digest -- `
-              uv run --frozen --no-editable python -I -S `
-              scripts/run_without_startup_hooks.py --repo-root . `
-              --module $Module -- @ModuleArguments
+            $boundaryArguments = @(
+              "-I", "-S", $trustedBoundary,
+              "--repo-root", $repo,
+              "--environment", $environment,
+              "run", "--manifest", $environmentManifest,
+              "--expected-sha256", $environmentDigest
+            )
+            foreach ($allowedPath in $AllowedPaths) {
+              $boundaryArguments += @("--allow-path", $allowedPath)
+            }
+            $boundaryArguments += @(
+              "--", $environmentPython, "-I", "-S",
+              "-X", "pycache_prefix=$pythonCache",
+              (Join-Path $repo "scripts/run_without_startup_hooks.py"),
+              "--repo-root", $repo, "--module", $Module, "--"
+            )
+            $boundaryArguments += $ModuleArguments
+            & python @boundaryArguments
             if ($LASTEXITCODE -ne 0) {
               throw "checked Python module failed: $Module $ModuleArguments"
             }
@@ -72,20 +141,60 @@ jobs:
 
           Invoke-CheckedModule -Module ruff -ModuleArguments @("check", ".")
           Invoke-CheckedModule -Module scripts.check_tex
-          Invoke-CheckedModule -Module pytest -ModuleArguments @("-q")
-          Invoke-CheckedModule -Module examples.physics_qg.chain_1d
-          Invoke-CheckedModule -Module examples.physics_qg.grid_2d
-          Invoke-CheckedModule -Module examples.physics_qg.gravity_well
-          Invoke-CheckedModule -Module examples.physics_qg.source_law
-          Invoke-CheckedModule -Module examples.physics_qg.source_law_many_body
-          Invoke-CheckedModule -Module examples.physics_qg.ca_model
-          Invoke-CheckedModule -Module scripts.check_validation_artifacts `
-            -ModuleArguments @("--enforce-change-boundary")
+          Invoke-CheckedModule -Module pytest `
+            -ModuleArguments @("-q", "-p", "no:cacheprovider")
 
-          python -I -S scripts/check_reproduction_boundary.py `
-            --repo-root . --environment .venv verify `
-            --manifest $manifest --expected-sha256 $digest
-          if ($LASTEXITCODE -ne 0) { throw "final startup verification failed" }
+          $allowed = @()
+          $allowed += @(
+            "examples/physics_qg/chain_1d/results/clock_potential.png",
+            "examples/physics_qg/chain_1d/results/embedding.png",
+            "examples/physics_qg/chain_1d/results/entropy_growth.png",
+            "examples/physics_qg/chain_1d/results/validation.json"
+          )
+          Invoke-CheckedModule -Module examples.physics_qg.chain_1d `
+            -AllowedPaths $allowed
+          $allowed += @(
+            "examples/physics_qg/grid_2d/results/clock_potential.png",
+            "examples/physics_qg/grid_2d/results/embedding.png",
+            "examples/physics_qg/grid_2d/results/validation.json"
+          )
+          Invoke-CheckedModule -Module examples.physics_qg.grid_2d `
+            -AllowedPaths $allowed
+          $allowed += @(
+            "examples/physics_qg/gravity_well/results/gravity_embedding.png",
+            "examples/physics_qg/gravity_well/results/gravity_well.png",
+            "examples/physics_qg/gravity_well/results/source_comparison.png",
+            "examples/physics_qg/gravity_well/results/validation.json"
+          )
+          Invoke-CheckedModule -Module examples.physics_qg.gravity_well `
+            -AllowedPaths $allowed
+          $allowed += @(
+            "examples/physics_qg/source_law/results/source_scaling.png",
+            "examples/physics_qg/source_law/results/validation.json"
+          )
+          Invoke-CheckedModule -Module examples.physics_qg.source_law `
+            -AllowedPaths $allowed
+          $allowed += @(
+            "examples/physics_qg/source_law_many_body/results/many_body_source.png",
+            "examples/physics_qg/source_law_many_body/results/validation.json"
+          )
+          Invoke-CheckedModule -Module examples.physics_qg.source_law_many_body `
+            -AllowedPaths $allowed
+          $allowed += @(
+            "examples/physics_qg/ca_model/results/dynamics_cooling.png",
+            "examples/physics_qg/ca_model/results/evolution_cooling.gif",
+            "examples/physics_qg/ca_model/results/validation.json"
+          )
+          Invoke-CheckedModule -Module examples.physics_qg.ca_model `
+            -AllowedPaths $allowed
+          Invoke-CheckedModule -Module scripts.check_validation_artifacts `
+            -ModuleArguments @("--enforce-change-boundary") `
+            -AllowedPaths $allowed
+
+          python -I -S $trustedBoundary `
+            --repo-root $repo --environment $environment verify `
+            --manifest $environmentManifest --expected-sha256 $environmentDigest
+          if ($LASTEXITCODE -ne 0) { throw "final environment verification failed" }
 
           git rev-parse HEAD | Set-Content `
             -LiteralPath (Join-Path $evidence "candidate-commit.txt") `
@@ -93,7 +202,7 @@ jobs:
           git rev-parse "HEAD^{tree}" | Set-Content `
             -LiteralPath (Join-Path $evidence "candidate-tree.txt") `
             -Encoding utf8NoBOM
-          git status --short --ignored | Set-Content `
+          git status --short --ignored --untracked-files=all | Set-Content `
             -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
             -Encoding utf8NoBOM
 

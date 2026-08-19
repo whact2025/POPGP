@@ -10,6 +10,7 @@
     "topology": "grid",
     "beta": 2.0,
     "cell_dim": 1,
+    "retention_epsilon": 0.1,
     "I_0": 1.0,
     "lambda_dim": 0.01,
     "mu": 0.1,

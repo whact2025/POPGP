@@ -51,6 +51,26 @@ def main() -> int:
     if not site_packages:
         parser.error(f"no site-packages directory found under {environment_root}")
 
+    if not sys.pycache_prefix:
+        parser.error("an external Python bytecode cache is required via -X pycache_prefix")
+    pycache_prefix = Path(sys.pycache_prefix)
+    if (
+        not pycache_prefix.is_absolute()
+        or not pycache_prefix.is_dir()
+        or pycache_prefix.is_symlink()
+    ):
+        parser.error(f"regular external bytecode-cache directory required: {pycache_prefix}")
+    pycache_prefix = pycache_prefix.resolve()
+    for protected_root, label in (
+        (repo_root, "repository"),
+        (environment_root, "locked environment"),
+    ):
+        try:
+            pycache_prefix.relative_to(protected_root)
+        except ValueError:
+            continue
+        parser.error(f"bytecode cache must be outside the {label}: {pycache_prefix}")
+
     # No call to site.addsitedir is permitted here: it evaluates executable .pth
     # lines.  Direct path insertion makes the dependency packages importable while
     # leaving every startup hook inert.

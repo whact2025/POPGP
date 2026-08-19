@@ -383,6 +383,7 @@ report = {
         "topology": cfg.substrate.topology,
         "beta": cfg.substrate.beta,
         "cell_dim": cfg.pi_res.cell_dim,
+        "retention_epsilon": cfg.pi_res.retention_epsilon,
         "I_0": cfg.pi_loc.I_0,
         "lambda_dim": cfg.pi_geom.lambda_dim,
         "mu": MU,

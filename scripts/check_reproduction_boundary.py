@@ -1,9 +1,12 @@
-"""Snapshot and verify a clean locked Python reproduction boundary.
+"""Snapshot and verify a clean locked reproduction boundary.
 
-The snapshot is taken immediately after a clean ``uv sync --frozen --no-editable``.
-It records every Python startup hook installed by the lock on the current platform.
-Verification requires byte-for-byte equality with that measured surface, rather than
-assuming that every platform installs the same hard-coded ``.pth`` file set.
+The snapshot is taken immediately after a fresh ``uv sync --frozen --no-editable``
+into an external environment.  It records every file and symlink in that environment,
+not only Python startup hooks.  Each checked command verifies both those bytes and the
+literal Git-tree content/modes before and after execution.  Source comparison reads
+the frozen blob with ``git cat-file`` and permits only the platform LF/CRLF checkout
+transform, so it does not trust mutable index flags, stat caches, repository clean
+filters, or ``.git/info/attributes``.
 """
 
 from __future__ import annotations
@@ -12,22 +15,19 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import subprocess
 import sys
-import tempfile
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 BLOCKED_ENVIRONMENT = (
     "PYTHONPATH",
     "PYTHONHOME",
     "VIRTUAL_ENV",
     "UV_PROJECT_ENVIRONMENT",
 )
-CUSTOMIZE_NAMES = frozenset({"sitecustomize.py", "usercustomize.py"})
-IgnoredPathPolicy = Callable[[str], bool]
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -50,7 +50,9 @@ def _canonical_json(value: Any) -> bytes:
 
 def _validate_environment_directory(repo_root: Path, environment_path: Path) -> Path:
     repo_root = repo_root.resolve()
-    unresolved_environment_path = repo_root / environment_path
+    unresolved_environment_path = (
+        environment_path if environment_path.is_absolute() else repo_root / environment_path
+    )
     if (
         not unresolved_environment_path.is_dir()
         or unresolved_environment_path.is_symlink()
@@ -59,10 +61,6 @@ def _validate_environment_directory(repo_root: Path, environment_path: Path) -> 
             f"regular environment directory required: {unresolved_environment_path}"
         )
     environment_path = unresolved_environment_path.resolve()
-    try:
-        environment_path.relative_to(repo_root)
-    except ValueError as exc:
-        raise ValueError("environment directory must be within the repository") from exc
     return environment_path
 
 
@@ -77,23 +75,33 @@ def _process_boundary_errors() -> list[str]:
 
 
 def collect_startup_surface(repo_root: Path, environment_path: Path) -> dict[str, Any]:
-    """Return a deterministic manifest of executable Python startup surfaces."""
+    """Return a deterministic byte manifest of the complete locked environment.
+
+    The historical function name is retained for the public API.  Version 2 covers
+    every regular file and symlink so imported package code cannot sit outside the
+    measured startup-hook subset.
+    """
 
     environment_path = _validate_environment_directory(repo_root, environment_path)
     entries: list[dict[str, Any]] = []
     for path in sorted(environment_path.rglob("*")):
         if path.is_symlink():
-            if path.suffix == ".pth" or path.name in CUSTOMIZE_NAMES:
-                raise ValueError(f"startup surface must be a regular file: {path}")
+            entries.append(
+                {
+                    "path": path.relative_to(environment_path).as_posix(),
+                    "kind": "symlink",
+                    "target": os.readlink(path),
+                }
+            )
             continue
         if not path.is_file():
-            continue
-        if path.suffix != ".pth" and path.name not in CUSTOMIZE_NAMES:
             continue
         raw = path.read_bytes()
         entries.append(
             {
                 "path": path.relative_to(environment_path).as_posix(),
+                "kind": "file",
+                "mode": stat.S_IMODE(path.stat().st_mode),
                 "size_bytes": len(raw),
                 "sha256": sha256_bytes(raw),
             }
@@ -151,9 +159,23 @@ def verify_snapshot(
         return [*errors, str(exc)]
     observed = collect_startup_surface(repo_root, environment_path)
     if expected != observed:
+        expected_entries = {
+            entry.get("path", f"<entry-{index}>"): entry
+            for index, entry in enumerate(expected.get("entries", []))
+            if isinstance(entry, dict)
+        } if isinstance(expected, dict) else {}
+        observed_entries = {
+            entry.get("path", f"<entry-{index}>"): entry
+            for index, entry in enumerate(observed["entries"])
+        }
+        differing = sorted(
+            path
+            for path in expected_entries.keys() | observed_entries.keys()
+            if expected_entries.get(path) != observed_entries.get(path)
+        )
         errors.append(
-            "Python startup surface changed after locked sync: "
-            f"expected={expected!r}, observed={observed!r}"
+            "locked Python environment changed after fresh sync: "
+            f"{len(differing)} differing paths; first paths={differing[:20]}"
         )
     return errors
 
@@ -192,50 +214,168 @@ def _nul_git_paths(
     }
 
 
-def _fresh_tree_changes(repo_root: Path, base_ref: str) -> set[str]:
-    """Compare actual working bytes to ``base_ref`` using a pristine temporary index."""
+def _literal_tree_entries(repo_root: Path, base_ref: str) -> dict[str, tuple[str, str]]:
+    raw = subprocess.run(
+        ["git", "ls-tree", "-r", "-z", "--full-tree", base_ref],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    entries: dict[str, tuple[str, str]] = {}
+    for record in raw.split(b"\0"):
+        if not record:
+            continue
+        metadata, encoded_path = record.split(b"\t", 1)
+        mode, object_type, object_id = metadata.decode("ascii").split()
+        if object_type != "blob":
+            raise ValueError(
+                f"unsupported tracked object type {object_type!r} at {os.fsdecode(encoded_path)!r}"
+            )
+        entries[os.fsdecode(encoded_path)] = (mode, object_id)
+    return entries
 
-    with tempfile.TemporaryDirectory(prefix="popgp-boundary-index-") as directory:
-        index_path = Path(directory) / "index"
-        environment = os.environ.copy()
-        environment.update(
+
+def _git_blob_bytes_batch(repo_root: Path, object_ids: set[str]) -> dict[str, bytes]:
+    """Read frozen blobs in one filter-independent Git object-database request."""
+
+    if not object_ids:
+        return {}
+    ordered_ids = sorted(object_ids)
+    completed = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        cwd=repo_root,
+        check=True,
+        input=("\n".join(ordered_ids) + "\n").encode("ascii"),
+        capture_output=True,
+    )
+    stream = memoryview(completed.stdout)
+    offset = 0
+    blobs: dict[str, bytes] = {}
+    for requested_id in ordered_ids:
+        newline = completed.stdout.find(b"\n", offset)
+        if newline < 0:
+            raise ValueError(f"missing cat-file header for object {requested_id}")
+        header = bytes(stream[offset:newline]).decode("ascii").split()
+        if len(header) != 3 or header[1] != "blob":
+            raise ValueError(f"unexpected cat-file header for {requested_id}: {header!r}")
+        resolved_id, _, encoded_size = header
+        size = int(encoded_size)
+        start = newline + 1
+        end = start + size
+        if end >= len(stream) or stream[end] != 0x0A:
+            raise ValueError(f"truncated cat-file body for object {requested_id}")
+        blobs[requested_id] = bytes(stream[start:end])
+        blobs[resolved_id] = blobs[requested_id]
+        offset = end + 1
+    if offset != len(stream):
+        raise ValueError("unexpected trailing bytes from git cat-file --batch")
+    return blobs
+
+
+def _portable_literal_bytes_equal(observed: bytes, expected: bytes) -> bool:
+    """Compare literal content with only the checkout newline transform allowed."""
+
+    if observed == expected:
+        return True
+    # Git's platform checkout may materialize CRLF for text.  Canonicalize only
+    # newline spelling, never arbitrary configured clean/smudge transformations.
+    # NUL-bearing blobs are treated as binary and remain byte-exact.
+    if b"\0" in expected[:8000] or b"\0" in observed[:8000]:
+        return False
+    return observed.replace(b"\r\n", b"\n") == expected.replace(b"\r\n", b"\n")
+
+
+def _literal_tree_changes(repo_root: Path, base_ref: str) -> set[str]:
+    """Compare literal worktree bytes/modes to the frozen tree without Git filters."""
+
+    changes: set[str] = set()
+    entries = _literal_tree_entries(repo_root, base_ref)
+    blobs = _git_blob_bytes_batch(
+        repo_root,
+        {object_id for _, object_id in entries.values()},
+    )
+    for relative_path, (expected_mode, expected_id) in entries.items():
+        path = repo_root / relative_path
+        expected_bytes = blobs[expected_id]
+        try:
+            if expected_mode == "120000":
+                if not path.is_symlink():
+                    changes.add(relative_path)
+                    continue
+                raw = os.fsencode(os.readlink(path))
+            else:
+                if not path.is_file() or path.is_symlink():
+                    changes.add(relative_path)
+                    continue
+                if os.name != "nt":
+                    observed_executable = bool(path.stat().st_mode & stat.S_IXUSR)
+                    expected_executable = expected_mode == "100755"
+                    if observed_executable != expected_executable:
+                        changes.add(relative_path)
+                        continue
+                raw = path.read_bytes()
+        except OSError:
+            changes.add(relative_path)
+            continue
+        if not _portable_literal_bytes_equal(raw, expected_bytes):
+            changes.add(relative_path)
+    return changes
+
+
+def write_repository_snapshot(
+    repo_root: Path,
+    output_path: Path,
+    *,
+    base_ref: str = "HEAD",
+) -> str:
+    """Write a literal worktree/Git-object manifest after proving a clean boundary."""
+
+    process_errors = _process_boundary_errors()
+    if process_errors:
+        raise ValueError("; ".join(process_errors))
+    repo_root = repo_root.resolve()
+    output_path = output_path.resolve()
+    try:
+        output_path.relative_to(repo_root)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("repository manifest must be written outside the candidate repository")
+
+    boundary_errors = check_repository_boundary(repo_root, set(), base_ref=base_ref)
+    if boundary_errors:
+        raise ValueError("; ".join(boundary_errors))
+    tree_entries = _literal_tree_entries(repo_root, base_ref)
+    manifest_entries: list[dict[str, Any]] = []
+    for relative_path, (mode, object_id) in sorted(tree_entries.items()):
+        path = repo_root / relative_path
+        if mode == "120000":
+            observed = os.fsencode(os.readlink(path))
+            kind = "symlink"
+        else:
+            observed = path.read_bytes()
+            kind = "file"
+        manifest_entries.append(
             {
-                "GIT_INDEX_FILE": str(index_path),
-                "GIT_OPTIONAL_LOCKS": "0",
+                "path": relative_path,
+                "kind": kind,
+                "mode": mode,
+                "git_object_id": object_id,
+                "size_bytes": len(observed),
+                "worktree_sha256": sha256_bytes(observed),
             }
         )
-        _git_output(repo_root, "read-tree", base_ref, environment=environment)
-        # A freshly populated index has no working-tree stat cache.  Refresh it so
-        # diff-files hashes clean files instead of reporting every path as modified;
-        # a nonzero return is expected when declared generated artifacts differ.
-        subprocess.run(
-            ["git", "update-index", "--really-refresh", "--"],
-            cwd=repo_root,
-            check=False,
-            capture_output=True,
-            env=environment,
-        )
-        return _nul_git_paths(
-            repo_root,
-            "diff-files",
-            "--name-only",
-            "--no-renames",
-            "-z",
-            "--",
-            environment=environment,
-        )
-
-
-def is_known_runtime_ignored_path(relative_path: str) -> bool:
-    """Allow only runtime state that is checked by a separate frozen mechanism."""
-
-    path = Path(relative_path)
-    parts = path.parts
-    if parts and parts[0] == ".venv":
-        return True
-    if parts and parts[0] in {".pytest_cache", ".ruff_cache"}:
-        return True
-    return "__pycache__" in parts and path.suffix == ".pyc"
+    manifest = {
+        "manifest_version": MANIFEST_VERSION,
+        "base_ref": base_ref,
+        "base_commit": _git_output(repo_root, "rev-parse", base_ref).strip(),
+        "base_tree": _git_output(repo_root, "rev-parse", f"{base_ref}^{{tree}}").strip(),
+        "entries": manifest_entries,
+    }
+    raw = _canonical_json(manifest)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(raw)
+    return sha256_bytes(raw)
 
 
 def check_repository_boundary(
@@ -243,13 +383,12 @@ def check_repository_boundary(
     allowed_paths: set[str],
     *,
     base_ref: str = "HEAD",
-    allowed_ignored_path: IgnoredPathPolicy | None = None,
 ) -> list[str]:
     """Verify actual source bytes, index state, and untracked/ignored residue.
 
-    A temporary index populated directly from ``base_ref`` forces Git to inspect the
-    working tree without trusting mutable assume-unchanged/skip-worktree flags or
-    cached stat data in the repository index.
+    Literal blob hashing ignores candidate-controlled clean filters and mutable index
+    state.  Ignored state is never exempt: caches and environments must be directed to
+    fresh external paths by the trusted runner.
     """
 
     repo_root = repo_root.resolve()
@@ -285,7 +424,7 @@ def check_repository_boundary(
     if staged:
         errors.append(f"staged repository changes exist: {sorted(staged)}")
 
-    changed = _fresh_tree_changes(repo_root, base_ref)
+    changed = _literal_tree_changes(repo_root, base_ref)
     unexpected = changed - allowed_paths
     if unexpected:
         errors.append(f"unexpected tracked repository changes: {sorted(unexpected)}")
@@ -308,15 +447,10 @@ def check_repository_boundary(
         "--exclude-standard",
         "-z",
     )
-    unexpected_ignored = {
-        path
-        for path in ignored
-        if allowed_ignored_path is None or not allowed_ignored_path(path)
-    }
-    if unexpected_ignored:
+    if ignored:
         errors.append(
             "unexpected ignored repository paths: "
-            f"{sorted(unexpected_ignored)}"
+            f"{sorted(ignored)}"
         )
     return errors
 
@@ -333,24 +467,32 @@ def run_checked_command(
     manifest_path: Path,
     expected_sha256: str,
     command: list[str],
+    *,
+    allowed_paths: set[str],
 ) -> tuple[int | None, list[str]]:
-    """Verify the startup boundary before and after running one child command."""
+    """Verify environment and literal repository bytes around one child command."""
 
-    before = verify_snapshot(
+    before = [
+        *verify_snapshot(
         repo_root,
         environment_path,
         manifest_path,
         expected_sha256,
-    )
+        ),
+        *check_repository_boundary(repo_root, allowed_paths),
+    ]
     if before:
         return None, [f"pre-execution: {error}" for error in before]
     completed = subprocess.run(command, cwd=repo_root, check=False)
-    after = verify_snapshot(
-        repo_root,
-        environment_path,
-        manifest_path,
-        expected_sha256,
-    )
+    after = [
+        *verify_snapshot(
+            repo_root,
+            environment_path,
+            manifest_path,
+            expected_sha256,
+        ),
+        *check_repository_boundary(repo_root, allowed_paths),
+    ]
     return completed.returncode, [f"post-execution: {error}" for error in after]
 
 
@@ -361,18 +503,31 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="operation", required=True)
     snapshot = subparsers.add_parser("snapshot")
     snapshot.add_argument("--output", type=Path, required=True)
+    source_snapshot = subparsers.add_parser("source-snapshot")
+    source_snapshot.add_argument("--output", type=Path, required=True)
+    source_snapshot.add_argument("--base-ref", default="HEAD")
     verify = subparsers.add_parser("verify")
     verify.add_argument("--manifest", type=Path, required=True)
     verify.add_argument("--expected-sha256", required=True)
     run = subparsers.add_parser("run")
     run.add_argument("--manifest", type=Path, required=True)
     run.add_argument("--expected-sha256", required=True)
+    run.add_argument("--allow-path", action="append", default=[])
     run.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
 
     try:
         if args.operation == "snapshot":
             print(write_snapshot(args.repo_root, args.environment, args.output))
+            return 0
+        if args.operation == "source-snapshot":
+            print(
+                write_repository_snapshot(
+                    args.repo_root,
+                    args.output,
+                    base_ref=args.base_ref,
+                )
+            )
             return 0
         if args.operation == "run":
             command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -384,6 +539,7 @@ def main() -> int:
                 args.manifest,
                 args.expected_sha256,
                 command,
+                allowed_paths=set(args.allow_path),
             )
             if errors:
                 print("Reproduction boundary failed:", file=sys.stderr)
@@ -405,7 +561,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("Locked Python startup surface is unchanged.")
+    print("Locked Python environment is unchanged.")
     return 0
 
 
