@@ -32,3 +32,10 @@ jobs:
           uv run python -m examples.physics_qg.ca_model
       - name: Check committed validation contracts and visual outputs
         run: uv run python scripts/check_validation_artifacts.py --enforce-change-boundary
+      - name: Retain regenerated artifacts for failed portability checks
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-validation-artifacts
+          path: examples/physics_qg/*/results/
+          if-no-files-found: error
