@@ -406,7 +406,7 @@ receipts:
 - id: claim-diff
   kind: claim-diff
   path: ../receipts/VIA-000/claim-diff.json
-  sha256: abe6ba67c23b35504c7e23fc61528853b32c5a168e841c8bb34364fb55e50072
+  sha256: ade9371ec4180271f1d4adff96c2e7a49a79d860d3ecdc7d151b02335ddafbf7
   media_type: application/json
 review_chain:
   initial_review_receipt: null
