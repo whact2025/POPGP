@@ -14,8 +14,8 @@ that honest limitation or trigger a pre-holdout protocol amendment; it must not 
 - Scientific candidate: `9a29e05f803666bf0e3a28417ea399e3e26769fc`
 - Candidate tree: `358fb1af6ca587b6c71ff2ef0fb87e335163eeaf`
 - Baseline: `70c867552279b74d5ce1a7bc5c50d5a980cf81e6`
-- Protocol snapshot: `35a4acf304541deabd03cac16b93df9c84d06b9d`
-- Activated campaign handoff: `75473e222b4b5c56b69ae39c82be1bd039b15672`
+- Protocol snapshot: `72bfcfbb5ab5a0fee3449510f8868b8bb19be805`
+- Activated campaign handoff: `PENDING-ACTIVATION-COMMIT`
 - Campaign: `reviews/viability/POPGP-VIABILITY-R1-2026-08/CAMPAIGN.yaml`
 - Packet: `reviews/viability/POPGP-VIABILITY-R1-2026-08/packets/VIA-000.yaml`
 - Primary protocol: `protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json`
