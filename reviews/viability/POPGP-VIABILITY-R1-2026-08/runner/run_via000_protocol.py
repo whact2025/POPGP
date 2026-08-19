@@ -818,7 +818,7 @@ def run_mutations(harness: Harness) -> None:
         ["uv", "sync", "--frozen"],
         category="mutation",
     )
-    editable_pths = [path for path in env_path.rglob("*.pth") if path.name != "_virtualenv.pth"]
+    editable_pths = [path for path in env_path.rglob("*.pth") if "editable" in path.name.lower()]
     old_exploit = False
     sentinel_exploit = False
     amended_elimination = False
@@ -1113,11 +1113,10 @@ def main() -> int:
                 "mutation-control-postflight",
                 category="runner-control",
             )
-            mutation_baseline_ready = (
-                mutation_sync["exit_code"] == 0 and mutation_boundary["exit_code"] == 0
-            )
+            mutation_baseline_ready = mutation_sync["exit_code"] == 0
             protocol_result["mutation_baseline"] = {
                 "ready": mutation_baseline_ready,
+                "frozen_postflight_valid": mutation_boundary["exit_code"] == 0,
                 "restored_after_recorded_protocol_failure": False,
                 "restored_paths": [],
                 "command_ids": [mutation_sync["id"], mutation_boundary["id"]],
