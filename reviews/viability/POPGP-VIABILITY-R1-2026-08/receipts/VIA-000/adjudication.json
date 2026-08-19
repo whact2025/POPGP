@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "receipt_kind": "adjudication",
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "packet_id": "VIA-000",
+  "adjudicated_at": "2026-08-19T17:21:42.5058861Z",
+  "audit_mode": "receipt-only-no-candidate-rerun",
+  "adjudicated_handoff": {
+    "commit": "2f3a3d8a6f27687cb15666ca341aeb6eef180386",
+    "tree": "0a7ad5a47e4e38113805c7e8a5047eb81a7440ba",
+    "branch": "campaign/via000-protocol-amendment-1"
+  },
+  "adjudicator": {
+    "seat": "adjudicator",
+    "agent_identity": "codex-via000-adjudicator",
+    "model_identity": "unknown",
+    "model_version": "unknown",
+    "operator": "fuocor",
+    "session_id": "popgp-viability-r1-2026-08-via000-adjudicator-session",
+    "orchestrator_id": "codex-desktop",
+    "organization": "popgp-internal",
+    "access_level": "public-calibration-only",
+    "exposure": {
+      "final_labels_seen": false,
+      "secret_seed_seen": false,
+      "private_evaluator_seen": false,
+      "private_custody_path_accessed": false,
+      "local_handoff_file_seen": false,
+      "public_revealed_manifest_bytes_hash_processed_by_local_tool": true,
+      "public_revealed_manifest_values_emitted_to_model": false
+    },
+    "independence_statement": "This fresh adjudicator task and session are separate from every builder, falsifier, runner, auditor, reviewer, and custodian session. The same human operator and Codex Desktop orchestrator are shared, so this is internal process separation rather than external scientific validation. The exact runtime model identity and snapshot were not exposed."
+  },
+  "frozen_identity": {
+    "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+    "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+    "baseline_commit": "70c867552279b74d5ce1a7bc5c50d5a980cf81e6",
+    "protocol_commit": "72bfcfbb5ab5a0fee3449510f8868b8bb19be805",
+    "protocol_sha256": "66d9cc3325a9758c7443b29df612e2b27b8db14de3b224489dee5e2e04a718f8",
+    "packet_rule_sha256": "e5ac4103188f652a460b4a0cc74d641d694e0043b6f2d62dcf2484b92de8acca",
+    "attacked_handoff_commit": "b7b0d12ddfbbfb1268cdf22db2349a10bf7ed96d",
+    "runner_commit": "bd1a8d28717e493cd62053d32bd38062f293c2cd",
+    "runner_tree": "4d5ea64131a414a4dca0488bd8b248c6a6e8f5e0",
+    "formal_review_commit": "a704855fd6f8d26286e5897c3032607a14f88633"
+  },
+  "receipt_integrity": {
+    "all_packet_receipts_recomputed": true,
+    "packet_receipt_mismatch_count": 0,
+    "strict_json_document_count": 36,
+    "strict_json_error_count": 0,
+    "runner_evidence_manifest_entry_count": 296,
+    "runner_evidence_manifest_match_count": 296,
+    "runner_evidence_manifest_mismatch_count": 0,
+    "runner_evidence_manifest_sha256": "61446653ae27fc1b77554183d996843389d8c4402e7de8b7fec857785f4a8b8d",
+    "aggregate_receipt_count": 3,
+    "aggregate_receipt_mismatch_count": 0,
+    "preexisting_receipts": [
+      {
+        "id": "protocol",
+        "kind": "protocol",
+        "bytes": 7015,
+        "sha256": "66d9cc3325a9758c7443b29df612e2b27b8db14de3b224489dee5e2e04a718f8"
+      },
+      {
+        "id": "attack-plan",
+        "kind": "attack-plan",
+        "bytes": 14651,
+        "sha256": "735783112cf90451551cbaec9de4d0bafd15754400b479a0be888fc670a725fb"
+      },
+      {
+        "id": "environment",
+        "kind": "environment",
+        "bytes": 2159,
+        "sha256": "f4855453cac6ef3058289cf0aa7f3da40f08e1e37d2b322fccfc1bcabcf085e9"
+      },
+      {
+        "id": "run-log",
+        "kind": "run-log",
+        "bytes": 3376,
+        "sha256": "83e912426561ab7954bfe4b8c7c0297ae20fd80349b8b2889ef935643b3d584f"
+      },
+      {
+        "id": "raw-results",
+        "kind": "raw-results",
+        "bytes": 63161,
+        "sha256": "7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641"
+      },
+      {
+        "id": "mutation-results",
+        "kind": "mutation-results",
+        "bytes": 9883,
+        "sha256": "c60673e632c432e3591ca567e5e479428919c053c8bc30f4d5e033ec7123b096"
+      },
+      {
+        "id": "output-commitment",
+        "kind": "output-commitment",
+        "bytes": 244,
+        "sha256": "0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b"
+      },
+      {
+        "id": "revealed-holdout",
+        "kind": "revealed-manifest",
+        "bytes": 186,
+        "sha256": "7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5"
+      },
+      {
+        "id": "revealed-seed",
+        "kind": "revealed-manifest",
+        "bytes": 183,
+        "sha256": "13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719"
+      },
+      {
+        "id": "reveal-record",
+        "kind": "reveal-record",
+        "bytes": 4161,
+        "sha256": "dfaa18a6b1e8c4e7b8a3313a379d2c1cd5177d8aa89e9a3d32ea095f96d8a409"
+      },
+      {
+        "id": "statistical-audit",
+        "kind": "statistical-audit",
+        "bytes": 17036,
+        "sha256": "1c3d020ea76d5f049fedd0de68fe45db8722996119d755384b0fe0725947caf9"
+      },
+      {
+        "id": "claim-diff",
+        "kind": "claim-diff",
+        "bytes": 2319,
+        "sha256": "ade9371ec4180271f1d4adff96c2e7a49a79d860d3ecdc7d151b02335ddafbf7"
+      },
+      {
+        "id": "independent-review",
+        "kind": "independent-review",
+        "bytes": 11990,
+        "sha256": "6ac08d981921865c91f8779bcfd1e4871af8e39e38c384db97c350e4de083720"
+      }
+    ],
+    "adjudication_self_binding": "The packet's adjudication receipt entry binds this completed file by raw-byte SHA-256; a self-hash is intentionally not embedded in this receipt."
+  },
+  "ordering_audit": {
+    "latest_retained_attempt_end": "2026-08-19T16:16:29.825920Z",
+    "raw_results_generated_at": "2026-08-19T16:22:43.110961Z",
+    "output_committed_at": "2026-08-19T16:22:43.113962Z",
+    "revealed_at": "2026-08-19T16:35:04.810794Z",
+    "all_retained_attempts_precede_raw_results": true,
+    "all_command_indexes_monotonic_within_attempt": true,
+    "raw_results_precede_output_commitment": true,
+    "output_commitment_precedes_reveal": true,
+    "post_output_threshold_selection_detected": false,
+    "revealed_manifest_values_enter_outcome_bindings": false
+  },
+  "custody_audit": {
+    "output_commitment_matches_raw_results": true,
+    "revealed_holdout_matches_pre_reveal_commitment": true,
+    "revealed_seed_matches_pre_reveal_commitment": true,
+    "reveal_authorized_by_declared_custodian": true,
+    "custodian_session_separate_from_execution_and_adjudication_sessions": true,
+    "custody_chain_valid": true
+  },
+  "platform_evidence": {
+    "windows-x86_64": {
+      "exact_protocol_sequence": true,
+      "test_count": 187,
+      "example_count": 6,
+      "exact_pdf_engine": true,
+      "git_diff_exit_code": 0,
+      "postflight_exit_code": 0,
+      "mutation_count": 10,
+      "mutation_rejection": true,
+      "main_protocol_succeeded": true
+    },
+    "ubuntu-latest-x86_64": {
+      "exact_protocol_sequence": true,
+      "test_count": 187,
+      "example_count": 6,
+      "exact_pdf_engine": true,
+      "git_diff_exit_code": 1,
+      "postflight_exit_code": 1,
+      "dirty_regeneration_path_count": 16,
+      "unexpected_startup_surface": ".venv/lib/python3.11/site-packages/_cuda_bindings_redirector.pth",
+      "mutation_count": 10,
+      "strictly_rejected_mutation_count": 9,
+      "mutation_rejection": false,
+      "main_protocol_succeeded": false
+    }
+  },
+  "outcome_recomputation": {
+    "language": "popgp-bool-v2",
+    "binding_types": {
+      "evidence-contract": "boolean",
+      "cross-platform-reproduction": "boolean",
+      "mutation-rejection": "boolean",
+      "result_failed": "boolean",
+      "result_blocked": "boolean"
+    },
+    "binding_values": {
+      "evidence-contract": false,
+      "cross-platform-reproduction": false,
+      "mutation-rejection": false,
+      "result_failed": true,
+      "result_blocked": false
+    },
+    "capability_rule_results": {
+      "evidence-contract": false,
+      "cross-platform-reproduction": false,
+      "mutation-rejection": false
+    },
+    "outcome_rule_results": {
+      "pass": false,
+      "fail": true,
+      "blocked": false,
+      "exclusive_and_complete": true
+    }
+  },
+  "review_chain_audit": {
+    "initial_review_receipt": "independent-review",
+    "initial_review_ref": "a704855fd6f8d26286e5897c3032607a14f88633:reviews/viability/POPGP-VIABILITY-R1-2026-08/reviews/VIA-000-INDEPENDENT-REVIEW-1.md",
+    "immutable_ref_bytes_match_receipt": true,
+    "schema_valid": true,
+    "candidate_and_tree_binding_valid": true,
+    "independence_declarations_consistent": true,
+    "unresolved_findings": 0,
+    "unresolved_requested_tests": 0,
+    "recommendation_approve": true,
+    "approval_scope": "Evidence-chain validity for failed adjudication only; not scientific pass or Tier-R promotion.",
+    "review_chain_valid": true
+  },
+  "claim_audit": {
+    "claim_diff_receipt": "claim-diff",
+    "source_audit_ref": "e0bb7d3287997cec543980b1195f809922912070:reviews/independent_reviewer/POPGP-VIABILITY-R1-2026-08-VIA-000-CLAIM-AUDIT-1.md",
+    "source_audit_sha256": "2d7d6510c53c04d4e009b22e6ea028f933ad69a8b4cf2f9096395871a2f2e595",
+    "closure_ref": "a27b707ea83752719860699422ecd6f0ab471b7d:reviews/independent_reviewer/POPGP-VIABILITY-R1-2026-08-VIA-000-CLAIM-AUDIT-1-CLOSURE.json",
+    "closure_sha256": "cbd4a3b1a5cf85a1cb5b4304a62cd1c5ece9951784fd8d67c09cde962d502ad9",
+    "unresolved_findings": 0,
+    "claim_promotion_supported": false,
+    "tier_r_advance_supported": false
+  },
+  "evidence_level_audit": {
+    "achieved_evidence": "E3-adversarial-suite",
+    "cumulative_required_receipt_kinds": [
+      "environment",
+      "run-log",
+      "raw-results",
+      "protocol",
+      "attack-plan",
+      "statistical-audit",
+      "mutation-results",
+      "independent-review",
+      "adjudication",
+      "claim-diff"
+    ],
+    "all_required_receipt_kinds_present_after_attachment": true,
+    "evidence_level_describes_receipt_completeness_not_pass": true
+  },
+  "adjudication": {
+    "round_status": "valid",
+    "packet_outcome": "failed",
+    "cause_codes": [
+      "implementation-capability-failed"
+    ],
+    "cause_rationale": "Linux executed the required toolchain and completed the tests, examples, semantic checker, and exact PDF engine, but reproducibly violated the frozen tracked-cleanliness and startup-surface gates and did not satisfy the strict tenth-mutation boundary. These are observed failures of capabilities VIA-000 explicitly tests, not unavailable infrastructure.",
+    "achieved_evidence": "E3-adversarial-suite",
+    "claim_promotion": false,
+    "tier_r_promotion": false
+  },
+  "campaign_decision": {
+    "target_tier": "R",
+    "outcome": "failed",
+    "rule": "A failed required packet fails the target tier for this candidate.",
+    "downstream_holdout_execution_authorized": false
+  },
+  "limitations": [
+    "Peak-memory and accelerator-use measurements were not retained, although the independently decisive Linux acceptance failures already establish the frozen failed outcome.",
+    "Linux G10 attribution is confounded by a baseline lock-installed CUDA redirector .pth; the complete frozen oracle still evaluates false and the main Linux protocol independently fails.",
+    "This is internal process adjudication under the same operator and orchestrator, not external scientific validation.",
+    "This failed evidence-integrity packet does not by itself falsify POPGP's physical mechanism hypotheses; it prevents this candidate and campaign round from establishing Tier R."
+  ]
+}

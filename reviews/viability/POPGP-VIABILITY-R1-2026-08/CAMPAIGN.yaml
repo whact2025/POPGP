@@ -21,6 +21,6 @@ packet_files:
   VIA-300: packets/VIA-300.yaml
   VIA-400: packets/VIA-400.yaml
 decision:
-  outcome: pending
-  authorized_by: null
-  decided_at: null
+  outcome: failed
+  authorized_by: codex-via000-adjudicator
+  decided_at: '2026-08-19T17:21:42.5058861Z'

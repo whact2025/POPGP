@@ -7,7 +7,7 @@ baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
 tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
 protocol_commit: 72bfcfbb5ab5a0fee3449510f8868b8bb19be805
 protocol_rule_sha256: e5ac4103188f652a460b4a0cc74d641d694e0043b6f2d62dcf2484b92de8acca
-lifecycle_phase: reproduced
+lifecycle_phase: adjudicated
 claims:
 - C03
 - C04
@@ -413,6 +413,11 @@ receipts:
   path: ../reviews/VIA-000-INDEPENDENT-REVIEW-1.md
   sha256: 6ac08d981921865c91f8779bcfd1e4871af8e39e38c384db97c350e4de083720
   media_type: text/markdown
+- id: adjudication
+  kind: adjudication
+  path: ../receipts/VIA-000/adjudication.json
+  sha256: 4c83d25cf240c0afbbac5cefec96ffae18e73eb2dee508824455df421e00046c
+  media_type: application/json
 review_chain:
   initial_review_receipt: independent-review
   initial_review_ref: a704855fd6f8d26286e5897c3032607a14f88633:reviews/viability/POPGP-VIABILITY-R1-2026-08/reviews/VIA-000-INDEPENDENT-REVIEW-1.md
@@ -423,9 +428,23 @@ review_chain:
   findings: []
   requested_tests: []
 adjudication:
-  round_status: not-run
-  packet_outcome: pending
+  round_status: valid
+  packet_outcome: failed
   cause_codes:
-  - not-run
-  decisive_receipts: []
-  achieved_evidence: E0-proposal
+  - implementation-capability-failed
+  decisive_receipts:
+  - protocol
+  - attack-plan
+  - environment
+  - run-log
+  - raw-results
+  - mutation-results
+  - output-commitment
+  - revealed-holdout
+  - revealed-seed
+  - reveal-record
+  - statistical-audit
+  - claim-diff
+  - independent-review
+  - adjudication
+  achieved_evidence: E3-adversarial-suite

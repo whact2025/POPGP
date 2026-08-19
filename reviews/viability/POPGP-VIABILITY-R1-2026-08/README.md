@@ -17,14 +17,18 @@ the physical mechanism or Tier R.
 
 ## Current state
 
-- Campaign decision: `pending`.
-- `VIA-000`: reproduced with a fail-closed raw result; the statistical and claim
-  audits and custody reveal are complete, while independent review and adjudication
-  remain pending. The Windows run passed the frozen protocol
-  and rejected all ten mutations. The exact Linux run completed but failed the frozen
-  cleanliness boundary after regeneration and did not reject the tenth mutation under
-  the exact postflight oracle. Holdout started after the seventh clean falsifier
-  approved the amended execution boundary. Earlier clean falsifiers exposed an
+- Campaign decision: `failed` for this candidate because required packet `VIA-000`
+  was validly adjudicated failed.
+- `VIA-000`: adjudicated with `round_status: valid`, `packet_outcome: failed`, cause
+  `implementation-capability-failed`, and achieved evidence
+  `E3-adversarial-suite`. The custody reveal, statistical audit, claim audit and
+  closure, formal independent review, and adjudication are complete and hash-bound.
+  Independent-review approval establishes that the failed evidence chain is valid;
+  it is not a scientific pass or Tier-R promotion. The Windows run passed the frozen
+  protocol and rejected all ten mutations. The exact Linux run completed but failed
+  the frozen cleanliness boundary after regeneration and did not reject the tenth
+  mutation under the exact postflight oracle. Holdout started after the seventh clean
+  falsifier approved the amended execution boundary. Earlier clean falsifiers exposed an
   undeclared-import/untracked-file blind spot, ignored virtual-environment customize
   hooks, an executable `.pth` variant, and an editable self-cleaning `.pth`, recorded in
   [`attacks/VIA-000-ATTACK-PLAN-1.md`](attacks/VIA-000-ATTACK-PLAN-1.md) and
@@ -41,8 +45,9 @@ the physical mechanism or Tier R.
   passes, and the exact cleanliness gates; it is the decisive attack-plan receipt in
   [`attacks/VIA-000-ATTACK-PLAN-7.md`](attacks/VIA-000-ATTACK-PLAN-7.md).
 - `VIA-010`, `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300`, `VIA-400`: drafted.
-- Sealed holdout/seed commitments exist outside the repository at the immutable URIs
-  and SHA-256 values recorded in each packet. Their contents have not been used as
+- Sealed holdout/seed commitments remain archived outside the repository at the
+  immutable URI and SHA-256 values recorded in the packet. Their authorized
+  post-output repository copies match those commitments and were not used as
   calibration evidence.
 - A builder-owned pre-freeze calibration is retained in
   [`calibration/VIA-000-2026-08-13.md`](calibration/VIA-000-2026-08-13.md). It is not a
