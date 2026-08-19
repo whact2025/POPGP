@@ -1,0 +1,91 @@
+{
+  "authorized_by": "codex-via000-custodian",
+  "boundary_crossed": false,
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "custodian": {
+    "access_level": "hidden-manifest-custody",
+    "access_limitations": [
+      "Exact runtime model identifier and version were not exposed.",
+      "Sealed bytes were processed locally for hashing, packet-id verification, and exact-byte copying; no sealed field value was emitted to the model."
+    ],
+    "agent_identity": "codex-via000-custodian",
+    "exposure": {
+      "final_labels_seen": false,
+      "private_evaluator_seen": false,
+      "secret_seed_seen": false
+    },
+    "model_identity": "OpenAI Codex (GPT-5-based; exact runtime identifier not exposed)",
+    "model_version": "unknown",
+    "operator": "fuocor",
+    "orchestrator_id": "codex-desktop",
+    "orchestrator_metadata": {
+      "delegated_task_path": "/root/via000_custodian"
+    },
+    "organization": "popgp-internal",
+    "sealed_bytes_processed_by_local_tool": true,
+    "sealed_values_emitted_to_model": false,
+    "session_id": "popgp-viability-r1-2026-08-via000-custodian-session"
+  },
+  "immutable_custody": {
+    "archive_entries": {
+      "holdout_manifest": {
+        "path": "sealed/VIA-000-hidden-holdout.json",
+        "sha256": "7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5"
+      },
+      "output_commitment": {
+        "path": "runner-receipts/output-commitment.json",
+        "sha256": "0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b"
+      },
+      "raw_results": {
+        "path": "runner-receipts/raw-results.json",
+        "sha256": "7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641"
+      },
+      "seed_manifest": {
+        "path": "sealed/VIA-000-secret-seed.json",
+        "sha256": "13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719"
+      }
+    },
+    "archived_runner_receipt_bytes": 2538317,
+    "archived_runner_receipt_file_count": 303,
+    "location": "file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-000",
+    "retention_policy": "Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime of the campaign."
+  },
+  "output_commitment": {
+    "committed_at": "2026-08-19T16:22:43.113962Z",
+    "committed_by": "codex-via000-runner",
+    "output_receipt_id": "raw-results",
+    "output_sha256": "7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641",
+    "receipt_path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/output-commitment.json",
+    "receipt_sha256": "0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b",
+    "runner_commit": "bd1a8d28717e493cd62053d32bd38062f293c2cd",
+    "runner_tree": "4d5ea64131a414a4dca0488bd8b248c6a6e8f5e0"
+  },
+  "output_commitment_receipt_id": "output-commitment",
+  "packet_id": "VIA-000",
+  "post_reveal": {
+    "holdout": {
+      "archive_path": "revealed-manifests/VIA-000-HOLDOUT-MANIFEST.json",
+      "receipt_id": "revealed-holdout",
+      "repository_path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/manifests/VIA-000-HOLDOUT-MANIFEST.json",
+      "sha256": "7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5"
+    },
+    "seed": {
+      "archive_path": "revealed-manifests/VIA-000-SEED-MANIFEST.json",
+      "receipt_id": "revealed-seed",
+      "repository_path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/manifests/VIA-000-SEED-MANIFEST.json",
+      "sha256": "13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719"
+    },
+    "verified_at": "2026-08-19T16:35:04.810794Z"
+  },
+  "post_reveal_holdout_sha256": "7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5",
+  "post_reveal_seed_sha256": "13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719",
+  "pre_reveal": {
+    "holdout_packet_id_match": true,
+    "holdout_sha256": "7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5",
+    "seed_packet_id_match": true,
+    "seed_sha256": "13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719",
+    "verified_at": "2026-08-19T16:33:13.607164Z"
+  },
+  "revealed_at": "2026-08-19T16:35:04.810794Z",
+  "schema_version": 1
+}

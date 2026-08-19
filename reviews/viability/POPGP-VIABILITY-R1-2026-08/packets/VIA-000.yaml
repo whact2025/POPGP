@@ -266,14 +266,14 @@ blind_custody:
     output_receipt_id: raw-results
     output_sha256: 7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641
   reveal:
-    status: unrevealed
-    authorized_by: null
-    revealed_at: null
-    post_reveal_holdout_sha256: null
-    post_reveal_seed_sha256: null
-    post_reveal_holdout_receipt_id: null
-    post_reveal_seed_receipt_id: null
-    reveal_receipt_id: null
+    status: revealed
+    authorized_by: codex-via000-custodian
+    revealed_at: '2026-08-19T16:35:04.810794Z'
+    post_reveal_holdout_sha256: 7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5
+    post_reveal_seed_sha256: 13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719
+    post_reveal_holdout_receipt_id: revealed-holdout
+    post_reveal_seed_receipt_id: revealed-seed
+    reveal_receipt_id: reveal-record
     retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
       of the campaign.
     immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/archive/VIA-000
@@ -382,6 +382,21 @@ receipts:
   kind: output-commitment
   path: ../receipts/VIA-000/output-commitment.json
   sha256: 0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b
+  media_type: application/json
+- id: revealed-holdout
+  kind: revealed-manifest
+  path: ../manifests/VIA-000-HOLDOUT-MANIFEST.json
+  sha256: 7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5
+  media_type: application/json
+- id: revealed-seed
+  kind: revealed-manifest
+  path: ../manifests/VIA-000-SEED-MANIFEST.json
+  sha256: 13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719
+  media_type: application/json
+- id: reveal-record
+  kind: reveal-record
+  path: ../receipts/VIA-000/reveal-record.json
+  sha256: dfaa18a6b1e8c4e7b8a3313a379d2c1cd5177d8aa89e9a3d32ea095f96d8a409
   media_type: application/json
 review_chain:
   initial_review_receipt: null
