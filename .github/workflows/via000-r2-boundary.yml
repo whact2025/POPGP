@@ -1,0 +1,109 @@
+name: VIA-000 R2 boundary calibration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - campaign/via000-r2-remediation-*
+
+permissions:
+  contents: read
+
+jobs:
+  boundary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up base Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11"
+
+      - name: Install exact uv runner
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check uv==0.11.11
+
+      - name: Execute trusted boundary suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+          Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+          Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue
+
+          $evidence = Join-Path $env:RUNNER_TEMP "via000-r2-boundary"
+          New-Item -ItemType Directory -Path $evidence | Out-Null
+          $manifest = Join-Path $evidence "startup-surface.json"
+          $digestPath = Join-Path $evidence "startup-surface.sha256"
+
+          uv sync --frozen --no-editable
+          if ($LASTEXITCODE -ne 0) { throw "locked no-editable sync failed" }
+
+          $digest = (python -I -S scripts/check_reproduction_boundary.py `
+            --repo-root . --environment .venv snapshot --output $manifest).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "startup snapshot failed" }
+          Set-Content -LiteralPath $digestPath -Value $digest -Encoding utf8NoBOM
+
+          function Invoke-CheckedModule {
+            param(
+              [Parameter(Mandatory = $true)][string]$Module,
+              [string[]]$ModuleArguments = @()
+            )
+            python -I -S scripts/check_reproduction_boundary.py `
+              --repo-root . --environment .venv run `
+              --manifest $manifest --expected-sha256 $digest -- `
+              uv run --frozen --no-editable python -I -S `
+              scripts/run_without_startup_hooks.py --repo-root . `
+              --module $Module -- @ModuleArguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "checked Python module failed: $Module $ModuleArguments"
+            }
+          }
+
+          Invoke-CheckedModule -Module ruff -ModuleArguments @("check", ".")
+          Invoke-CheckedModule -Module scripts.check_tex
+          Invoke-CheckedModule -Module pytest -ModuleArguments @("-q")
+          Invoke-CheckedModule -Module examples.physics_qg.chain_1d
+          Invoke-CheckedModule -Module examples.physics_qg.grid_2d
+          Invoke-CheckedModule -Module examples.physics_qg.gravity_well
+          Invoke-CheckedModule -Module examples.physics_qg.source_law
+          Invoke-CheckedModule -Module examples.physics_qg.source_law_many_body
+          Invoke-CheckedModule -Module examples.physics_qg.ca_model
+          Invoke-CheckedModule -Module scripts.check_validation_artifacts `
+            -ModuleArguments @("--enforce-change-boundary")
+
+          python -I -S scripts/check_reproduction_boundary.py `
+            --repo-root . --environment .venv verify `
+            --manifest $manifest --expected-sha256 $digest
+          if ($LASTEXITCODE -ne 0) { throw "final startup verification failed" }
+
+          git rev-parse HEAD | Set-Content `
+            -LiteralPath (Join-Path $evidence "candidate-commit.txt") `
+            -Encoding utf8NoBOM
+          git rev-parse "HEAD^{tree}" | Set-Content `
+            -LiteralPath (Join-Path $evidence "candidate-tree.txt") `
+            -Encoding utf8NoBOM
+          git status --short --ignored | Set-Content `
+            -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
+            -Encoding utf8NoBOM
+
+      - name: Retain boundary evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: via000-r2-boundary-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/via000-r2-boundary/
+            examples/physics_qg/*/results/
+          if-no-files-found: error
+          retention-days: 90
