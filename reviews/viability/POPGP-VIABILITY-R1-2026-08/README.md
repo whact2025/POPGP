@@ -18,7 +18,8 @@ the physical mechanism or Tier R.
 ## Current state
 
 - Campaign decision: `pending`.
-- `VIA-000`: preregistered; holdout not started. Clean falsifiers exposed an
+- `VIA-000`: attacked; holdout started after the seventh clean falsifier approved the
+  amended execution boundary. Earlier clean falsifiers exposed an
   undeclared-import/untracked-file blind spot, ignored virtual-environment customize
   hooks, an executable `.pth` variant, and an editable self-cleaning `.pth`, recorded in
   [`attacks/VIA-000-ATTACK-PLAN-1.md`](attacks/VIA-000-ATTACK-PLAN-1.md) and
@@ -30,8 +31,10 @@ the physical mechanism or Tier R.
   [`attacks/VIA-000-ATTACK-PLAN-5.md`](attacks/VIA-000-ATTACK-PLAN-5.md). The sixth
   plan confirmed all 187 tests pass and exposed repository-local PDF residue, recorded
   in [`attacks/VIA-000-ATTACK-PLAN-6.md`](attacks/VIA-000-ATTACK-PLAN-6.md).
-  Pre-holdout protocol refreezes add all attacks and require a new clean falsifier
-  before execution.
+  The seventh plan independently rejected all ten frozen mutation families, passed
+  all 187 tests, six examples, semantic validation, both external-directory PDF
+  passes, and the exact cleanliness gates; it is the decisive attack-plan receipt in
+  [`attacks/VIA-000-ATTACK-PLAN-7.md`](attacks/VIA-000-ATTACK-PLAN-7.md).
 - `VIA-010`, `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300`, `VIA-400`: drafted.
 - Sealed holdout/seed commitments exist outside the repository at the immutable URIs
   and SHA-256 values recorded in each packet. Their contents have not been used as

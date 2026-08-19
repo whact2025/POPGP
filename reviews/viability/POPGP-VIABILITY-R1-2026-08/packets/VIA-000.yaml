@@ -7,7 +7,7 @@ baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
 tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
 protocol_commit: 72bfcfbb5ab5a0fee3449510f8868b8bb19be805
 protocol_rule_sha256: e5ac4103188f652a460b4a0cc74d641d694e0043b6f2d62dcf2484b92de8acca
-lifecycle_phase: preregistered
+lifecycle_phase: attacked
 claims:
 - C03
 - C04
@@ -143,7 +143,7 @@ preregistration:
     protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json
     sha256: 66d9cc3325a9758c7443b29df612e2b27b8db14de3b224489dee5e2e04a718f8
     media_type: application/json
-holdout_started: false
+holdout_started: true
 seats:
   protocol_designer:
     agent_identity: codex-via000-protocol
@@ -348,6 +348,11 @@ receipts:
   path: ../receipts/VIA-000/protocol.json
   sha256: 66d9cc3325a9758c7443b29df612e2b27b8db14de3b224489dee5e2e04a718f8
   media_type: application/json
+- id: attack-plan
+  kind: attack-plan
+  path: ../attacks/VIA-000-ATTACK-PLAN-7.md
+  sha256: 735783112cf90451551cbaec9de4d0bafd15754400b479a0be888fc670a725fb
+  media_type: text/plain
 review_chain:
   initial_review_receipt: null
   initial_review_ref: null
