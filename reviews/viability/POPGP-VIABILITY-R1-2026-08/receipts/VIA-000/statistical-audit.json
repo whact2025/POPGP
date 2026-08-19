@@ -1,0 +1,335 @@
+{
+  "schema_version": 1,
+  "receipt_kind": "statistical-audit",
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "packet_id": "VIA-000",
+  "audited_handoff_commit": "fe11cdd4e1d5ec1881cc1b224a3a9a62cbb1a617",
+  "audited_handoff_tree": "419b46498d7267f8554692963e9a267592770737",
+  "audited_at": "2026-08-19T16:48:45.1995861Z",
+  "audit_mode": "receipt-only-no-candidate-rerun",
+  "auditor": {
+    "role": "statistical_auditor",
+    "agent_identity": "codex-via000-statistics",
+    "model_identity": "OpenAI Codex (GPT-5-based; exact runtime identifier not exposed)",
+    "model_version": "unknown",
+    "operator": "fuocor",
+    "session_id": "popgp-viability-r1-2026-08-via000-statistics-session",
+    "orchestrator_id": "codex-desktop",
+    "organization": "popgp-internal",
+    "access_level": "public-calibration-only",
+    "exposure": {
+      "final_labels_seen": false,
+      "secret_seed_seen": true,
+      "private_evaluator_seen": false,
+      "custody_path_accessed": false,
+      "sealed_custody_bytes_seen": false,
+      "revealed_holdout_manifest_seen": true,
+      "revealed_seed_manifest_seen": true,
+      "local_handoff_file_seen": false
+    },
+    "access_limitations": [
+      "The exact runtime model identifier and version were not exposed.",
+      "No private custody path, sealed custody byte, private evaluator, or local POPGP_Codex_Handoff.md file was accessed.",
+      "The repository's authorized post-reveal holdout and seed copies were read; therefore secret_seed_seen is declared true even though no pre-reveal boundary was crossed.",
+      "The scientific candidate was not rerun after reveal; all findings below are recomputations from immutable retained receipts."
+    ]
+  },
+  "frozen_identity": {
+    "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+    "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+    "candidate_commit_and_tree_recomputed": true,
+    "protocol_commit": "72bfcfbb5ab5a0fee3449510f8868b8bb19be805",
+    "protocol_sha256": "66d9cc3325a9758c7443b29df612e2b27b8db14de3b224489dee5e2e04a718f8",
+    "protocol_receipt_sha256": "66d9cc3325a9758c7443b29df612e2b27b8db14de3b224489dee5e2e04a718f8",
+    "protocol_and_receipt_bytes_equal": true,
+    "packet_rule_sha256": "e5ac4103188f652a460b4a0cc74d641d694e0043b6f2d62dcf2484b92de8acca",
+    "attacked_handoff_commit": "b7b0d12ddfbbfb1268cdf22db2349a10bf7ed96d"
+  },
+  "evidence_refs": [
+    {
+      "id": "raw-results",
+      "git_ref": "bd1a8d28717e493cd62053d32bd38062f293c2cd:reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/raw-results.json",
+      "bytes": 63161,
+      "sha256": "7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641"
+    },
+    {
+      "id": "output-commitment",
+      "git_ref": "bd1a8d28717e493cd62053d32bd38062f293c2cd:reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/output-commitment.json",
+      "bytes": 244,
+      "sha256": "0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b"
+    },
+    {
+      "id": "environment",
+      "git_ref": "bd1a8d28717e493cd62053d32bd38062f293c2cd:reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/environment.json",
+      "bytes": 2159,
+      "sha256": "f4855453cac6ef3058289cf0aa7f3da40f08e1e37d2b322fccfc1bcabcf085e9"
+    },
+    {
+      "id": "run-log",
+      "git_ref": "bd1a8d28717e493cd62053d32bd38062f293c2cd:reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/run-log.json",
+      "bytes": 3376,
+      "sha256": "83e912426561ab7954bfe4b8c7c0297ae20fd80349b8b2889ef935643b3d584f"
+    },
+    {
+      "id": "mutation-results",
+      "git_ref": "bd1a8d28717e493cd62053d32bd38062f293c2cd:reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/mutation-results.json",
+      "bytes": 9883,
+      "sha256": "c60673e632c432e3591ca567e5e479428919c053c8bc30f4d5e033ec7123b096"
+    },
+    {
+      "id": "reveal-record",
+      "git_ref": "fe11cdd4e1d5ec1881cc1b224a3a9a62cbb1a617:reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/reveal-record.json",
+      "bytes": 4161,
+      "sha256": "dfaa18a6b1e8c4e7b8a3313a379d2c1cd5177d8aa89e9a3d32ea095f96d8a409"
+    },
+    {
+      "id": "revealed-holdout",
+      "git_ref": "fe11cdd4e1d5ec1881cc1b224a3a9a62cbb1a617:reviews/viability/POPGP-VIABILITY-R1-2026-08/manifests/VIA-000-HOLDOUT-MANIFEST.json",
+      "bytes": 186,
+      "sha256": "7ff9edcc032afe5ba38153a59d2d7e9c8268f652dd49f4c183b87e54d4cc06d5"
+    },
+    {
+      "id": "revealed-seed",
+      "git_ref": "fe11cdd4e1d5ec1881cc1b224a3a9a62cbb1a617:reviews/viability/POPGP-VIABILITY-R1-2026-08/manifests/VIA-000-SEED-MANIFEST.json",
+      "bytes": 183,
+      "sha256": "13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719"
+    }
+  ],
+  "receipt_integrity": {
+    "runner_evidence_manifest_entry_count": 296,
+    "runner_evidence_manifest_match_count": 296,
+    "runner_evidence_manifest_mismatch_count": 0,
+    "aggregate_receipt_count": 3,
+    "aggregate_receipt_mismatch_count": 0,
+    "output_commitment_matches_raw_results": true,
+    "raw_results_and_output_commitment_unchanged_between_runner_commit_and_reveal_handoff": true,
+    "revealed_holdout_matches_pre_reveal_commitment": true,
+    "revealed_seed_matches_pre_reveal_commitment": true,
+    "campaign_validator_at_audited_handoff": "valid"
+  },
+  "ordering_audit": {
+    "latest_retained_attempt_end": "2026-08-19T16:16:29.832342Z",
+    "raw_results_generated_at": "2026-08-19T16:22:43.110961Z",
+    "output_committed_at": "2026-08-19T16:22:43.113962Z",
+    "revealed_at": "2026-08-19T16:35:04.810794Z",
+    "all_retained_attempts_precede_raw_results": true,
+    "raw_results_precede_output_commitment": true,
+    "output_commitment_precedes_reveal": true,
+    "raw_to_output_commitment_delay_milliseconds": 3.001,
+    "output_commitment_to_reveal_delay_seconds": 741.696832,
+    "all_command_indexes_monotonic_within_attempt": true,
+    "post_output_threshold_selection_detected": false,
+    "revealed_manifest_values_enter_any_outcome_binding": false
+  },
+  "platform_audit": {
+    "windows-x86_64": {
+      "candidate_identity_matches": true,
+      "exact_protocol_command_count": 17,
+      "command_sequence_matches_frozen_protocol": true,
+      "locked_noneditable_sync": true,
+      "all_uv_runs_isolated_frozen_noneditable": true,
+      "blocked_environment_variables_absent": true,
+      "python_minor_used_by_locked_environment": "3.11.15",
+      "pdf_engine_exact": true,
+      "test_count": 187,
+      "required_test_count_met": true,
+      "example_count": 6,
+      "required_example_count_met": true,
+      "semantic_checker_exit_code": 0,
+      "semantic_checker_reported_bounded_numeric_drift_count": 0,
+      "pdf_pass_count": 2,
+      "pdf_page_count": 11,
+      "pdf_bytes": 535368,
+      "pdf_sha256": "ff83b6c28eeacfb805e9261cee744a24f70b2a79fe11c6248de40e77f8356b4b",
+      "all_five_pdf_artifact_bytes_and_hashes_match": true,
+      "git_diff_exit_code": 0,
+      "postflight_exit_code": 0,
+      "main_protocol_succeeded": true,
+      "mutation_count": 10,
+      "rejected_mutation_count": 10,
+      "mutation_rejection": true,
+      "main_attempt_harness_error_after_protocol": "FileNotFoundError: [WinError 2] The system cannot find the file specified",
+      "separate_complete_mutation_attempt_retained": true,
+      "protocol_command_duration_sum_seconds": 1532.905,
+      "attempt_wall_seconds": 1718.04944,
+      "within_wall_time_budget": true
+    },
+    "ubuntu-latest-x86_64": {
+      "candidate_identity_matches": true,
+      "exact_protocol_command_count": 17,
+      "command_sequence_matches_frozen_protocol": true,
+      "locked_noneditable_sync": true,
+      "all_uv_runs_isolated_frozen_noneditable": true,
+      "blocked_environment_variables_absent": true,
+      "python_minor_used_by_locked_environment": "3.11.15",
+      "pdf_engine_exact": true,
+      "test_count": 187,
+      "required_test_count_met": true,
+      "example_count": 6,
+      "required_example_count_met": true,
+      "semantic_checker_exit_code": 0,
+      "semantic_checker_reported_bounded_numeric_drift_count": 1150,
+      "semantic_checker_reported_max_absolute_drift": 799328000.0,
+      "semantic_checker_reported_max_relative_drift": 2.0,
+      "semantic_tolerances_were_precommitted": true,
+      "pdf_pass_count": 2,
+      "pdf_page_count": 11,
+      "pdf_bytes": 388867,
+      "pdf_sha256": "864de385064eab46ff228b99b335bf2b4aabd85f22c703a7a351602c662ab8ff",
+      "all_five_pdf_artifact_bytes_and_hashes_match": true,
+      "git_diff_exit_code": 1,
+      "postflight_exit_code": 1,
+      "dirty_regeneration_path_count": 16,
+      "dirty_regeneration_paths": [
+        "examples/physics_qg/ca_model/results/dynamics_cooling.png",
+        "examples/physics_qg/chain_1d/results/clock_potential.png",
+        "examples/physics_qg/chain_1d/results/embedding.png",
+        "examples/physics_qg/chain_1d/results/entropy_growth.png",
+        "examples/physics_qg/chain_1d/results/validation.json",
+        "examples/physics_qg/gravity_well/results/gravity_embedding.png",
+        "examples/physics_qg/gravity_well/results/gravity_well.png",
+        "examples/physics_qg/gravity_well/results/source_comparison.png",
+        "examples/physics_qg/gravity_well/results/validation.json",
+        "examples/physics_qg/grid_2d/results/clock_potential.png",
+        "examples/physics_qg/grid_2d/results/embedding.png",
+        "examples/physics_qg/grid_2d/results/validation.json",
+        "examples/physics_qg/source_law/results/source_scaling.png",
+        "examples/physics_qg/source_law/results/validation.json",
+        "examples/physics_qg/source_law_many_body/results/many_body_source.png",
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+      ],
+      "observed_startup_surfaces": [
+        ".venv/lib/python3.11/site-packages/_cuda_bindings_redirector.pth",
+        ".venv/lib/python3.11/site-packages/_virtualenv.pth"
+      ],
+      "expected_startup_surfaces": [
+        ".venv/lib/python3.11/site-packages/_virtualenv.pth"
+      ],
+      "main_protocol_succeeded": false,
+      "mutation_count": 10,
+      "rejected_mutation_count_under_strict_frozen_oracles": 9,
+      "mutation_rejection": false,
+      "protocol_command_duration_sum_seconds": 205.285128,
+      "attempt_wall_seconds": 205.328268,
+      "within_wall_time_budget": true,
+      "all_four_github_attempts_concluded_failure": true,
+      "contrary_passing_linux_attempt_found": false
+    }
+  },
+  "mutation_audit": {
+    "required_mutation_count": 10,
+    "windows_unique_mutation_count": 10,
+    "linux_unique_mutation_count": 10,
+    "g01_through_g06_diagnostics_match_frozen_oracles_on_both_platforms": true,
+    "g07_through_g09_boundary_markers_and_rejections_match_frozen_oracles_on_both_platforms": true,
+    "g05_original_and_restored_visual_sha256_equal": true,
+    "g06_replacement_count_per_platform": 2,
+    "linux_g10": {
+      "historical_exploit_reproduced": true,
+      "semantic_checker_startup_control_reproduced": true,
+      "noneditable_sync_exit_code": 0,
+      "editable_project_carrier_absent_after_noneditable_sync": true,
+      "amended_isolated_probe_stdout": "None",
+      "amended_isolated_probe_exit_code": 0,
+      "final_postflight_exit_code": 1,
+      "final_postflight_failure_surface": ".venv/lib/python3.11/site-packages/_cuda_bindings_redirector.pth",
+      "strict_frozen_oracle_rejected": false,
+      "mutation_specific_carrier_eliminated": true,
+      "baseline_startup_surface_confound": true,
+      "classification_assessment": "The false G10 Boolean is a conservative and reproducible application of the frozen complete-boundary oracle because that oracle requires a zero final postflight. The mutation-specific editable carrier was nevertheless eliminated. The unrelated lock-installed CUDA redirector surface confounds attribution of G10=false, but it independently fails the main Linux protocol and cannot make the packet blocked or passed."
+    }
+  },
+  "resource_audit": {
+    "wall_time_budget_seconds": 3600,
+    "windows_protocol_within_wall_time_budget": true,
+    "linux_protocol_within_wall_time_budget": true,
+    "memory_budget_bytes": 12884901888,
+    "peak_memory_measurement_retained": false,
+    "memory_budget_independently_verifiable": false,
+    "accelerator_budget_seconds": 0,
+    "accelerator_usage_measurement_retained": false,
+    "accelerator_budget_independently_verifiable": false
+  },
+  "outcome_recomputation": {
+    "raw_binding_types": {
+      "evidence-contract": "boolean",
+      "cross-platform-reproduction": "boolean",
+      "mutation-rejection": "boolean",
+      "result_failed": "boolean",
+      "result_blocked": "boolean"
+    },
+    "raw_binding_values": {
+      "evidence-contract": false,
+      "cross-platform-reproduction": false,
+      "mutation-rejection": false,
+      "result_failed": true,
+      "result_blocked": false
+    },
+    "independently_recomputed_capabilities": {
+      "evidence-contract": false,
+      "cross-platform-reproduction": false,
+      "mutation-rejection": false
+    },
+    "frozen_rule_evaluation": {
+      "pass": false,
+      "fail": true,
+      "blocked": false,
+      "exclusive_and_complete": true
+    },
+    "failure_classification": {
+      "cause_class": "tested-capability-failure",
+      "cause_codes_supported": [
+        "linux-dirty-regeneration",
+        "linux-unexpected-startup-surface",
+        "linux-mutation-boundary-failure"
+      ],
+      "infrastructure_available": true,
+      "failed_not_blocked_is_correct": true,
+      "rationale": "The Linux runner completed the locked environment, tests, examples, semantic checker, exact TeX engine, and retained PDFs. Its nonzero Git-diff and postflight results are observed violations of frozen acceptance conditions, not unavailable hardware, precision, scale, or external access."
+    }
+  },
+  "contrary_and_confounding_evidence": [
+    {
+      "observation": "Windows satisfies the full protocol and all ten mutations.",
+      "effect": "This is a partial platform success only; the frozen conjunction requires Linux and Windows."
+    },
+    {
+      "observation": "Linux passes 187 tests, all six examples, the semantic checker, two PDF passes, and the exact TeX-engine check.",
+      "effect": "These passing components do not override the exact Git-diff and startup-surface failures."
+    },
+    {
+      "observation": "The Linux semantic checker accepts the regenerated numeric values under precommitted tolerances.",
+      "effect": "This is not contradictory: the frozen protocol separately requires git diff cleanliness and treats forbidden repository residue as failure."
+    },
+    {
+      "observation": "Linux G10 removes the attacked editable carrier and suppresses its marker.",
+      "effect": "This narrows the G10 attribution but does not satisfy its frozen clean-postflight oracle and does not affect the independently decisive main-protocol failures."
+    },
+    {
+      "observation": "Non-primary Linux attempts 2 and 3 are omitted from run-log.json but retained in the raw evidence manifest and github-runs.json.",
+      "effect": "The omission is a traceability limitation, not favorable-result selection: all four recorded Linux GitHub attempts conclude failure and no contrary passing attempt exists."
+    }
+  ],
+  "statistical_assessment": {
+    "stochastic_power_analysis_applicable": false,
+    "multiplicity_adjustment_applicable": false,
+    "reason": "VIA-000 uses exact Boolean command, count, identity, cleanliness, hash, and mutation gates rather than a stochastic hypothesis test.",
+    "uncertainty_model_application": "Exact for identities, counts, exits, hashes, cleanliness, and mutation gates; Linux numeric regeneration drift was accepted only by the precommitted semantic-checker tolerances.",
+    "leakage_or_post_selection_detected": false
+  },
+  "limitations": [
+    "Peak memory and accelerator use were not retained, so the corresponding frozen resource ceilings cannot be independently verified from receipts.",
+    "run-log.json names the four selected primary attempts but omits the two non-primary Linux diagnostic attempts; those attempts remain fully retained and hash-bound elsewhere.",
+    "Linux G10 is confounded by the baseline CUDA redirector .pth even though the attacked editable carrier itself was eliminated.",
+    "The exact auditor model identifier/version was unavailable.",
+    "This audit evaluates VIA-000 evidence integrity only and does not establish mechanism viability, continuum behavior, native scalability, general relativity recovery, or external empirical validation."
+  ],
+  "recommendation": {
+    "round_validity": "valid",
+    "packet_outcome": "failed",
+    "cause_class": "tested-capability-failure",
+    "blocked": false,
+    "adjudication_performed": false,
+    "statement": "Attach this artifact as the statistical-audit receipt and preserve the frozen failed outcome. Do not reinterpret the observed Linux failures as infrastructure blockage and do not repair or rerun this post-reveal round."
+  }
+}
