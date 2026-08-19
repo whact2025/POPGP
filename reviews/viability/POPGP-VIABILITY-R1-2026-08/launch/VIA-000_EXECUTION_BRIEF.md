@@ -35,7 +35,7 @@ copy its conclusions as evidence.
 ## Required order
 
 1. Custodian verifies the two sealed VIA-000 commitments without revealing contents.
-2. Falsifier commits a public attack plan covering all six frozen mutation families.
+2. Falsifier commits a public attack plan covering all seven frozen mutation families.
 3. The campaign maintainer records lifecycle `attacked`, `holdout_started: true`, and
    the attack-plan receipt; the validator must remain clean.
 4. Reproduction runner executes the exact protocol in fresh exact-SHA Linux and
@@ -79,12 +79,12 @@ commitment exists.
 ```text
 Act as falsifier for POPGP campaign POPGP-VIABILITY-R1-2026-08, packet VIA-000.
 Your frozen seat identity is codex-via000-falsifier and your session ID is
-popgp-viability-r1-2026-08-via000-falsifier-session.
+popgp-viability-r1-2026-08-via000-falsifier-session-2.
 
 Use a fresh isolated task at activated handoff
 197219bbb006b4cd1f8b9f992cadedae8d09a341. Read the required public files named in
 VIA-000_EXECUTION_BRIEF.md. Do not request or inspect sealed manifests, final labels,
-or builder conclusions. Independently construct executable attacks for all six frozen
+or builder conclusions. Independently construct executable attacks for all seven frozen
 mutation families and add boundary attacks for undeclared state, OS-only success,
 semantic drift, PDF failure, dirty regeneration, and evidence available only in a
 summary. Do not repair the implementation. Create one durable attack-plan artifact,
@@ -104,7 +104,7 @@ Start only after the packet is validator-clean in attacked/holdout-started state
 Use fresh exact-SHA clones of scientific candidate
 9a29e05f803666bf0e3a28417ea399e3e26769fc. Do not inspect the sealed holdout or seed.
 Run every command in protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json on Linux and
-Windows as specified, repeat the PDF command twice, execute the six committed mutation
+Windows as specified, repeat the PDF command twice, execute the seven committed mutation
 tests corresponding exactly to the mutation plan, and retain raw stdout/stderr,
 environment, exit status, duration, artifact hashes, PDF metadata, Git cleanliness,
 and residue checks. No native/CUDA result is in scope.
