@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "receipt_kind": "claim-audit-rereview-closure",
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "packet_id": "VIA-000",
+  "created_at": "2026-08-19T17:00:39.0138761Z",
+  "audit_mode": "receipt-only-no-candidate-rerun",
+  "standalone_closure_only": true,
+  "formal_review_chain_populated": false,
+  "reviewed_handoff": {
+    "commit": "914eee39e0988101b778ded4102d422f26953fb3",
+    "tree": "557c91e8d569e808862b1b7f943cc98b4b6e5d83",
+    "branch_at_dispatch": "campaign/via000-protocol-amendment-1"
+  },
+  "prior_audit": {
+    "review_id": "POPGP-VIABILITY-R1-2026-08-VIA-000-CLAIM-AUDIT-1",
+    "immutable_ref": "e0bb7d3287997cec543980b1195f809922912070:reviews/independent_reviewer/POPGP-VIABILITY-R1-2026-08-VIA-000-CLAIM-AUDIT-1.md",
+    "sha256": "2d7d6510c53c04d4e009b22e6ea028f933ad69a8b4cf2f9096395871a2f2e595",
+    "integrated_blob_ref": "914eee39e0988101b778ded4102d422f26953fb3:reviews/independent_reviewer/POPGP-VIABILITY-R1-2026-08-VIA-000-CLAIM-AUDIT-1.md",
+    "integrated_blob_matches_immutable_source": true
+  },
+  "reviewer": {
+    "seat": "claim_auditor_independent_reviewer",
+    "agent_identity": "codex-via000-claims",
+    "model_identity": "unknown",
+    "model_version": "unknown",
+    "operator": "fuocor",
+    "session_id": "popgp-viability-r1-2026-08-via000-claims-session",
+    "orchestrator_id": "codex-desktop",
+    "organization": "popgp-internal",
+    "access_level": "public-repository-post-reveal-receipts-only",
+    "independence_statement": "This is a narrow continuation by the initial claim-auditor seat in a fresh isolated worktree. It shares the human operator and orchestrator with the builder and is internal process review, not external scientific validation. Exact runtime model identity and version were unavailable."
+  },
+  "exposure": {
+    "final_labels_seen": false,
+    "secret_seed_seen": true,
+    "private_evaluator_seen": false,
+    "private_custody_path_accessed": false,
+    "local_handoff_file_seen": false,
+    "note": "The true seed exposure is inherited from the initial auditor's reading of the authorized public post-reveal manifest. This closure did not read private custody or reread manifest contents."
+  },
+  "artifacts_verified": {
+    "campaign_readme": {
+      "path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/README.md",
+      "git_blob_sha256": "0fcf2793b24ff631dd87895c90fb9f0b2f918a65c3e3bb67eb0d5e3359a3cea4",
+      "correctly_states_audits_and_reveal_complete": true,
+      "correctly_states_independent_review_and_adjudication_pending": true,
+      "superseded_reveal_pending_wording_absent": true
+    },
+    "packet": {
+      "path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/packets/VIA-000.yaml",
+      "git_blob_sha256": "b9f64ebeef41440ad78d24d07e735b951cb5198434aa8402decd45681df35710",
+      "review_chain_intentionally_unattached": true
+    },
+    "statistical_audit": {
+      "path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/statistical-audit.json",
+      "sha256": "1c3d020ea76d5f049fedd0de68fe45db8722996119d755384b0fe0725947caf9",
+      "matches_packet_receipt": true
+    },
+    "claim_diff": {
+      "path": "reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/claim-diff.json",
+      "sha256": "abe6ba67c23b35504c7e23fc61528853b32c5a168e841c8bb34364fb55e50072",
+      "matches_packet_receipt": true,
+      "source_audit_ref_matches": true,
+      "source_audit_sha256_matches": true,
+      "statistical_audit_sha256_matches": true
+    }
+  },
+  "verification": {
+    "commands": [
+      {
+        "command": "git rev-parse HEAD && git rev-parse \"HEAD^{tree}\"",
+        "result": "914eee39e0988101b778ded4102d422f26953fb3 / 557c91e8d569e808862b1b7f943cc98b4b6e5d83"
+      },
+      {
+        "command": "git show e0bb7d3287997cec543980b1195f809922912070:<prior-audit-path> and git show 914eee39e0988101b778ded4102d422f26953fb3:<prior-audit-path>; compare bytes and SHA-256",
+        "result": "Both immutable blobs are 13484 bytes, byte-identical, and SHA-256 2d7d6510c53c04d4e009b22e6ea028f933ad69a8b4cf2f9096395871a2f2e595."
+      },
+      {
+        "command": "git diff fe11cdd4e1d5ec1881cc1b224a3a9a62cbb1a617..914eee39e0988101b778ded4102d422f26953fb3 -- reviews/viability/POPGP-VIABILITY-R1-2026-08/README.md",
+        "result": "The stale reveal-pending sentence is replaced with accurate completed-audit/reveal and pending-independent-review/adjudication wording."
+      },
+      {
+        "command": "Recompute SHA-256 for the exact 914eee3 Git blobs and compare claim-diff/statistical-audit cross-references and packet receipts.",
+        "result": "All declared hashes and references match."
+      },
+      {
+        "command": "uv run --isolated --frozen --no-editable python scripts/check_viability_campaign.py reviews/viability/POPGP-VIABILITY-R1-2026-08/CAMPAIGN.yaml",
+        "result": "Viability campaign contract is valid."
+      }
+    ],
+    "candidate_rerun": false,
+    "packet_modified": false,
+    "adjudication_performed": false
+  },
+  "prior_finding_results": [
+    {
+      "finding_id": "VIA000-CLAIM-001",
+      "outcome": "verified-resolved",
+      "verification": "read-only",
+      "evidence": "At 914eee39e0988101b778ded4102d422f26953fb3, the campaign README states that the statistical and claim audits and custody reveal are complete, while independent review and adjudication remain pending. The packet still records reveal.status=revealed, and the referenced claim-diff/statistical-audit hashes match their exact Git blobs.",
+      "notes": "The correction resolves the administrative provenance ambiguity without changing the frozen protocol, raw results, scientific claim scope, or pending adjudication."
+    }
+  ],
+  "prior_requested_test_results": [],
+  "new_findings": [],
+  "conclusion": {
+    "approve_finding_closure": true,
+    "unresolved_prior_findings": 0,
+    "new_blocking_findings": 0,
+    "claim_promotion_supported": false,
+    "tier_r_advance_supported": false,
+    "packet_outcome_assigned": false,
+    "recommendation": "Close VIA000-CLAIM-001. Preserve the failed raw capability values and narrow claim language. This standalone closure does not populate packet.review_chain; a separate fresh independent candidate review must supply the formal review chain before adjudication."
+  }
+}
