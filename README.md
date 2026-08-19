@@ -38,8 +38,8 @@ All figures below are reproducible with fixed seeds and machine-readable reports
 Regenerate them with:
 
 ```text
-uv run python -m examples.physics_qg.grid_2d
-uv run python -m examples.physics_qg.gravity_well
+uv run --frozen --no-editable python -m examples.physics_qg.grid_2d
+uv run --frozen --no-editable python -m examples.physics_qg.gravity_well
 ```
 
 ## Quick start
@@ -47,17 +47,17 @@ uv run python -m examples.physics_qg.gravity_well
 Install [uv](https://docs.astral.sh/uv/), then run:
 
 ```text
-uv sync --frozen
-uv run ruff check .
-uv run python scripts/check_tex.py
-uv run pytest -q
-uv run python -m examples.physics_qg.chain_1d
-uv run python -m examples.physics_qg.grid_2d
-uv run python -m examples.physics_qg.gravity_well
-uv run python -m examples.physics_qg.source_law
-uv run python -m examples.physics_qg.source_law_many_body
-uv run python -m examples.physics_qg.ca_model
-uv run python scripts/check_validation_artifacts.py --enforce-change-boundary
+uv sync --frozen --no-editable
+uv run --frozen --no-editable ruff check .
+uv run --frozen --no-editable python scripts/check_tex.py
+uv run --frozen --no-editable python -m pytest -q -p no:cacheprovider
+uv run --frozen --no-editable python -m examples.physics_qg.chain_1d
+uv run --frozen --no-editable python -m examples.physics_qg.grid_2d
+uv run --frozen --no-editable python -m examples.physics_qg.gravity_well
+uv run --frozen --no-editable python -m examples.physics_qg.source_law
+uv run --frozen --no-editable python -m examples.physics_qg.source_law_many_body
+uv run --frozen --no-editable python -m examples.physics_qg.ca_model
+uv run --frozen --no-editable python scripts/check_validation_artifacts.py --enforce-change-boundary
 ```
 
 Programmatic usage:
