@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1400 s | 252 passed |
+| `pytest -q` | about 1280 s | 276 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -109,7 +109,11 @@ flags or clean filters, and it permits no ignored checkout state. Python childre
 `scripts/run_without_startup_hooks.py` under `-I -S` with an external bytecode cache;
 the bootstrap inserts dependency directories directly and never evaluates `.pth`,
 `sitecustomize.py`, or `usercustomize.py`. Every registered decision also binds
-duplicated pipeline fields and recomputes derived precision ratios from raw values.
+duplicated pipeline/check fields and recomputes its fits, quadratic/Richardson
+assessments, identities, conservation/locality statistics, controls, sensitivity
+cases, and derived precision ratios from the lowest-level retained raw values. The
+checker rejects malformed, non-finite, mis-shaped, unordered, or zero-denominator
+operands rather than accepting a stale serialized summary.
 These mechanisms await a fresh preregistered two-platform R2 run; they are not a new
 viability result.
 

@@ -10,7 +10,7 @@ serialized bytes:
 * diagnostic floats use a narrow default tolerance;
 * a small named set of ill-conditioned fit diagnostics has an explicit wider policy;
 * every numeric value must remain finite;
-* every decision Boolean is recomputed from its retained typed operands; and
+* every decision summary and Boolean is recomputed from lowest-level raw operands; and
 * every declared visual artifact must satisfy global and locality-aware pixel bounds.
 
 The change-boundary mode also compares the actual working tree to a fresh index loaded
@@ -37,6 +37,11 @@ from typing import Any
 import numpy as np
 from PIL import Image, UnidentifiedImageError
 
+from popgp.diagnostics import (
+    assess_quadratic_response,
+    fit_power_law,
+    richardson_first_order_limit,
+)
 from scripts.check_reproduction_boundary import check_repository_boundary
 
 CONFIG_REL_TOL = 8 * sys.float_info.epsilon
@@ -70,6 +75,8 @@ VALIDATION_GLOB = "examples/physics_qg/*/results/validation.json"
 # while making every rendered feature part of the contract; aggregate error budgets
 # otherwise permit small labels and one-pixel curves to disappear completely.
 VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT = 4
+RECOMPUTED_REL_TOL = 1e-10
+RECOMPUTED_ABS_TOL = 1e-15
 INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
     "examples/physics_qg/ca_model/results/validation.json": frozenset(
         {"survivor_entropy_filter_regression"}
@@ -298,58 +305,196 @@ def _bind_exact(
         )
 
 
+def _finite_array(value: Any, *, ndim: int, location: str) -> np.ndarray:
+    """Decode a nonempty, finite numeric array without accepting booleans/strings."""
+
+    try:
+        raw = np.asarray(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{location} is not a rectangular numeric array") from exc
+    if raw.dtype.kind not in "iuf":
+        raise ValueError(f"{location} must contain only JSON numbers")
+    if raw.ndim != ndim or any(size == 0 for size in raw.shape):
+        raise ValueError(f"{location} must be a nonempty {ndim}-dimensional array")
+    array = raw.astype(float, copy=False)
+    if not np.all(np.isfinite(array)):
+        raise ValueError(f"{location} must contain only finite values")
+    return array
+
+
+def _bind_recomputed(
+    errors: list[str],
+    observed: Any,
+    expected: Any,
+    *,
+    location: str,
+) -> None:
+    """Bind a serialized derived value to an independently recomputed value."""
+
+    if isinstance(expected, dict):
+        if not isinstance(observed, dict):
+            errors.append(f"{location} must be an object recomputed from raw operands")
+            return
+        if set(observed) != set(expected):
+            errors.append(
+                f"{location} keys differ from recomputed keys "
+                f"(observed={sorted(observed)}, expected={sorted(expected)})"
+            )
+            return
+        for key in expected:
+            _bind_recomputed(
+                errors,
+                observed[key],
+                expected[key],
+                location=f"{location}.{key}",
+            )
+        return
+    if isinstance(expected, list):
+        if not isinstance(observed, list) or len(observed) != len(expected):
+            errors.append(f"{location} shape differs from recomputed raw operands")
+            return
+        for index, item in enumerate(expected):
+            _bind_recomputed(
+                errors,
+                observed[index],
+                item,
+                location=f"{location}[{index}]",
+            )
+        return
+    if isinstance(expected, bool):
+        if type(observed) is not bool or observed is not expected:
+            errors.append(
+                f"{location} differs from recomputed raw operands "
+                f"(observed={observed!r}, expected={expected!r})"
+            )
+        return
+    if isinstance(expected, float):
+        if type(observed) is not float or not math.isfinite(observed):
+            errors.append(f"{location} must be a finite JSON float")
+            return
+        if not math.isclose(
+            observed,
+            expected,
+            rel_tol=RECOMPUTED_REL_TOL,
+            abs_tol=RECOMPUTED_ABS_TOL,
+        ):
+            errors.append(
+                f"{location} differs from recomputed raw operands "
+                f"(observed={observed!r}, expected={expected!r})"
+            )
+        return
+    if type(observed) is not type(expected) or observed != expected:
+        errors.append(
+            f"{location} differs from recomputed raw operands "
+            f"(observed={observed!r}, expected={expected!r})"
+        )
+
+
+def _fit_dict_from_raw(
+    amplitudes: Any,
+    responses: Any,
+    *,
+    location: str,
+    absolute_response: bool = False,
+) -> dict[str, float]:
+    x = _finite_array(amplitudes, ndim=1, location=f"{location}.amplitudes")
+    y = _finite_array(responses, ndim=1, location=f"{location}.responses")
+    if np.any(x <= 0.0) or np.any(np.diff(x) <= 0.0):
+        raise ValueError(f"{location}.amplitudes must be positive and increasing")
+    if absolute_response:
+        y = np.abs(y)
+    fit = fit_power_law(x, y)
+    return {
+        "slope": fit.slope,
+        "intercept": fit.intercept,
+        "slope_residual_scale": fit.slope_residual_scale,
+        "r_squared": fit.r_squared,
+    }
+
+
+def _assessment_dict_from_raw(
+    amplitudes: Any,
+    responses: Any,
+    *,
+    location: str,
+    absolute_precision_floor: Any,
+    minimum_signal_to_floor: Any,
+    lower_window_size: int = 6,
+    maximum_relative_coefficient_difference: Any = 1e-3,
+    maximum_slope_deviation: Any = 0.02,
+    maximum_normalized_rmse: Any = 1e-2,
+) -> dict[str, Any]:
+    x = _finite_array(amplitudes, ndim=1, location=f"{location}.amplitudes")
+    y = _finite_array(responses, ndim=1, location=f"{location}.responses")
+    assessment = assess_quadratic_response(
+        x,
+        y,
+        absolute_precision_floor=float(absolute_precision_floor),
+        minimum_signal_to_floor=float(minimum_signal_to_floor),
+        lower_window_size=lower_window_size,
+        maximum_relative_coefficient_difference=float(
+            maximum_relative_coefficient_difference
+        ),
+        maximum_slope_deviation=float(maximum_slope_deviation),
+        maximum_normalized_rmse=float(maximum_normalized_rmse),
+    )
+
+    def asymptote_dict(item: Any) -> dict[str, float]:
+        return {
+            "coefficient": item.coefficient,
+            "coefficient_residual_scale": item.coefficient_residual_scale,
+            "linear_correction": item.linear_correction,
+            "normalized_rmse": item.normalized_rmse,
+            "absolute_precision_floor": item.absolute_precision_floor,
+            "minimum_signal_to_floor": item.minimum_signal_to_floor,
+        }
+
+    return {
+        "full_window": asymptote_dict(assessment.full_window),
+        "lower_window": asymptote_dict(assessment.lower_window),
+        "power_law": {
+            "slope": assessment.power_law.slope,
+            "intercept": assessment.power_law.intercept,
+            "slope_residual_scale": assessment.power_law.slope_residual_scale,
+            "r_squared": assessment.power_law.r_squared,
+        },
+        "relative_coefficient_difference": (
+            assessment.relative_coefficient_difference
+        ),
+        "slope_deviation": assessment.slope_deviation,
+        "passed": assessment.passed,
+    }
+
+
 def _quadratic_assessment_outcome(
     assessment: Any,
     *,
     location: str,
-    responses: Any | None = None,
-    absolute_precision_floor: Any | None = None,
+    amplitudes: Any,
+    responses: Any,
+    absolute_precision_floor: Any,
     minimum_signal_to_floor: Any = 1000.0,
+    lower_window_size: int = 6,
+    maximum_relative_coefficient_difference: Any = 1e-3,
+    maximum_slope_deviation: Any = 0.02,
+    maximum_normalized_rmse: Any = 1e-2,
 ) -> tuple[bool, list[str]]:
     errors: list[str] = []
-    full = assessment["full_window"]
-    lower = assessment["lower_window"]
-    precision_ok = True
-    if responses is not None and absolute_precision_floor is not None:
-        response_values = [float(item) for item in responses]
-        floor = float(absolute_precision_floor)
-        required_ratio = float(minimum_signal_to_floor)
-        if not response_values or floor < 0.0 or required_ratio <= 0.0:
-            raise ValueError("invalid precision-floor operands")
-        observed_ratio = (
-            min(abs(item) for item in response_values) / floor
-            if floor > 0.0
-            else float("inf")
-        )
-        for window_name, window in (("full_window", full), ("lower_window", lower)):
-            _bind_exact(
-                errors,
-                window["absolute_precision_floor"],
-                absolute_precision_floor,
-                location=f"{location}.{window_name}.absolute_precision_floor",
-            )
-            if not math.isclose(
-                float(window["minimum_signal_to_floor"]),
-                observed_ratio,
-                rel_tol=8 * sys.float_info.epsilon,
-                abs_tol=0.0,
-            ):
-                errors.append(
-                    f"{location}.{window_name}.minimum_signal_to_floor differs from "
-                    f"raw response/floor ratio {observed_ratio!r}"
-                )
-        precision_ok = observed_ratio >= required_ratio
-    expected = bool(
-        full["coefficient"] > 0.0
-        and assessment["relative_coefficient_difference"] <= 1e-3
-        and assessment["slope_deviation"] <= 0.02
-        and max(full["normalized_rmse"], lower["normalized_rmse"]) <= 1e-2
-        and precision_ok
+    expected_assessment = _assessment_dict_from_raw(
+        amplitudes,
+        responses,
+        location=location,
+        absolute_precision_floor=absolute_precision_floor,
+        minimum_signal_to_floor=minimum_signal_to_floor,
+        lower_window_size=lower_window_size,
+        maximum_relative_coefficient_difference=(
+            maximum_relative_coefficient_difference
+        ),
+        maximum_slope_deviation=maximum_slope_deviation,
+        maximum_normalized_rmse=maximum_normalized_rmse,
     )
-    if assessment["passed"] is not expected:
-        errors.append(
-            f"{location}.passed={assessment['passed']!r} but recomputed outcome is {expected}"
-        )
+    _bind_recomputed(errors, assessment, expected_assessment, location=location)
+    expected = expected_assessment["passed"]
     return expected, errors
 
 
@@ -357,55 +502,31 @@ def _richardson_outcome(
     limit: Any,
     *,
     location: str,
-    amplitudes: Any | None = None,
-    responses: Any | None = None,
-    absolute_precision_floor: Any | None = None,
+    amplitudes: Any,
+    responses: Any,
+    absolute_precision_floor: Any,
     required_error_margin: Any = 10.0,
 ) -> tuple[bool, list[str]]:
-    errors = []
-    if amplitudes is not None and responses is not None and absolute_precision_floor is not None:
-        x = [float(item) for item in amplitudes]
-        y = [float(item) for item in responses]
-        floor = float(absolute_precision_floor)
-        if len(x) < 3 or len(x) != len(y) or floor < 0.0:
-            raise ValueError("invalid Richardson operands")
-        quotient = [response / amplitude for response, amplitude in zip(y[:3], x[:3])]
-        first = (x[1] * quotient[0] - x[0] * quotient[1]) / (x[1] - x[0])
-        second = (x[2] * quotient[1] - x[1] * quotient[2]) / (x[2] - x[1])
-        truncation = abs(first - second)
-        roundoff = floor / (x[1] - x[0]) * (x[1] / x[0] + x[0] / x[1])
-        total = truncation + roundoff
-        significance = abs(first) / max(total, sys.float_info.min)
-        signal_to_floor = (
-            min(abs(item) for item in y) / floor if floor > 0.0 else float("inf")
-        )
-        for key, authoritative in (
-            ("estimate", first),
-            ("truncation_error", truncation),
-            ("roundoff_error", roundoff),
-            ("total_error", total),
-            ("significance_ratio", significance),
-            ("minimum_signal_to_floor", signal_to_floor),
-        ):
-            if not math.isclose(
-                float(limit[key]),
-                float(authoritative),
-                rel_tol=32 * sys.float_info.epsilon,
-                abs_tol=0.0,
-            ):
-                errors.append(
-                    f"{location}.{key} differs from raw Richardson operands "
-                    f"({limit[key]!r} != {authoritative!r})"
-                )
-    expected = bool(
-        abs(limit["estimate"])
-        > float(required_error_margin) * limit["total_error"]
+    errors: list[str] = []
+    x = _finite_array(amplitudes, ndim=1, location=f"{location}.amplitudes")
+    y = _finite_array(responses, ndim=1, location=f"{location}.responses")
+    expected_limit = richardson_first_order_limit(
+        x,
+        y,
+        absolute_precision_floor=float(absolute_precision_floor),
+        required_error_margin=float(required_error_margin),
     )
-    if limit["passed"] is not expected:
-        errors.append(
-            f"{location}.passed={limit['passed']!r} but recomputed outcome is {expected}"
-        )
-    return expected, errors
+    expected = {
+        "estimate": expected_limit.estimate,
+        "truncation_error": expected_limit.truncation_error,
+        "roundoff_error": expected_limit.roundoff_error,
+        "total_error": expected_limit.total_error,
+        "significance_ratio": expected_limit.significance_ratio,
+        "minimum_signal_to_floor": expected_limit.minimum_signal_to_floor,
+        "passed": expected_limit.passed,
+    }
+    _bind_recomputed(errors, limit, expected, location=location)
+    return expected_limit.passed, errors
 
 
 def _decision_outcome(
@@ -695,38 +816,157 @@ def _decision_outcome(
 
         if example == "source_law":
             measurements = document["measurements"]
+            config = document["config"]
             if name == "relative_entropy_is_quadratic":
-                _bind_exact(
+                expected_fit = _fit_dict_from_raw(
+                    config["epsilons"],
+                    measurements["relative_entropy"],
+                    location=f"check {name!r}.raw_fit",
+                    absolute_response=True,
+                )
+                _bind_recomputed(
+                    errors,
+                    measurements["fits"]["relative_entropy"],
+                    expected_fit,
+                    location="measurements.fits.relative_entropy",
+                )
+                _bind_recomputed(
                     errors,
                     value,
-                    measurements["fits"]["relative_entropy"],
+                    expected_fit,
                     location=f"check {name!r}.value",
                 )
-                return abs(value["slope"] - 2.0) < 0.02, errors
+                return abs(expected_fit["slope"] - 2.0) < 0.02, errors
             if name == "affine_modular_linearity_identity_regression":
-                _bind_exact(
+                epsilons = _finite_array(
+                    config["epsilons"], ndim=1, location="config.epsilons"
+                )
+                modular_energy = _finite_array(
+                    measurements["modular_energy"],
+                    ndim=1,
+                    location="measurements.modular_energy",
+                )
+                reference = _finite_array(
+                    config["reference"], ndim=1, location="config.reference"
+                )
+                excitation = _finite_array(
+                    config["excitation"], ndim=1, location="config.excitation"
+                )
+                if epsilons.shape != modular_energy.shape:
+                    raise ValueError("source-law epsilon/response shapes differ")
+                if reference.shape != excitation.shape or np.any(reference <= 0.0):
+                    raise ValueError("source-law reference/excitation operands are invalid")
+                expected_fit = _fit_dict_from_raw(
+                    epsilons,
+                    modular_energy,
+                    location=f"check {name!r}.raw_fit",
+                    absolute_response=True,
+                )
+                modular_coefficient = float(
+                    np.dot(excitation - reference, -np.log(reference))
+                )
+                identity_error = float(
+                    np.max(np.abs(modular_energy - epsilons * modular_coefficient))
+                )
+                _bind_recomputed(
+                    errors,
+                    measurements["fits"]["modular_energy"],
+                    expected_fit,
+                    location="measurements.fits.modular_energy",
+                )
+                _bind_recomputed(
                     errors,
                     value["fit"],
-                    measurements["fits"]["modular_energy"],
+                    expected_fit,
                     location=f"check {name!r}.value.fit",
                 )
-                return value["max_absolute_identity_error"] < 1e-12, errors
+                _bind_recomputed(
+                    errors,
+                    value["max_absolute_identity_error"],
+                    identity_error,
+                    location=f"check {name!r}.value.max_absolute_identity_error",
+                )
+                return identity_error < 1e-12, errors
             if name == "linear_solver_homogeneity_identity_regression":
-                _bind_exact(
+                epsilons = config["epsilons"]
+                relative_fit = _fit_dict_from_raw(
+                    epsilons,
+                    measurements["relative_entropy_phi_amplitude"],
+                    location=f"check {name!r}.relative_phi_fit",
+                    absolute_response=True,
+                )
+                modular_fit = _fit_dict_from_raw(
+                    epsilons,
+                    measurements["modular_energy_phi_amplitude"],
+                    location=f"check {name!r}.modular_phi_fit",
+                    absolute_response=True,
+                )
+                for fit_key, expected_fit in (
+                    ("relative_entropy_phi", relative_fit),
+                    ("modular_energy_phi", modular_fit),
+                ):
+                    _bind_recomputed(
+                        errors,
+                        measurements["fits"][fit_key],
+                        expected_fit,
+                        location=f"measurements.fits.{fit_key}",
+                    )
+                _bind_recomputed(
                     errors,
                     value["relative_entropy_phi"],
-                    measurements["fits"]["relative_entropy_phi"],
+                    relative_fit,
                     location=f"check {name!r}.value.relative_entropy_phi",
                 )
-                _bind_exact(
+                _bind_recomputed(
                     errors,
                     value["modular_energy_phi"],
-                    measurements["fits"]["modular_energy_phi"],
+                    modular_fit,
                     location=f"check {name!r}.value.modular_energy_phi",
                 )
+                relative_entropy = _finite_array(
+                    measurements["relative_entropy"],
+                    ndim=1,
+                    location="measurements.relative_entropy",
+                )
+                modular_energy = _finite_array(
+                    measurements["modular_energy"],
+                    ndim=1,
+                    location="measurements.modular_energy",
+                )
+                relative_phi = _finite_array(
+                    measurements["relative_entropy_phi_amplitude"],
+                    ndim=1,
+                    location="measurements.relative_entropy_phi_amplitude",
+                )
+                modular_phi = _finite_array(
+                    measurements["modular_energy_phi_amplitude"],
+                    ndim=1,
+                    location="measurements.modular_energy_phi_amplitude",
+                )
+                if not (
+                    relative_entropy.shape
+                    == modular_energy.shape
+                    == relative_phi.shape
+                    == modular_phi.shape
+                ):
+                    raise ValueError("source-law solver ratio shapes differ")
+                if np.any(relative_entropy == 0.0) or np.any(modular_energy == 0.0):
+                    raise ValueError("source-law solver ratio denominator is zero")
+                ratio_spread = float(
+                    max(
+                        np.ptp(relative_phi / relative_entropy),
+                        np.ptp(modular_phi / np.abs(modular_energy)),
+                    )
+                )
+                _bind_recomputed(
+                    errors,
+                    value["max_ratio_spread"],
+                    ratio_spread,
+                    location=f"check {name!r}.value.max_ratio_spread",
+                )
                 return (
-                    abs(value["relative_entropy_phi"]["slope"] - 2.0) < 0.02
-                    and value["max_ratio_spread"] < 1e-10
+                    abs(relative_fit["slope"] - 2.0) < 0.02
+                    and ratio_spread < 1e-10
                 ), errors
             if name == "equal_energy_entropy_confound":
                 control = measurements["equal_energy_control"]
@@ -757,8 +997,43 @@ def _decision_outcome(
             measurements = document["measurements"]
             config = document["config"]
             if name == "nonaffine_kms_response_orders":
+                expected_fits = {
+                    "relative_entropy": _fit_dict_from_raw(
+                        config["epsilons"],
+                        measurements["relative_entropy"],
+                        location=f"check {name!r}.fits.relative_entropy",
+                    ),
+                    "modular_energy": _fit_dict_from_raw(
+                        config["epsilons"],
+                        measurements["modular_energy"],
+                        location=f"check {name!r}.fits.modular_energy",
+                        absolute_response=True,
+                    ),
+                    "total_energy": _fit_dict_from_raw(
+                        config["epsilons"],
+                        measurements["total_energy_change"],
+                        location=f"check {name!r}.fits.total_energy",
+                        absolute_response=True,
+                    ),
+                    "potential_amplitude": _fit_dict_from_raw(
+                        config["epsilons"],
+                        measurements["potential_amplitudes"],
+                        location=f"check {name!r}.fits.potential_amplitude",
+                    ),
+                }
+                _bind_recomputed(
+                    errors,
+                    measurements["fits"],
+                    expected_fits,
+                    location="measurements.fits",
+                )
+                _bind_recomputed(
+                    errors,
+                    value["descriptive_power_law_fits"],
+                    expected_fits,
+                    location=f"check {name!r}.value.descriptive_power_law_fits",
+                )
                 for key, authoritative_key in (
-                    ("descriptive_power_law_fits", "fits"),
                     (
                         "relative_entropy_quadratic_assessment",
                         "relative_entropy_quadratic_assessment",
@@ -791,10 +1066,20 @@ def _decision_outcome(
                 quadratic, nested = _quadratic_assessment_outcome(
                     value["relative_entropy_quadratic_assessment"],
                     location=f"check {name!r}.value.relative_entropy_quadratic_assessment",
+                    amplitudes=config["epsilons"],
                     responses=measurements["relative_entropy"],
                     absolute_precision_floor=measurements["absolute_precision_floor"],
                     minimum_signal_to_floor=config[
                         "minimum_signal_to_precision_floor"
+                    ],
+                    maximum_relative_coefficient_difference=config[
+                        "maximum_relative_quadratic_coefficient_difference"
+                    ],
+                    maximum_slope_deviation=config[
+                        "maximum_quadratic_slope_deviation"
+                    ],
+                    maximum_normalized_rmse=config[
+                        "maximum_quadratic_normalized_rmse"
                     ],
                 )
                 susceptibility, limit_errors = _richardson_outcome(
@@ -808,32 +1093,206 @@ def _decision_outcome(
                     ],
                 )
                 errors.extend([*nested, *limit_errors])
+                expected_assessment = _assessment_dict_from_raw(
+                    config["epsilons"],
+                    measurements["relative_entropy"],
+                    location=f"check {name!r}.raw_quadratic",
+                    absolute_precision_floor=measurements[
+                        "absolute_precision_floor"
+                    ],
+                    minimum_signal_to_floor=config[
+                        "minimum_signal_to_precision_floor"
+                    ],
+                    maximum_relative_coefficient_difference=config[
+                        "maximum_relative_quadratic_coefficient_difference"
+                    ],
+                    maximum_slope_deviation=config[
+                        "maximum_quadratic_slope_deviation"
+                    ],
+                    maximum_normalized_rmse=config[
+                        "maximum_quadratic_normalized_rmse"
+                    ],
+                )
+                expected_quadratic_relative_error = abs(
+                    expected_assessment["full_window"]["coefficient"]
+                    - float(value["exact_kubo_mori_quadratic_coefficient"])
+                ) / abs(float(value["exact_kubo_mori_quadratic_coefficient"]))
+                raw_susceptibility = richardson_first_order_limit(
+                    _finite_array(
+                        config["epsilons"],
+                        ndim=1,
+                        location=f"check {name!r}.susceptibility.amplitudes",
+                    ),
+                    _finite_array(
+                        measurements["modular_energy"],
+                        ndim=1,
+                        location=f"check {name!r}.susceptibility.responses",
+                    ),
+                    absolute_precision_floor=float(
+                        measurements["absolute_precision_floor"]
+                    ),
+                    required_error_margin=float(
+                        config["minimum_susceptibility_error_margin"]
+                    ),
+                )
+                expected_susceptibility_relative_error = abs(
+                    raw_susceptibility.estimate
+                    - float(value["exact_kubo_mori_modular_susceptibility"])
+                ) / abs(float(value["exact_kubo_mori_modular_susceptibility"]))
+                _bind_recomputed(
+                    errors,
+                    value["quadratic_coefficient_relative_error"],
+                    expected_quadratic_relative_error,
+                    location=f"check {name!r}.value.quadratic_coefficient_relative_error",
+                )
+                _bind_recomputed(
+                    errors,
+                    value["modular_susceptibility_relative_error"],
+                    expected_susceptibility_relative_error,
+                    location=f"check {name!r}.value.modular_susceptibility_relative_error",
+                )
                 return (
                     quadratic
                     and susceptibility
-                    and value["quadratic_coefficient_relative_error"] <= 5e-4
-                    and value["modular_susceptibility_relative_error"] <= 1e-6
+                    and expected_quadratic_relative_error <= 5e-4
+                    and expected_susceptibility_relative_error <= 1e-6
                     and value["nonaffine_midpoint_deviation"] > 1e-9
                 ), errors
             if name == "quadratic_gate_rejects_first_order_negative_control":
                 quadratic, nested = _quadratic_assessment_outcome(
                     value["assessment"],
                     location=f"check {name!r}.value.assessment",
+                    amplitudes=config["epsilons"],
                     responses=value["synthetic_response"],
                     absolute_precision_floor=measurements["absolute_precision_floor"],
                     minimum_signal_to_floor=config[
                         "minimum_signal_to_precision_floor"
                     ],
+                    maximum_relative_coefficient_difference=config[
+                        "maximum_relative_quadratic_coefficient_difference"
+                    ],
+                    maximum_slope_deviation=config[
+                        "maximum_quadratic_slope_deviation"
+                    ],
+                    maximum_normalized_rmse=config[
+                        "maximum_quadratic_normalized_rmse"
+                    ],
                 )
                 errors.extend(nested)
                 return not quadratic, errors
             if name == "kms_and_local_decomposition_identities":
-                return max(value.values()) < 5e-13, errors
+                relative_entropy = _finite_array(
+                    measurements["relative_entropy"],
+                    ndim=1,
+                    location="measurements.relative_entropy",
+                )
+                modular_energy = _finite_array(
+                    measurements["modular_energy"],
+                    ndim=1,
+                    location="measurements.modular_energy",
+                )
+                entropy_change = _finite_array(
+                    measurements["entropy_change"],
+                    ndim=1,
+                    location="measurements.entropy_change",
+                )
+                total_energy = _finite_array(
+                    measurements["total_energy_change"],
+                    ndim=1,
+                    location="measurements.total_energy_change",
+                )
+                local_profiles = _finite_array(
+                    measurements["local_energy_profiles"],
+                    ndim=2,
+                    location="measurements.local_energy_profiles",
+                )
+                if not (
+                    relative_entropy.shape
+                    == modular_energy.shape
+                    == entropy_change.shape
+                    == total_energy.shape
+                    == local_profiles.shape[:1]
+                ):
+                    raise ValueError("many-body identity operand shapes differ")
+                expected = {
+                    "kms_identity_error": float(
+                        np.max(
+                            np.abs(
+                                modular_energy - float(config["beta"]) * total_energy
+                            )
+                        )
+                    ),
+                    "first_law_identity_error": float(
+                        np.max(
+                            np.abs(
+                                relative_entropy
+                                - (modular_energy - entropy_change)
+                            )
+                        )
+                    ),
+                    "local_decomposition_error": float(
+                        np.max(np.abs(local_profiles.sum(axis=1) - total_energy))
+                    ),
+                }
+                _bind_recomputed(
+                    errors,
+                    value,
+                    expected,
+                    location=f"check {name!r}.value",
+                )
+                return max(expected.values()) < 5e-13, errors
             if name == "local_energy_decomposition_consistency_and_spreading":
+                evolved_total = _finite_array(
+                    measurements["evolved_total_energy"],
+                    ndim=1,
+                    location="measurements.evolved_total_energy",
+                )
+                evolved_profiles = _finite_array(
+                    measurements["evolved_local_energy_profiles"],
+                    ndim=2,
+                    location="measurements.evolved_local_energy_profiles",
+                )
+                times = _finite_array(
+                    config["evolution_times"],
+                    ndim=1,
+                    location="config.evolution_times",
+                )
+                if (
+                    evolved_profiles.shape[0] != evolved_total.size
+                    or times.size != evolved_total.size
+                ):
+                    raise ValueError("evolved energy/profile/time shapes differ")
+                t1_matches = np.flatnonzero(times == 1.0)
+                if t1_matches.size != 1 or evolved_profiles.shape[1] < 2:
+                    raise ValueError("evolution controls require one t=1 profile and endpoints")
+
+                def endpoint_fraction(profile: np.ndarray) -> float:
+                    denominator = float(np.sum(np.abs(profile)))
+                    if denominator == 0.0:
+                        raise ValueError("endpoint fraction denominator is zero")
+                    return float(np.sum(np.abs(profile[[0, -1]])) / denominator)
+
+                expected = {
+                    "generator_observable_consistency_drift": float(
+                        np.ptp(evolved_total)
+                    ),
+                    "initial_endpoint_fraction": endpoint_fraction(
+                        evolved_profiles[0]
+                    ),
+                    "t1_endpoint_fraction": endpoint_fraction(
+                        evolved_profiles[int(t1_matches[0])]
+                    ),
+                }
+                _bind_recomputed(
+                    errors,
+                    value,
+                    expected,
+                    location=f"check {name!r}.value",
+                )
                 return (
-                    value["generator_observable_consistency_drift"] < 1e-12
-                    and value["initial_endpoint_fraction"] < 1e-12
-                    and value["t1_endpoint_fraction"] > 0.05
+                    expected["generator_observable_consistency_drift"] < 1e-12
+                    and expected["initial_endpoint_fraction"] < 1e-12
+                    and expected["t1_endpoint_fraction"] > 0.05
                 ), errors
             if name == "nonaffine_kms_parameter_sensitivity":
                 _bind_exact(
@@ -844,13 +1303,39 @@ def _decision_outcome(
                 )
                 outcomes: list[bool] = []
                 for index, case in enumerate(value):
+                    expected_modular_fit = _fit_dict_from_raw(
+                        case["epsilons"],
+                        case["signed_modular_energy"],
+                        location=f"check {name!r}.value[{index}].modular_fit",
+                        absolute_response=True,
+                    )
+                    _bind_recomputed(
+                        errors,
+                        case["modular_energy_power_law"],
+                        expected_modular_fit,
+                        location=(
+                            f"check {name!r}.value[{index}]."
+                            "modular_energy_power_law"
+                        ),
+                    )
                     quadratic, nested = _quadratic_assessment_outcome(
                         case["relative_entropy_quadratic_assessment"],
                         location=f"check {name!r}.value[{index}].quadratic",
+                        amplitudes=case["epsilons"],
                         responses=case["relative_entropy"],
                         absolute_precision_floor=case["absolute_precision_floor"],
                         minimum_signal_to_floor=config[
                             "minimum_signal_to_precision_floor"
+                        ],
+                        lower_window_size=5,
+                        maximum_relative_coefficient_difference=config[
+                            "maximum_relative_quadratic_coefficient_difference"
+                        ],
+                        maximum_slope_deviation=config[
+                            "maximum_quadratic_slope_deviation"
+                        ],
+                        maximum_normalized_rmse=config[
+                            "maximum_quadratic_normalized_rmse"
                         ],
                     )
                     susceptibility, limit_errors = _richardson_outcome(
@@ -864,11 +1349,83 @@ def _decision_outcome(
                         ],
                     )
                     errors.extend([*nested, *limit_errors])
+                    raw_assessment = _assessment_dict_from_raw(
+                        case["epsilons"],
+                        case["relative_entropy"],
+                        location=f"check {name!r}.value[{index}].raw_quadratic",
+                        absolute_precision_floor=case[
+                            "absolute_precision_floor"
+                        ],
+                        minimum_signal_to_floor=config[
+                            "minimum_signal_to_precision_floor"
+                        ],
+                        lower_window_size=5,
+                        maximum_relative_coefficient_difference=config[
+                            "maximum_relative_quadratic_coefficient_difference"
+                        ],
+                        maximum_slope_deviation=config[
+                            "maximum_quadratic_slope_deviation"
+                        ],
+                        maximum_normalized_rmse=config[
+                            "maximum_quadratic_normalized_rmse"
+                        ],
+                    )
+                    raw_limit = richardson_first_order_limit(
+                        _finite_array(
+                            case["epsilons"],
+                            ndim=1,
+                            location=f"check {name!r}.value[{index}].epsilons",
+                        ),
+                        _finite_array(
+                            case["signed_modular_energy"],
+                            ndim=1,
+                            location=(
+                                f"check {name!r}.value[{index}].signed_modular_energy"
+                            ),
+                        ),
+                        absolute_precision_floor=float(
+                            case["absolute_precision_floor"]
+                        ),
+                        required_error_margin=float(
+                            config["minimum_susceptibility_error_margin"]
+                        ),
+                    )
+                    exact_quadratic = float(
+                        case["exact_kubo_mori_quadratic_coefficient"]
+                    )
+                    exact_susceptibility = float(
+                        case["exact_kubo_mori_modular_susceptibility"]
+                    )
+                    expected_quadratic_error = abs(
+                        raw_assessment["full_window"]["coefficient"]
+                        - exact_quadratic
+                    ) / abs(exact_quadratic)
+                    expected_susceptibility_error = abs(
+                        raw_limit.estimate - exact_susceptibility
+                    ) / abs(exact_susceptibility)
+                    _bind_recomputed(
+                        errors,
+                        case["quadratic_coefficient_relative_error"],
+                        expected_quadratic_error,
+                        location=(
+                            f"check {name!r}.value[{index}]."
+                            "quadratic_coefficient_relative_error"
+                        ),
+                    )
+                    _bind_recomputed(
+                        errors,
+                        case["susceptibility_relative_error"],
+                        expected_susceptibility_error,
+                        location=(
+                            f"check {name!r}.value[{index}]."
+                            "susceptibility_relative_error"
+                        ),
+                    )
                     expected_case = bool(
                         quadratic
                         and susceptibility
-                        and case["quadratic_coefficient_relative_error"] <= 5e-4
-                        and case["susceptibility_relative_error"] <= 1e-6
+                        and expected_quadratic_error <= 5e-4
+                        and expected_susceptibility_error <= 1e-6
                     )
                     if case["passed"] is not expected_case:
                         errors.append(
@@ -878,39 +1435,122 @@ def _decision_outcome(
                     outcomes.append(expected_case)
                 return all(outcomes), errors
             if name == "isospectral_unitary_identity_regression":
-                _bind_exact(
-                    errors,
-                    value["relative_entropy_fit"],
-                    measurements["isospectral_unitary_control"][
-                        "relative_entropy_fit"
-                    ],
-                    location=f"check {name!r}.value.relative_entropy_fit",
+                control = measurements["isospectral_unitary_control"]
+                relative_entropy = _finite_array(
+                    control["relative_entropy"],
+                    ndim=1,
+                    location="measurements.isospectral_unitary_control.relative_entropy",
                 )
-                _bind_exact(
-                    errors,
-                    value["modular_energy_fit"],
-                    measurements["isospectral_unitary_control"]["modular_energy_fit"],
-                    location=f"check {name!r}.value.modular_energy_fit",
+                modular_energy = _finite_array(
+                    control["modular_energy"],
+                    ndim=1,
+                    location="measurements.isospectral_unitary_control.modular_energy",
                 )
-                tolerance = value["dimension_scaled_float64_tolerance"]
+                entropy_change = _finite_array(
+                    control["entropy_change"],
+                    ndim=1,
+                    location="measurements.isospectral_unitary_control.entropy_change",
+                )
+                if not (
+                    relative_entropy.shape
+                    == modular_energy.shape
+                    == entropy_change.shape
+                ):
+                    raise ValueError("isospectral control response shapes differ")
+                expected_relative_fit = _fit_dict_from_raw(
+                    control["amplitudes"],
+                    relative_entropy,
+                    location=f"check {name!r}.relative_entropy_fit",
+                )
+                expected_modular_fit = _fit_dict_from_raw(
+                    control["amplitudes"],
+                    modular_energy,
+                    location=f"check {name!r}.modular_energy_fit",
+                )
+                for key, expected_fit in (
+                    ("relative_entropy_fit", expected_relative_fit),
+                    ("modular_energy_fit", expected_modular_fit),
+                ):
+                    _bind_recomputed(
+                        errors,
+                        control[key],
+                        expected_fit,
+                        location=f"measurements.isospectral_unitary_control.{key}",
+                    )
+                    _bind_recomputed(
+                        errors,
+                        value[key],
+                        expected_fit,
+                        location=f"check {name!r}.value.{key}",
+                    )
+                expected_identity_error = float(
+                    np.max(np.abs(relative_entropy - modular_energy))
+                )
+                expected_entropy_error = float(np.max(np.abs(entropy_change)))
+                _bind_recomputed(
+                    errors,
+                    value["max_D_minus_modular_energy"],
+                    expected_identity_error,
+                    location=f"check {name!r}.value.max_D_minus_modular_energy",
+                )
+                _bind_recomputed(
+                    errors,
+                    value["max_entropy_change"],
+                    expected_entropy_error,
+                    location=f"check {name!r}.value.max_entropy_change",
+                )
+                expected_tolerance = float(
+                    sys.float_info.epsilon * (2 ** int(config["n_sites"]))
+                )
+                _bind_recomputed(
+                    errors,
+                    value["dimension_scaled_float64_tolerance"],
+                    expected_tolerance,
+                    location=(
+                        f"check {name!r}.value.dimension_scaled_float64_tolerance"
+                    ),
+                )
                 return (
-                    value["max_D_minus_modular_energy"] <= tolerance
-                    and value["max_entropy_change"] <= tolerance
+                    expected_identity_error <= expected_tolerance
+                    and expected_entropy_error <= expected_tolerance
                 ), errors
             if name == "spreading_requires_noncommuting_dynamics":
-                _bind_exact(
+                control = measurements["commuting_ising_control"]
+                initial_profile = _finite_array(
+                    control["initial_profile"],
+                    ndim=1,
+                    location="measurements.commuting_ising_control.initial_profile",
+                )
+                t1_profile = _finite_array(
+                    control["t1_profile"],
+                    ndim=1,
+                    location="measurements.commuting_ising_control.t1_profile",
+                )
+                if initial_profile.shape != t1_profile.shape:
+                    raise ValueError("commuting control profile shapes differ")
+                expected_change = float(
+                    np.max(np.abs(t1_profile - initial_profile))
+                )
+                _bind_recomputed(
+                    errors,
+                    control["maximum_profile_change"],
+                    expected_change,
+                    location=(
+                        "measurements.commuting_ising_control.maximum_profile_change"
+                    ),
+                )
+                _bind_recomputed(
                     errors,
                     value["maximum_profile_change_at_t1"],
-                    measurements["commuting_ising_control"]["maximum_profile_change"],
+                    expected_change,
                     location=f"check {name!r}.value.maximum_profile_change_at_t1",
                 )
-                return value["maximum_profile_change_at_t1"] < 1e-12, errors
+                return expected_change < 1e-12, errors
             if name == "pipeline_reduced_modular_blindness_and_density_repair":
                 comparison = measurements["pipeline_source_comparison"]
                 for key in (
                     "reduced_modular_source",
                     "kms_energy_density_source",
-                    "kms_density_match_error",
                 ):
                     _bind_exact(
                         errors,
@@ -935,17 +1575,114 @@ def _decision_outcome(
                             f"check {name!r}.value.{norm_key} differs from the "
                             f"retained {vector_key} norm {expected_norm!r}"
                         )
+                diagnostic_profile = _finite_array(
+                    comparison["diagnostic_local_energy_profile"],
+                    ndim=1,
+                    location=(
+                        "measurements.pipeline_source_comparison."
+                        "diagnostic_local_energy_profile"
+                    ),
+                )
+                kms_source = _finite_array(
+                    comparison["kms_energy_density_source"],
+                    ndim=1,
+                    location=(
+                        "measurements.pipeline_source_comparison."
+                        "kms_energy_density_source"
+                    ),
+                )
+                if diagnostic_profile.shape != kms_source.shape:
+                    raise ValueError("KMS density/profile shapes differ")
+                expected_density = -float(config["beta"]) * diagnostic_profile
+                expected_match_error = float(
+                    np.max(np.abs(kms_source - expected_density))
+                )
+                _bind_recomputed(
+                    errors,
+                    comparison["kms_density_match_error"],
+                    expected_match_error,
+                    location=(
+                        "measurements.pipeline_source_comparison."
+                        "kms_density_match_error"
+                    ),
+                )
+                _bind_recomputed(
+                    errors,
+                    value["kms_density_match_error"],
+                    expected_match_error,
+                    location=f"check {name!r}.value.kms_density_match_error",
+                )
                 return (
                     value["reduced_modular_source_norm"] < 1e-12
                     and value["kms_energy_density_source_norm"] > 1e-3
-                    and value["kms_density_match_error"] < 1e-14
+                    and expected_match_error < 1e-14
                 ), errors
             if name == "negative_energy_candidate_has_slower_source_clock":
+                phi = _finite_array(
+                    value["phi"], ndim=1, location=f"check {name!r}.value.phi"
+                )
+                effective_source = _finite_array(
+                    value["effective_source"],
+                    ndim=1,
+                    location=f"check {name!r}.value.effective_source",
+                )
+                kms_source = _finite_array(
+                    measurements["pipeline_source_comparison"][
+                        "kms_energy_density_source"
+                    ],
+                    ndim=1,
+                    location=(
+                        "measurements.pipeline_source_comparison."
+                        "kms_energy_density_source"
+                    ),
+                )
+                if phi.shape != effective_source.shape or phi.shape != kms_source.shape:
+                    raise ValueError("clock source/potential shapes differ")
+                if phi.size != int(config["n_sites"]):
+                    raise ValueError("clock source size differs from configured sites")
+                expected_background = float(np.mean(kms_source))
+                expected_effective = kms_source - expected_background
+                _bind_recomputed(
+                    errors,
+                    value["effective_source"],
+                    expected_effective.tolist(),
+                    location=f"check {name!r}.value.effective_source",
+                )
+                _bind_recomputed(
+                    errors,
+                    value["source_background"],
+                    expected_background,
+                    location=f"check {name!r}.value.source_background",
+                )
+                weights = np.zeros((phi.size, phi.size), dtype=float)
+                for index in range(phi.size - 1):
+                    weights[index, index + 1] = 1.0
+                    weights[index + 1, index] = 1.0
+                laplacian = np.diag(weights.sum(axis=1)) - weights
+                operator = laplacian + float(config["clock_mu"]) ** 2 * np.eye(
+                    phi.size
+                )
+                expected_residual = float(
+                    np.linalg.norm(operator @ phi - expected_effective)
+                )
+                expected_ratio = float(np.exp(phi[2] - phi[0]))
+                expected_redshift = float(np.exp(phi[0] - phi[2]) - 1.0)
+                for key, expected_value in (
+                    ("constraint_residual", expected_residual),
+                    ("center_to_edge_clock_rate_ratio", expected_ratio),
+                    ("edge_observed_redshift", expected_redshift),
+                ):
+                    _bind_recomputed(
+                        errors,
+                        value[key],
+                        expected_value,
+                        location=f"check {name!r}.value.{key}",
+                    )
                 return (
-                    min(range(len(value["phi"])), key=value["phi"].__getitem__) == 2
-                    and value["center_to_edge_clock_rate_ratio"] < 1.0
-                    and value["edge_observed_redshift"] > 0.0
-                    and value["constraint_residual"] < 1e-12
+                    int(np.argmin(phi)) == 2
+                    and expected_ratio < 1.0
+                    and expected_redshift > 0.0
+                    and expected_residual < 1e-12
                 ), errors
     except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
         return None, [f"check {name!r} decision operands are invalid: {exc}"]

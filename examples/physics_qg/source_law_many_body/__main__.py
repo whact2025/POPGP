@@ -156,6 +156,9 @@ def _order_sensitivity() -> list[dict]:
                 "epsilons": epsilons.tolist(),
                 "relative_entropy": relative_entropy.tolist(),
                 "signed_modular_energy": modular_energy.tolist(),
+                "modular_energy_power_law": _fit_dict(
+                    fit_power_law(epsilons, np.abs(modular_energy))
+                ),
                 "absolute_precision_floor": precision_floor,
                 "relative_entropy_quadratic_assessment": _assessment_dict(
                     quadratic
@@ -761,6 +764,7 @@ def main() -> None:
                 "maximum_profile_change": ising_profile_change,
             },
             "pipeline_source_comparison": {
+                "diagnostic_local_energy_profile": final_profile.tolist(),
                 "reduced_modular_source": reduced_modular_source.tolist(),
                 "kms_energy_density_source": kms_energy_density_source.tolist(),
                 "kms_density_match_error": kms_density_match_error,

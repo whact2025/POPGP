@@ -316,6 +316,12 @@
           1.0569743891937195e-05,
           1.87957922328973e-05
         ],
+        "modular_energy_power_law": {
+          "slope": 0.9999948345760379,
+          "intercept": -3.974153169101834,
+          "slope_residual_scale": 1.075467782656589e-06,
+          "r_squared": 0.9999999999942167
+        },
         "absolute_precision_floor": 7.614093162243689e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -390,6 +396,12 @@
           0.0001046250586387065,
           0.00018605929641771728
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000211343248464,
+          "intercept": -1.6815633525094202,
+          "slope_residual_scale": 4.399180320451084e-06,
+          "r_squared": 0.9999999999032402
+        },
         "absolute_precision_floor": 6.754349638002319e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -464,6 +476,12 @@
           0.0001651705874722472,
           0.00029378539529500037
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0001315484309803,
+          "intercept": -1.224118326447084,
+          "slope_residual_scale": 2.7386053251292012e-05,
+          "r_squared": 0.9999999962510069
+        },
         "absolute_precision_floor": 4.757848654116221e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -538,6 +556,12 @@
           0.00013348916728102183,
           0.00023746924683162388
         ],
+        "modular_energy_power_law": {
+          "slope": 1.000217723799622,
+          "intercept": -1.4364139357510002,
+          "slope_residual_scale": 4.532588335712368e-05,
+          "r_squared": 0.9999999897322931
+        },
         "absolute_precision_floor": 3.8986020653102987e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -612,6 +636,12 @@
           9.293749849180387e-05,
           0.00016536742172761095
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0003494873746313,
+          "intercept": -1.797493547199312,
+          "slope_residual_scale": 7.275087486549603e-05,
+          "r_squared": 0.9999999735550393
+        },
         "absolute_precision_floor": 3.2297154149490563e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -686,6 +716,12 @@
           3.1454485991899126e-06,
           5.593493349415473e-06
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000007198744585,
+          "intercept": -5.1861469498376005,
+          "slope_residual_scale": 1.4992665784637802e-07,
+          "r_squared": 0.9999999999998876
+        },
         "absolute_precision_floor": 7.670569656141489e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -760,6 +796,12 @@
           3.303864347445668e-05,
           5.8752726449130515e-05
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000078502625405,
+          "intercept": -2.8343707304945482,
+          "slope_residual_scale": 1.634248580123994e-06,
+          "r_squared": 0.9999999999866463
+        },
         "absolute_precision_floor": 7.426362757804534e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -834,6 +876,12 @@
           0.00011057019776147115,
           0.00019663464620560595
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000296248457077,
+          "intercept": -1.6262305369230075,
+          "slope_residual_scale": 6.167415944059929e-06,
+          "r_squared": 0.9999999998098261
+        },
         "absolute_precision_floor": 6.710098290591698e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -908,6 +956,12 @@
           0.00015211478508040337,
           0.00027052310588179996
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000444428867459,
+          "intercept": -1.3071317477113928,
+          "slope_residual_scale": 9.252403953768739e-06,
+          "r_squared": 0.9999999995720031
+        },
         "absolute_precision_floor": 6.249143869192466e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -982,6 +1036,12 @@
           0.00018873550662107293,
           0.0003356594490794195
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000610785207784,
+          "intercept": -1.0912925866589633,
+          "slope_residual_scale": 1.2715902079463739e-05,
+          "r_squared": 0.999999999191628
+        },
         "absolute_precision_floor": 5.758401389786212e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -1056,6 +1116,12 @@
           0.00012072261152103135,
           0.00021468452730156518
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000163629341954,
+          "intercept": -1.5384876967861272,
+          "slope_residual_scale": 3.405739995682109e-06,
+          "r_squared": 0.9999999999420066
+        },
         "absolute_precision_floor": 4.1312023823317753e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -1130,6 +1196,12 @@
           0.00010621221443456818,
           0.00018888155878803815
         ],
+        "modular_energy_power_law": {
+          "slope": 1.0000203715652125,
+          "intercept": -1.6665131932964026,
+          "slope_residual_scale": 4.2403591531905134e-06,
+          "r_squared": 0.9999999999101005
+        },
         "absolute_precision_floor": 9.377745861242307e-16,
         "relative_entropy_quadratic_assessment": {
           "full_window": {
@@ -1250,6 +1322,13 @@
       "maximum_profile_change": 2.7755575615628914e-17
     },
     "pipeline_source_comparison": {
+      "diagnostic_local_energy_profile": [
+        -0.00010460619206212373,
+        0.0004949447294451529,
+        0.0011991018430145932,
+        0.0004949447294451976,
+        -0.00010460619206211896
+      ],
       "reduced_modular_source": [
         -4.2325137762141434e-16,
         -3.4629658169024814e-16,
@@ -1442,6 +1521,12 @@
             1.0569743891937195e-05,
             1.87957922328973e-05
           ],
+          "modular_energy_power_law": {
+            "slope": 0.9999948345760379,
+            "intercept": -3.974153169101834,
+            "slope_residual_scale": 1.075467782656589e-06,
+            "r_squared": 0.9999999999942167
+          },
           "absolute_precision_floor": 7.614093162243689e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1516,6 +1601,12 @@
             0.0001046250586387065,
             0.00018605929641771728
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000211343248464,
+            "intercept": -1.6815633525094202,
+            "slope_residual_scale": 4.399180320451084e-06,
+            "r_squared": 0.9999999999032402
+          },
           "absolute_precision_floor": 6.754349638002319e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1590,6 +1681,12 @@
             0.0001651705874722472,
             0.00029378539529500037
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0001315484309803,
+            "intercept": -1.224118326447084,
+            "slope_residual_scale": 2.7386053251292012e-05,
+            "r_squared": 0.9999999962510069
+          },
           "absolute_precision_floor": 4.757848654116221e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1664,6 +1761,12 @@
             0.00013348916728102183,
             0.00023746924683162388
           ],
+          "modular_energy_power_law": {
+            "slope": 1.000217723799622,
+            "intercept": -1.4364139357510002,
+            "slope_residual_scale": 4.532588335712368e-05,
+            "r_squared": 0.9999999897322931
+          },
           "absolute_precision_floor": 3.8986020653102987e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1738,6 +1841,12 @@
             9.293749849180387e-05,
             0.00016536742172761095
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0003494873746313,
+            "intercept": -1.797493547199312,
+            "slope_residual_scale": 7.275087486549603e-05,
+            "r_squared": 0.9999999735550393
+          },
           "absolute_precision_floor": 3.2297154149490563e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1812,6 +1921,12 @@
             3.1454485991899126e-06,
             5.593493349415473e-06
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000007198744585,
+            "intercept": -5.1861469498376005,
+            "slope_residual_scale": 1.4992665784637802e-07,
+            "r_squared": 0.9999999999998876
+          },
           "absolute_precision_floor": 7.670569656141489e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1886,6 +2001,12 @@
             3.303864347445668e-05,
             5.8752726449130515e-05
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000078502625405,
+            "intercept": -2.8343707304945482,
+            "slope_residual_scale": 1.634248580123994e-06,
+            "r_squared": 0.9999999999866463
+          },
           "absolute_precision_floor": 7.426362757804534e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -1960,6 +2081,12 @@
             0.00011057019776147115,
             0.00019663464620560595
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000296248457077,
+            "intercept": -1.6262305369230075,
+            "slope_residual_scale": 6.167415944059929e-06,
+            "r_squared": 0.9999999998098261
+          },
           "absolute_precision_floor": 6.710098290591698e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -2034,6 +2161,12 @@
             0.00015211478508040337,
             0.00027052310588179996
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000444428867459,
+            "intercept": -1.3071317477113928,
+            "slope_residual_scale": 9.252403953768739e-06,
+            "r_squared": 0.9999999995720031
+          },
           "absolute_precision_floor": 6.249143869192466e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -2108,6 +2241,12 @@
             0.00018873550662107293,
             0.0003356594490794195
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000610785207784,
+            "intercept": -1.0912925866589633,
+            "slope_residual_scale": 1.2715902079463739e-05,
+            "r_squared": 0.999999999191628
+          },
           "absolute_precision_floor": 5.758401389786212e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -2182,6 +2321,12 @@
             0.00012072261152103135,
             0.00021468452730156518
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000163629341954,
+            "intercept": -1.5384876967861272,
+            "slope_residual_scale": 3.405739995682109e-06,
+            "r_squared": 0.9999999999420066
+          },
           "absolute_precision_floor": 4.1312023823317753e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {
@@ -2256,6 +2401,12 @@
             0.00010621221443456818,
             0.00018888155878803815
           ],
+          "modular_energy_power_law": {
+            "slope": 1.0000203715652125,
+            "intercept": -1.6665131932964026,
+            "slope_residual_scale": 4.2403591531905134e-06,
+            "r_squared": 0.9999999999101005
+          },
           "absolute_precision_floor": 9.377745861242307e-16,
           "relative_entropy_quadratic_assessment": {
             "full_window": {

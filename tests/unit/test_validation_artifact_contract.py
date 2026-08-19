@@ -395,6 +395,260 @@ def test_threshold_crossing_pipeline_alias_cannot_leave_stale_check(
     assert any("authoritative retained field" in error for error in errors), errors
 
 
+def _increment_path(document: dict, path: tuple[str | int, ...], delta: float) -> None:
+    target = document
+    for part in path[:-1]:
+        target = target[part]
+    target[path[-1]] += delta
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "raw_key",
+    [
+        "relative_entropy",
+        "modular_energy",
+        "relative_entropy_phi_amplitude",
+        "modular_energy_phi_amplitude",
+    ],
+)
+def test_source_law_raw_fit_and_identity_operands_recompute(raw_key: str) -> None:
+    relative_path = "examples/physics_qg/source_law/results/validation.json"
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    for index in range(len(reference["measurements"][raw_key])):
+        candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+        candidate["measurements"][raw_key][index] += 4e-9
+
+        comparison = compare_validation_documents(reference, candidate)
+        errors = check_validation_semantics(candidate, relative_path)
+
+        assert comparison.passed, (raw_key, index, comparison.errors)
+        assert any("recomputed raw operands" in error for error in errors), (
+            raw_key,
+            index,
+            errors,
+        )
+
+
+MANY_BODY_RAW_GATE_PATHS: tuple[tuple[str | int, ...], ...] = (
+    ("measurements", "relative_entropy", 1),
+    ("measurements", "modular_energy", 3),
+    ("measurements", "entropy_change", 4),
+    ("measurements", "total_energy_change", 0),
+    ("measurements", "local_energy_profiles", 4, 0),
+    ("measurements", "potential_amplitudes", 0),
+    ("measurements", "evolved_total_energy", 1),
+    ("measurements", "evolved_local_energy_profiles", 0, 0),
+    (
+        "measurements",
+        "isospectral_unitary_control",
+        "relative_entropy",
+        0,
+    ),
+    ("measurements", "isospectral_unitary_control", "entropy_change", 0),
+    ("measurements", "commuting_ising_control", "t1_profile", 0),
+    (
+        "measurements",
+        "pipeline_source_comparison",
+        "diagnostic_local_energy_profile",
+        0,
+    ),
+)
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("raw_path", MANY_BODY_RAW_GATE_PATHS)
+def test_many_body_raw_fit_identity_and_control_operands_recompute(
+    raw_path: tuple[str | int, ...],
+) -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    _increment_path(candidate, raw_path, 4e-9)
+
+    comparison = compare_validation_documents(reference, candidate)
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert comparison.passed
+    assert errors, raw_path
+    assert any(
+        "recomputed raw operands" in error or "recompute to False" in error
+        for error in errors
+    ), (raw_path, errors)
+
+
+@pytest.mark.negative_control
+def test_every_many_body_decision_bearing_raw_array_element_recomputes() -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    measurements = reference["measurements"]
+    paths: list[tuple[str | int, ...]] = []
+    for key in (
+        "relative_entropy",
+        "modular_energy",
+        "entropy_change",
+        "total_energy_change",
+        "potential_amplitudes",
+        "evolved_total_energy",
+    ):
+        paths.extend(("measurements", key, index) for index in range(len(measurements[key])))
+    paths.extend(
+        ("measurements", "local_energy_profiles", row, column)
+        for row, profile in enumerate(measurements["local_energy_profiles"])
+        for column in range(len(profile))
+    )
+    paths.extend(
+        ("measurements", "evolved_local_energy_profiles", 0, column)
+        for column in (0, 4)
+    )
+    paths.extend(
+        ("measurements", "evolved_local_energy_profiles", 3, column)
+        for column in range(len(measurements["evolved_local_energy_profiles"][3]))
+    )
+    for key in ("relative_entropy", "modular_energy", "entropy_change"):
+        paths.extend(
+            ("measurements", "isospectral_unitary_control", key, index)
+            for index in range(
+                len(measurements["isospectral_unitary_control"][key])
+            )
+        )
+    for key in ("initial_profile", "t1_profile"):
+        paths.extend(
+            ("measurements", "commuting_ising_control", key, index)
+            for index in range(len(measurements["commuting_ising_control"][key]))
+        )
+    for key in (
+        "diagnostic_local_energy_profile",
+        "reduced_modular_source",
+        "kms_energy_density_source",
+    ):
+        paths.extend(
+            ("measurements", "pipeline_source_comparison", key, index)
+            for index in range(len(measurements["pipeline_source_comparison"][key]))
+        )
+
+    for raw_path in paths:
+        candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+        _increment_path(candidate, raw_path, 4e-9)
+
+        errors = check_validation_semantics(candidate, relative_path)
+
+        assert errors, raw_path
+        assert any(
+            "recomputed raw operands" in error
+            or "recompute to False" in error
+            or "authoritative retained field" in error
+            for error in errors
+        ), (raw_path, errors)
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "source_key", ["reduced_modular_source", "kms_energy_density_source"]
+)
+def test_pipeline_source_paired_alias_mutation_recomputes(source_key: str) -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    check = next(
+        item
+        for item in document["checks"]
+        if item["name"]
+        == "pipeline_reduced_modular_blindness_and_density_repair"
+    )
+    document["measurements"]["pipeline_source_comparison"][source_key][0] += 4e-9
+    check["value"][source_key][0] += 4e-9
+
+    errors = check_validation_semantics(document, relative_path)
+
+    assert errors
+    assert any(
+        "differs from the retained" in error
+        or "recomputed raw operands" in error
+        or "recompute to False" in error
+        for error in errors
+    ), errors
+
+
+@pytest.mark.negative_control
+def test_every_sensitivity_raw_element_recomputes_paired_aliases() -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    reference_check = next(
+        item
+        for item in reference["checks"]
+        if item["name"] == "nonaffine_kms_parameter_sensitivity"
+    )
+    for case_index, reference_case in enumerate(
+        reference["measurements"]["order_sensitivity"]
+    ):
+        for raw_key in ("relative_entropy", "signed_modular_energy"):
+            for response_index in range(len(reference_case[raw_key])):
+                candidate = json.loads(
+                    Path(relative_path).read_text(encoding="utf-8")
+                )
+                candidate_check = next(
+                    item
+                    for item in candidate["checks"]
+                    if item["name"] == "nonaffine_kms_parameter_sensitivity"
+                )
+                candidate["measurements"]["order_sensitivity"][case_index][
+                    raw_key
+                ][response_index] += 4e-9
+                candidate_check["value"][case_index][raw_key][response_index] += 4e-9
+
+                comparison = compare_validation_documents(reference, candidate)
+                errors = check_validation_semantics(candidate, relative_path)
+
+                assert comparison.passed, (
+                    case_index,
+                    raw_key,
+                    response_index,
+                    comparison.errors,
+                )
+                assert errors, (case_index, raw_key, response_index)
+                assert any(
+                    "recomputed raw operands" in error
+                    or "recompute to False" in error
+                    for error in errors
+                ), (case_index, raw_key, response_index, errors)
+    assert len(reference_check["value"]) == 12
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "mutation",
+    ["nonfinite", "empty", "unordered_amplitudes", "zero_denominator"],
+)
+def test_raw_recomputation_is_fail_closed_on_invalid_operands(mutation: str) -> None:
+    relative_path = "examples/physics_qg/source_law/results/validation.json"
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    if mutation == "nonfinite":
+        document["measurements"]["relative_entropy"][0] = float("nan")
+    elif mutation == "empty":
+        document["measurements"]["relative_entropy"] = []
+    elif mutation == "unordered_amplitudes":
+        document["config"]["epsilons"] = list(
+            reversed(document["config"]["epsilons"])
+        )
+    elif mutation == "zero_denominator":
+        document["measurements"]["modular_energy"][0] = 0.0
+    else:  # pragma: no cover - parametrization is exhaustive.
+        raise AssertionError(mutation)
+
+    errors = check_validation_semantics(document, relative_path)
+
+    assert errors
+    assert any("invalid" in error or "finite" in error for error in errors), errors
+
+
 @pytest.mark.negative_control
 def test_many_body_precision_floor_recomputes_from_raw_response() -> None:
     relative_path = (
@@ -442,8 +696,15 @@ def test_many_body_consistent_but_insufficient_precision_floor_fails_gate() -> N
 
     errors = check_validation_semantics(document, relative_path)
 
-    assert any("recomputed outcome is False" in error for error in errors), errors
-    assert any("recompute to False" in error for error in errors), errors
+    assert any(
+        "recomputed outcome is False" in error
+        or "decision operands are invalid" in error
+        for error in errors
+    ), errors
+    assert any(
+        "recompute to False" in error or "decision operands are invalid" in error
+        for error in errors
+    ), errors
 
 
 DECISION_MARGIN_CASES = [
@@ -561,6 +822,7 @@ def test_every_float_decision_margin_is_recomputed(
     assert check["passed"] is original_passed
     assert any(
         "recomputed outcome" in error or "recompute to" in error
+        or "differs from recomputed raw operands" in error
         for error in errors
     ), errors
 
