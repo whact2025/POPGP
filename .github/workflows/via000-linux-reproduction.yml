@@ -2,6 +2,9 @@ name: VIA-000 Linux reproduction
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - campaign/via000-runner-1
 
 permissions:
   contents: read
