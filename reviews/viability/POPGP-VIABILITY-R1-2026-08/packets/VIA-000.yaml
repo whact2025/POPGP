@@ -408,9 +408,14 @@ receipts:
   path: ../receipts/VIA-000/claim-diff.json
   sha256: ade9371ec4180271f1d4adff96c2e7a49a79d860d3ecdc7d151b02335ddafbf7
   media_type: application/json
+- id: independent-review
+  kind: independent-review
+  path: ../reviews/VIA-000-INDEPENDENT-REVIEW-1.md
+  sha256: 6ac08d981921865c91f8779bcfd1e4871af8e39e38c384db97c350e4de083720
+  media_type: text/markdown
 review_chain:
-  initial_review_receipt: null
-  initial_review_ref: null
+  initial_review_receipt: independent-review
+  initial_review_ref: a704855fd6f8d26286e5897c3032607a14f88633:reviews/viability/POPGP-VIABILITY-R1-2026-08/reviews/VIA-000-INDEPENDENT-REVIEW-1.md
   response_receipts: []
   response_refs: []
   rereview_receipts: []
