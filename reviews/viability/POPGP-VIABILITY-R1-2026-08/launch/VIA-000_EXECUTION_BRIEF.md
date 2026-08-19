@@ -79,7 +79,7 @@ commitment exists.
 ```text
 Act as falsifier for POPGP campaign POPGP-VIABILITY-R1-2026-08, packet VIA-000.
 Your frozen seat identity is codex-via000-falsifier and your session ID is
-popgp-viability-r1-2026-08-via000-falsifier-session-5.
+popgp-viability-r1-2026-08-via000-falsifier-session-6.
 
 Use a fresh isolated task at the activated handoff listed above. Read the required
 public files named in VIA-000_EXECUTION_BRIEF.md. Do not request or inspect sealed manifests, final labels,
@@ -90,7 +90,7 @@ summary. Specifically attack ignored virtual-environment customize and executabl
 `.pth` startup hooks including self-cleaning allowed-file variants, isolated/frozen
 non-editable uv execution, and the base-interpreter
 preflight/postflight boundary. Do not repair the implementation.
-Create `attacks/VIA-000-ATTACK-PLAN-5.md`, record exact commands and expected
+Create `attacks/VIA-000-ATTACK-PLAN-6.md`, record exact commands and expected
 rejection conditions, commit only that artifact,
 leave the worktree clean, and return its commit, path, SHA-256, actual identity fields,
 and whether any exposure boundary was crossed.

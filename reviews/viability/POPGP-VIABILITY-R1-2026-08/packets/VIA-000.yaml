@@ -6,7 +6,7 @@ candidate_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
 tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
 protocol_commit: 85587d061d20b518a8612293fca70f3764e0e1ec
-protocol_rule_sha256: 5c753eff4794d34a9fa18be276942d76b7df417a9a728577cde5395d2fbf4100
+protocol_rule_sha256: 963a20b1f677b02cd6eee4164b2fe31736f9c3b402fb7ef2adc4aaeedd21c99b
 lifecycle_phase: preregistered
 claims:
 - C03
@@ -106,7 +106,7 @@ preregistration:
   - uv sync --frozen --no-editable
   - uv run --isolated --frozen --no-editable ruff check .
   - uv run --isolated --frozen --no-editable python scripts/check_tex.py
-  - uv run --isolated --frozen --no-editable pytest -q
+  - uv run --isolated --frozen --no-editable python -m pytest -q
   - uv run --isolated --frozen --no-editable python -m examples.physics_qg.chain_1d
   - uv run --isolated --frozen --no-editable python -m examples.physics_qg.grid_2d
   - uv run --isolated --frozen --no-editable python -m examples.physics_qg.gravity_well
@@ -137,7 +137,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json
-    sha256: 3f810ff466bc5506ac203ddecead3a43bf274b87aad9422d284534313853653c
+    sha256: 14e3fc144773374e41993b36f53f21c334187d49fc7147c0cf58fa0663eccf82
     media_type: application/json
 holdout_started: false
 seats:
@@ -172,7 +172,7 @@ seats:
     model_identity: unknown
     model_version: unknown
     operator: fuocor
-    session_id: popgp-viability-r1-2026-08-via000-falsifier-session-5
+    session_id: popgp-viability-r1-2026-08-via000-falsifier-session-6
     orchestrator_id: codex-desktop
     organization: popgp-internal
     access_level: public-calibration-only
@@ -342,7 +342,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 3f810ff466bc5506ac203ddecead3a43bf274b87aad9422d284534313853653c
+  sha256: 14e3fc144773374e41993b36f53f21c334187d49fc7147c0cf58fa0663eccf82
   media_type: application/json
 review_chain:
   initial_review_receipt: null

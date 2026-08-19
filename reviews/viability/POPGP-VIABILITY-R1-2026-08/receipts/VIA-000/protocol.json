@@ -31,7 +31,7 @@
     "uv sync --frozen --no-editable",
     "uv run --isolated --frozen --no-editable ruff check .",
     "uv run --isolated --frozen --no-editable python scripts/check_tex.py",
-    "uv run --isolated --frozen --no-editable pytest -q",
+    "uv run --isolated --frozen --no-editable python -m pytest -q",
     "uv run --isolated --frozen --no-editable python -m examples.physics_qg.chain_1d",
     "uv run --isolated --frozen --no-editable python -m examples.physics_qg.grid_2d",
     "uv run --isolated --frozen --no-editable python -m examples.physics_qg.gravity_well",
