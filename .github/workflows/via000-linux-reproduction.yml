@@ -64,7 +64,8 @@ jobs:
             --candidate candidate \
             --output control/reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/runner/linux \
             --platform-family ubuntu-latest-x86_64 \
-            --uv-cache "$RUNNER_TEMP/via000-uv-cache"
+            --uv-cache "$RUNNER_TEMP/via000-uv-cache" \
+            --mutation-only
 
       - name: Upload immutable Linux evidence
         if: always()

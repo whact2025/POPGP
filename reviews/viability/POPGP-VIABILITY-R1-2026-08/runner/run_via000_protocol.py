@@ -622,14 +622,13 @@ def run_mutations(harness: Harness) -> None:
 
     # G08: ignored customize hooks preplanted before locked sync.
     env_path = harness.candidate / ".venv"
-    if env_path.exists():
-        shutil.rmtree(env_path)
     site_packages = (
         env_path / "Lib" / "site-packages"
         if os.name == "nt"
         else env_path / "lib" / "python3.11" / "site-packages"
     )
-    site_packages.mkdir(parents=True)
+    if not site_packages.is_dir():
+        raise RuntimeError(f"locked site-packages directory is absent: {site_packages}")
     site_hook = site_packages / "sitecustomize.py"
     user_hook = site_packages / "usercustomize.py"
     site_hook.write_text(
@@ -1008,6 +1007,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--platform-family", required=True)
     parser.add_argument("--uv-cache", type=Path, required=True)
+    parser.add_argument("--mutation-only", action="store_true")
     args = parser.parse_args()
 
     candidate = args.candidate.resolve()
@@ -1101,51 +1101,73 @@ def main() -> int:
     try:
         if not engine_exact:
             raise RuntimeError("pinned pdfTeX 1.40.29 / TeX Live 2026 is unavailable")
-        protocol_result, external_pdf = run_main_protocol(harness)
-        pdf_result = copy_pdf_evidence(external_pdf, output)
-        mutation_baseline_ready = protocol_result["all_commands_succeeded"]
-        mutation_baseline: dict[str, Any] = {
-            "ready": mutation_baseline_ready,
-            "restored_after_recorded_protocol_failure": False,
-            "restored_paths": [],
-            "command_ids": [],
-        }
-        command_by_id = {command["id"]: command for command in protocol_result["commands"]}
-        reproducible_dirty_regeneration = (
-            not mutation_baseline_ready
-            and protocol_result["required_test_count_met"]
-            and protocol_result["required_example_count_met"]
-            and command_by_id.get("semantic-checker", {}).get("exit_code") == 0
-            and command_by_id.get("pdflatex-pass-1", {}).get("exit_code") == 0
-            and command_by_id.get("pdflatex-pass-2", {}).get("exit_code") == 0
-            and command_by_id.get("git-diff", {}).get("exit_code") != 0
-            and command_by_id.get("postflight", {}).get("exit_code") != 0
-        )
-        if reproducible_dirty_regeneration:
-            changed = harness.run(
-                "mutation-baseline-changed-paths",
-                "git diff --name-only",
-                ["git", "diff", "--name-only"],
+        if args.mutation_only:
+            mutation_sync = harness.run(
+                "mutation-control-sync",
+                "uv sync --frozen --no-editable",
+                ["uv", "sync", "--frozen", "--no-editable"],
                 category="runner-control",
             )
-            changed_paths = [
-                line.strip() for line in harness.stdout(changed).splitlines() if line.strip()
-            ]
-            if changed["exit_code"] == 0 and changed_paths:
-                harness.git_restore(*changed_paths)
-                restored_boundary = postflight(
-                    harness,
-                    "mutation-baseline-restored-postflight",
+            mutation_boundary = postflight(
+                harness,
+                "mutation-control-postflight",
+                category="runner-control",
+            )
+            mutation_baseline_ready = (
+                mutation_sync["exit_code"] == 0 and mutation_boundary["exit_code"] == 0
+            )
+            protocol_result["mutation_baseline"] = {
+                "ready": mutation_baseline_ready,
+                "restored_after_recorded_protocol_failure": False,
+                "restored_paths": [],
+                "command_ids": [mutation_sync["id"], mutation_boundary["id"]],
+            }
+        else:
+            protocol_result, external_pdf = run_main_protocol(harness)
+            pdf_result = copy_pdf_evidence(external_pdf, output)
+            mutation_baseline_ready = protocol_result["all_commands_succeeded"]
+            mutation_baseline: dict[str, Any] = {
+                "ready": mutation_baseline_ready,
+                "restored_after_recorded_protocol_failure": False,
+                "restored_paths": [],
+                "command_ids": [],
+            }
+            command_by_id = {command["id"]: command for command in protocol_result["commands"]}
+            reproducible_dirty_regeneration = (
+                not mutation_baseline_ready
+                and protocol_result["required_test_count_met"]
+                and protocol_result["required_example_count_met"]
+                and command_by_id.get("semantic-checker", {}).get("exit_code") == 0
+                and command_by_id.get("pdflatex-pass-1", {}).get("exit_code") == 0
+                and command_by_id.get("pdflatex-pass-2", {}).get("exit_code") == 0
+                and command_by_id.get("git-diff", {}).get("exit_code") != 0
+                and command_by_id.get("postflight", {}).get("exit_code") != 0
+            )
+            if reproducible_dirty_regeneration:
+                changed = harness.run(
+                    "mutation-baseline-changed-paths",
+                    "git diff --name-only",
+                    ["git", "diff", "--name-only"],
                     category="runner-control",
                 )
-                mutation_baseline_ready = restored_boundary["exit_code"] == 0
-                mutation_baseline = {
-                    "ready": mutation_baseline_ready,
-                    "restored_after_recorded_protocol_failure": True,
-                    "restored_paths": changed_paths,
-                    "command_ids": [changed["id"], restored_boundary["id"]],
-                }
-        protocol_result["mutation_baseline"] = mutation_baseline
+                changed_paths = [
+                    line.strip() for line in harness.stdout(changed).splitlines() if line.strip()
+                ]
+                if changed["exit_code"] == 0 and changed_paths:
+                    harness.git_restore(*changed_paths)
+                    restored_boundary = postflight(
+                        harness,
+                        "mutation-baseline-restored-postflight",
+                        category="runner-control",
+                    )
+                    mutation_baseline_ready = restored_boundary["exit_code"] == 0
+                    mutation_baseline = {
+                        "ready": mutation_baseline_ready,
+                        "restored_after_recorded_protocol_failure": True,
+                        "restored_paths": changed_paths,
+                        "command_ids": [changed["id"], restored_boundary["id"]],
+                    }
+            protocol_result["mutation_baseline"] = mutation_baseline
         if mutation_baseline_ready:
             run_mutations(harness)
     except Exception as exc:  # evidence must survive unexpected runner failures
@@ -1179,6 +1201,7 @@ def main() -> int:
         "packet_id": PACKET_ID,
         "runner_identity": RUNNER_IDENTITY,
         "runner_session_id": RUNNER_SESSION,
+        "execution_mode": "mutation-only" if args.mutation_only else "full",
         "platform_family": args.platform_family,
         "candidate_commit": head,
         "candidate_tree": tree,
@@ -1200,6 +1223,8 @@ def main() -> int:
     strict_write_json(output / "platform-results.json", platform_result)
     strict_write_json(output / "command-index.json", harness.commands)
     strict_write_json(output / "mutation-results.json", harness.mutations)
+    if args.mutation_only:
+        return 0 if mutations_rejected and harness_error is None else 1
     return 0 if evidence_contract and mutations_rejected else 1
 
 
