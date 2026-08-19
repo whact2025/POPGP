@@ -1,0 +1,53 @@
+Substrate: 3x3 = 9 qubit Heisenberg grid (beta=2.0)
+D* = 2
+
+Center cell (diagnostic source): 4
+Graph distances: {0: 2, 1: 1, 2: 2, 3: 1, 4: 0, 5: 1, 6: 2, 7: 1, 8: 2}
+
+=== Test 1: Non-physical pipeline placeholder ===
+Phi range: [-0.0000, 0.0000]
+
+=== Test 2: Negative localized Green-function source ===
+mu (mass parameter): 0.1
+source strength: -0.01
+Phi range: [-0.0100, 0.0023]
+Phi at center (source): -0.0100
+constraint residual: 1.878e-18
+relative constraint residual: 1.992e-16
+
+--- Radial Profile (by graph distance) ---
+  d=0: avg Phi=-0.0100 +/- 0.0000  cells=[4]  values=[-0.0100]
+  d=1: avg Phi=0.0002 +/- 0.0000  cells=[1, 3, 5, 7]  values=[0.0002, 0.0002, 0.0002, 0.0002]
+  d=2: avg Phi=0.0023 +/- 0.0000  cells=[0, 2, 6, 8]  values=[0.0023, 0.0023, 0.0023, 0.0023]
+
+--- Monotonicity Test ---
+Phi increases monotonically away from the negative well: PASS
+
+--- Symmetry Test ---
+  d=1: spread = 0.00% of mean
+  d=2: spread = 0.00% of mean
+Max asymmetry < 5%: PASS (max = 0.00%)
+
+--- log(r) Fit ---
+Fit: Phi = 0.0029 * log(d) + 0.0002
+R-squared: 1.0000
+Expected: positive slope (Phi rises away from a negative source)
+Note: only 2 radial shells -- log(r) convergence requires N >> 9
+
+--- Gravitational Redshift ---
+Phi(source) = -0.0100,  Phi(boundary) = 0.0023
+Redshift factor: 1+z = exp(Phi_obs-Phi_emit) = 1.0123  (z = 0.0123)
+Source clock rate / boundary clock rate: 0.9879 (slower).
+
+==================================================
+GREEN-FUNCTION DIAGNOSTIC: PASS
+  Monotonic recovery from well: PASS
+  Grid symmetry:     PASS
+==================================================
+
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\gravity_well\results\gravity_well.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\gravity_well\results\gravity_embedding.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\gravity_well\results\source_comparison.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\gravity_well\results\validation.json
+
+Done.

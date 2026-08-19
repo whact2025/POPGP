@@ -1,0 +1,4 @@
+Installed 60 packages in 19.07s
+Validation artifact contract failed:
+- examples/physics_qg/source_law_many_body/results/validation.json: $.checks[0].value.quadratic_coefficient_relative_error: sensitive diagnostic 'quadratic_coefficient_relative_error' drift exceeds rel_tol=0, abs_tol=0.0002 (3.812167720149195e-08 -> 0.001, abs=0.000999962, rel=0.999962)
+- examples/physics_qg/source_law_many_body/results/validation.json: $.measurements.quadratic_coefficient_relative_error: sensitive diagnostic 'quadratic_coefficient_relative_error' drift exceeds rel_tol=0, abs_tol=0.0002 (3.812167720149195e-08 -> 0.001, abs=0.000999962, rel=0.999962)

@@ -1,0 +1,84 @@
+Total lines: 652
+
+=== Non-ASCII Characters ===
+  None found.
+
+=== Brace Balance ===
+  Final balance: 0 (should be 0)
+
+=== Environment Matching ===
+  OK: abstract (begin=1, end=1)
+  OK: description (begin=2, end=2)
+  OK: document (begin=1, end=1)
+  OK: enumerate (begin=3, end=3)
+  OK: equation (begin=51, end=51)
+  OK: itemize (begin=9, end=9)
+  OK: ruledtabular (begin=2, end=2)
+  OK: table (begin=1, end=1)
+  OK: tabular (begin=2, end=2)
+
+=== Markdown Remnants ===
+  None found.
+
+=== Potentially Wide Equations ===
+  Line 197: 128 chars - \{\mathcal{A}_i \subset \pi_\omega(\mathcal{A})'' \}_{i \in V}, \quad \text{with...
+  Line 207: 130 chars - \mathcal{A}_R \approx \bigotimes_{i\in R} \mathcal{A}_i, \quad E_R := \bigotimes...
+  Line 259: 137 chars - \delta_i \mathcal{L}_{\text{leak}} := \left. \frac{\partial \mathcal{L}_{\text{l...
+  Line 268: 176 chars - \partial_s E_i = -\eta_{\text{flow}} \cdot \Pi_{\text{adm}} \left[ \delta_i \mat...
+  Line 273: 140 chars - [ \partial_s E_i , \partial_s E_k ] = 0 \quad \text{whenever } N_{\text{LR}}^{\t...
+  Line 327: 127 chars - \min_{h \succ 0} \sum_{j \in N(i)} \left( d_G(i,j)^2 - \Delta x^T h \Delta x \ri...
+
+=== Section Structure ===
+  Line 36: \section{Reviewer-facing summary}
+  Line 38: \subsection{What this framework commits to}
+  Line 46: \subsection{What this framework does \textit{not} claim (yet)}
+  Line 53: \subsection{Scientific status and evaluation}
+  Line 61: \section{Motivation and scope}
+  Line 68: \section{Design constraints}
+  Line 81: \section{Core postulates (axioms)}
+  Line 84: \subsection{Substrate postulates}
+  Line 93: \subsection{Projection postulates}
+  Line 104: \subsection{Emergence postulates}
+  Line 114: \section{Mathematical primitives}
+  Line 117: \subsection{Substrate representation (analog-friendly)}
+  Line 142: \subsection{Internal symmetry action}
+  Line 149: \subsection{Phase/action ordering generator}
+  Line 160: \subsection{Projection map (explicit construction template)}
+  Line 175: \subsubsection{Stage 0: represent the substrate state (GNS representation)}
+  Line 181: \subsubsection{\texorpdfstring{$\Pi_{\text{res}}$}{Pi\_res}: resolution-limited 
+  Line 225: \subsubsection*{Selection Principle \texorpdfstring{$E$}{E}: symmetry-commuting,
+  Line 291: \subsubsection{\texorpdfstring{$\Pi_{\text{loc}}$}{Pi\_loc}: locality from corre
+  Line 310: \subsubsection{\texorpdfstring{$\Pi_{\text{geom}}$}{Pi\_geom}: emergent geometry
+  Line 334: \subsubsection{\texorpdfstring{$\Pi_{\text{time}}$}{Pi\_time}: clock-rate constr
+  Line 372: \subsection{Symbol glossary}
+  Line 399: \subsection{Substrate algebra and parameter budget}
+  Line 402: \subsection{Parameter budget (what must be fixed or fitted)}
+  Line 412: \section{Projection outputs and emergent time}
+  Line 417: \section{Finite distinguishability and Planck-scale resolution}
+  Line 437: \section{Quantum statistics as projection-limited inference}
+  Line 441: \section{Emergent geometry and GR matching}
+  Line 444: \subsection{Metric definition as projection output}
+  Line 449: \subsection{Proposed GR matching protocol (unimplemented)}
+  Line 452: \subsubsection{Candidate intrinsic discrete geometry}
+  Line 465: \subsubsection{Proposed closure mismatch}
+  Line 483: \section{Standard Model compatibility (program)}
+  Line 488: \section{Entanglement and junction accessibility (open module)}
+  Line 497: \section{Evaluation, falsification, and test program}
+  Line 500: \subsection{Mathematical status (definition / theorem / conjecture / matching)}
+  Line 523: \subsection{Internal validation tests (toy-model / simulation tests)}
+  Line 542: \subsection{Distinctive empirical commitments and lethal falsifiers}
+  Line 565: \section{Discussion and open problems}
+  Line 576: \section{Proposed tests for extracting standard observables}
+  Line 583: \subsection{Slicing, gauge, and a proposed Shift Vector via Optimal Transport}
+  Line 584: \subsubsection{The Shift Vector from Intrinsic Optimal Transport}
+  Line 592: \subsubsection{Discrete Weak-field diagnostic potentials}
+  Line 604: \subsection{Proposed test A --- isolated spherical mass (weak-field, static)}
+  Line 605: \subsubsection{Discrete Geodesic Shooting}
+  Line 622: \subsection{Proposed test C --- homogeneous cosmology patch (FLRW-like)}
+  Line 623: \subsubsection{Discrete Scale Factor}
+  Line 631: \subsubsection{Hubble Rate}
+  Line 636: \subsubsection{Failure Modes (Falsification)}
+  Line 642: \subsection{How these proposed tests connect to falsification}
+
+=== Hardcoded Section References ===
+  None found.

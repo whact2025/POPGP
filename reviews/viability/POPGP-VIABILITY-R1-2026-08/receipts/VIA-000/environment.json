@@ -1,0 +1,59 @@
+{
+  "attacked_handoff_commit": "b7b0d12ddfbbfb1268cdf22db2349a10bf7ed96d",
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "github_runs": {
+    "bytes": 2063,
+    "path": "runner/github-runs.json",
+    "sha256": "667258d1b4ec9e8d375eacec41c3fffb23ae88fc266cc6fe33aec62d75a4dcee"
+  },
+  "hidden_access_declaration": {
+    "custody_path_accessed": false,
+    "final_labels_seen": false,
+    "local_handoff_file_seen": false,
+    "private_evaluator_seen": false,
+    "sealed_manifest_contents_seen": false,
+    "secret_seed_seen": false
+  },
+  "incidental_public_calibration_exposure": {
+    "scope": "brief rg search-result snippets after the public attack plan was committed",
+    "seen": true,
+    "used_as_execution_evidence": false
+  },
+  "packet_id": "VIA-000",
+  "platform_environment_receipts": {
+    "linux_full": {
+      "bytes": 2609,
+      "path": "runner/linux-attempt-1/environment.json",
+      "sha256": "b693bf6ed12c66a41bede6f41620a2773c63966df97b0455cc4767dba29a08d7"
+    },
+    "linux_mutations": {
+      "bytes": 2609,
+      "path": "runner/linux-mutation-continuation/environment.json",
+      "sha256": "b693bf6ed12c66a41bede6f41620a2773c63966df97b0455cc4767dba29a08d7"
+    },
+    "windows_full": {
+      "bytes": 2400,
+      "path": "runner/windows/environment.json",
+      "sha256": "a8bc22eef96b77d4ca4385ba281d68949ce4f0c250b00769a602621ee814c1d3"
+    },
+    "windows_mutations": {
+      "bytes": 2710,
+      "path": "runner/windows-mutation-continuation/environment.json",
+      "sha256": "98702a4dcec2ac866cb85707ca2bf27fcfcc98031537808606ce73715517a794"
+    }
+  },
+  "protocol_commit": "72bfcfbb5ab5a0fee3449510f8868b8bb19be805",
+  "runner": {
+    "access_level": "public-calibration-only",
+    "agent_identity": "codex-via000-runner",
+    "model_identity": "unknown",
+    "model_version": "unknown",
+    "operator": "fuocor",
+    "orchestrator_id": "codex-desktop",
+    "organization": "popgp-internal",
+    "session_id": "popgp-viability-r1-2026-08-via000-runner-session"
+  },
+  "schema_version": 1
+}

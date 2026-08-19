@@ -1,0 +1,1576 @@
+{
+  "aggregate_receipts": {
+    "environment": {
+      "bytes": 2159,
+      "path": "environment.json",
+      "sha256": "f4855453cac6ef3058289cf0aa7f3da40f08e1e37d2b322fccfc1bcabcf085e9"
+    },
+    "mutation-results": {
+      "bytes": 9883,
+      "path": "mutation-results.json",
+      "sha256": "c60673e632c432e3591ca567e5e479428919c053c8bc30f4d5e033ec7123b096"
+    },
+    "run-log": {
+      "bytes": 3376,
+      "path": "run-log.json",
+      "sha256": "83e912426561ab7954bfe4b8c7c0297ae20fd80349b8b2889ef935643b3d584f"
+    }
+  },
+  "attacked_handoff_commit": "b7b0d12ddfbbfb1268cdf22db2349a10bf7ed96d",
+  "blocked": false,
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "capabilities": {
+    "cross-platform-reproduction": false,
+    "evidence-contract": false,
+    "mutation-rejection": false
+  },
+  "failed": true,
+  "failure_classification": {
+    "cause_class": "tested-capability-failure",
+    "cause_codes": [
+      "linux-dirty-regeneration",
+      "linux-unexpected-startup-surface",
+      "linux-mutation-boundary-failure"
+    ],
+    "infrastructure_available": true,
+    "post_output_threshold_selection": false
+  },
+  "generated_at": "2026-08-19T16:22:43.110961Z",
+  "packet_id": "VIA-000",
+  "platforms": {
+    "ubuntu-latest-x86_64": {
+      "dirty_regeneration_path_count": 16,
+      "dirty_regeneration_paths": [
+        "examples/physics_qg/ca_model/results/dynamics_cooling.png",
+        "examples/physics_qg/chain_1d/results/clock_potential.png",
+        "examples/physics_qg/chain_1d/results/embedding.png",
+        "examples/physics_qg/chain_1d/results/entropy_growth.png",
+        "examples/physics_qg/chain_1d/results/validation.json",
+        "examples/physics_qg/gravity_well/results/gravity_embedding.png",
+        "examples/physics_qg/gravity_well/results/gravity_well.png",
+        "examples/physics_qg/gravity_well/results/source_comparison.png",
+        "examples/physics_qg/gravity_well/results/validation.json",
+        "examples/physics_qg/grid_2d/results/clock_potential.png",
+        "examples/physics_qg/grid_2d/results/embedding.png",
+        "examples/physics_qg/grid_2d/results/validation.json",
+        "examples/physics_qg/source_law/results/source_scaling.png",
+        "examples/physics_qg/source_law/results/validation.json",
+        "examples/physics_qg/source_law_many_body/results/many_body_source.png",
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+      ],
+      "engine_exact": true,
+      "example_count": 6,
+      "git_diff_exit_code": 1,
+      "main_protocol_succeeded": false,
+      "mutation_count": 10,
+      "mutation_rejection": false,
+      "observed_startup_surfaces": [
+        ".venv/lib/python3.11/site-packages/_cuda_bindings_redirector.pth",
+        ".venv/lib/python3.11/site-packages/_virtualenv.pth"
+      ],
+      "pdf_nonempty": true,
+      "postflight_exit_code": 1,
+      "test_count": 187
+    },
+    "windows-x86_64": {
+      "engine_exact": true,
+      "example_count": 6,
+      "git_diff_exit_code": 0,
+      "main_protocol_succeeded": true,
+      "mutation_count": 10,
+      "mutation_rejection": true,
+      "pdf_nonempty": true,
+      "postflight_exit_code": 0,
+      "test_count": 187
+    }
+  },
+  "protocol_commit": "72bfcfbb5ab5a0fee3449510f8868b8bb19be805",
+  "runner_evidence_manifest": [
+    {
+      "bytes": 2063,
+      "path": "runner/github-runs.json",
+      "sha256": "667258d1b4ec9e8d375eacec41c3fffb23ae88fc266cc6fe33aec62d75a4dcee"
+    },
+    {
+      "bytes": 17792,
+      "path": "runner/linux-attempt-1/command-index.json",
+      "sha256": "09e12a364f7144bbee2be0bcf73323869d8dbc9a436df3bb3c9939bf0f19099d"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/001-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/001-preflight.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4004,
+      "path": "runner/linux-attempt-1/commands/002-sync.stderr.txt",
+      "sha256": "56a835383a106c170f98e848b002746887ab26167a94870276067b2570e2ee41"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/002-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/003-ruff.stderr.txt",
+      "sha256": "c839de70b4064e9afe48cdc86d3952292a625649890d173f0e03048c46cd22bd"
+    },
+    {
+      "bytes": 19,
+      "path": "runner/linux-attempt-1/commands/003-ruff.stdout.txt",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/004-check-tex.stderr.txt",
+      "sha256": "ead22aaca2251d87b00452a4f267718eb9442e3f65350fe249e9c1bc1352c5dd"
+    },
+    {
+      "bytes": 4558,
+      "path": "runner/linux-attempt-1/commands/004-check-tex.stdout.txt",
+      "sha256": "45dece272b8a3f51575582e833d7fb7d7490a6995c852db7cb610931845cc2f6"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/005-pytest.stderr.txt",
+      "sha256": "505698873408945cd87bb86a268ed6d6fe29e4e7b6666ebe269301bf2d185c4e"
+    },
+    {
+      "bytes": 271,
+      "path": "runner/linux-attempt-1/commands/005-pytest.stdout.txt",
+      "sha256": "8a182be427bef9e1f83c1cd6557b8ba264374f9322622e4c07b2fb5a26eb8eab"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/006-example-chain_1d.stderr.txt",
+      "sha256": "e9fbb9b6b2c4bf3401515fb107520973db6ec6017bb6cd879fcd48f025c5f883"
+    },
+    {
+      "bytes": 995,
+      "path": "runner/linux-attempt-1/commands/006-example-chain_1d.stdout.txt",
+      "sha256": "12353cacf679a347cc2936f79ce7b60363d1234c0423637ff560f565ad07adec"
+    },
+    {
+      "bytes": 145,
+      "path": "runner/linux-attempt-1/commands/007-example-grid_2d.stderr.txt",
+      "sha256": "f8919041682f1d4797d60aa33bac407ab38c674a281d0fa9eb18ea670d5e94dc"
+    },
+    {
+      "bytes": 864,
+      "path": "runner/linux-attempt-1/commands/007-example-grid_2d.stdout.txt",
+      "sha256": "03bb96a8bd809cebc569159d574640ff14b52664f9fd7fdc59cd2ce82a0ba561"
+    },
+    {
+      "bytes": 145,
+      "path": "runner/linux-attempt-1/commands/008-example-gravity_well.stderr.txt",
+      "sha256": "66e14758d228f5de1412adef0b2f907e8c028820248944bc110026c36ad929b9"
+    },
+    {
+      "bytes": 2035,
+      "path": "runner/linux-attempt-1/commands/008-example-gravity_well.stdout.txt",
+      "sha256": "8b2688a90ac1048b7477b16ab6b4243cf22cc1ae9625e5c62680583819da20bd"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/009-example-source_law.stderr.txt",
+      "sha256": "25a3078bf06642f64f1e69c7b872fc11d16a2befc812b64e5d82e1560c7d5547"
+    },
+    {
+      "bytes": 823,
+      "path": "runner/linux-attempt-1/commands/009-example-source_law.stdout.txt",
+      "sha256": "a1986d24eb69e47ea7c579cd47b0bd374bf953c5e85e230586261d4252ecffbb"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/010-example-source_law_many_body.stderr.txt",
+      "sha256": "d23aab01c52efe19cac95e62e80bf31373fd4caf736b05ff80bfaa8f3fb6522e"
+    },
+    {
+      "bytes": 1146,
+      "path": "runner/linux-attempt-1/commands/010-example-source_law_many_body.stdout.txt",
+      "sha256": "0226c9cfd0b72da04dcc364c38c8f9250a82c2f6dae2faf9ba05dd3de36753b2"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/011-example-ca_model.stderr.txt",
+      "sha256": "0b7c9ac39a20f6b368098e7fbdd455ad53192566a9f2283d80d019bb24d7a346"
+    },
+    {
+      "bytes": 376,
+      "path": "runner/linux-attempt-1/commands/011-example-ca_model.stdout.txt",
+      "sha256": "2df394edec5cba9572f465dced345ad359bf01f7c6cbf0f09d19fa8986b19e1c"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-1/commands/012-semantic-checker.stderr.txt",
+      "sha256": "0b7c9ac39a20f6b368098e7fbdd455ad53192566a9f2283d80d019bb24d7a346"
+    },
+    {
+      "bytes": 716,
+      "path": "runner/linux-attempt-1/commands/012-semantic-checker.stdout.txt",
+      "sha256": "7273ce7f559e1d7163df1f7c5bee2677471436d183cdbe7567eb879804baee1e"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/013-create-external-pdf-dir.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/013-create-external-pdf-dir.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 55072,
+      "path": "runner/linux-attempt-1/commands/014-pdflatex-pass-1.stderr.txt",
+      "sha256": "1819ef8990e4fc402efcd2f689cd393536c7a44018e542a29e52fe8688e6adb8"
+    },
+    {
+      "bytes": 15855,
+      "path": "runner/linux-attempt-1/commands/014-pdflatex-pass-1.stdout.txt",
+      "sha256": "6b49d2585d215cc0ffa62651458f29bb38b0e42ca4f2edd5b37eb07cea9376a6"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/015-pdflatex-pass-2.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 15602,
+      "path": "runner/linux-attempt-1/commands/015-pdflatex-pass-2.stdout.txt",
+      "sha256": "af5a71e7733e3697c41479a99c0660e86b96a7303839ff05e3d894b77819da12"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/016-git-diff.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 141663,
+      "path": "runner/linux-attempt-1/commands/016-git-diff.stdout.txt",
+      "sha256": "e05d6c7d0603984e08bef4d458c07a19ed4e9e42f3d3e7cb27a721bbb1c2aeb2"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-1/commands/017-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1086,
+      "path": "runner/linux-attempt-1/commands/017-postflight.stdout.txt",
+      "sha256": "e89919abc388d4cb002f343dd85c38d0f949a99095e48e904dd5dc734f91ae4d"
+    },
+    {
+      "bytes": 2609,
+      "path": "runner/linux-attempt-1/environment.json",
+      "sha256": "b693bf6ed12c66a41bede6f41620a2773c63966df97b0455cc4767dba29a08d7"
+    },
+    {
+      "bytes": 3,
+      "path": "runner/linux-attempt-1/mutation-results.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "bytes": 8223,
+      "path": "runner/linux-attempt-1/pdf/framework.aux",
+      "sha256": "f5b8d3d2fe8a51aaa7cb929609df21ab33a7feee4d2cc4b6445d62be5a9174b4"
+    },
+    {
+      "bytes": 29461,
+      "path": "runner/linux-attempt-1/pdf/framework.log",
+      "sha256": "9cf7ab80de0968762e97bdefefbd642259919b0ce5eff825f35135d45c9fd569"
+    },
+    {
+      "bytes": 13920,
+      "path": "runner/linux-attempt-1/pdf/framework.out",
+      "sha256": "e46d0300a92cfff300c634cd1a9dfd595f73000caf93fece37704482c8502854"
+    },
+    {
+      "bytes": 388867,
+      "path": "runner/linux-attempt-1/pdf/framework.pdf",
+      "sha256": "864de385064eab46ff228b99b335bf2b4aabd85f22c703a7a351602c662ab8ff"
+    },
+    {
+      "bytes": 104,
+      "path": "runner/linux-attempt-1/pdf/frameworkNotes.bib",
+      "sha256": "61b9ca8a0eae79078bb6bcd4205c582b5f4f2ed0a16ece16a01837cc4718248d"
+    },
+    {
+      "bytes": 172033,
+      "path": "runner/linux-attempt-1/platform-results.json",
+      "sha256": "302f74ffe130c69b83b32ac5545f6ed0e891b4537a3c1bde2ac867077dcf15f1"
+    },
+    {
+      "bytes": 21870,
+      "path": "runner/linux-attempt-2/command-index.json",
+      "sha256": "d34febb5bfd439410c05265458d863b1ecd3b963d17641e3cad27ed4d2aa5f2f"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/001-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/001-preflight.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4004,
+      "path": "runner/linux-attempt-2/commands/002-sync.stderr.txt",
+      "sha256": "60f58a8fbfa1e78197d9d058f4c05dd0d630bd0139da305ad076dd142ebf1f78"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/002-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/003-ruff.stderr.txt",
+      "sha256": "f507555a10a320f1bbd01608edd2323e5aa4b24e86e2365cfb4f77f303eae106"
+    },
+    {
+      "bytes": 19,
+      "path": "runner/linux-attempt-2/commands/003-ruff.stdout.txt",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/004-check-tex.stderr.txt",
+      "sha256": "f507555a10a320f1bbd01608edd2323e5aa4b24e86e2365cfb4f77f303eae106"
+    },
+    {
+      "bytes": 4558,
+      "path": "runner/linux-attempt-2/commands/004-check-tex.stdout.txt",
+      "sha256": "45dece272b8a3f51575582e833d7fb7d7490a6995c852db7cb610931845cc2f6"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/005-pytest.stderr.txt",
+      "sha256": "7aac351a7ea8ad53b7c87895b19aca0db391900bb721de922b2873bd8a48a2ef"
+    },
+    {
+      "bytes": 271,
+      "path": "runner/linux-attempt-2/commands/005-pytest.stdout.txt",
+      "sha256": "78917644d9666b7d0c25752a9066632532f09da10cf2aa82dbf6afcf19add5d5"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/006-example-chain_1d.stderr.txt",
+      "sha256": "19e4faddccd6928748f9fce0271fe48a24a7e4d7621700089315f11c228b790d"
+    },
+    {
+      "bytes": 995,
+      "path": "runner/linux-attempt-2/commands/006-example-chain_1d.stdout.txt",
+      "sha256": "12353cacf679a347cc2936f79ce7b60363d1234c0423637ff560f565ad07adec"
+    },
+    {
+      "bytes": 145,
+      "path": "runner/linux-attempt-2/commands/007-example-grid_2d.stderr.txt",
+      "sha256": "801837bf678fc553b457797e08d9012fdbb9c8934cd0f2b109c82ca3f9a4e2e3"
+    },
+    {
+      "bytes": 864,
+      "path": "runner/linux-attempt-2/commands/007-example-grid_2d.stdout.txt",
+      "sha256": "03bb96a8bd809cebc569159d574640ff14b52664f9fd7fdc59cd2ce82a0ba561"
+    },
+    {
+      "bytes": 145,
+      "path": "runner/linux-attempt-2/commands/008-example-gravity_well.stderr.txt",
+      "sha256": "801837bf678fc553b457797e08d9012fdbb9c8934cd0f2b109c82ca3f9a4e2e3"
+    },
+    {
+      "bytes": 2035,
+      "path": "runner/linux-attempt-2/commands/008-example-gravity_well.stdout.txt",
+      "sha256": "711ffc1daa123240567aa668123faad30ccf4e7cfd34a1488a1ad256237a1009"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/009-example-source_law.stderr.txt",
+      "sha256": "e2397e5f6cbce13cab687352644f9c0f3e5f92c047b0f82782e692ba0c4b60e6"
+    },
+    {
+      "bytes": 823,
+      "path": "runner/linux-attempt-2/commands/009-example-source_law.stdout.txt",
+      "sha256": "a1986d24eb69e47ea7c579cd47b0bd374bf953c5e85e230586261d4252ecffbb"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/010-example-source_law_many_body.stderr.txt",
+      "sha256": "51a6a50498833f4d257d14ff7f4fe0dee8d6f35b84848cd5915768176dd8560d"
+    },
+    {
+      "bytes": 1146,
+      "path": "runner/linux-attempt-2/commands/010-example-source_law_many_body.stdout.txt",
+      "sha256": "3bc02e8d09e69bc37ba2d0e455fde0e08d639378c387beda8fbc4db5988edd33"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/011-example-ca_model.stderr.txt",
+      "sha256": "eb4b7c57efd630d388fca0d1757de2ee7d0ea94733b82f4abc4b707f87ab1105"
+    },
+    {
+      "bytes": 376,
+      "path": "runner/linux-attempt-2/commands/011-example-ca_model.stdout.txt",
+      "sha256": "2df394edec5cba9572f465dced345ad359bf01f7c6cbf0f09d19fa8986b19e1c"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-attempt-2/commands/012-semantic-checker.stderr.txt",
+      "sha256": "3035744299eb7fafb2e69c4dc1378f272b80c435e0b3c30769fd065f5d417e6b"
+    },
+    {
+      "bytes": 716,
+      "path": "runner/linux-attempt-2/commands/012-semantic-checker.stdout.txt",
+      "sha256": "c4666e8e457d329db5d5e440c3ace7b8174f43bf132d5f3b817ad37e5a24f0ec"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/013-create-external-pdf-dir.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/013-create-external-pdf-dir.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 55072,
+      "path": "runner/linux-attempt-2/commands/014-pdflatex-pass-1.stderr.txt",
+      "sha256": "1819ef8990e4fc402efcd2f689cd393536c7a44018e542a29e52fe8688e6adb8"
+    },
+    {
+      "bytes": 15855,
+      "path": "runner/linux-attempt-2/commands/014-pdflatex-pass-1.stdout.txt",
+      "sha256": "6b49d2585d215cc0ffa62651458f29bb38b0e42ca4f2edd5b37eb07cea9376a6"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/015-pdflatex-pass-2.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 15602,
+      "path": "runner/linux-attempt-2/commands/015-pdflatex-pass-2.stdout.txt",
+      "sha256": "af5a71e7733e3697c41479a99c0660e86b96a7303839ff05e3d894b77819da12"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/016-git-diff.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 155814,
+      "path": "runner/linux-attempt-2/commands/016-git-diff.stdout.txt",
+      "sha256": "0ebc26c85504a1ee82cfa728914a8f70afad57b4ee087f575e0cb7adc5093782"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/017-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1086,
+      "path": "runner/linux-attempt-2/commands/017-postflight.stdout.txt",
+      "sha256": "e89919abc388d4cb002f343dd85c38d0f949a99095e48e904dd5dc734f91ae4d"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/018-mutation-baseline-changed-paths.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 922,
+      "path": "runner/linux-attempt-2/commands/018-mutation-baseline-changed-paths.stdout.txt",
+      "sha256": "8fa0ac158654e0e7c48b12fcf64b2f2e9c972db593e3e802b881b8b6e2061f79"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-2/commands/019-mutation-baseline-restored-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 116,
+      "path": "runner/linux-attempt-2/commands/019-mutation-baseline-restored-postflight.stdout.txt",
+      "sha256": "a3325dbe4241f443a74b4523ee7d2e255a676fbf0b09ed1ea401026c9dee979e"
+    },
+    {
+      "bytes": 2609,
+      "path": "runner/linux-attempt-2/environment.json",
+      "sha256": "b693bf6ed12c66a41bede6f41620a2773c63966df97b0455cc4767dba29a08d7"
+    },
+    {
+      "bytes": 3,
+      "path": "runner/linux-attempt-2/mutation-results.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "bytes": 8223,
+      "path": "runner/linux-attempt-2/pdf/framework.aux",
+      "sha256": "f5b8d3d2fe8a51aaa7cb929609df21ab33a7feee4d2cc4b6445d62be5a9174b4"
+    },
+    {
+      "bytes": 29461,
+      "path": "runner/linux-attempt-2/pdf/framework.log",
+      "sha256": "88e46087819d8a1434ffd44336d0f45294cb8e50e8ba4c523a6637017f7fb431"
+    },
+    {
+      "bytes": 13920,
+      "path": "runner/linux-attempt-2/pdf/framework.out",
+      "sha256": "e46d0300a92cfff300c634cd1a9dfd595f73000caf93fece37704482c8502854"
+    },
+    {
+      "bytes": 388867,
+      "path": "runner/linux-attempt-2/pdf/framework.pdf",
+      "sha256": "b887924b400c0d3d28d1de21010b8644cd5ba550293e43b06ab9cdfc5ded5dc8"
+    },
+    {
+      "bytes": 104,
+      "path": "runner/linux-attempt-2/pdf/frameworkNotes.bib",
+      "sha256": "61b9ca8a0eae79078bb6bcd4205c582b5f4f2ed0a16ece16a01837cc4718248d"
+    },
+    {
+      "bytes": 23251,
+      "path": "runner/linux-attempt-2/platform-results.json",
+      "sha256": "5611c965d1c8f82cd0deb6dca65268f39674bb02140cd4ed94dac513131d6e72"
+    },
+    {
+      "bytes": 4051,
+      "path": "runner/linux-attempt-3/command-index.json",
+      "sha256": "a93749e186d424db1882b6db26f41e390aabbe51c2fd3d18b5419a47354a2754"
+    },
+    {
+      "bytes": 4004,
+      "path": "runner/linux-attempt-3/commands/001-mutation-control-sync.stderr.txt",
+      "sha256": "de71366adb595dfd5e3f3ae125296c3f835df5b2b82513e7f1a7f58481bb3b99"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-3/commands/001-mutation-control-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-attempt-3/commands/002-mutation-control-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 116,
+      "path": "runner/linux-attempt-3/commands/002-mutation-control-postflight.stdout.txt",
+      "sha256": "a3325dbe4241f443a74b4523ee7d2e255a676fbf0b09ed1ea401026c9dee979e"
+    },
+    {
+      "bytes": 2609,
+      "path": "runner/linux-attempt-3/environment.json",
+      "sha256": "f98686bca9d71645dce9e61e93f9f6eb9c6897d227a90b2bed16eec58399bb41"
+    },
+    {
+      "bytes": 3,
+      "path": "runner/linux-attempt-3/mutation-results.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "bytes": 1750,
+      "path": "runner/linux-attempt-3/platform-results.json",
+      "sha256": "45dd5f27e50cba14a34b4bdcc9c7f9c2d0fa1e492684ceddfbb468fdd69527b3"
+    },
+    {
+      "bytes": 41249,
+      "path": "runner/linux-mutation-continuation/command-index.json",
+      "sha256": "6ac183889276b7ea1a10774ffc4bba51a1f8945d08c99877e7ba8245dfbcac55"
+    },
+    {
+      "bytes": 4004,
+      "path": "runner/linux-mutation-continuation/commands/001-mutation-control-sync.stderr.txt",
+      "sha256": "707943890773c8fe618ce13f259d62e520ef6fd7f2a27eb96f9f414f9dcf4106"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/001-mutation-control-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/002-mutation-control-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 116,
+      "path": "runner/linux-mutation-continuation/commands/002-mutation-control-postflight.stdout.txt",
+      "sha256": "a3325dbe4241f443a74b4523ee7d2e255a676fbf0b09ed1ea401026c9dee979e"
+    },
+    {
+      "bytes": 343,
+      "path": "runner/linux-mutation-continuation/commands/003-mutation-g01-checker.stderr.txt",
+      "sha256": "4c29d3fb589ea893f481b12717e81eaca9836718e877341afb31e863f9565b12"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/003-mutation-g01-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 292,
+      "path": "runner/linux-mutation-continuation/commands/004-mutation-g02-checker.stderr.txt",
+      "sha256": "f67097319577d4f589ae36015cfea8844a19b9b29238226de92902a1ae74d5bc"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/004-mutation-g02-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 194,
+      "path": "runner/linux-mutation-continuation/commands/005-mutation-g03-checker.stderr.txt",
+      "sha256": "f7bafc167bbd009d67100618fe9e3069a79464f82a45d590e73e6bff805dd25d"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/005-mutation-g03-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 237,
+      "path": "runner/linux-mutation-continuation/commands/006-mutation-g04-checker.stderr.txt",
+      "sha256": "b27cbcea3bad4d059fc07b7e24ce125c987ab197550e9516178d4ab5c4d2a96d"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/006-mutation-g04-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/007-mutation-g05-index-removal.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 63,
+      "path": "runner/linux-mutation-continuation/commands/007-mutation-g05-index-removal.stdout.txt",
+      "sha256": "25f6dc8f94e62d45cf8c0b8fe489b1efb05f203416c7788c8742500ad1df48d0"
+    },
+    {
+      "bytes": 253,
+      "path": "runner/linux-mutation-continuation/commands/008-mutation-g05-checker.stderr.txt",
+      "sha256": "789de3c81cdca0ed6893da01c7f491404fa7ea360b94c9644b5f0fedae1095bc"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/008-mutation-g05-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 641,
+      "path": "runner/linux-mutation-continuation/commands/009-mutation-g06-checker.stderr.txt",
+      "sha256": "92016b5ada6266b1a891abd00b2429fc5ea5c631e1fad2d317e57c78a9252023"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/009-mutation-g06-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/010-mutation-g07-isolated-probe.stderr.txt",
+      "sha256": "1318ba86d748f0602860056f15762e00e213e0076d3114a968d2f3797ee9ff0b"
+    },
+    {
+      "bytes": 7,
+      "path": "runner/linux-mutation-continuation/commands/010-mutation-g07-isolated-probe.stdout.txt",
+      "sha256": "45df5ad5e0ecfa54d3226343e0e6857337494ba6e32f189d1174070665d8c659"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/011-mutation-g07-checker.stderr.txt",
+      "sha256": "3278d96f454622219edbfa14499cd79d11a97bf7d9f0dc79693b53e8c4bb66be"
+    },
+    {
+      "bytes": 69,
+      "path": "runner/linux-mutation-continuation/commands/011-mutation-g07-checker.stdout.txt",
+      "sha256": "7b530b8b0d858de36170c45caa38178aba9782008f33190948965393f8fb6ad1"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/012-mutation-g07-git-diff.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/012-mutation-g07-git-diff.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/linux-mutation-continuation/commands/013-mutation-g07-postflight.stderr.txt",
+      "sha256": "3b2267b111314792528fd79d5386c57884d7d2b72cb522c1e5a4cd25ba0e43f5"
+    },
+    {
+      "bytes": 136,
+      "path": "runner/linux-mutation-continuation/commands/013-mutation-g07-postflight.stdout.txt",
+      "sha256": "48eb106dc00db9b3400504744276f0f2590fe5b6b94529743a190afae44784d1"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/014-mutation-g08-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 26,
+      "path": "runner/linux-mutation-continuation/commands/014-mutation-g08-preflight.stdout.txt",
+      "sha256": "aed00182b25da5c12fb322c1988aec44ab2b34694c5af1e0b2986f16e3357a96"
+    },
+    {
+      "bytes": 27,
+      "path": "runner/linux-mutation-continuation/commands/015-mutation-g08-sync.stderr.txt",
+      "sha256": "647e0af2735d742ea73f684aecbb43256bbdce9adf14dde83dc669150ff3c104"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/015-mutation-g08-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/016-mutation-g08-project-probe.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 12,
+      "path": "runner/linux-mutation-continuation/commands/016-mutation-g08-project-probe.stdout.txt",
+      "sha256": "485c93b697686e2c8c7b691fcdd8cf1e7516889b05120d464b7d921723d61ef9"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/017-mutation-g08-isolated-probe.stderr.txt",
+      "sha256": "b11bc2f10eeb2398235c6a9353b21ea0c460b0fcc4829080880a874d1e97669b"
+    },
+    {
+      "bytes": 10,
+      "path": "runner/linux-mutation-continuation/commands/017-mutation-g08-isolated-probe.stdout.txt",
+      "sha256": "cf31b821d48f076b576622d8c237a8353871c454e8b390844fd1a81da4791a13"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/018-mutation-g08-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 220,
+      "path": "runner/linux-mutation-continuation/commands/018-mutation-g08-postflight.stdout.txt",
+      "sha256": "29b73c9160415f84e2f03ce68200d972575526d5f4763a6a8a16f45d74b2f132"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/019-mutation-g09-extra-project-probe.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7,
+      "path": "runner/linux-mutation-continuation/commands/019-mutation-g09-extra-project-probe.stdout.txt",
+      "sha256": "45df5ad5e0ecfa54d3226343e0e6857337494ba6e32f189d1174070665d8c659"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/020-mutation-g09-extra-isolated-probe.stderr.txt",
+      "sha256": "7961c673209763a2280c3ecc39be2ddb7f82bab6eb7494a7dbd270b0af7c8864"
+    },
+    {
+      "bytes": 5,
+      "path": "runner/linux-mutation-continuation/commands/020-mutation-g09-extra-isolated-probe.stdout.txt",
+      "sha256": "af5d8a21858f42808c9bcc17012b77bcc2fd6ab3b071dbd4a05f13f410470541"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/021-mutation-g09-extra-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 172,
+      "path": "runner/linux-mutation-continuation/commands/021-mutation-g09-extra-postflight.stdout.txt",
+      "sha256": "237947466350efff86eddff8bc2a1a8ac90a44e2de064bf97db5488cbdb13093"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/022-mutation-g09-allowed-project-probe.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7,
+      "path": "runner/linux-mutation-continuation/commands/022-mutation-g09-allowed-project-probe.stdout.txt",
+      "sha256": "45df5ad5e0ecfa54d3226343e0e6857337494ba6e32f189d1174070665d8c659"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/023-mutation-g09-allowed-isolated-probe.stderr.txt",
+      "sha256": "0b2d7d83a7dfc4685590e04e84f103f35224a0eadfcf2fcb6502926ef3f2e289"
+    },
+    {
+      "bytes": 5,
+      "path": "runner/linux-mutation-continuation/commands/023-mutation-g09-allowed-isolated-probe.stdout.txt",
+      "sha256": "af5d8a21858f42808c9bcc17012b77bcc2fd6ab3b071dbd4a05f13f410470541"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/024-mutation-g09-allowed-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 116,
+      "path": "runner/linux-mutation-continuation/commands/024-mutation-g09-allowed-postflight.stdout.txt",
+      "sha256": "a3325dbe4241f443a74b4523ee7d2e255a676fbf0b09ed1ea401026c9dee979e"
+    },
+    {
+      "bytes": 294,
+      "path": "runner/linux-mutation-continuation/commands/025-mutation-g10-editable-sync.stderr.txt",
+      "sha256": "e46af7e9c6552bbcfe66e959ed7c9833d4c3f45e9c724b69e0ea92c1c608b6e7"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/025-mutation-g10-editable-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/026-mutation-g10-vulnerable-probe.stderr.txt",
+      "sha256": "afe4b73898a1cfadbee8fb595707e8adc07e613d1846224633a763ff567f4311"
+    },
+    {
+      "bytes": 7,
+      "path": "runner/linux-mutation-continuation/commands/026-mutation-g10-vulnerable-probe.stdout.txt",
+      "sha256": "45df5ad5e0ecfa54d3226343e0e6857337494ba6e32f189d1174070665d8c659"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/027-mutation-g10-vulnerable-checker.stderr.txt",
+      "sha256": "2655ad665bb6f9d07f794fafa550d809dfc1a2da617d947f037dabe38707c925"
+    },
+    {
+      "bytes": 69,
+      "path": "runner/linux-mutation-continuation/commands/027-mutation-g10-vulnerable-checker.stdout.txt",
+      "sha256": "7b530b8b0d858de36170c45caa38178aba9782008f33190948965393f8fb6ad1"
+    },
+    {
+      "bytes": 129,
+      "path": "runner/linux-mutation-continuation/commands/028-mutation-g10-noneditable-sync.stderr.txt",
+      "sha256": "f6a6686d69c939ece4f2765772fbcd2b1e616dcede957d39a7606f10a8cae37f"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/028-mutation-g10-noneditable-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/linux-mutation-continuation/commands/029-mutation-g10-amended-probe.stderr.txt",
+      "sha256": "1318ba86d748f0602860056f15762e00e213e0076d3114a968d2f3797ee9ff0b"
+    },
+    {
+      "bytes": 5,
+      "path": "runner/linux-mutation-continuation/commands/029-mutation-g10-amended-probe.stdout.txt",
+      "sha256": "af5d8a21858f42808c9bcc17012b77bcc2fd6ab3b071dbd4a05f13f410470541"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/linux-mutation-continuation/commands/030-mutation-g10-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 116,
+      "path": "runner/linux-mutation-continuation/commands/030-mutation-g10-postflight.stdout.txt",
+      "sha256": "a3325dbe4241f443a74b4523ee7d2e255a676fbf0b09ed1ea401026c9dee979e"
+    },
+    {
+      "bytes": 2609,
+      "path": "runner/linux-mutation-continuation/environment.json",
+      "sha256": "b693bf6ed12c66a41bede6f41620a2773c63966df97b0455cc4767dba29a08d7"
+    },
+    {
+      "bytes": 4065,
+      "path": "runner/linux-mutation-continuation/mutation-results.json",
+      "sha256": "2afb5e251e50bed32a2af443071e5a581a34c4901b4ad715d79d820676972157"
+    },
+    {
+      "bytes": 6082,
+      "path": "runner/linux-mutation-continuation/platform-results.json",
+      "sha256": "ed8aa6a86fbad39d2bd47221a3118bb550c9c2709147e6adeb2c4d9d047dcfcb"
+    },
+    {
+      "bytes": 32317,
+      "path": "runner/windows/command-index.json",
+      "sha256": "ab3b2a5fb8fbcf29383cc717ba7a5bb7267c0eaefad901ced38306150d49c3ab"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/001-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/001-preflight.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2227,
+      "path": "runner/windows/commands/002-sync.stderr.txt",
+      "sha256": "c2541e1ff8e6a2383259145afa8bb7e7ff8f89c7af92c377471ec598b6da6484"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/002-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows/commands/003-ruff.stderr.txt",
+      "sha256": "20e378d588654232d0cd5b450cf1be17a0576739643caf7e48650807280d55ac"
+    },
+    {
+      "bytes": 19,
+      "path": "runner/windows/commands/003-ruff.stdout.txt",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/004-check-tex.stderr.txt",
+      "sha256": "3e205eb298113e818ad2287acd5c9f245b22873af9c9284365d81fca76352049"
+    },
+    {
+      "bytes": 4642,
+      "path": "runner/windows/commands/004-check-tex.stdout.txt",
+      "sha256": "78b6073b86100baf99f522caf76018d7f8360663fc287450d0e203681b8869a2"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/005-pytest.stderr.txt",
+      "sha256": "64a47904335d9b6735f997ebeedb02f2cdcfd906316e92b3f1fd7a0a9abd898f"
+    },
+    {
+      "bytes": 277,
+      "path": "runner/windows/commands/005-pytest.stdout.txt",
+      "sha256": "d969726a7c68cc5dce17ccba569b1fb00ee5bbf830da86858e90043fcd0c40c8"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/006-example-chain_1d.stderr.txt",
+      "sha256": "728bc36fddcfd332ee43ef62b40120253257ee82cef771f5dbb018ebe4c055ed"
+    },
+    {
+      "bytes": 1050,
+      "path": "runner/windows/commands/006-example-chain_1d.stdout.txt",
+      "sha256": "96f56ebae28f517db269bb682373ca874dc758e761e5ff55a2d93733b4e9234a"
+    },
+    {
+      "bytes": 145,
+      "path": "runner/windows/commands/007-example-grid_2d.stderr.txt",
+      "sha256": "c74ce7265ff51460da7c0b19af13f4f27770b4dc9c84ea38bc771ce36a07c77e"
+    },
+    {
+      "bytes": 915,
+      "path": "runner/windows/commands/007-example-grid_2d.stdout.txt",
+      "sha256": "02efe1a30da768e9b226b836d5ca6781f32b354accaeabebe9bae85984c6dd27"
+    },
+    {
+      "bytes": 145,
+      "path": "runner/windows/commands/008-example-gravity_well.stderr.txt",
+      "sha256": "1b07fbac63f8abe8149cf3eabbe75d643874bc43ca27d9cb72883593ea339dee"
+    },
+    {
+      "bytes": 2116,
+      "path": "runner/windows/commands/008-example-gravity_well.stdout.txt",
+      "sha256": "64fa2c0b60ff264601cc3bf4454000687d82682ddf63dc06fe81dcf6935d4d80"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows/commands/009-example-source_law.stderr.txt",
+      "sha256": "1473bc28c1ab20ce1d7eae6406458cbabd867f18684b9c7be04598a7b49a5100"
+    },
+    {
+      "bytes": 847,
+      "path": "runner/windows/commands/009-example-source_law.stdout.txt",
+      "sha256": "6c0b27ac692c3a483b30a90cb516e0a316aec8e809d04df4e78b21908c3c76dd"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/010-example-source_law_many_body.stderr.txt",
+      "sha256": "dfe7be8fb6c7873362537b1174ca539cd632667a7c44255e19799f107b137903"
+    },
+    {
+      "bytes": 1177,
+      "path": "runner/windows/commands/010-example-source_law_many_body.stdout.txt",
+      "sha256": "8821f68b83c2124764a3fcf827c36d0e090f6fb78a29a34dbf579fe8611f3f0a"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows/commands/011-example-ca_model.stderr.txt",
+      "sha256": "2f91a0a2dd7db565a663040206ac715f4cb5fa628cab6dcee83755bcfbfd5057"
+    },
+    {
+      "bytes": 404,
+      "path": "runner/windows/commands/011-example-ca_model.stdout.txt",
+      "sha256": "57d51fa53f3834d8b230dda3d0580137fbc5d5efcd064f7eab6473e96d6a6532"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/012-semantic-checker.stderr.txt",
+      "sha256": "231a4621c85cd4b6f6d8ec1a8e03b0986298f3c323a0289396d2f03123420710"
+    },
+    {
+      "bytes": 70,
+      "path": "runner/windows/commands/012-semantic-checker.stdout.txt",
+      "sha256": "9b7471a7d3fd95daa3a79f0c7307c4494d1837c48773991f984510ffd5d58086"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/013-create-external-pdf-dir.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/013-create-external-pdf-dir.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/014-pdflatex-pass-1.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 13059,
+      "path": "runner/windows/commands/014-pdflatex-pass-1.stdout.txt",
+      "sha256": "f8f4840c24365ff6720fda43715c3d2b833a6ec2e34d5da87c39c2327195f249"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/015-pdflatex-pass-2.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 12793,
+      "path": "runner/windows/commands/015-pdflatex-pass-2.stdout.txt",
+      "sha256": "1548e907cb249dea9d2b8dbf34ae2c9bfd5f58815f7fa5a867469f3273cec7a4"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/016-git-diff.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/016-git-diff.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/017-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/017-postflight.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 347,
+      "path": "runner/windows/commands/018-mutation-g01-checker.stderr.txt",
+      "sha256": "27b6bd60bb59319d808ef6855515af667e85b9d73ddce1e03da6ac3dc57baad0"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/018-mutation-g01-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 295,
+      "path": "runner/windows/commands/019-mutation-g02-checker.stderr.txt",
+      "sha256": "777e06d8996b6150641c6b62ef0b39e670d7de5d61376385e67ba86b28ae7509"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/019-mutation-g02-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 196,
+      "path": "runner/windows/commands/020-mutation-g03-checker.stderr.txt",
+      "sha256": "10db7c6d150470cd861c039df5358c835c02c5ba74e4fa841808dea77b73add8"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/020-mutation-g03-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 239,
+      "path": "runner/windows/commands/021-mutation-g04-checker.stderr.txt",
+      "sha256": "da5cb08bc20e7d4279fb9e7bb05ece9b06446096a050b5b9be0338ebb8efc6c1"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/021-mutation-g04-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/022-mutation-g05-index-removal.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 63,
+      "path": "runner/windows/commands/022-mutation-g05-index-removal.stdout.txt",
+      "sha256": "25f6dc8f94e62d45cf8c0b8fe489b1efb05f203416c7788c8742500ad1df48d0"
+    },
+    {
+      "bytes": 257,
+      "path": "runner/windows/commands/023-mutation-g05-checker.stderr.txt",
+      "sha256": "111c9fd87b4c5c5f0a0eb79bb428a0f4e1bee1a43f78ad3a89488e8e49cec3e4"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/023-mutation-g05-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 645,
+      "path": "runner/windows/commands/024-mutation-g06-checker.stderr.txt",
+      "sha256": "54f781bbdf9122bb0e83b894b525737aafcd9e697ef8f9b481a8838630756ff3"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/024-mutation-g06-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/025-mutation-g07-isolated-probe.stderr.txt",
+      "sha256": "fc90500a60533491d9b51ef41204c871859e9c5c6d3f91d53f76b1e73ae2d6ec"
+    },
+    {
+      "bytes": 8,
+      "path": "runner/windows/commands/025-mutation-g07-isolated-probe.stdout.txt",
+      "sha256": "c014d9fa5085ac3f59efae76db06be26d8dd53ad9749532a5328dda500b11974"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows/commands/026-mutation-g07-checker.stderr.txt",
+      "sha256": "83cc1aeab4925daa26f96ffef02c4c268080b3242eb49fb58c8fb518e07bc347"
+    },
+    {
+      "bytes": 70,
+      "path": "runner/windows/commands/026-mutation-g07-checker.stdout.txt",
+      "sha256": "9b7471a7d3fd95daa3a79f0c7307c4494d1837c48773991f984510ffd5d58086"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/027-mutation-g07-git-diff.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/027-mutation-g07-git-diff.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 33,
+      "path": "runner/windows/commands/028-mutation-g07-postflight.stderr.txt",
+      "sha256": "eefda9da9fd63b88b6c486acdb4a8391e6af6b7dbcf2f1508b37f4a849fcaed6"
+    },
+    {
+      "bytes": 21,
+      "path": "runner/windows/commands/028-mutation-g07-postflight.stdout.txt",
+      "sha256": "f6d4452a3cea1e70155cdced925b8cf77bd726be65c6c70f0c706855d06400b8"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/029-mutation-g08-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 536,
+      "path": "runner/windows/commands/029-mutation-g08-preflight.stdout.txt",
+      "sha256": "d4294d19ed9d04c93374a38a5607ff09e07e3175af332765e99c3bdec8e18667"
+    },
+    {
+      "bytes": 193,
+      "path": "runner/windows/commands/030-mutation-g08-sync.stderr.txt",
+      "sha256": "4d63e292a17d2a6d37bc751c8d4bdb543d3acad745516fe87d380689213a5d1a"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows/commands/030-mutation-g08-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2400,
+      "path": "runner/windows/environment.json",
+      "sha256": "a8bc22eef96b77d4ca4385ba281d68949ce4f0c250b00769a602621ee814c1d3"
+    },
+    {
+      "bytes": 2311,
+      "path": "runner/windows/mutation-results.json",
+      "sha256": "852f8b07da909453f5b5e3394f5ffcdfacede4427fdc07e75d0625878a7810b9"
+    },
+    {
+      "bytes": 8223,
+      "path": "runner/windows/pdf/framework.aux",
+      "sha256": "f5b8d3d2fe8a51aaa7cb929609df21ab33a7feee4d2cc4b6445d62be5a9174b4"
+    },
+    {
+      "bytes": 26406,
+      "path": "runner/windows/pdf/framework.log",
+      "sha256": "22d0bc310905d47fc34851e8e1d2c6c0f2e3492bd8661755e0c120a7f27f9d0a"
+    },
+    {
+      "bytes": 13920,
+      "path": "runner/windows/pdf/framework.out",
+      "sha256": "e46d0300a92cfff300c634cd1a9dfd595f73000caf93fece37704482c8502854"
+    },
+    {
+      "bytes": 535368,
+      "path": "runner/windows/pdf/framework.pdf",
+      "sha256": "ff83b6c28eeacfb805e9261cee744a24f70b2a79fe11c6248de40e77f8356b4b"
+    },
+    {
+      "bytes": 104,
+      "path": "runner/windows/pdf/frameworkNotes.bib",
+      "sha256": "61b9ca8a0eae79078bb6bcd4205c582b5f4f2ed0a16ece16a01837cc4718248d"
+    },
+    {
+      "bytes": 24323,
+      "path": "runner/windows/platform-results.json",
+      "sha256": "06d5792b3bd764a35053eec8e1e1c7491590d720aacddf1b4dd7f011a4b4d5cd"
+    },
+    {
+      "bytes": 41344,
+      "path": "runner/windows-mutation-continuation/command-index.json",
+      "sha256": "4db1326ab9b7cbb99df02567c64937f483c7b683f0f543575238573545a9a492"
+    },
+    {
+      "bytes": 2253,
+      "path": "runner/windows-mutation-continuation/commands/001-mutation-control-sync.stderr.txt",
+      "sha256": "a024e2508ad312b943d7a7ab00b3ba754e9a8fe99c562a345c552c7f2c468355"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/001-mutation-control-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/002-mutation-control-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/002-mutation-control-postflight.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 347,
+      "path": "runner/windows-mutation-continuation/commands/003-mutation-g01-checker.stderr.txt",
+      "sha256": "668af1d30671aad0e05185e421ce1aa938d3c71986f2622311db0c6c132c6ada"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/003-mutation-g01-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 296,
+      "path": "runner/windows-mutation-continuation/commands/004-mutation-g02-checker.stderr.txt",
+      "sha256": "c4e4c851613ac3760200eb32c0ffadfdc9fcccc51c0338b0b869a560e5989b23"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/004-mutation-g02-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 197,
+      "path": "runner/windows-mutation-continuation/commands/005-mutation-g03-checker.stderr.txt",
+      "sha256": "c069e92e247723fc35d2adfeee8d783986a48994c189fc80b35011f56956670b"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/005-mutation-g03-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 239,
+      "path": "runner/windows-mutation-continuation/commands/006-mutation-g04-checker.stderr.txt",
+      "sha256": "686c9b821081e43a72b8b4e9f107bcb6651ee96e71f80e931ed877d5c00d12f6"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/006-mutation-g04-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/007-mutation-g05-index-removal.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 63,
+      "path": "runner/windows-mutation-continuation/commands/007-mutation-g05-index-removal.stdout.txt",
+      "sha256": "25f6dc8f94e62d45cf8c0b8fe489b1efb05f203416c7788c8742500ad1df48d0"
+    },
+    {
+      "bytes": 257,
+      "path": "runner/windows-mutation-continuation/commands/008-mutation-g05-checker.stderr.txt",
+      "sha256": "a451979b33d56bbe4fc93e8c97c4d09c6b3e9aa43e6c400e32b0c4a919d15c0f"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/008-mutation-g05-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 644,
+      "path": "runner/windows-mutation-continuation/commands/009-mutation-g06-checker.stderr.txt",
+      "sha256": "4a32e7efb6eda8ee88b6020cf9c347af821045813e7c748cbf28a4b3e146c4b1"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/009-mutation-g06-checker.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows-mutation-continuation/commands/010-mutation-g07-isolated-probe.stderr.txt",
+      "sha256": "45562084efa30ecd8da8b9eba822948ef39df37aca56efd3ca1b43fedc46f269"
+    },
+    {
+      "bytes": 8,
+      "path": "runner/windows-mutation-continuation/commands/010-mutation-g07-isolated-probe.stdout.txt",
+      "sha256": "c014d9fa5085ac3f59efae76db06be26d8dd53ad9749532a5328dda500b11974"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows-mutation-continuation/commands/011-mutation-g07-checker.stderr.txt",
+      "sha256": "89aef28ad8632dbb65cf29ae8b110aeb5b0c8c6b1dac4f702102c0976ea042b1"
+    },
+    {
+      "bytes": 70,
+      "path": "runner/windows-mutation-continuation/commands/011-mutation-g07-checker.stdout.txt",
+      "sha256": "9b7471a7d3fd95daa3a79f0c7307c4494d1837c48773991f984510ffd5d58086"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/012-mutation-g07-git-diff.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/012-mutation-g07-git-diff.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 33,
+      "path": "runner/windows-mutation-continuation/commands/013-mutation-g07-postflight.stderr.txt",
+      "sha256": "eefda9da9fd63b88b6c486acdb4a8391e6af6b7dbcf2f1508b37f4a849fcaed6"
+    },
+    {
+      "bytes": 21,
+      "path": "runner/windows-mutation-continuation/commands/013-mutation-g07-postflight.stdout.txt",
+      "sha256": "f6d4452a3cea1e70155cdced925b8cf77bd726be65c6c70f0c706855d06400b8"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/014-mutation-g08-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 28,
+      "path": "runner/windows-mutation-continuation/commands/014-mutation-g08-preflight.stdout.txt",
+      "sha256": "d699ae8b419a8a37567519a2407e37ed173da8702462820308ffb2699868f848"
+    },
+    {
+      "bytes": 28,
+      "path": "runner/windows-mutation-continuation/commands/015-mutation-g08-sync.stderr.txt",
+      "sha256": "334a653fcd9b3a0e519f82f95c3e12dec235c6190fd5836f0242b8a7f41f8d9e"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/015-mutation-g08-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/016-mutation-g08-project-probe.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 13,
+      "path": "runner/windows-mutation-continuation/commands/016-mutation-g08-project-probe.stdout.txt",
+      "sha256": "341c87501494c052200690e749fbefb1a710dc619268c0f340b5bce248f240ab"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows-mutation-continuation/commands/017-mutation-g08-isolated-probe.stderr.txt",
+      "sha256": "30e1821929fb2be4efb3140e63cdbb011b13aeecd2525df2efc6f7eb6281b49b"
+    },
+    {
+      "bytes": 11,
+      "path": "runner/windows-mutation-continuation/commands/017-mutation-g08-isolated-probe.stdout.txt",
+      "sha256": "51f4ff6c78405004bf2280f71db23feabc859593db2f995021a02b7c1b79766f"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/018-mutation-g08-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 84,
+      "path": "runner/windows-mutation-continuation/commands/018-mutation-g08-postflight.stdout.txt",
+      "sha256": "c81c3cc2f39583d5ebd2bc29bc4d29ea3961733dd1353826d7520882343a0703"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/019-mutation-g09-extra-project-probe.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 8,
+      "path": "runner/windows-mutation-continuation/commands/019-mutation-g09-extra-project-probe.stdout.txt",
+      "sha256": "c014d9fa5085ac3f59efae76db06be26d8dd53ad9749532a5328dda500b11974"
+    },
+    {
+      "bytes": 32,
+      "path": "runner/windows-mutation-continuation/commands/020-mutation-g09-extra-isolated-probe.stderr.txt",
+      "sha256": "e7f25b780984be192492959f9efee66483777997389b9ec79a895e08898f180c"
+    },
+    {
+      "bytes": 6,
+      "path": "runner/windows-mutation-continuation/commands/020-mutation-g09-extra-isolated-probe.stdout.txt",
+      "sha256": "98151f3a6ba251eea70e602202c1c01eaa43d05f8677d9c9505e59e6ca4577c2"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/021-mutation-g09-extra-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 87,
+      "path": "runner/windows-mutation-continuation/commands/021-mutation-g09-extra-postflight.stdout.txt",
+      "sha256": "9359bb0d7cd6cbb3a3961ec527cd38d6136635a4117e7525cacf29b8f4f7941c"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/022-mutation-g09-allowed-project-probe.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 8,
+      "path": "runner/windows-mutation-continuation/commands/022-mutation-g09-allowed-project-probe.stdout.txt",
+      "sha256": "c014d9fa5085ac3f59efae76db06be26d8dd53ad9749532a5328dda500b11974"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows-mutation-continuation/commands/023-mutation-g09-allowed-isolated-probe.stderr.txt",
+      "sha256": "7178d45d6332819996119549b2618354cb9cbcc2ae6cdf626936d576577867ea"
+    },
+    {
+      "bytes": 6,
+      "path": "runner/windows-mutation-continuation/commands/023-mutation-g09-allowed-isolated-probe.stdout.txt",
+      "sha256": "98151f3a6ba251eea70e602202c1c01eaa43d05f8677d9c9505e59e6ca4577c2"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/024-mutation-g09-allowed-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 41,
+      "path": "runner/windows-mutation-continuation/commands/024-mutation-g09-allowed-postflight.stdout.txt",
+      "sha256": "c908a1ac4f9c348ff85b9e124203f913f57fcee0a88b054d016f209815b63639"
+    },
+    {
+      "bytes": 339,
+      "path": "runner/windows-mutation-continuation/commands/025-mutation-g10-editable-sync.stderr.txt",
+      "sha256": "4b189424cba8508759a9091c56b92fd9a0278e6f4d088b5d4705cf6fd674b9ed"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/025-mutation-g10-editable-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows-mutation-continuation/commands/026-mutation-g10-vulnerable-probe.stderr.txt",
+      "sha256": "c0d88e5e9b394b87e8daccc7c4a377de61d33c7fd5dd201bea8d565145e9f08d"
+    },
+    {
+      "bytes": 8,
+      "path": "runner/windows-mutation-continuation/commands/026-mutation-g10-vulnerable-probe.stdout.txt",
+      "sha256": "c014d9fa5085ac3f59efae76db06be26d8dd53ad9749532a5328dda500b11974"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows-mutation-continuation/commands/027-mutation-g10-vulnerable-checker.stderr.txt",
+      "sha256": "45abf80677d6b9d21cf2000822829c80a14ebc2c8a30e06c0aed6b11246fe859"
+    },
+    {
+      "bytes": 70,
+      "path": "runner/windows-mutation-continuation/commands/027-mutation-g10-vulnerable-checker.stdout.txt",
+      "sha256": "9b7471a7d3fd95daa3a79f0c7307c4494d1837c48773991f984510ffd5d58086"
+    },
+    {
+      "bytes": 144,
+      "path": "runner/windows-mutation-continuation/commands/028-mutation-g10-noneditable-sync.stderr.txt",
+      "sha256": "9457d05daf631cddec4b8834703e20bd973bbcbf6d5c3f9d8e15e5a664237e1c"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/028-mutation-g10-noneditable-sync.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 31,
+      "path": "runner/windows-mutation-continuation/commands/029-mutation-g10-amended-probe.stderr.txt",
+      "sha256": "7d7ab3d50d04bed3083d21934a50898f1b8ac4e4b547adca02a0181508f2a1aa"
+    },
+    {
+      "bytes": 6,
+      "path": "runner/windows-mutation-continuation/commands/029-mutation-g10-amended-probe.stdout.txt",
+      "sha256": "98151f3a6ba251eea70e602202c1c01eaa43d05f8677d9c9505e59e6ca4577c2"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/030-mutation-g10-postflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "runner/windows-mutation-continuation/commands/030-mutation-g10-postflight.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2710,
+      "path": "runner/windows-mutation-continuation/environment.json",
+      "sha256": "98702a4dcec2ac866cb85707ca2bf27fcfcc98031537808606ce73715517a794"
+    },
+    {
+      "bytes": 4063,
+      "path": "runner/windows-mutation-continuation/mutation-results.json",
+      "sha256": "6a5cc3b850545a89b494ac319e09ff69374135f67aaf6994070168e859ac2dae"
+    },
+    {
+      "bytes": 6012,
+      "path": "runner/windows-mutation-continuation/platform-results.json",
+      "sha256": "046090c00179b9f00138cf335d54cfcb2d92648d4f9c2973e22b26eb6150091a"
+    }
+  ],
+  "runner_evidence_manifest_sha256": "61446653ae27fc1b77554183d996843389d8c4402e7de8b7fec857785f4a8b8d",
+  "runner_identity": "codex-via000-runner",
+  "runner_session_id": "popgp-viability-r1-2026-08-via000-runner-session",
+  "schema_version": 1
+}

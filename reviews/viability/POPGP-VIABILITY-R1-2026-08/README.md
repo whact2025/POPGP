@@ -18,8 +18,12 @@ the physical mechanism or Tier R.
 ## Current state
 
 - Campaign decision: `pending`.
-- `VIA-000`: attacked; holdout started after the seventh clean falsifier approved the
-  amended execution boundary. Earlier clean falsifiers exposed an
+- `VIA-000`: reproduced with a fail-closed raw result; independent audits, custody
+  reveal, and adjudication remain pending. The Windows run passed the frozen protocol
+  and rejected all ten mutations. The exact Linux run completed but failed the frozen
+  cleanliness boundary after regeneration and did not reject the tenth mutation under
+  the exact postflight oracle. Holdout started after the seventh clean falsifier
+  approved the amended execution boundary. Earlier clean falsifiers exposed an
   undeclared-import/untracked-file blind spot, ignored virtual-environment customize
   hooks, an executable `.pth` variant, and an editable self-cleaning `.pth`, recorded in
   [`attacks/VIA-000-ATTACK-PLAN-1.md`](attacks/VIA-000-ATTACK-PLAN-1.md) and

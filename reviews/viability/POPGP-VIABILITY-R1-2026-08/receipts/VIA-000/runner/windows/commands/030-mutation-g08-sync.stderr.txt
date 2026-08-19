@@ -1,0 +1,1 @@
+error: Project virtual environment directory `C:\src\POPGP-via000-runner-1-windows-candidate\.venv` cannot be used because it is not a valid Python environment (no Python executable was found)

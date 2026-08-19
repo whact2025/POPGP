@@ -1,0 +1,72 @@
+[
+  {
+    "command_ids": [
+      "mutation-g01-checker"
+    ],
+    "description": "Add an unregistered noninformational check identity; require rejection.",
+    "id": "VIA000-G01",
+    "oracle": "nonzero checker exit and unregistered-identity diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g02-checker"
+    ],
+    "description": "Flip a required check pass outcome; require rejection.",
+    "id": "VIA000-G02",
+    "oracle": "nonzero checker exit and pass-outcome diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g03-checker"
+    ],
+    "description": "Change a measurement array shape; require rejection.",
+    "id": "VIA000-G03",
+    "oracle": "nonzero checker exit and exact length diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g04-checker"
+    ],
+    "description": "Change a stable configuration beyond tolerance; require rejection.",
+    "id": "VIA000-G04",
+    "oracle": "nonzero checker exit and stable-input tolerance diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g05-index-removal",
+      "mutation-g05-checker"
+    ],
+    "description": "Make a required visual empty and untracked; require both defects.",
+    "id": "VIA000-G05",
+    "oracle": "checker reports both not-tracked and empty; exact bytes restored",
+    "original_sha256": "643b379661570729d8501cbe109d6cf68bfe9c38d39612462d5ac92ef9eca607",
+    "rejected": true,
+    "restored_sha256": "643b379661570729d8501cbe109d6cf68bfe9c38d39612462d5ac92ef9eca607"
+  },
+  {
+    "command_ids": [
+      "mutation-g06-checker"
+    ],
+    "description": "Move a sensitive scientific diagnostic beyond its frozen threshold; require rejection.",
+    "id": "VIA000-G06",
+    "oracle": "both canonical copies changed and checker rejects frozen tolerance",
+    "rejected": true,
+    "replacement_count": 2
+  },
+  {
+    "command_ids": [
+      "mutation-g07-isolated-probe",
+      "mutation-g07-checker",
+      "mutation-g07-git-diff",
+      "mutation-g07-postflight"
+    ],
+    "description": "Activate an untracked sitecustomize.py through PYTHONPATH; require boundary rejection.",
+    "id": "VIA000-G07",
+    "oracle": "complete frozen boundary rejects both untracked hook and blocked environment",
+    "rejected": true
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "blocked_environment_values": {
+    "PYTHONHOME": null,
+    "PYTHONPATH": null,
+    "UV_PROJECT_ENVIRONMENT": null,
+    "VIRTUAL_ENV": null
+  },
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_path": "C:\\src\\POPGP-via000-runner-1-windows-candidate",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "hidden_access_declaration": {
+    "custody_path_accessed": false,
+    "final_labels_seen": false,
+    "private_evaluator_seen": false,
+    "secret_seed_seen": false
+  },
+  "machine": "AMD64",
+  "model_identity": "unknown",
+  "model_version": "unknown",
+  "operator": "fuocor",
+  "orchestrator_id": "codex-desktop",
+  "packet_id": "VIA-000",
+  "platform_family": "windows-x86_64",
+  "python_runtime": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "release": "11",
+  "runner_identity": "codex-via000-runner",
+  "runner_session_id": "popgp-viability-r1-2026-08-via000-runner-session",
+  "system": "Windows",
+  "tool_probes": {
+    "git": {
+      "argv": [
+        "git",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "git version 2.54.0.windows.1\n"
+    },
+    "pdflatex": {
+      "argv": [
+        "pdflatex",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)\r\nkpathsea version 6.4.2\r\nCopyright 2026 Han The Thanh (pdfTeX) et al.\r\nThere is NO warranty.  Redistribution of this software is\r\ncovered by the terms of both the pdfTeX copyright and\r\nthe Lesser GNU General Public License.\r\nFor more information about these matters, see the file\r\nnamed COPYING and the pdfTeX source.\r\nPrimary author of pdfTeX: Han The Thanh (pdfTeX) et al.\r\nCompiled with libpng 1.6.55; using libpng 1.6.55\r\nCompiled with zlib 1.3.2; using zlib 1.3.2\r\nCompiled with xpdf version 4.06\r\n"
+    },
+    "python": {
+      "argv": [
+        "python",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "Python 3.12.10\r\n"
+    },
+    "uv": {
+      "argv": [
+        "uv",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "uv 0.11.11 (ed7b06001 2026-05-06 x86_64-pc-windows-msvc)\n"
+    }
+  },
+  "uv_cache_path": "C:\\src\\POPGP-via000-runner-1-windows-uv-cache"
+}

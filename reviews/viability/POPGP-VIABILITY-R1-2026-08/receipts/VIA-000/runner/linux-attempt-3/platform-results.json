@@ -1,0 +1,64 @@
+{
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "ended_at": "2026-08-19T16:13:38.289321Z",
+  "engine_exact": true,
+  "evidence_contract": false,
+  "execution_mode": "mutation-only",
+  "external_pdf_directory_removed": true,
+  "final_candidate_diff": {
+    "argv": [
+      "git",
+      "diff",
+      "--exit-code"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "final_candidate_normal_status": {
+    "argv": [
+      "git",
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=all"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "harness_error": null,
+  "mutations": [],
+  "mutations_rejected": false,
+  "packet_id": "VIA-000",
+  "pdf": {
+    "artifacts": [],
+    "external_directory": "/home/runner/work/POPGP/POPGP/POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+    "framework_pdf_nonempty": false
+  },
+  "platform_family": "ubuntu-latest-x86_64",
+  "protocol": {
+    "all_commands_succeeded": false,
+    "commands": [],
+    "mutation_baseline": {
+      "command_ids": [
+        "mutation-control-sync",
+        "mutation-control-postflight"
+      ],
+      "ready": false,
+      "restored_after_recorded_protocol_failure": false,
+      "restored_paths": []
+    },
+    "required_example_count": 6,
+    "required_example_count_met": false,
+    "required_test_count_met": false,
+    "test_count": null
+  },
+  "required_mutation_count": 10,
+  "required_mutation_count_met": false,
+  "runner_identity": "codex-via000-runner",
+  "runner_session_id": "popgp-viability-r1-2026-08-via000-runner-session",
+  "schema_version": 1,
+  "started_at": "2026-08-19T16:13:05.929672Z"
+}

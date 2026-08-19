@@ -1,0 +1,117 @@
+[
+  {
+    "command_ids": [
+      "mutation-g01-checker"
+    ],
+    "description": "Add an unregistered noninformational check identity; require rejection.",
+    "id": "VIA000-G01",
+    "oracle": "nonzero checker exit and unregistered-identity diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g02-checker"
+    ],
+    "description": "Flip a required check pass outcome; require rejection.",
+    "id": "VIA000-G02",
+    "oracle": "nonzero checker exit and pass-outcome diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g03-checker"
+    ],
+    "description": "Change a measurement array shape; require rejection.",
+    "id": "VIA000-G03",
+    "oracle": "nonzero checker exit and exact length diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g04-checker"
+    ],
+    "description": "Change a stable configuration beyond tolerance; require rejection.",
+    "id": "VIA000-G04",
+    "oracle": "nonzero checker exit and stable-input tolerance diagnostic",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g05-index-removal",
+      "mutation-g05-checker"
+    ],
+    "description": "Make a required visual empty and untracked; require both defects.",
+    "id": "VIA000-G05",
+    "oracle": "checker reports both not-tracked and empty; exact bytes restored",
+    "original_sha256": "643b379661570729d8501cbe109d6cf68bfe9c38d39612462d5ac92ef9eca607",
+    "rejected": true,
+    "restored_sha256": "643b379661570729d8501cbe109d6cf68bfe9c38d39612462d5ac92ef9eca607"
+  },
+  {
+    "command_ids": [
+      "mutation-g06-checker"
+    ],
+    "description": "Move a sensitive scientific diagnostic beyond its frozen threshold; require rejection.",
+    "id": "VIA000-G06",
+    "oracle": "both canonical copies changed and checker rejects frozen tolerance",
+    "rejected": true,
+    "replacement_count": 2
+  },
+  {
+    "command_ids": [
+      "mutation-g07-isolated-probe",
+      "mutation-g07-checker",
+      "mutation-g07-git-diff",
+      "mutation-g07-postflight"
+    ],
+    "description": "Activate an untracked sitecustomize.py through PYTHONPATH; require boundary rejection.",
+    "id": "VIA000-G07",
+    "oracle": "complete frozen boundary rejects both untracked hook and blocked environment",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g08-preflight",
+      "mutation-g08-sync",
+      "mutation-g08-project-probe",
+      "mutation-g08-isolated-probe",
+      "mutation-g08-postflight"
+    ],
+    "description": "Preplant ignored .venv startup hooks before locked sync; require preflight and postflight rejection.",
+    "id": "VIA000-G08",
+    "oracle": "ignored-state preflight and startup-hook postflight both reject",
+    "rejected": true
+  },
+  {
+    "command_ids": [
+      "mutation-g09-extra-project-probe",
+      "mutation-g09-extra-isolated-probe",
+      "mutation-g09-extra-postflight",
+      "mutation-g09-allowed-project-probe",
+      "mutation-g09-allowed-isolated-probe",
+      "mutation-g09-allowed-postflight"
+    ],
+    "description": "Inject executable .pth hooks; isolated commands must ignore them and postflight reject them.",
+    "id": "VIA000-G09",
+    "oracle": "extra and modified-allowed .pth variants execute only in project Python and fail postflight",
+    "rejected": true
+  },
+  {
+    "amended_boundary_eliminated_carrier": true,
+    "command_ids": [
+      "mutation-g10-editable-sync",
+      "mutation-g10-vulnerable-probe",
+      "mutation-g10-vulnerable-checker",
+      "mutation-g10-noneditable-sync",
+      "mutation-g10-amended-probe",
+      "mutation-g10-postflight"
+    ],
+    "description": "Make the editable project .pth self-clean; require non-editable sync and execution to eliminate it.",
+    "editable_carrier": "_editable_impl_popgp.pth",
+    "historical_exploit_reproduced": true,
+    "id": "VIA000-G10",
+    "oracle": "historical carrier controls interpreter/checker, self-cleans, then amended boundary eliminates it",
+    "rejected": true,
+    "semantic_checker_startup_control_reproduced": true
+  }
+]

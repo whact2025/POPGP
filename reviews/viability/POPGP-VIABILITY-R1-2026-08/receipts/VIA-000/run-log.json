@@ -1,0 +1,111 @@
+{
+  "attempts": [
+    {
+      "command_count": 30,
+      "command_index": {
+        "bytes": 32317,
+        "path": "runner/windows/command-index.json",
+        "sha256": "ab3b2a5fb8fbcf29383cc717ba7a5bb7267c0eaefad901ced38306150d49c3ab"
+      },
+      "id": "windows-full",
+      "platform_results": {
+        "bytes": 24323,
+        "path": "runner/windows/platform-results.json",
+        "sha256": "06d5792b3bd764a35053eec8e1e1c7491590d720aacddf1b4dd7f011a4b4d5cd"
+      }
+    },
+    {
+      "command_count": 30,
+      "command_index": {
+        "bytes": 41344,
+        "path": "runner/windows-mutation-continuation/command-index.json",
+        "sha256": "4db1326ab9b7cbb99df02567c64937f483c7b683f0f543575238573545a9a492"
+      },
+      "id": "windows-mutation-continuation",
+      "platform_results": {
+        "bytes": 6012,
+        "path": "runner/windows-mutation-continuation/platform-results.json",
+        "sha256": "046090c00179b9f00138cf335d54cfcb2d92648d4f9c2973e22b26eb6150091a"
+      }
+    },
+    {
+      "command_count": 17,
+      "command_index": {
+        "bytes": 17792,
+        "path": "runner/linux-attempt-1/command-index.json",
+        "sha256": "09e12a364f7144bbee2be0bcf73323869d8dbc9a436df3bb3c9939bf0f19099d"
+      },
+      "id": "linux-full",
+      "platform_results": {
+        "bytes": 172033,
+        "path": "runner/linux-attempt-1/platform-results.json",
+        "sha256": "302f74ffe130c69b83b32ac5545f6ed0e891b4537a3c1bde2ac867077dcf15f1"
+      }
+    },
+    {
+      "command_count": 30,
+      "command_index": {
+        "bytes": 41249,
+        "path": "runner/linux-mutation-continuation/command-index.json",
+        "sha256": "6ac183889276b7ea1a10774ffc4bba51a1f8945d08c99877e7ba8245dfbcac55"
+      },
+      "id": "linux-mutation-continuation",
+      "platform_results": {
+        "bytes": 6082,
+        "path": "runner/linux-mutation-continuation/platform-results.json",
+        "sha256": "ed8aa6a86fbad39d2bd47221a3118bb550c9c2709147e6adeb2c4d9d047dcfcb"
+      }
+    }
+  ],
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "linux_protocol_exit_codes": {
+    "check-tex": 0,
+    "create-external-pdf-dir": 0,
+    "example-ca_model": 0,
+    "example-chain_1d": 0,
+    "example-gravity_well": 0,
+    "example-grid_2d": 0,
+    "example-source_law": 0,
+    "example-source_law_many_body": 0,
+    "git-diff": 1,
+    "pdflatex-pass-1": 0,
+    "pdflatex-pass-2": 0,
+    "postflight": 1,
+    "preflight": 0,
+    "pytest": 0,
+    "ruff": 0,
+    "semantic-checker": 0,
+    "sync": 0
+  },
+  "packet_id": "VIA-000",
+  "primary_mutation_attempts": {
+    "linux": "linux-mutation-continuation",
+    "windows": "windows-mutation-continuation"
+  },
+  "primary_protocol_attempts": {
+    "linux": "linux-full",
+    "windows": "windows-full"
+  },
+  "schema_version": 1,
+  "windows_protocol_exit_codes": {
+    "check-tex": 0,
+    "create-external-pdf-dir": 0,
+    "example-ca_model": 0,
+    "example-chain_1d": 0,
+    "example-gravity_well": 0,
+    "example-grid_2d": 0,
+    "example-source_law": 0,
+    "example-source_law_many_body": 0,
+    "git-diff": 0,
+    "pdflatex-pass-1": 0,
+    "pdflatex-pass-2": 0,
+    "postflight": 0,
+    "preflight": 0,
+    "pytest": 0,
+    "ruff": 0,
+    "semantic-checker": 0,
+    "sync": 0
+  }
+}

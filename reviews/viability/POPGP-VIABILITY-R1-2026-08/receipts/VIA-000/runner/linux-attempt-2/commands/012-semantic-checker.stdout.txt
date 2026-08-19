@@ -1,0 +1,6 @@
+examples/physics_qg/chain_1d/results/validation.json: accepted 38 bounded numeric drifts (max abs=1.95399e-14, max rel=1)
+examples/physics_qg/gravity_well/results/validation.json: accepted 57 bounded numeric drifts (max abs=2.28738e-10, max rel=1.27251)
+examples/physics_qg/grid_2d/results/validation.json: accepted 73 bounded numeric drifts (max abs=2.28738e-10, max rel=1.88041)
+examples/physics_qg/source_law/results/validation.json: accepted 6 bounded numeric drifts (max abs=5.55112e-17, max rel=0.333333)
+examples/physics_qg/source_law_many_body/results/validation.json: accepted 1059 bounded numeric drifts (max abs=1.46469e+09, max rel=2)
+Validation artifact contracts and required visual outputs are valid.

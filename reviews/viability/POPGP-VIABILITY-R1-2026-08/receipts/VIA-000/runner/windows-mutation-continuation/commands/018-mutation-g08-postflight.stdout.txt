@@ -1,0 +1,2 @@
+.venv\Lib\site-packages\sitecustomize.py
+.venv\Lib\site-packages\usercustomize.py

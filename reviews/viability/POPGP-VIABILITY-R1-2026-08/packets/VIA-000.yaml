@@ -7,7 +7,7 @@ baseline_commit: 70c867552279b74d5ce1a7bc5c50d5a980cf81e6
 tree_hash: 358fb1af6ca587b6c71ff2ef0fb87e335163eeaf
 protocol_commit: 72bfcfbb5ab5a0fee3449510f8868b8bb19be805
 protocol_rule_sha256: e5ac4103188f652a460b4a0cc74d641d694e0043b6f2d62dcf2484b92de8acca
-lifecycle_phase: attacked
+lifecycle_phase: reproduced
 claims:
 - C03
 - C04
@@ -259,7 +259,12 @@ blind_custody:
   secret_seed_manifest:
     immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R1-2026-08/VIA-000-secret-seed.json
     sha256: 13e5e65f49d74b620e47e235e170e7f828305aee0732aa307eda0d78eb4c6719
-  output_commitment: null
+  output_commitment:
+    receipt_id: output-commitment
+    committed_by: codex-via000-runner
+    committed_at: '2026-08-19T16:22:43.113962Z'
+    output_receipt_id: raw-results
+    output_sha256: 7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641
   reveal:
     status: unrevealed
     authorized_by: null
@@ -353,6 +358,31 @@ receipts:
   path: ../attacks/VIA-000-ATTACK-PLAN-7.md
   sha256: 735783112cf90451551cbaec9de4d0bafd15754400b479a0be888fc670a725fb
   media_type: text/plain
+- id: environment
+  kind: environment
+  path: ../receipts/VIA-000/environment.json
+  sha256: f4855453cac6ef3058289cf0aa7f3da40f08e1e37d2b322fccfc1bcabcf085e9
+  media_type: application/json
+- id: run-log
+  kind: run-log
+  path: ../receipts/VIA-000/run-log.json
+  sha256: 83e912426561ab7954bfe4b8c7c0297ae20fd80349b8b2889ef935643b3d584f
+  media_type: application/json
+- id: raw-results
+  kind: raw-results
+  path: ../receipts/VIA-000/raw-results.json
+  sha256: 7a221ea1a11dc1033df3dd7d5732a3693ee620dcf6b429d243afa5be6bff2641
+  media_type: application/json
+- id: mutation-results
+  kind: mutation-results
+  path: ../receipts/VIA-000/mutation-results.json
+  sha256: c60673e632c432e3591ca567e5e479428919c053c8bc30f4d5e033ec7123b096
+  media_type: application/json
+- id: output-commitment
+  kind: output-commitment
+  path: ../receipts/VIA-000/output-commitment.json
+  sha256: 0a650c162d443889c04876ab6d7892173227e4f414ede85e28d2b3ff7f13367b
+  media_type: application/json
 review_chain:
   initial_review_receipt: null
   initial_review_ref: null

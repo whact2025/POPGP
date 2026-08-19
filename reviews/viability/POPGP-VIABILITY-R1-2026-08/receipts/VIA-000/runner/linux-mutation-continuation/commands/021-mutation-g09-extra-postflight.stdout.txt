@@ -1,0 +1,3 @@
+.venv/lib/python3.11/site-packages/_cuda_bindings_redirector.pth
+.venv/lib/python3.11/site-packages/_virtualenv.pth
+.venv/lib/python3.11/site-packages/via000_g09_extra.pth

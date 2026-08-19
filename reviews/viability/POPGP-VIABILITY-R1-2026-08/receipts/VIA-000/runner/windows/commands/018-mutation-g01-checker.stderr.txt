@@ -1,0 +1,4 @@
+Installed 60 packages in 18.78s
+Validation artifact contract failed:
+- examples/physics_qg/source_law/results/validation.json: $.checks: array length changed from 4 to 5
+- examples/physics_qg/source_law/results/validation.json: non-informational check set is not explicitly registered (missing=[], unregistered=['unregistered_required_probe'])

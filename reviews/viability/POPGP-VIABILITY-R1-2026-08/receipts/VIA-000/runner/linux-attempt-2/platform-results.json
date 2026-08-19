@@ -1,0 +1,509 @@
+{
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "ended_at": "2026-08-19T16:02:16.596444Z",
+  "engine_exact": true,
+  "evidence_contract": false,
+  "external_pdf_directory_removed": true,
+  "final_candidate_diff": {
+    "argv": [
+      "git",
+      "diff",
+      "--exit-code"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "final_candidate_normal_status": {
+    "argv": [
+      "git",
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=all"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "harness_error": null,
+  "mutations": [],
+  "mutations_rejected": false,
+  "packet_id": "VIA-000",
+  "pdf": {
+    "artifacts": [
+      {
+        "bytes": 8223,
+        "name": "framework.aux",
+        "retained_path": "pdf/framework.aux",
+        "sha256": "f5b8d3d2fe8a51aaa7cb929609df21ab33a7feee4d2cc4b6445d62be5a9174b4"
+      },
+      {
+        "bytes": 29461,
+        "name": "framework.log",
+        "retained_path": "pdf/framework.log",
+        "sha256": "88e46087819d8a1434ffd44336d0f45294cb8e50e8ba4c523a6637017f7fb431"
+      },
+      {
+        "bytes": 13920,
+        "name": "framework.out",
+        "retained_path": "pdf/framework.out",
+        "sha256": "e46d0300a92cfff300c634cd1a9dfd595f73000caf93fece37704482c8502854"
+      },
+      {
+        "bytes": 388867,
+        "name": "framework.pdf",
+        "retained_path": "pdf/framework.pdf",
+        "sha256": "b887924b400c0d3d28d1de21010b8644cd5ba550293e43b06ab9cdfc5ded5dc8"
+      },
+      {
+        "bytes": 104,
+        "name": "frameworkNotes.bib",
+        "retained_path": "pdf/frameworkNotes.bib",
+        "sha256": "61b9ca8a0eae79078bb6bcd4205c582b5f4f2ed0a16ece16a01837cc4718248d"
+      }
+    ],
+    "external_directory": "/home/runner/work/POPGP/POPGP/POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+    "framework_pdf_nonempty": true
+  },
+  "platform_family": "ubuntu-latest-x86_64",
+  "protocol": {
+    "all_commands_succeeded": false,
+    "commands": [
+      {
+        "argv": [
+          "python",
+          "-I",
+          "-c",
+          "import os,subprocess,sys; ps=[subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True),subprocess.run(['git','status','--porcelain=v1','--untracked-files=normal','--ignored'],capture_output=True,text=True)]; [sys.stdout.write(p.stdout) for p in ps]; [sys.stderr.write(p.stderr) for p in ps]; blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); raise SystemExit(any(p.returncode for p in ps) or any(p.stdout for p in ps) or bool(blocked) or nested)"
+        ],
+        "category": "protocol",
+        "command": "python -I -c \"import os,subprocess,sys; ps=[subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True),subprocess.run(['git','status','--porcelain=v1','--untracked-files=normal','--ignored'],capture_output=True,text=True)]; [sys.stdout.write(p.stdout) for p in ps]; [sys.stderr.write(p.stderr) for p in ps]; blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); raise SystemExit(any(p.returncode for p in ps) or any(p.stdout for p in ps) or bool(blocked) or nested)\"",
+        "duration_seconds": 0.026252,
+        "ended_at": "2026-08-19T15:59:33.187391Z",
+        "exit_code": 0,
+        "id": "preflight",
+        "started_at": "2026-08-19T15:59:33.161125Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/001-preflight.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/001-preflight.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "uv",
+          "sync",
+          "--frozen",
+          "--no-editable"
+        ],
+        "category": "protocol",
+        "command": "uv sync --frozen --no-editable",
+        "duration_seconds": 39.623048,
+        "ended_at": "2026-08-19T16:00:12.810657Z",
+        "exit_code": 0,
+        "id": "sync",
+        "started_at": "2026-08-19T15:59:33.187598Z",
+        "stderr_bytes": 4004,
+        "stderr_path": "commands/002-sync.stderr.txt",
+        "stderr_sha256": "60f58a8fbfa1e78197d9d058f4c05dd0d630bd0139da305ad076dd142ebf1f78",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/002-sync.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "ruff",
+          "check",
+          "."
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable ruff check .",
+        "duration_seconds": 1.666314,
+        "ended_at": "2026-08-19T16:00:14.477205Z",
+        "exit_code": 0,
+        "id": "ruff",
+        "started_at": "2026-08-19T16:00:12.810880Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/003-ruff.stderr.txt",
+        "stderr_sha256": "f507555a10a320f1bbd01608edd2323e5aa4b24e86e2365cfb4f77f303eae106",
+        "stdout_bytes": 19,
+        "stdout_path": "commands/003-ruff.stdout.txt",
+        "stdout_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "scripts/check_tex.py"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python scripts/check_tex.py",
+        "duration_seconds": 1.616066,
+        "ended_at": "2026-08-19T16:00:16.093508Z",
+        "exit_code": 0,
+        "id": "check-tex",
+        "started_at": "2026-08-19T16:00:14.477431Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/004-check-tex.stderr.txt",
+        "stderr_sha256": "f507555a10a320f1bbd01608edd2323e5aa4b24e86e2365cfb4f77f303eae106",
+        "stdout_bytes": 4558,
+        "stdout_path": "commands/004-check-tex.stdout.txt",
+        "stdout_sha256": "45dece272b8a3f51575582e833d7fb7d7490a6995c852db7cb610931845cc2f6"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "pytest",
+          "-q"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m pytest -q",
+        "duration_seconds": 70.606145,
+        "ended_at": "2026-08-19T16:01:26.699933Z",
+        "exit_code": 0,
+        "id": "pytest",
+        "started_at": "2026-08-19T16:00:16.093777Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/005-pytest.stderr.txt",
+        "stderr_sha256": "7aac351a7ea8ad53b7c87895b19aca0db391900bb721de922b2873bd8a48a2ef",
+        "stdout_bytes": 271,
+        "stdout_path": "commands/005-pytest.stdout.txt",
+        "stdout_sha256": "78917644d9666b7d0c25752a9066632532f09da10cf2aa82dbf6afcf19add5d5"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.chain_1d"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.chain_1d",
+        "duration_seconds": 13.862126,
+        "ended_at": "2026-08-19T16:01:40.562301Z",
+        "exit_code": 0,
+        "id": "example-chain_1d",
+        "started_at": "2026-08-19T16:01:26.700164Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/006-example-chain_1d.stderr.txt",
+        "stderr_sha256": "19e4faddccd6928748f9fce0271fe48a24a7e4d7621700089315f11c228b790d",
+        "stdout_bytes": 995,
+        "stdout_path": "commands/006-example-chain_1d.stdout.txt",
+        "stdout_sha256": "12353cacf679a347cc2936f79ce7b60363d1234c0423637ff560f565ad07adec"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.grid_2d"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.grid_2d",
+        "duration_seconds": 5.367754,
+        "ended_at": "2026-08-19T16:01:45.930335Z",
+        "exit_code": 0,
+        "id": "example-grid_2d",
+        "started_at": "2026-08-19T16:01:40.562570Z",
+        "stderr_bytes": 145,
+        "stderr_path": "commands/007-example-grid_2d.stderr.txt",
+        "stderr_sha256": "801837bf678fc553b457797e08d9012fdbb9c8934cd0f2b109c82ca3f9a4e2e3",
+        "stdout_bytes": 864,
+        "stdout_path": "commands/007-example-grid_2d.stdout.txt",
+        "stdout_sha256": "03bb96a8bd809cebc569159d574640ff14b52664f9fd7fdc59cd2ce82a0ba561"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.gravity_well"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.gravity_well",
+        "duration_seconds": 6.027745,
+        "ended_at": "2026-08-19T16:01:51.958350Z",
+        "exit_code": 0,
+        "id": "example-gravity_well",
+        "started_at": "2026-08-19T16:01:45.930593Z",
+        "stderr_bytes": 145,
+        "stderr_path": "commands/008-example-gravity_well.stderr.txt",
+        "stderr_sha256": "801837bf678fc553b457797e08d9012fdbb9c8934cd0f2b109c82ca3f9a4e2e3",
+        "stdout_bytes": 2035,
+        "stdout_path": "commands/008-example-gravity_well.stdout.txt",
+        "stdout_sha256": "711ffc1daa123240567aa668123faad30ccf4e7cfd34a1488a1ad256237a1009"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.source_law"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.source_law",
+        "duration_seconds": 5.524927,
+        "ended_at": "2026-08-19T16:01:57.483561Z",
+        "exit_code": 0,
+        "id": "example-source_law",
+        "started_at": "2026-08-19T16:01:51.958623Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/009-example-source_law.stderr.txt",
+        "stderr_sha256": "e2397e5f6cbce13cab687352644f9c0f3e5f92c047b0f82782e692ba0c4b60e6",
+        "stdout_bytes": 823,
+        "stdout_path": "commands/009-example-source_law.stdout.txt",
+        "stdout_sha256": "a1986d24eb69e47ea7c579cd47b0bd374bf953c5e85e230586261d4252ecffbb"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.source_law_many_body"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.source_law_many_body",
+        "duration_seconds": 5.526183,
+        "ended_at": "2026-08-19T16:02:03.009994Z",
+        "exit_code": 0,
+        "id": "example-source_law_many_body",
+        "started_at": "2026-08-19T16:01:57.483801Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/010-example-source_law_many_body.stderr.txt",
+        "stderr_sha256": "51a6a50498833f4d257d14ff7f4fe0dee8d6f35b84848cd5915768176dd8560d",
+        "stdout_bytes": 1146,
+        "stdout_path": "commands/010-example-source_law_many_body.stdout.txt",
+        "stdout_sha256": "3bc02e8d09e69bc37ba2d0e455fde0e08d639378c387beda8fbc4db5988edd33"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.ca_model"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.ca_model",
+        "duration_seconds": 7.449624,
+        "ended_at": "2026-08-19T16:02:10.459855Z",
+        "exit_code": 0,
+        "id": "example-ca_model",
+        "started_at": "2026-08-19T16:02:03.010221Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/011-example-ca_model.stderr.txt",
+        "stderr_sha256": "eb4b7c57efd630d388fca0d1757de2ee7d0ea94733b82f4abc4b707f87ab1105",
+        "stdout_bytes": 376,
+        "stdout_path": "commands/011-example-ca_model.stdout.txt",
+        "stdout_sha256": "2df394edec5cba9572f465dced345ad359bf01f7c6cbf0f09d19fa8986b19e1c"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "scripts/check_validation_artifacts.py"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python scripts/check_validation_artifacts.py",
+        "duration_seconds": 0.419246,
+        "ended_at": "2026-08-19T16:02:10.879409Z",
+        "exit_code": 0,
+        "id": "semantic-checker",
+        "started_at": "2026-08-19T16:02:10.460154Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/012-semantic-checker.stderr.txt",
+        "stderr_sha256": "3035744299eb7fafb2e69c4dc1378f272b80c435e0b3c30769fd065f5d417e6b",
+        "stdout_bytes": 716,
+        "stdout_path": "commands/012-semantic-checker.stdout.txt",
+        "stdout_sha256": "c4666e8e457d329db5d5e440c3ace7b8174f43bf132d5f3b817ad37e5a24f0ec"
+      },
+      {
+        "argv": [
+          "python",
+          "-I",
+          "-c",
+          "import pathlib; p=(pathlib.Path('..')/'POPGP-VIABILITY-R1-2026-08-VIA-000-PDF').resolve(); assert not p.exists(), p; p.mkdir()"
+        ],
+        "category": "protocol",
+        "command": "python -I -c \"import pathlib; p=(pathlib.Path('..')/'POPGP-VIABILITY-R1-2026-08-VIA-000-PDF').resolve(); assert not p.exists(), p; p.mkdir()\"",
+        "duration_seconds": 0.020772,
+        "ended_at": "2026-08-19T16:02:10.900458Z",
+        "exit_code": 0,
+        "id": "create-external-pdf-dir",
+        "started_at": "2026-08-19T16:02:10.879681Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/013-create-external-pdf-dir.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/013-create-external-pdf-dir.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "pdflatex",
+          "-interaction=nonstopmode",
+          "-halt-on-error",
+          "-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+          "docs/framework.tex"
+        ],
+        "category": "protocol",
+        "command": "pdflatex -interaction=nonstopmode -halt-on-error '-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF' docs/framework.tex",
+        "duration_seconds": 4.870474,
+        "ended_at": "2026-08-19T16:02:15.771063Z",
+        "exit_code": 0,
+        "id": "pdflatex-pass-1",
+        "started_at": "2026-08-19T16:02:10.900579Z",
+        "stderr_bytes": 55072,
+        "stderr_path": "commands/014-pdflatex-pass-1.stderr.txt",
+        "stderr_sha256": "1819ef8990e4fc402efcd2f689cd393536c7a44018e542a29e52fe8688e6adb8",
+        "stdout_bytes": 15855,
+        "stdout_path": "commands/014-pdflatex-pass-1.stdout.txt",
+        "stdout_sha256": "6b49d2585d215cc0ffa62651458f29bb38b0e42ca4f2edd5b37eb07cea9376a6"
+      },
+      {
+        "argv": [
+          "pdflatex",
+          "-interaction=nonstopmode",
+          "-halt-on-error",
+          "-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+          "docs/framework.tex"
+        ],
+        "category": "protocol",
+        "command": "pdflatex -interaction=nonstopmode -halt-on-error '-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF' docs/framework.tex",
+        "duration_seconds": 0.472357,
+        "ended_at": "2026-08-19T16:02:16.243786Z",
+        "exit_code": 0,
+        "id": "pdflatex-pass-2",
+        "started_at": "2026-08-19T16:02:15.771418Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/015-pdflatex-pass-2.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 15602,
+        "stdout_path": "commands/015-pdflatex-pass-2.stdout.txt",
+        "stdout_sha256": "af5a71e7733e3697c41479a99c0660e86b96a7303839ff05e3d894b77819da12"
+      },
+      {
+        "argv": [
+          "git",
+          "diff",
+          "--exit-code"
+        ],
+        "category": "protocol",
+        "command": "git diff --exit-code",
+        "duration_seconds": 0.021762,
+        "ended_at": "2026-08-19T16:02:16.265902Z",
+        "exit_code": 1,
+        "id": "git-diff",
+        "started_at": "2026-08-19T16:02:16.244131Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/016-git-diff.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 155814,
+        "stdout_path": "commands/016-git-diff.stdout.txt",
+        "stdout_sha256": "0ebc26c85504a1ee82cfa728914a8f70afad57b4ee087f575e0cb7adc5093782"
+      },
+      {
+        "argv": [
+          "python",
+          "-I",
+          "-c",
+          "import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)"
+        ],
+        "category": "protocol",
+        "command": "python -I -c \"import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)\"",
+        "duration_seconds": 0.149731,
+        "ended_at": "2026-08-19T16:02:16.416007Z",
+        "exit_code": 1,
+        "id": "postflight",
+        "started_at": "2026-08-19T16:02:16.266267Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/017-postflight.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 1086,
+        "stdout_path": "commands/017-postflight.stdout.txt",
+        "stdout_sha256": "e89919abc388d4cb002f343dd85c38d0f949a99095e48e904dd5dc734f91ae4d"
+      }
+    ],
+    "mutation_baseline": {
+      "command_ids": [
+        "mutation-baseline-changed-paths",
+        "mutation-baseline-restored-postflight"
+      ],
+      "ready": false,
+      "restored_after_recorded_protocol_failure": true,
+      "restored_paths": [
+        "examples/physics_qg/ca_model/results/dynamics_cooling.png",
+        "examples/physics_qg/chain_1d/results/clock_potential.png",
+        "examples/physics_qg/chain_1d/results/embedding.png",
+        "examples/physics_qg/chain_1d/results/entropy_growth.png",
+        "examples/physics_qg/chain_1d/results/validation.json",
+        "examples/physics_qg/gravity_well/results/gravity_embedding.png",
+        "examples/physics_qg/gravity_well/results/gravity_well.png",
+        "examples/physics_qg/gravity_well/results/source_comparison.png",
+        "examples/physics_qg/gravity_well/results/validation.json",
+        "examples/physics_qg/grid_2d/results/clock_potential.png",
+        "examples/physics_qg/grid_2d/results/embedding.png",
+        "examples/physics_qg/grid_2d/results/validation.json",
+        "examples/physics_qg/source_law/results/source_scaling.png",
+        "examples/physics_qg/source_law/results/validation.json",
+        "examples/physics_qg/source_law_many_body/results/many_body_source.png",
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+      ]
+    },
+    "required_example_count": 6,
+    "required_example_count_met": true,
+    "required_test_count_met": true,
+    "test_count": 187
+  },
+  "required_mutation_count": 10,
+  "required_mutation_count_met": false,
+  "runner_identity": "codex-via000-runner",
+  "runner_session_id": "popgp-viability-r1-2026-08-via000-runner-session",
+  "schema_version": 1,
+  "started_at": "2026-08-19T15:59:33.149440Z"
+}

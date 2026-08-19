@@ -1,0 +1,6 @@
+   Building popgp @ file:///home/runner/work/POPGP/POPGP/candidate
+      Built popgp @ file:///home/runner/work/POPGP/POPGP/candidate
+Prepared 1 package in 404ms
+Uninstalled 1 package in 0.64ms
+Installed 1 package in 0.84ms
+ ~ popgp==0.1.0 (from file:///home/runner/work/POPGP/POPGP/candidate)

@@ -1,0 +1,30 @@
+Substrate: 3x3 = 9 qubit Heisenberg grid (beta=2.0)
+Cells: 9 (1 qubit each)
+
+--- Mutual Information ---
+MI range: [0.0218, 0.2688]
+
+--- Geometry Recovery ---
+D_spectral: 1.50
+D*: 2
+MDS stress: 0.1682
+Coordinates shape: (9, 2)
+
+--- Topology Validation ---
+Blind edge precision: 1.000
+Blind edge recall:    1.000
+MI gap ratio:         2.048
+MI spectrum separable: True
+Center node: 4
+Avg dist to neighbors:     1.7010
+Avg dist to non-neighbors: 2.6689
+Separation: 36.3%
+SUCCESS: Local structure preserved.
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\grid_2d\results\embedding.png
+
+--- Clock Potential ---
+Phi range: [-0.0000, 0.0000]
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\grid_2d\results\clock_potential.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\grid_2d\results\validation.json
+
+Done.

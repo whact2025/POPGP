@@ -1,0 +1,18 @@
+ M examples/physics_qg/ca_model/results/dynamics_cooling.png
+ M examples/physics_qg/chain_1d/results/clock_potential.png
+ M examples/physics_qg/chain_1d/results/embedding.png
+ M examples/physics_qg/chain_1d/results/entropy_growth.png
+ M examples/physics_qg/chain_1d/results/validation.json
+ M examples/physics_qg/gravity_well/results/gravity_embedding.png
+ M examples/physics_qg/gravity_well/results/gravity_well.png
+ M examples/physics_qg/gravity_well/results/source_comparison.png
+ M examples/physics_qg/gravity_well/results/validation.json
+ M examples/physics_qg/grid_2d/results/clock_potential.png
+ M examples/physics_qg/grid_2d/results/embedding.png
+ M examples/physics_qg/grid_2d/results/validation.json
+ M examples/physics_qg/source_law/results/source_scaling.png
+ M examples/physics_qg/source_law/results/validation.json
+ M examples/physics_qg/source_law_many_body/results/many_body_source.png
+ M examples/physics_qg/source_law_many_body/results/validation.json
+.venv/lib/python3.11/site-packages/_cuda_bindings_redirector.pth
+.venv/lib/python3.11/site-packages/_virtualenv.pth

@@ -1,0 +1,2 @@
+.venv\Lib\site-packages\_virtualenv.pth
+.venv\Lib\site-packages\via000_g09_extra.pth

@@ -1,0 +1,27 @@
+Substrate: 8-qubit Heisenberg chain (beta=1.0)
+Cells: 4 blocks of 2 qubits
+Selected cells: [[0, 1], [2, 3], [4, 5], [6, 7]]
+L_leak: 6.098529e-03
+Retention loss: 0.3196
+SU(2) equivariant: True
+
+--- Stability Comparison ---
+Entropy Increase (Valid/Local):     1.1125
+Entropy Increase (Invalid/Non-local): 1.2998
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\chain_1d\results\entropy_growth.png
+
+--- Geometry Recovery ---
+D_spectral: 0.84
+D*: 1
+MDS stress: 0.0000
+Recovered coords: [ 1.50151012  0.5        -0.5        -1.50151012]
+Sorted cell order: [3 2 1 0]
+Tolerance-ranked order: [3, 2, 1, 0]  (tol=3.00e-03)
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\chain_1d\results\embedding.png
+
+--- Clock Potential ---
+Phi range: [-0.0221, 0.0221]
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\chain_1d\results\clock_potential.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\chain_1d\results\validation.json
+
+Done.

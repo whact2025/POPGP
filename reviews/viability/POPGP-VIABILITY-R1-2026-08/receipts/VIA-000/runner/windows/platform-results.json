@@ -1,0 +1,554 @@
+{
+  "campaign_id": "POPGP-VIABILITY-R1-2026-08",
+  "candidate_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "candidate_tree": "358fb1af6ca587b6c71ff2ef0fb87e335163eeaf",
+  "ended_at": "2026-08-19T16:03:30.044635Z",
+  "engine_exact": true,
+  "evidence_contract": false,
+  "external_pdf_directory_removed": true,
+  "final_candidate_diff": {
+    "argv": [
+      "git",
+      "diff",
+      "--exit-code"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "final_candidate_normal_status": {
+    "argv": [
+      "git",
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=all"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "stdout": ""
+  },
+  "harness_error": "FileNotFoundError: [WinError 2] The system cannot find the file specified",
+  "mutations": [
+    {
+      "command_ids": [
+        "mutation-g01-checker"
+      ],
+      "description": "Add an unregistered noninformational check identity; require rejection.",
+      "id": "VIA000-G01",
+      "oracle": "nonzero checker exit and unregistered-identity diagnostic",
+      "rejected": true
+    },
+    {
+      "command_ids": [
+        "mutation-g02-checker"
+      ],
+      "description": "Flip a required check pass outcome; require rejection.",
+      "id": "VIA000-G02",
+      "oracle": "nonzero checker exit and pass-outcome diagnostic",
+      "rejected": true
+    },
+    {
+      "command_ids": [
+        "mutation-g03-checker"
+      ],
+      "description": "Change a measurement array shape; require rejection.",
+      "id": "VIA000-G03",
+      "oracle": "nonzero checker exit and exact length diagnostic",
+      "rejected": true
+    },
+    {
+      "command_ids": [
+        "mutation-g04-checker"
+      ],
+      "description": "Change a stable configuration beyond tolerance; require rejection.",
+      "id": "VIA000-G04",
+      "oracle": "nonzero checker exit and stable-input tolerance diagnostic",
+      "rejected": true
+    },
+    {
+      "command_ids": [
+        "mutation-g05-index-removal",
+        "mutation-g05-checker"
+      ],
+      "description": "Make a required visual empty and untracked; require both defects.",
+      "id": "VIA000-G05",
+      "oracle": "checker reports both not-tracked and empty; exact bytes restored",
+      "original_sha256": "643b379661570729d8501cbe109d6cf68bfe9c38d39612462d5ac92ef9eca607",
+      "rejected": true,
+      "restored_sha256": "643b379661570729d8501cbe109d6cf68bfe9c38d39612462d5ac92ef9eca607"
+    },
+    {
+      "command_ids": [
+        "mutation-g06-checker"
+      ],
+      "description": "Move a sensitive scientific diagnostic beyond its frozen threshold; require rejection.",
+      "id": "VIA000-G06",
+      "oracle": "both canonical copies changed and checker rejects frozen tolerance",
+      "rejected": true,
+      "replacement_count": 2
+    },
+    {
+      "command_ids": [
+        "mutation-g07-isolated-probe",
+        "mutation-g07-checker",
+        "mutation-g07-git-diff",
+        "mutation-g07-postflight"
+      ],
+      "description": "Activate an untracked sitecustomize.py through PYTHONPATH; require boundary rejection.",
+      "id": "VIA000-G07",
+      "oracle": "complete frozen boundary rejects both untracked hook and blocked environment",
+      "rejected": true
+    }
+  ],
+  "mutations_rejected": false,
+  "packet_id": "VIA-000",
+  "pdf": {
+    "artifacts": [
+      {
+        "bytes": 8223,
+        "name": "framework.aux",
+        "retained_path": "pdf/framework.aux",
+        "sha256": "f5b8d3d2fe8a51aaa7cb929609df21ab33a7feee4d2cc4b6445d62be5a9174b4"
+      },
+      {
+        "bytes": 26406,
+        "name": "framework.log",
+        "retained_path": "pdf/framework.log",
+        "sha256": "22d0bc310905d47fc34851e8e1d2c6c0f2e3492bd8661755e0c120a7f27f9d0a"
+      },
+      {
+        "bytes": 13920,
+        "name": "framework.out",
+        "retained_path": "pdf/framework.out",
+        "sha256": "e46d0300a92cfff300c634cd1a9dfd595f73000caf93fece37704482c8502854"
+      },
+      {
+        "bytes": 535368,
+        "name": "framework.pdf",
+        "retained_path": "pdf/framework.pdf",
+        "sha256": "ff83b6c28eeacfb805e9261cee744a24f70b2a79fe11c6248de40e77f8356b4b"
+      },
+      {
+        "bytes": 104,
+        "name": "frameworkNotes.bib",
+        "retained_path": "pdf/frameworkNotes.bib",
+        "sha256": "61b9ca8a0eae79078bb6bcd4205c582b5f4f2ed0a16ece16a01837cc4718248d"
+      }
+    ],
+    "external_directory": "C:\\src\\POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+    "framework_pdf_nonempty": true
+  },
+  "platform_family": "windows-x86_64",
+  "protocol": {
+    "all_commands_succeeded": true,
+    "commands": [
+      {
+        "argv": [
+          "python",
+          "-I",
+          "-c",
+          "import os,subprocess,sys; ps=[subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True),subprocess.run(['git','status','--porcelain=v1','--untracked-files=normal','--ignored'],capture_output=True,text=True)]; [sys.stdout.write(p.stdout) for p in ps]; [sys.stderr.write(p.stderr) for p in ps]; blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); raise SystemExit(any(p.returncode for p in ps) or any(p.stdout for p in ps) or bool(blocked) or nested)"
+        ],
+        "category": "protocol",
+        "command": "python -I -c \"import os,subprocess,sys; ps=[subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True),subprocess.run(['git','status','--porcelain=v1','--untracked-files=normal','--ignored'],capture_output=True,text=True)]; [sys.stdout.write(p.stdout) for p in ps]; [sys.stderr.write(p.stderr) for p in ps]; blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); raise SystemExit(any(p.returncode for p in ps) or any(p.stdout for p in ps) or bool(blocked) or nested)\"",
+        "duration_seconds": 0.531,
+        "ended_at": "2026-08-19T15:34:54.533054Z",
+        "exit_code": 0,
+        "id": "preflight",
+        "started_at": "2026-08-19T15:34:53.993519Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/001-preflight.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/001-preflight.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "uv",
+          "sync",
+          "--frozen",
+          "--no-editable"
+        ],
+        "category": "protocol",
+        "command": "uv sync --frozen --no-editable",
+        "duration_seconds": 28.547,
+        "ended_at": "2026-08-19T15:35:23.088603Z",
+        "exit_code": 0,
+        "id": "sync",
+        "started_at": "2026-08-19T15:34:54.536054Z",
+        "stderr_bytes": 2227,
+        "stderr_path": "commands/002-sync.stderr.txt",
+        "stderr_sha256": "c2541e1ff8e6a2383259145afa8bb7e7ff8f89c7af92c377471ec598b6da6484",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/002-sync.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "ruff",
+          "check",
+          "."
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable ruff check .",
+        "duration_seconds": 14.125,
+        "ended_at": "2026-08-19T15:35:37.206150Z",
+        "exit_code": 0,
+        "id": "ruff",
+        "started_at": "2026-08-19T15:35:23.093982Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/003-ruff.stderr.txt",
+        "stderr_sha256": "20e378d588654232d0cd5b450cf1be17a0576739643caf7e48650807280d55ac",
+        "stdout_bytes": 19,
+        "stdout_path": "commands/003-ruff.stdout.txt",
+        "stdout_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "scripts/check_tex.py"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python scripts/check_tex.py",
+        "duration_seconds": 22.812,
+        "ended_at": "2026-08-19T15:36:00.024401Z",
+        "exit_code": 0,
+        "id": "check-tex",
+        "started_at": "2026-08-19T15:35:37.209401Z",
+        "stderr_bytes": 32,
+        "stderr_path": "commands/004-check-tex.stderr.txt",
+        "stderr_sha256": "3e205eb298113e818ad2287acd5c9f245b22873af9c9284365d81fca76352049",
+        "stdout_bytes": 4642,
+        "stdout_path": "commands/004-check-tex.stdout.txt",
+        "stdout_sha256": "78b6073b86100baf99f522caf76018d7f8360663fc287450d0e203681b8869a2"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "pytest",
+          "-q"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m pytest -q",
+        "duration_seconds": 1212.219,
+        "ended_at": "2026-08-19T15:56:12.250231Z",
+        "exit_code": 0,
+        "id": "pytest",
+        "started_at": "2026-08-19T15:36:00.027398Z",
+        "stderr_bytes": 32,
+        "stderr_path": "commands/005-pytest.stderr.txt",
+        "stderr_sha256": "64a47904335d9b6735f997ebeedb02f2cdcfd906316e92b3f1fd7a0a9abd898f",
+        "stdout_bytes": 277,
+        "stdout_path": "commands/005-pytest.stdout.txt",
+        "stdout_sha256": "d969726a7c68cc5dce17ccba569b1fb00ee5bbf830da86858e90043fcd0c40c8"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.chain_1d"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.chain_1d",
+        "duration_seconds": 54.297,
+        "ended_at": "2026-08-19T15:57:06.552275Z",
+        "exit_code": 0,
+        "id": "example-chain_1d",
+        "started_at": "2026-08-19T15:56:12.254246Z",
+        "stderr_bytes": 32,
+        "stderr_path": "commands/006-example-chain_1d.stderr.txt",
+        "stderr_sha256": "728bc36fddcfd332ee43ef62b40120253257ee82cef771f5dbb018ebe4c055ed",
+        "stdout_bytes": 1050,
+        "stdout_path": "commands/006-example-chain_1d.stdout.txt",
+        "stdout_sha256": "96f56ebae28f517db269bb682373ca874dc758e761e5ff55a2d93733b4e9234a"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.grid_2d"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.grid_2d",
+        "duration_seconds": 37.437,
+        "ended_at": "2026-08-19T15:57:43.990535Z",
+        "exit_code": 0,
+        "id": "example-grid_2d",
+        "started_at": "2026-08-19T15:57:06.555800Z",
+        "stderr_bytes": 145,
+        "stderr_path": "commands/007-example-grid_2d.stderr.txt",
+        "stderr_sha256": "c74ce7265ff51460da7c0b19af13f4f27770b4dc9c84ea38bc771ce36a07c77e",
+        "stdout_bytes": 915,
+        "stdout_path": "commands/007-example-grid_2d.stdout.txt",
+        "stdout_sha256": "02efe1a30da768e9b226b836d5ca6781f32b354accaeabebe9bae85984c6dd27"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.gravity_well"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.gravity_well",
+        "duration_seconds": 33.094,
+        "ended_at": "2026-08-19T15:58:17.093467Z",
+        "exit_code": 0,
+        "id": "example-gravity_well",
+        "started_at": "2026-08-19T15:57:43.993542Z",
+        "stderr_bytes": 145,
+        "stderr_path": "commands/008-example-gravity_well.stderr.txt",
+        "stderr_sha256": "1b07fbac63f8abe8149cf3eabbe75d643874bc43ca27d9cb72883593ea339dee",
+        "stdout_bytes": 2116,
+        "stdout_path": "commands/008-example-gravity_well.stdout.txt",
+        "stdout_sha256": "64fa2c0b60ff264601cc3bf4454000687d82682ddf63dc06fe81dcf6935d4d80"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.source_law"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.source_law",
+        "duration_seconds": 26.0,
+        "ended_at": "2026-08-19T15:58:43.104952Z",
+        "exit_code": 0,
+        "id": "example-source_law",
+        "started_at": "2026-08-19T15:58:17.096969Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/009-example-source_law.stderr.txt",
+        "stderr_sha256": "1473bc28c1ab20ce1d7eae6406458cbabd867f18684b9c7be04598a7b49a5100",
+        "stdout_bytes": 847,
+        "stdout_path": "commands/009-example-source_law.stdout.txt",
+        "stdout_sha256": "6c0b27ac692c3a483b30a90cb516e0a316aec8e809d04df4e78b21908c3c76dd"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.source_law_many_body"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.source_law_many_body",
+        "duration_seconds": 38.218,
+        "ended_at": "2026-08-19T15:59:21.323144Z",
+        "exit_code": 0,
+        "id": "example-source_law_many_body",
+        "started_at": "2026-08-19T15:58:43.108952Z",
+        "stderr_bytes": 32,
+        "stderr_path": "commands/010-example-source_law_many_body.stderr.txt",
+        "stderr_sha256": "dfe7be8fb6c7873362537b1174ca539cd632667a7c44255e19799f107b137903",
+        "stdout_bytes": 1177,
+        "stdout_path": "commands/010-example-source_law_many_body.stdout.txt",
+        "stdout_sha256": "8821f68b83c2124764a3fcf827c36d0e090f6fb78a29a34dbf579fe8611f3f0a"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "-m",
+          "examples.physics_qg.ca_model"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python -m examples.physics_qg.ca_model",
+        "duration_seconds": 28.922,
+        "ended_at": "2026-08-19T15:59:50.237895Z",
+        "exit_code": 0,
+        "id": "example-ca_model",
+        "started_at": "2026-08-19T15:59:21.327144Z",
+        "stderr_bytes": 31,
+        "stderr_path": "commands/011-example-ca_model.stderr.txt",
+        "stderr_sha256": "2f91a0a2dd7db565a663040206ac715f4cb5fa628cab6dcee83755bcfbfd5057",
+        "stdout_bytes": 404,
+        "stdout_path": "commands/011-example-ca_model.stdout.txt",
+        "stdout_sha256": "57d51fa53f3834d8b230dda3d0580137fbc5d5efcd064f7eab6473e96d6a6532"
+      },
+      {
+        "argv": [
+          "uv",
+          "run",
+          "--isolated",
+          "--frozen",
+          "--no-editable",
+          "python",
+          "scripts/check_validation_artifacts.py"
+        ],
+        "category": "protocol",
+        "command": "uv run --isolated --frozen --no-editable python scripts/check_validation_artifacts.py",
+        "duration_seconds": 30.203,
+        "ended_at": "2026-08-19T16:00:20.455047Z",
+        "exit_code": 0,
+        "id": "semantic-checker",
+        "started_at": "2026-08-19T15:59:50.239405Z",
+        "stderr_bytes": 32,
+        "stderr_path": "commands/012-semantic-checker.stderr.txt",
+        "stderr_sha256": "231a4621c85cd4b6f6d8ec1a8e03b0986298f3c323a0289396d2f03123420710",
+        "stdout_bytes": 70,
+        "stdout_path": "commands/012-semantic-checker.stdout.txt",
+        "stdout_sha256": "9b7471a7d3fd95daa3a79f0c7307c4494d1837c48773991f984510ffd5d58086"
+      },
+      {
+        "argv": [
+          "python",
+          "-I",
+          "-c",
+          "import pathlib; p=(pathlib.Path('..')/'POPGP-VIABILITY-R1-2026-08-VIA-000-PDF').resolve(); assert not p.exists(), p; p.mkdir()"
+        ],
+        "category": "protocol",
+        "command": "python -I -c \"import pathlib; p=(pathlib.Path('..')/'POPGP-VIABILITY-R1-2026-08-VIA-000-PDF').resolve(); assert not p.exists(), p; p.mkdir()\"",
+        "duration_seconds": 0.234,
+        "ended_at": "2026-08-19T16:00:20.703287Z",
+        "exit_code": 0,
+        "id": "create-external-pdf-dir",
+        "started_at": "2026-08-19T16:00:20.460059Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/013-create-external-pdf-dir.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/013-create-external-pdf-dir.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "pdflatex",
+          "-interaction=nonstopmode",
+          "-halt-on-error",
+          "-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+          "docs/framework.tex"
+        ],
+        "category": "protocol",
+        "command": "pdflatex -interaction=nonstopmode -halt-on-error '-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF' docs/framework.tex",
+        "duration_seconds": 2.219,
+        "ended_at": "2026-08-19T16:00:22.930778Z",
+        "exit_code": 0,
+        "id": "pdflatex-pass-1",
+        "started_at": "2026-08-19T16:00:20.709296Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/014-pdflatex-pass-1.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 13059,
+        "stdout_path": "commands/014-pdflatex-pass-1.stdout.txt",
+        "stdout_sha256": "f8f4840c24365ff6720fda43715c3d2b833a6ec2e34d5da87c39c2327195f249"
+      },
+      {
+        "argv": [
+          "pdflatex",
+          "-interaction=nonstopmode",
+          "-halt-on-error",
+          "-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF",
+          "docs/framework.tex"
+        ],
+        "category": "protocol",
+        "command": "pdflatex -interaction=nonstopmode -halt-on-error '-output-directory=../POPGP-VIABILITY-R1-2026-08-VIA-000-PDF' docs/framework.tex",
+        "duration_seconds": 2.718,
+        "ended_at": "2026-08-19T16:00:25.643822Z",
+        "exit_code": 0,
+        "id": "pdflatex-pass-2",
+        "started_at": "2026-08-19T16:00:22.932795Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/015-pdflatex-pass-2.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 12793,
+        "stdout_path": "commands/015-pdflatex-pass-2.stdout.txt",
+        "stdout_sha256": "1548e907cb249dea9d2b8dbf34ae2c9bfd5f58815f7fa5a867469f3273cec7a4"
+      },
+      {
+        "argv": [
+          "git",
+          "diff",
+          "--exit-code"
+        ],
+        "category": "protocol",
+        "command": "git diff --exit-code",
+        "duration_seconds": 0.266,
+        "ended_at": "2026-08-19T16:00:25.920266Z",
+        "exit_code": 0,
+        "id": "git-diff",
+        "started_at": "2026-08-19T16:00:25.645823Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/016-git-diff.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/016-git-diff.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "argv": [
+          "python",
+          "-I",
+          "-c",
+          "import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)"
+        ],
+        "category": "protocol",
+        "command": "python -I -c \"import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)\"",
+        "duration_seconds": 1.063,
+        "ended_at": "2026-08-19T16:00:26.981760Z",
+        "exit_code": 0,
+        "id": "postflight",
+        "started_at": "2026-08-19T16:00:25.922781Z",
+        "stderr_bytes": 0,
+        "stderr_path": "commands/017-postflight.stderr.txt",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_path": "commands/017-postflight.stdout.txt",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "required_example_count": 6,
+    "required_example_count_met": true,
+    "required_test_count_met": true,
+    "test_count": 187
+  },
+  "required_mutation_count": 10,
+  "required_mutation_count_met": false,
+  "runner_identity": "codex-via000-runner",
+  "runner_session_id": "popgp-viability-r1-2026-08-via000-runner-session",
+  "schema_version": 1,
+  "started_at": "2026-08-19T15:34:51.995195Z"
+}

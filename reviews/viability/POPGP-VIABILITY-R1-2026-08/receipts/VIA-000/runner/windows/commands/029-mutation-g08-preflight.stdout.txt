@@ -1,0 +1,16 @@
+!! .pytest_cache/
+!! .ruff_cache/
+!! .venv/
+!! __pycache__/
+!! examples/physics_qg/__pycache__/
+!! examples/physics_qg/ca_model/__pycache__/
+!! examples/physics_qg/chain_1d/__pycache__/
+!! examples/physics_qg/gravity_well/__pycache__/
+!! examples/physics_qg/grid_2d/__pycache__/
+!! examples/physics_qg/source_law/__pycache__/
+!! examples/physics_qg/source_law_many_body/__pycache__/
+!! popgp/__pycache__/
+!! popgp/geometry/__pycache__/
+!! scripts/__pycache__/
+!! tests/scientific/__pycache__/
+!! tests/unit/__pycache__/

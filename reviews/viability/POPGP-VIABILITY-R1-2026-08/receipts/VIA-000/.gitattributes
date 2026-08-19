@@ -1,0 +1,2 @@
+# Raw command and binary evidence must remain byte-for-byte hash stable.
+runner/** -text

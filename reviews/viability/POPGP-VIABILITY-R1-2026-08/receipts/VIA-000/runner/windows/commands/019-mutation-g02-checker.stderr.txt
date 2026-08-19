@@ -1,0 +1,4 @@
+Installed 60 packages in 8.67s
+Validation artifact contract failed:
+- examples/physics_qg/source_law/results/validation.json: $.checks[0].passed: changed from True to False
+- examples/physics_qg/source_law/results/validation.json: overall_pass=True but non-informational conjunction is False

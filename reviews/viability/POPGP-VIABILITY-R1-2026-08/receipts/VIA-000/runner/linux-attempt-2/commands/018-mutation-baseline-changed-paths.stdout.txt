@@ -1,0 +1,16 @@
+examples/physics_qg/ca_model/results/dynamics_cooling.png
+examples/physics_qg/chain_1d/results/clock_potential.png
+examples/physics_qg/chain_1d/results/embedding.png
+examples/physics_qg/chain_1d/results/entropy_growth.png
+examples/physics_qg/chain_1d/results/validation.json
+examples/physics_qg/gravity_well/results/gravity_embedding.png
+examples/physics_qg/gravity_well/results/gravity_well.png
+examples/physics_qg/gravity_well/results/source_comparison.png
+examples/physics_qg/gravity_well/results/validation.json
+examples/physics_qg/grid_2d/results/clock_potential.png
+examples/physics_qg/grid_2d/results/embedding.png
+examples/physics_qg/grid_2d/results/validation.json
+examples/physics_qg/source_law/results/source_scaling.png
+examples/physics_qg/source_law/results/validation.json
+examples/physics_qg/source_law_many_body/results/many_body_source.png
+examples/physics_qg/source_law_many_body/results/validation.json

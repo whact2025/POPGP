@@ -1,0 +1,44 @@
+[
+  {
+    "argv": [
+      "uv",
+      "sync",
+      "--frozen",
+      "--no-editable"
+    ],
+    "category": "runner-control",
+    "command": "uv sync --frozen --no-editable",
+    "duration_seconds": 32.215436,
+    "ended_at": "2026-08-19T16:13:38.154207Z",
+    "exit_code": 0,
+    "id": "mutation-control-sync",
+    "started_at": "2026-08-19T16:13:05.938759Z",
+    "stderr_bytes": 4004,
+    "stderr_path": "commands/001-mutation-control-sync.stderr.txt",
+    "stderr_sha256": "de71366adb595dfd5e3f3ae125296c3f835df5b2b82513e7f1a7f58481bb3b99",
+    "stdout_bytes": 0,
+    "stdout_path": "commands/001-mutation-control-sync.stdout.txt",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "argv": [
+      "python",
+      "-I",
+      "-c",
+      "import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)"
+    ],
+    "category": "runner-control",
+    "command": "python -I -c \"import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)\"",
+    "duration_seconds": 0.130686,
+    "ended_at": "2026-08-19T16:13:38.285122Z",
+    "exit_code": 1,
+    "id": "mutation-control-postflight",
+    "started_at": "2026-08-19T16:13:38.154431Z",
+    "stderr_bytes": 0,
+    "stderr_path": "commands/002-mutation-control-postflight.stderr.txt",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_bytes": 116,
+    "stdout_path": "commands/002-mutation-control-postflight.stdout.txt",
+    "stdout_sha256": "a3325dbe4241f443a74b4523ee7d2e255a676fbf0b09ed1ea401026c9dee979e"
+  }
+]

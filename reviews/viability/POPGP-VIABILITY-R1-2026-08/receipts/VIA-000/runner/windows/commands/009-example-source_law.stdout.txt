@@ -1,0 +1,10 @@
+Perturbative source-law fits
+  relative_entropy: slope=1.999684, residual scale=0.000068, R^2=0.99999998
+  modular_energy: slope=1.000000, residual scale=0.000000, R^2=1.00000000
+  relative_entropy_phi: slope=1.999684, residual scale=0.000068, R^2=0.99999998
+  modular_energy_phi: slope=1.000000, residual scale=0.000000, R^2=1.00000000
+Equal-energy KMS control
+  pure:  {'energy': 1.0, 'entropy': -0.0, 'relative_entropy': 1.4076059644443804, 'modular_energy': 0.5752103826044415}
+  mixed: {'energy': 1.0, 'entropy': 0.6931471805599453, 'relative_entropy': 0.7144587838844353, 'modular_energy': 0.5752103826044417}
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\source_law\results\source_scaling.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\source_law\results\validation.json

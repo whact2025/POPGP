@@ -1,0 +1,4 @@
+Installed 60 packages in 18.61s
+Validation artifact contract failed:
+- examples/physics_qg/source_law/results/source_scaling.png: required visual is not tracked by git
+- examples/physics_qg/source_law/results/source_scaling.png: required visual is empty

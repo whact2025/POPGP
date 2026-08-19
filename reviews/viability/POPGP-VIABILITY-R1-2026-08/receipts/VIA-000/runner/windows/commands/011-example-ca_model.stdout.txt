@@ -1,0 +1,7 @@
+Initialized 32 cells on 10x10 grid.
+Running simulation...
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\ca_model\results\dynamics_cooling.png
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\ca_model\results\evolution_cooling.gif
+Saved: C:\src\POPGP-via000-runner-1-windows-candidate\examples\physics_qg\ca_model\results\validation.json
+
+Done.
