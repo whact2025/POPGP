@@ -1,7 +1,9 @@
 # VIA-000 R2 reproducibility remediation
 
-Status: implemented candidate awaiting independent falsification  
-Predecessor campaign: `POPGP-VIABILITY-R1-2026-08`  
+Status: implemented candidate awaiting independent falsification
+
+Predecessor campaign: `POPGP-VIABILITY-R1-2026-08`
+
 Predecessor outcome: valid / failed / `implementation-capability-failed`
 
 ## Why a new round is required
