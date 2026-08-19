@@ -54,7 +54,7 @@
                            }
                        ],
     "packet_rule_sha256":  {
-                               "VIA-000":  "47705e5244470fa8c946a734536783f9b8c4f3863eb2c369f65031a1c7b84a4b",
+                               "VIA-000":  "78f91b4cef5913ce344bf40d89458c9d7dcb6648ca85443a60db1781f784e547",
                                "VIA-010":  "24929a18f6414e1bc4ebf153fc0b19d0b29238d4c2626d04f715e050b181daf1",
                                "VIA-100":  "af35b67e9f046601ec08db70b41967ab52139694306244eedda5e62e8d72f202",
                                "VIA-150":  "03226be4cd8317ad74349659969ab361bac6027cdc914410a0d33f54d76e6504",

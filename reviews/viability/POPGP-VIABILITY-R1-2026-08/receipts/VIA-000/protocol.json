@@ -12,15 +12,15 @@
     ],
     "required_test_count": 187,
     "required_example_count": 6,
-    "required_mutation_count": 8,
+    "required_mutation_count": 9,
     "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",
     "pdf_pass_count": 2,
     "native_or_scalable_claim_in_scope": false,
     "seed_policy": "Use committed seeds or the custodian seed; never reselect after output."
   },
-  "measurement_procedure": "In disposable exact-SHA clones, retain environment and raw stdout/stderr for base-interpreter environment/cleanliness preflight and postflight checks, locked sync, lint, TeX source validation, full tests, six examples, semantic artifact validation, two pdflatex passes, and eight frozen mutations.",
-  "uncertainty_procedure": "Command exits, test counts, structure, mutation rejection, Python environment-variable absence, preflight tracked/untracked/ignored Git cleanliness, and postflight startup-hook absence are exact. Numeric drift uses only the committed semantic-checker tolerances.",
-  "statistical_analysis": "Pass only if both platforms succeed at the exact candidate, PYTHONPATH, PYTHONHOME, VIRTUAL_ENV, and UV_PROJECT_ENVIRONMENT are unset, a base interpreter performs the preflight and postflight, preflight reports no tracked, untracked, or ignored residue, postflight reports no tracked or untracked residue or virtual-environment startup hook, Windows builds a nonempty PDF, regeneration is contract-equivalent, all corruptions are rejected, and no required result exists only in an agent summary. Missing commands, surviving mutations, a pre-existing or substituted environment, any forbidden repository residue, undeclared import state, or a platform-only result are failures.",
+  "measurement_procedure": "In disposable exact-SHA clones, retain environment and raw stdout/stderr for base-interpreter environment/cleanliness preflight and postflight checks, locked sync, lock-frozen isolated tool and Python execution, lint, TeX source validation, full tests, six examples, semantic artifact validation, two pdflatex passes, and nine frozen mutations.",
+  "uncertainty_procedure": "Command exits, test counts, structure, mutation rejection, Python environment-variable absence, preflight tracked/untracked/ignored Git cleanliness, isolated-environment use, and postflight startup-surface equality are exact. Numeric drift uses only the committed semantic-checker tolerances.",
+  "statistical_analysis": "Pass only if both platforms succeed at the exact candidate, PYTHONPATH, PYTHONHOME, VIRTUAL_ENV, and UV_PROJECT_ENVIRONMENT are unset, a base interpreter performs the preflight and postflight, preflight reports no tracked, untracked, or ignored residue, every uv-run command uses --isolated --frozen, postflight reports no tracked or untracked residue and exactly the locked project's expected .pth and customize startup surface, Windows builds a nonempty PDF, regeneration is contract-equivalent, all corruptions are rejected, and no required result exists only in an agent summary. Missing commands, surviving mutations, a pre-existing or substituted environment, an unexpected or changed startup surface, any forbidden repository residue, undeclared import state, or a platform-only result are failures.",
   "resource_budget": {
     "wall_time_seconds": 3600,
     "memory_bytes": 12884901888,
@@ -29,19 +29,19 @@
   "commands": [
     "python -I -c \"import os,subprocess,sys; ps=[subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True),subprocess.run(['git','status','--porcelain=v1','--untracked-files=normal','--ignored'],capture_output=True,text=True)]; [sys.stdout.write(p.stdout) for p in ps]; [sys.stderr.write(p.stderr) for p in ps]; blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); raise SystemExit(any(p.returncode for p in ps) or any(p.stdout for p in ps) or bool(blocked) or nested)\"",
     "uv sync --frozen",
-    "uv run ruff check .",
-    "uv run python scripts/check_tex.py",
-    "uv run pytest -q",
-    "uv run python -m examples.physics_qg.chain_1d",
-    "uv run python -m examples.physics_qg.grid_2d",
-    "uv run python -m examples.physics_qg.gravity_well",
-    "uv run python -m examples.physics_qg.source_law",
-    "uv run python -m examples.physics_qg.source_law_many_body",
-    "uv run python -m examples.physics_qg.ca_model",
-    "uv run python scripts/check_validation_artifacts.py",
+    "uv run --isolated --frozen ruff check .",
+    "uv run --isolated --frozen python scripts/check_tex.py",
+    "uv run --isolated --frozen pytest -q",
+    "uv run --isolated --frozen python -m examples.physics_qg.chain_1d",
+    "uv run --isolated --frozen python -m examples.physics_qg.grid_2d",
+    "uv run --isolated --frozen python -m examples.physics_qg.gravity_well",
+    "uv run --isolated --frozen python -m examples.physics_qg.source_law",
+    "uv run --isolated --frozen python -m examples.physics_qg.source_law_many_body",
+    "uv run --isolated --frozen python -m examples.physics_qg.ca_model",
+    "uv run --isolated --frozen python scripts/check_validation_artifacts.py",
     "pdflatex -interaction=nonstopmode -halt-on-error docs/framework.tex",
     "git diff --exit-code",
-    "python -I -c \"import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; sys.stdout.write(''.join(h+'\\n' for h in hooks)); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks))\""
+    "python -I -c \"import os,pathlib,subprocess,sys; p=subprocess.run(['git','status','--porcelain=v1','--untracked-files=all'],capture_output=True,text=True); sys.stdout.write(p.stdout); sys.stderr.write(p.stderr); blocked=sorted(k for k in ('PYTHONPATH','PYTHONHOME','VIRTUAL_ENV','UV_PROJECT_ENVIRONMENT') if os.environ.get(k)); sys.stderr.write(('blocked environment: '+','.join(blocked)+'\\n') if blocked else ''); nested=sys.prefix!=sys.base_prefix; sys.stderr.write('base interpreter required\\n' if nested else ''); env_path=pathlib.Path('.venv'); invalid_env=not env_path.is_dir() or env_path.is_symlink(); sys.stderr.write('regular .venv directory required\\n' if invalid_env else ''); hooks=sorted(str(q) for name in ('sitecustomize.py','usercustomize.py') for q in env_path.rglob(name)) if not invalid_env else []; pths=sorted(env_path.rglob('*.pth')) if not invalid_env else []; expected={'_editable_impl_popgp.pth':str(pathlib.Path.cwd().resolve()),'_virtualenv.pth':'import _virtualenv'}; observed={q.name:q.read_text(encoding='utf-8').strip() for q in pths}; invalid_pth=len(pths)!=len(expected) or observed!=expected; sys.stdout.write(''.join(h+'\\n' for h in hooks)); sys.stdout.write(''.join(str(q)+'\\n' for q in pths) if invalid_pth else ''); raise SystemExit(p.returncode or bool(p.stdout) or bool(blocked) or nested or invalid_env or bool(hooks) or invalid_pth)\""
   ],
   "mutation_plan": [
     "Add an unregistered noninformational check identity; require rejection.",
@@ -51,6 +51,7 @@
     "Make a required visual empty and untracked; require both defects.",
     "Move a sensitive scientific diagnostic beyond its frozen threshold; require rejection.",
     "Activate an untracked sitecustomize.py through PYTHONPATH; require base-interpreter preflight or postflight rejection.",
-    "Preplant an ignored .venv startup hook before locked sync; require ignored-state preflight rejection and startup-hook postflight rejection."
+    "Preplant an ignored .venv startup hook before locked sync; require ignored-state preflight rejection and startup-hook postflight rejection.",
+    "Inject an executable .pth startup hook after locked sync; require isolated frozen commands to ignore it and startup-surface postflight to reject it."
   ]
 }

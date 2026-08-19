@@ -18,12 +18,13 @@ the physical mechanism or Tier R.
 ## Current state
 
 - Campaign decision: `pending`.
-- `VIA-000`: preregistered; holdout not started. Clean falsifiers exposed first an
-  undeclared-import/untracked-file blind spot and then an ignored virtual-environment
-  startup-hook blind spot, recorded in
+- `VIA-000`: preregistered; holdout not started. Clean falsifiers exposed an
+  undeclared-import/untracked-file blind spot, ignored virtual-environment customize
+  hooks, and an executable `.pth` variant, recorded in
   [`attacks/VIA-000-ATTACK-PLAN-1.md`](attacks/VIA-000-ATTACK-PLAN-1.md) and
-  [`attacks/VIA-000-ATTACK-PLAN-2.md`](attacks/VIA-000-ATTACK-PLAN-2.md).
-  Pre-holdout protocol refreezes add both attacks and require a new clean falsifier
+  [`attacks/VIA-000-ATTACK-PLAN-2.md`](attacks/VIA-000-ATTACK-PLAN-2.md), and
+  [`attacks/VIA-000-ATTACK-PLAN-3.md`](attacks/VIA-000-ATTACK-PLAN-3.md).
+  Pre-holdout protocol refreezes add all attacks and require a new clean falsifier
   before execution.
 - `VIA-010`, `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300`, `VIA-400`: drafted.
 - Sealed holdout/seed commitments exist outside the repository at the immutable URIs
