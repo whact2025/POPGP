@@ -25,6 +25,7 @@ the entire artifact comparison.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import math
 import subprocess
@@ -32,6 +33,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from PIL import Image, ImageChops, UnidentifiedImageError
 
 CONFIG_REL_TOL = 8 * sys.float_info.epsilon
 DEFAULT_DIAGNOSTIC_REL_TOL = 1e-3
@@ -58,6 +61,9 @@ SENSITIVE_DIAGNOSTIC_TOLERANCES: dict[str, tuple[float, float]] = {
 STABLE_INPUT_KEYS = frozenset({"beta", "epsilons"})
 VISUAL_SUFFIXES = frozenset({".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"})
 VALIDATION_GLOB = "examples/physics_qg/*/results/validation.json"
+VISUAL_MEAN_ABSOLUTE_ERROR_LIMIT = 2.0 / 255.0
+VISUAL_LARGE_ERROR_THRESHOLD = 32
+VISUAL_LARGE_ERROR_FRACTION_LIMIT = 0.02
 INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
     "examples/physics_qg/ca_model/results/validation.json": frozenset(
         {"survivor_entropy_filter_regression"}
@@ -379,6 +385,78 @@ def check_required_visuals(
     return errors
 
 
+def compare_visual_artifact(
+    reference_bytes: bytes,
+    candidate_path: Path,
+) -> list[str]:
+    """Compare a regenerated raster visual to its committed semantic envelope.
+
+    Encoded bytes are intentionally not compared: PNG metadata and compression can
+    differ across platforms.  Geometry, mode, frame count, and bounded RGBA pixel
+    differences are part of the portable contract instead.
+    """
+
+    try:
+        with Image.open(io.BytesIO(reference_bytes)) as reference_image:
+            with Image.open(candidate_path) as candidate_image:
+                reference_format = reference_image.format
+                candidate_format = candidate_image.format
+                reference_frames = getattr(reference_image, "n_frames", 1)
+                candidate_frames = getattr(candidate_image, "n_frames", 1)
+                metadata = (
+                    reference_format,
+                    reference_image.size,
+                    reference_image.mode,
+                    reference_frames,
+                )
+                candidate_metadata = (
+                    candidate_format,
+                    candidate_image.size,
+                    candidate_image.mode,
+                    candidate_frames,
+                )
+                if metadata != candidate_metadata:
+                    return [
+                        "visual metadata changed "
+                        f"(reference={metadata!r}, candidate={candidate_metadata!r})"
+                    ]
+
+                errors: list[str] = []
+                for frame_index in range(reference_frames):
+                    reference_image.seek(frame_index)
+                    candidate_image.seek(frame_index)
+                    reference_rgba = reference_image.convert("RGBA")
+                    candidate_rgba = candidate_image.convert("RGBA")
+                    difference = ImageChops.difference(reference_rgba, candidate_rgba)
+                    histogram = difference.histogram()
+                    channel_samples = reference_rgba.width * reference_rgba.height * 4
+                    total_error = sum(
+                        (value % 256) * count for value, count in enumerate(histogram)
+                    )
+                    mean_absolute_error = total_error / (255.0 * channel_samples)
+                    large_error_count = sum(
+                        count
+                        for value, count in enumerate(histogram)
+                        if value % 256 > VISUAL_LARGE_ERROR_THRESHOLD
+                    )
+                    large_error_fraction = large_error_count / channel_samples
+                    if mean_absolute_error > VISUAL_MEAN_ABSOLUTE_ERROR_LIMIT:
+                        errors.append(
+                            f"frame {frame_index}: normalized mean absolute pixel error "
+                            f"{mean_absolute_error:.6g} exceeds "
+                            f"{VISUAL_MEAN_ABSOLUTE_ERROR_LIMIT:.6g}"
+                        )
+                    if large_error_fraction > VISUAL_LARGE_ERROR_FRACTION_LIMIT:
+                        errors.append(
+                            f"frame {frame_index}: large-error channel fraction "
+                            f"{large_error_fraction:.6g} exceeds "
+                            f"{VISUAL_LARGE_ERROR_FRACTION_LIMIT:.6g}"
+                        )
+                return errors
+    except (OSError, UnidentifiedImageError) as exc:
+        return [f"could not decode visual artifact: {exc}"]
+
+
 def _run_git(repo_root: Path, *arguments: str) -> str:
     completed = subprocess.run(
         ["git", *arguments],
@@ -390,11 +468,26 @@ def _run_git(repo_root: Path, *arguments: str) -> str:
     return completed.stdout
 
 
+def _run_git_bytes(repo_root: Path, *arguments: str) -> bytes:
+    completed = subprocess.run(
+        ["git", *arguments],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    return completed.stdout
+
+
 def _tracked_paths(repo_root: Path) -> set[str]:
     return {line for line in _run_git(repo_root, "ls-files").splitlines() if line}
 
 
-def check_repository(repo_root: Path, *, base_ref: str = "HEAD") -> list[str]:
+def check_repository(
+    repo_root: Path,
+    *,
+    base_ref: str = "HEAD",
+    enforce_change_boundary: bool = False,
+) -> list[str]:
     """Check all working validation artifacts against ``base_ref``."""
 
     repo_root = repo_root.resolve()
@@ -423,6 +516,7 @@ def check_repository(repo_root: Path, *, base_ref: str = "HEAD") -> list[str]:
         )
 
     tracked_paths = _tracked_paths(repo_root)
+    declared_artifact_paths: set[str] = set()
     for relative_path in sorted(base_paths & working_paths):
         working_path = repo_root / relative_path
         try:
@@ -452,11 +546,65 @@ def check_repository(repo_root: Path, *, base_ref: str = "HEAD") -> list[str]:
                 tracked_paths=tracked_paths,
             )
         )
+        artifacts = candidate.get("artifacts") if isinstance(candidate, dict) else None
+        if isinstance(artifacts, list):
+            example_root = working_path.parent.parent
+            for artifact in artifacts:
+                if not isinstance(artifact, str):
+                    continue
+                artifact_path = (example_root / artifact).resolve()
+                try:
+                    artifact_relative = artifact_path.relative_to(repo_root).as_posix()
+                except ValueError:
+                    continue
+                declared_artifact_paths.add(artifact_relative)
+                if artifact_path.suffix.lower() not in VISUAL_SUFFIXES:
+                    continue
+                try:
+                    reference_bytes = _run_git_bytes(
+                        repo_root,
+                        "show",
+                        f"{base_ref}:{artifact_relative}",
+                    )
+                except subprocess.CalledProcessError as exc:
+                    errors.append(f"{artifact_relative}: could not read committed visual: {exc}")
+                    continue
+                errors.extend(
+                    f"{artifact_relative}: {error}"
+                    for error in compare_visual_artifact(reference_bytes, artifact_path)
+                )
         if summary.accepted_numeric_drifts:
             print(
                 f"{relative_path}: accepted {summary.accepted_numeric_drifts} bounded numeric "
                 f"drifts (max abs={summary.largest_absolute_drift:.6g}, "
                 f"max rel={summary.largest_relative_drift:.6g})"
+            )
+
+    if enforce_change_boundary:
+        changed_paths = {
+            line
+            for line in _run_git(repo_root, "diff", "--name-only", base_ref).splitlines()
+            if line
+        }
+        untracked_paths = {
+            line
+            for line in _run_git(
+                repo_root,
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+            ).splitlines()
+            if line
+        }
+        unexpected_changes = changed_paths - declared_artifact_paths
+        if unexpected_changes:
+            errors.append(
+                "non-artifact tracked paths changed during regeneration: "
+                f"{sorted(unexpected_changes)}"
+            )
+        if untracked_paths:
+            errors.append(
+                f"untracked repository paths exist after regeneration: {sorted(untracked_paths)}"
             )
 
     return errors
@@ -466,10 +614,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-ref", default="HEAD", help="committed artifact reference")
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--enforce-change-boundary",
+        action="store_true",
+        help="allow working-tree changes only for artifacts declared by validation JSON",
+    )
     args = parser.parse_args()
 
     try:
-        errors = check_repository(args.repo_root, base_ref=args.base_ref)
+        errors = check_repository(
+            args.repo_root,
+            base_ref=args.base_ref,
+            enforce_change_boundary=args.enforce_change_boundary,
+        )
     except subprocess.CalledProcessError as exc:
         detail = exc.stderr.strip() if exc.stderr else str(exc)
         print(f"validation artifact check could not run: {detail}", file=sys.stderr)

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import math
+from io import BytesIO
 from pathlib import Path
+
+import pytest
+from PIL import Image
 
 from scripts.check_validation_artifacts import (
     check_required_visuals,
     check_validation_semantics,
     compare_validation_documents,
+    compare_visual_artifact,
 )
 
 
@@ -185,6 +190,37 @@ def test_empty_or_untracked_visual_is_rejected(tmp_path: Path) -> None:
 
     assert any("not tracked" in error for error in errors)
     assert any("empty" in error for error in errors)
+
+
+def _png_bytes(color: tuple[int, int, int, int], *, size: tuple[int, int] = (32, 32)) -> bytes:
+    buffer = BytesIO()
+    Image.new("RGBA", size, color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_visual_contract_accepts_equivalent_reencoding(tmp_path: Path) -> None:
+    candidate_path = tmp_path / "plot.png"
+    candidate_path.write_bytes(_png_bytes((10, 20, 30, 255)))
+
+    errors = compare_visual_artifact(
+        _png_bytes((10, 20, 30, 255)),
+        candidate_path,
+    )
+
+    assert errors == []
+
+
+@pytest.mark.negative_control
+def test_visual_contract_rejects_geometry_or_pixel_weakening(tmp_path: Path) -> None:
+    candidate_path = tmp_path / "plot.png"
+    reference = _png_bytes((10, 20, 30, 255))
+    candidate_path.write_bytes(_png_bytes((255, 255, 255, 255), size=(32, 31)))
+    metadata_errors = compare_visual_artifact(reference, candidate_path)
+    assert any("metadata changed" in error for error in metadata_errors)
+
+    candidate_path.write_bytes(_png_bytes((255, 255, 255, 255)))
+    errors = compare_visual_artifact(reference, candidate_path)
+    assert any("pixel error" in error or "large-error" in error for error in errors)
 
 
 def test_headline_must_equal_noninformational_check_conjunction() -> None:

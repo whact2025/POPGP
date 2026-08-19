@@ -57,7 +57,7 @@ uv run python -m examples.physics_qg.gravity_well
 uv run python -m examples.physics_qg.source_law
 uv run python -m examples.physics_qg.source_law_many_body
 uv run python -m examples.physics_qg.ca_model
-uv run python scripts/check_validation_artifacts.py
+uv run python scripts/check_validation_artifacts.py --enforce-change-boundary
 ```
 
 Programmatic usage:

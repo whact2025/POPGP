@@ -31,4 +31,4 @@ jobs:
           uv run python -m examples.physics_qg.source_law_many_body
           uv run python -m examples.physics_qg.ca_model
       - name: Check committed validation contracts and visual outputs
-        run: uv run python scripts/check_validation_artifacts.py
+        run: uv run python scripts/check_validation_artifacts.py --enforce-change-boundary
