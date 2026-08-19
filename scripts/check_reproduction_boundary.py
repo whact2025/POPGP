@@ -69,7 +69,18 @@ def _process_boundary_errors() -> list[str]:
     blocked = sorted(name for name in BLOCKED_ENVIRONMENT if os.environ.get(name))
     if blocked:
         errors.append(f"blocked environment variables are set: {blocked}")
-    if sys.prefix != sys.base_prefix:
+    base_executable = getattr(sys, "_base_executable", None)
+    try:
+        running_base = bool(base_executable) and os.path.samefile(
+            sys.executable,
+            base_executable,
+        )
+    except OSError:
+        running_base = bool(base_executable) and (
+            os.path.normcase(str(Path(sys.executable).resolve()))
+            == os.path.normcase(str(Path(base_executable).resolve()))
+        )
+    if sys.prefix != sys.base_prefix or not running_base:
         errors.append("base interpreter required")
     return errors
 

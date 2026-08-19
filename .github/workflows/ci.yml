@@ -7,6 +7,14 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
+    env:
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/popgp-ci-python-environment
+      UV_CACHE_DIR: ${{ runner.temp }}/popgp-ci-uv-cache
+      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/popgp-ci-python-cache
+      PYTHONDONTWRITEBYTECODE: "1"
+      RUFF_CACHE_DIR: ${{ runner.temp }}/popgp-ci-ruff-cache
+      MPLCONFIGDIR: ${{ runner.temp }}/popgp-ci-matplotlib-cache
+      XDG_CACHE_HOME: ${{ runner.temp }}/popgp-ci-general-cache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,23 +23,25 @@ jobs:
       - name: Install uv
         run: python -m pip install uv==0.11.11
       - name: Sync locked environment
-        run: uv sync --frozen
+        run: uv sync --frozen --no-editable
       - name: Lint
-        run: uv run ruff check .
+        run: uv run --frozen --no-editable ruff check .
       - name: Validate manuscript source
-        run: uv run python scripts/check_tex.py
+        run: uv run --frozen --no-editable python scripts/check_tex.py
       - name: Test
-        run: uv run pytest -q
+        run: uv run --frozen --no-editable python -m pytest -q -p no:cacheprovider
       - name: Regenerate documented examples
         run: |
-          uv run python -m examples.physics_qg.chain_1d
-          uv run python -m examples.physics_qg.grid_2d
-          uv run python -m examples.physics_qg.gravity_well
-          uv run python -m examples.physics_qg.source_law
-          uv run python -m examples.physics_qg.source_law_many_body
-          uv run python -m examples.physics_qg.ca_model
+          uv run --frozen --no-editable python -m examples.physics_qg.chain_1d
+          uv run --frozen --no-editable python -m examples.physics_qg.grid_2d
+          uv run --frozen --no-editable python -m examples.physics_qg.gravity_well
+          uv run --frozen --no-editable python -m examples.physics_qg.source_law
+          uv run --frozen --no-editable python -m examples.physics_qg.source_law_many_body
+          uv run --frozen --no-editable python -m examples.physics_qg.ca_model
       - name: Check committed validation contracts and visual outputs
-        run: uv run python scripts/check_validation_artifacts.py --enforce-change-boundary
+        run: >-
+          uv run --frozen --no-editable python
+          scripts/check_validation_artifacts.py --enforce-change-boundary
       - name: Retain regenerated artifacts for failed portability checks
         if: failure()
         uses: actions/upload-artifact@v4
