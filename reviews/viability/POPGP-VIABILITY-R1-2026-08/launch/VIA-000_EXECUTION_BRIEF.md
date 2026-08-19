@@ -79,7 +79,7 @@ commitment exists.
 ```text
 Act as falsifier for POPGP campaign POPGP-VIABILITY-R1-2026-08, packet VIA-000.
 Your frozen seat identity is codex-via000-falsifier and your session ID is
-popgp-viability-r1-2026-08-via000-falsifier-session-6.
+popgp-viability-r1-2026-08-via000-falsifier-session-7.
 
 Use a fresh isolated task at the activated handoff listed above. Read the required
 public files named in VIA-000_EXECUTION_BRIEF.md. Do not request or inspect sealed manifests, final labels,
@@ -90,7 +90,7 @@ summary. Specifically attack ignored virtual-environment customize and executabl
 `.pth` startup hooks including self-cleaning allowed-file variants, isolated/frozen
 non-editable uv execution, and the base-interpreter
 preflight/postflight boundary. Do not repair the implementation.
-Create `attacks/VIA-000-ATTACK-PLAN-6.md`, record exact commands and expected
+Create `attacks/VIA-000-ATTACK-PLAN-7.md`, record exact commands and expected
 rejection conditions, commit only that artifact,
 leave the worktree clean, and return its commit, path, SHA-256, actual identity fields,
 and whether any exposure boundary was crossed.
@@ -107,9 +107,10 @@ Start only after the packet is validator-clean in attacked/holdout-started state
 Use fresh exact-SHA clones of scientific candidate
 9a29e05f803666bf0e3a28417ea399e3e26769fc. Do not inspect the sealed holdout or seed.
 Run every command in protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json on Linux and
-Windows as specified, repeat the PDF command twice, execute the ten committed mutation
-tests corresponding exactly to the mutation plan, and retain raw stdout/stderr,
-environment, exit status, duration, artifact hashes, PDF metadata, Git cleanliness,
+Windows as specified, create the declared fresh external PDF evidence directory,
+repeat the PDF command twice there, execute the ten committed mutation tests
+corresponding exactly to the mutation plan, and retain raw stdout/stderr,
+environment, exit status, duration, external PDF artifact hashes and metadata, Git cleanliness,
 and residue checks. No native/CUDA result is in scope.
 
 Write a strict JSON raw-results document containing Boolean capabilities named

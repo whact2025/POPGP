@@ -27,7 +27,9 @@ the physical mechanism or Tier R.
   [`attacks/VIA-000-ATTACK-PLAN-4.md`](attacks/VIA-000-ATTACK-PLAN-4.md). The fifth
   plan confirmed those attacks are closed and exposed a clean non-editable pytest
   launcher defect, recorded in
-  [`attacks/VIA-000-ATTACK-PLAN-5.md`](attacks/VIA-000-ATTACK-PLAN-5.md).
+  [`attacks/VIA-000-ATTACK-PLAN-5.md`](attacks/VIA-000-ATTACK-PLAN-5.md). The sixth
+  plan confirmed all 187 tests pass and exposed repository-local PDF residue, recorded
+  in [`attacks/VIA-000-ATTACK-PLAN-6.md`](attacks/VIA-000-ATTACK-PLAN-6.md).
   Pre-holdout protocol refreezes add all attacks and require a new clean falsifier
   before execution.
 - `VIA-010`, `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300`, `VIA-400`: drafted.
