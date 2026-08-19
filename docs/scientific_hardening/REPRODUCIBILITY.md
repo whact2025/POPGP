@@ -52,7 +52,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | 1168 s | 192 passed |
+| `pytest -q` | about 1200 s | 237 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -88,9 +88,21 @@ declared validation contract rather than serialized bytes: JSON schema, types, a
 shapes, metadata, stable configuration, check identities, and pass/fail outcomes stay
 strict; all numbers must be finite; ordinary diagnostics use narrow tolerances; and
 the small set of sensitive fit/error fields has an explicit bounded allowlist in
-`scripts/check_validation_artifacts.py`. Required visual outputs must be tracked,
-present, and nonempty. CI does not verify that every checked-out visual was rewritten
-during the current run, and PNG pixels and metadata are not hashed across environments.
+`scripts/check_validation_artifacts.py`. Every registered check Boolean is also
+recomputed from its retained typed operands. Required raster outputs must preserve
+format/geometry and satisfy global, sliding-local, and connected-region pixel bounds;
+encoded PNG bytes and metadata are not compared across environments.
+
+The prospective VIA-000 R2 protocol adds stricter evidence-integrity execution beyond
+ordinary CI. A base interpreter invoked with `-I -S` creates the external startup
+snapshot, then `scripts/check_reproduction_boundary.py run` verifies that snapshot
+before and after each child. Python children use
+`scripts/run_without_startup_hooks.py` under isolated non-editable `python -I -S`,
+which inserts dependency directories directly and never evaluates `.pth`,
+`sitecustomize.py`, or `usercustomize.py`. The final repository boundary uses a fresh
+temporary Git index loaded from the frozen tree, rejects nonordinary index flags and
+staged state, and enumerates ignored residue. These mechanisms await a fresh
+preregistered two-platform R2 run; they are not a new viability result.
 
 ## Negative and sensitivity results
 

@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from scripts.check_validation_artifacts import (
     check_required_visuals,
@@ -221,6 +221,203 @@ def test_visual_contract_rejects_geometry_or_pixel_weakening(tmp_path: Path) -> 
     candidate_path.write_bytes(_png_bytes((255, 255, 255, 255)))
     errors = compare_visual_artifact(reference, candidate_path)
     assert any("pixel error" in error or "large-error" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_visual_contract_rejects_localized_structured_corruption(tmp_path: Path) -> None:
+    source = Path(
+        "examples/physics_qg/gravity_well/results/source_comparison.png"
+    )
+    reference = source.read_bytes()
+    candidate_path = tmp_path / "source_comparison.png"
+    with Image.open(BytesIO(reference)) as image:
+        candidate = image.convert("RGBA")
+    width, height = candidate.size
+    ImageDraw.Draw(candidate).rectangle(
+        (
+            width // 2 - 90,
+            height // 2 - 35,
+            width // 2 + 89,
+            height // 2 + 35,
+        ),
+        fill=(255, 0, 0, 255),
+    )
+    candidate.save(candidate_path)
+
+    errors = compare_visual_artifact(reference, candidate_path)
+
+    assert any("local" in error or "connected high-error" in error for error in errors)
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("mutation", ["remove_curve", "move_curve", "remove_annotation"])
+def test_visual_contract_rejects_thin_and_annotation_mutations(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    reference_image = Image.new("RGBA", (512, 512), (255, 255, 255, 255))
+    candidate_image = reference_image.copy()
+    reference_draw = ImageDraw.Draw(reference_image)
+    candidate_draw = ImageDraw.Draw(candidate_image)
+    if mutation == "remove_curve":
+        reference_draw.line((50, 256, 462, 256), fill=(0, 0, 0, 255), width=3)
+    elif mutation == "move_curve":
+        reference_draw.line((50, 250, 462, 250), fill=(0, 0, 0, 255), width=3)
+        candidate_draw.line((50, 256, 462, 256), fill=(0, 0, 0, 255), width=3)
+    else:
+        # A dense legend/annotation surrogate that occupies well below the old 2%
+        # global-error allowance.
+        reference_draw.rectangle((100, 220, 180, 240), fill=(0, 0, 0, 255))
+
+    reference = BytesIO()
+    reference_image.save(reference, format="PNG")
+    candidate_path = tmp_path / f"{mutation}.png"
+    candidate_image.save(candidate_path)
+
+    errors = compare_visual_artifact(reference.getvalue(), candidate_path)
+
+    assert any("local" in error or "connected high-error" in error for error in errors)
+
+
+@pytest.mark.negative_control
+def test_threshold_crossing_operand_recomputes_failed_gate() -> None:
+    relative_path = "examples/physics_qg/grid_2d/results/validation.json"
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    placeholder = next(
+        check
+        for check in document["checks"]
+        if check["name"] == "placeholder_source_degeneracy"
+    )
+    placeholder["value"]["phi_range"] = 4e-9
+    document["pipeline"]["pi_time"]["phi_range"] = 4e-9
+
+    comparison = compare_validation_documents(
+        json.loads(Path(relative_path).read_text(encoding="utf-8")),
+        document,
+    )
+    semantic_errors = check_validation_semantics(document, relative_path)
+
+    assert comparison.passed  # The bounded portability comparison is not the decision oracle.
+    assert any("recompute to False" in error for error in semantic_errors)
+
+
+DECISION_MARGIN_CASES = [
+    ("ca_model", "survivor_entropy_filter_regression"),
+    ("chain_1d", "stability_selection"),
+    ("chain_1d", "blind_edge_recovery"),
+    ("chain_1d", "placeholder_clock_constraint_solved"),
+    ("gravity_well", "nonzero_source_constraint_residual"),
+    ("gravity_well", "monotonic_falloff"),
+    ("gravity_well", "grid_symmetry"),
+    ("gravity_well", "redshift_positive"),
+    ("grid_2d", "blind_edge_recovery"),
+    ("grid_2d", "topology_preservation"),
+    ("grid_2d", "finite_graph_spectral_peak"),
+    ("grid_2d", "mds_stress"),
+    ("grid_2d", "placeholder_source_degeneracy"),
+    ("source_law", "relative_entropy_is_quadratic"),
+    ("source_law", "affine_modular_linearity_identity_regression"),
+    ("source_law", "linear_solver_homogeneity_identity_regression"),
+    ("source_law_many_body", "nonaffine_kms_response_orders"),
+    ("source_law_many_body", "quadratic_gate_rejects_first_order_negative_control"),
+    ("source_law_many_body", "kms_and_local_decomposition_identities"),
+    (
+        "source_law_many_body",
+        "local_energy_decomposition_consistency_and_spreading",
+    ),
+    ("source_law_many_body", "nonaffine_kms_parameter_sensitivity"),
+    ("source_law_many_body", "isospectral_unitary_identity_regression"),
+    ("source_law_many_body", "spreading_requires_noncommuting_dynamics"),
+    (
+        "source_law_many_body",
+        "pipeline_reduced_modular_blindness_and_density_repair",
+    ),
+    ("source_law_many_body", "negative_energy_candidate_has_slower_source_clock"),
+]
+
+
+def _cross_decision_margin(document: dict, check: dict) -> None:
+    name = check["name"]
+    value = check["value"]
+    if name == "survivor_entropy_filter_regression":
+        check["value"] = check["threshold"] * 2
+    elif name == "stability_selection":
+        value["invalid"] = value["valid"]
+    elif name == "blind_edge_recovery":
+        value["precision"] = 0.9995
+    elif name == "placeholder_clock_constraint_solved":
+        check["value"] = 1e-9
+    elif name == "nonzero_source_constraint_residual":
+        check["value"] = 1e-10
+    elif name == "monotonic_falloff":
+        value["d=1"] = value["d=0"]
+    elif name == "grid_symmetry":
+        check["value"] = check["threshold"]
+    elif name == "redshift_positive":
+        check["value"] = 0.0
+    elif name == "topology_preservation":
+        value["avg_dist_neighbors"] = value["avg_dist_non_neighbors"]
+    elif name == "finite_graph_spectral_peak":
+        check["value"] = 2.0005
+    elif name == "mds_stress":
+        check["value"] = 0.5
+    elif name == "placeholder_source_degeneracy":
+        value["phi_range"] = 4e-9
+        document["pipeline"]["pi_time"]["phi_range"] = 4e-9
+    elif name == "relative_entropy_is_quadratic":
+        value["slope"] = 2.02
+    elif name == "affine_modular_linearity_identity_regression":
+        value["max_absolute_identity_error"] = 1e-10
+    elif name == "linear_solver_homogeneity_identity_regression":
+        value["max_ratio_spread"] = 1e-9
+    elif name == "nonaffine_kms_response_orders":
+        value["nonaffine_midpoint_deviation"] = 0.0
+    elif name == "quadratic_gate_rejects_first_order_negative_control":
+        assessment = value["assessment"]
+        assessment["full_window"]["coefficient"] = 1.0
+        assessment["relative_coefficient_difference"] = 0.0
+        assessment["slope_deviation"] = 0.0
+        assessment["full_window"]["normalized_rmse"] = 0.0
+        assessment["lower_window"]["normalized_rmse"] = 0.0
+    elif name == "kms_and_local_decomposition_identities":
+        value["kms_identity_error"] = 1e-10
+    elif name == "local_energy_decomposition_consistency_and_spreading":
+        value["generator_observable_consistency_drift"] = 1e-10
+    elif name == "nonaffine_kms_parameter_sensitivity":
+        value[0]["quadratic_coefficient_relative_error"] = 1.0
+    elif name == "isospectral_unitary_identity_regression":
+        value["max_D_minus_modular_energy"] = (
+            2 * value["dimension_scaled_float64_tolerance"]
+        )
+    elif name == "spreading_requires_noncommuting_dynamics":
+        value["maximum_profile_change_at_t1"] = 1e-10
+    elif name == "pipeline_reduced_modular_blindness_and_density_repair":
+        value["kms_density_match_error"] = 1e-10
+    elif name == "negative_energy_candidate_has_slower_source_clock":
+        value["constraint_residual"] = 1e-10
+    else:  # pragma: no cover - the parametrized matrix must stay exhaustive.
+        raise AssertionError(f"missing decision-margin mutation for {name}")
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(("example", "check_name"), DECISION_MARGIN_CASES)
+def test_every_float_decision_margin_is_recomputed(
+    example: str,
+    check_name: str,
+) -> None:
+    relative_path = f"examples/physics_qg/{example}/results/validation.json"
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    check = next(item for item in document["checks"] if item["name"] == check_name)
+    original_passed = check["passed"]
+
+    _cross_decision_margin(document, check)
+    errors = check_validation_semantics(document, relative_path)
+
+    assert check["passed"] is original_passed
+    assert any(
+        "recomputed outcome" in error or "recompute to" in error
+        for error in errors
+    ), errors
 
 
 def test_headline_must_equal_noninformational_check_conjunction() -> None:

@@ -9,12 +9,12 @@ serialized bytes:
 * configuration floats allow only a few machine epsilons of serialization drift;
 * diagnostic floats use a narrow default tolerance;
 * a small named set of ill-conditioned fit diagnostics has an explicit wider policy;
-* every numeric value must remain finite; and
-* every declared visual artifact must be tracked, present, and nonempty.
+* every numeric value must remain finite;
+* every decision Boolean is recomputed from its retained typed operands; and
+* every declared visual artifact must satisfy global and locality-aware pixel bounds.
 
-The visual smoke check does not prove that each example rewrote its checked-out image
-during the current run. CI attests structured regeneration plus visual availability,
-not cross-platform image-byte regeneration.
+The change-boundary mode also compares the actual working tree to a fresh index loaded
+from the frozen Git tree. It does not trust mutable index flags or omit ignored state.
 
 The wider policies below correspond to fields that changed materially in the frozen
 Linux CI diff for PR #2 while all associated scientific gates remained unchanged.
@@ -34,7 +34,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from PIL import Image, ImageChops, UnidentifiedImageError
+from scipy import ndimage
+
+from scripts.check_reproduction_boundary import (
+    check_repository_boundary,
+    is_known_runtime_ignored_path,
+)
 
 CONFIG_REL_TOL = 8 * sys.float_info.epsilon
 DEFAULT_DIAGNOSTIC_REL_TOL = 1e-3
@@ -64,6 +71,9 @@ VALIDATION_GLOB = "examples/physics_qg/*/results/validation.json"
 VISUAL_MEAN_ABSOLUTE_ERROR_LIMIT = 2.0 / 255.0
 VISUAL_LARGE_ERROR_THRESHOLD = 32
 VISUAL_LARGE_ERROR_FRACTION_LIMIT = 0.02
+VISUAL_LOCAL_WINDOW_SIZE = 32
+VISUAL_LOCAL_MEAN_ERROR_LIMIT = 0.25
+VISUAL_LARGEST_HIGH_ERROR_COMPONENT_LIMIT = 768
 INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
     "examples/physics_qg/ca_model/results/validation.json": frozenset(
         {"survivor_entropy_filter_regression"}
@@ -276,6 +286,226 @@ def load_json_document(raw: str, *, source: str) -> Any:
         raise ValueError(f"{source}: invalid strict JSON: {exc}") from exc
 
 
+def _quadratic_assessment_outcome(
+    assessment: Any,
+    *,
+    location: str,
+) -> tuple[bool, list[str]]:
+    errors: list[str] = []
+    full = assessment["full_window"]
+    lower = assessment["lower_window"]
+    expected = bool(
+        full["coefficient"] > 0.0
+        and assessment["relative_coefficient_difference"] <= 1e-3
+        and assessment["slope_deviation"] <= 0.02
+        and max(full["normalized_rmse"], lower["normalized_rmse"]) <= 1e-2
+    )
+    if assessment["passed"] is not expected:
+        errors.append(
+            f"{location}.passed={assessment['passed']!r} but recomputed outcome is {expected}"
+        )
+    return expected, errors
+
+
+def _richardson_outcome(
+    limit: Any,
+    *,
+    location: str,
+) -> tuple[bool, list[str]]:
+    expected = bool(abs(limit["estimate"]) > 10.0 * limit["total_error"])
+    errors = []
+    if limit["passed"] is not expected:
+        errors.append(
+            f"{location}.passed={limit['passed']!r} but recomputed outcome is {expected}"
+        )
+    return expected, errors
+
+
+def _decision_outcome(
+    document: dict[str, Any],
+    check: dict[str, Any],
+    relative_path: str,
+) -> tuple[bool | None, list[str]]:
+    """Recompute a registered scientific decision from retained typed operands."""
+
+    example = document.get("example")
+    name = check["name"]
+    value = check.get("value")
+    errors: list[str] = []
+    try:
+        if example == "ca_model":
+            if name == "population_survival":
+                return value > 0, errors
+            if name == "population_growth":
+                return value["final"] >= value["initial"], errors
+            if name == "survivor_entropy_filter_regression":
+                return value < check["threshold"], errors
+
+        if example == "chain_1d":
+            if name == "stability_selection":
+                return value["invalid"] > value["valid"], errors
+            if name == "contiguous_cells":
+                return value == [[0, 1], [2, 3], [4, 5], [6, 7]], errors
+            if name == "su2_equivariance_identity_regression":
+                return value is True, errors
+            if name == "blind_edge_recovery":
+                return value["precision"] == 1.0 and value["recall"] == 1.0, errors
+            if name == "geometry_1d_ordering":
+                rank = value["rank"]
+                increasing = all(left <= right for left, right in zip(rank, rank[1:]))
+                decreasing = all(left >= right for left, right in zip(rank, rank[1:]))
+                return increasing or decreasing, errors
+            if name == "dimension_selection":
+                return value == 1, errors
+            if name == "placeholder_clock_constraint_solved":
+                return value < 1e-10, errors
+
+        if example == "gravity_well":
+            if name == "pi_res_admissibility":
+                return value["admissible"] is True, errors
+            if name == "nonzero_source_constraint_residual":
+                return value < 1e-12, errors
+            if name == "monotonic_falloff":
+                ordered = [value[key] for key in sorted(value, key=lambda key: int(key[2:]))]
+                return all(left < right for left, right in zip(ordered, ordered[1:])), errors
+            if name == "grid_symmetry":
+                return value < check["threshold"], errors
+            if name == "negative_well_at_source":
+                return value["argmin"] == value["center"], errors
+            if name == "redshift_positive":
+                return value > 0.0, errors
+            if name == "dimension_selection_2d":
+                return value == 2, errors
+
+        if example == "grid_2d":
+            if name == "pi_res_admissibility":
+                return value["admissible"] is True, errors
+            if name == "blind_edge_recovery":
+                return value["precision"] == 1.0 and value["recall"] == 1.0, errors
+            if name == "dimension_selection":
+                return value == 2, errors
+            if name == "topology_preservation":
+                return value["avg_dist_neighbors"] < value["avg_dist_non_neighbors"], errors
+            if name == "finite_graph_spectral_peak":
+                return 1.0 <= value <= 2.0, errors
+            if name == "mds_stress":
+                return value < 0.5, errors
+            if name == "placeholder_source_degeneracy":
+                pipeline_value = document["pipeline"]["pi_time"]
+                for key in ("effective_source_norm", "phi_range", "constraint_residual"):
+                    if value[key] != pipeline_value[key]:
+                        errors.append(
+                            f"{name!r} operand {key!r} differs from pipeline.pi_time"
+                        )
+                return (
+                    value["effective_source_norm"] < 1e-12
+                    and value["phi_range"] < 1e-12
+                ), errors
+
+        if example == "source_law":
+            if name == "relative_entropy_is_quadratic":
+                return abs(value["slope"] - 2.0) < 0.02, errors
+            if name == "affine_modular_linearity_identity_regression":
+                return value["max_absolute_identity_error"] < 1e-12, errors
+            if name == "linear_solver_homogeneity_identity_regression":
+                return (
+                    abs(value["relative_entropy_phi"]["slope"] - 2.0) < 0.02
+                    and value["max_ratio_spread"] < 1e-10
+                ), errors
+            if name == "equal_energy_entropy_confound":
+                return (
+                    value["equal_energy"] is True
+                    and value["equal_modular_energy"] is True
+                    and value["different_relative_entropy"] is True
+                ), errors
+
+        if example == "source_law_many_body":
+            if name == "nonaffine_kms_response_orders":
+                quadratic, nested = _quadratic_assessment_outcome(
+                    value["relative_entropy_quadratic_assessment"],
+                    location=f"check {name!r}.value.relative_entropy_quadratic_assessment",
+                )
+                susceptibility, limit_errors = _richardson_outcome(
+                    value["modular_susceptibility"],
+                    location=f"check {name!r}.value.modular_susceptibility",
+                )
+                errors.extend([*nested, *limit_errors])
+                return (
+                    quadratic
+                    and susceptibility
+                    and value["quadratic_coefficient_relative_error"] <= 5e-4
+                    and value["modular_susceptibility_relative_error"] <= 1e-6
+                    and value["nonaffine_midpoint_deviation"] > 1e-9
+                ), errors
+            if name == "quadratic_gate_rejects_first_order_negative_control":
+                quadratic, nested = _quadratic_assessment_outcome(
+                    value["assessment"],
+                    location=f"check {name!r}.value.assessment",
+                )
+                errors.extend(nested)
+                return not quadratic, errors
+            if name == "kms_and_local_decomposition_identities":
+                return max(value.values()) < 5e-13, errors
+            if name == "local_energy_decomposition_consistency_and_spreading":
+                return (
+                    value["generator_observable_consistency_drift"] < 1e-12
+                    and value["initial_endpoint_fraction"] < 1e-12
+                    and value["t1_endpoint_fraction"] > 0.05
+                ), errors
+            if name == "nonaffine_kms_parameter_sensitivity":
+                outcomes: list[bool] = []
+                for index, case in enumerate(value):
+                    quadratic, nested = _quadratic_assessment_outcome(
+                        case["relative_entropy_quadratic_assessment"],
+                        location=f"check {name!r}.value[{index}].quadratic",
+                    )
+                    susceptibility, limit_errors = _richardson_outcome(
+                        case["modular_susceptibility"],
+                        location=f"check {name!r}.value[{index}].susceptibility",
+                    )
+                    errors.extend([*nested, *limit_errors])
+                    expected_case = bool(
+                        quadratic
+                        and susceptibility
+                        and case["quadratic_coefficient_relative_error"] <= 5e-4
+                        and case["susceptibility_relative_error"] <= 1e-6
+                    )
+                    if case["passed"] is not expected_case:
+                        errors.append(
+                            f"check {name!r}.value[{index}].passed={case['passed']!r} "
+                            f"but recomputed outcome is {expected_case}"
+                        )
+                    outcomes.append(expected_case)
+                return all(outcomes), errors
+            if name == "isospectral_unitary_identity_regression":
+                tolerance = value["dimension_scaled_float64_tolerance"]
+                return (
+                    value["max_D_minus_modular_energy"] <= tolerance
+                    and value["max_entropy_change"] <= tolerance
+                ), errors
+            if name == "spreading_requires_noncommuting_dynamics":
+                return value["maximum_profile_change_at_t1"] < 1e-12, errors
+            if name == "pipeline_reduced_modular_blindness_and_density_repair":
+                return (
+                    value["reduced_modular_source_norm"] < 1e-12
+                    and value["kms_energy_density_source_norm"] > 1e-3
+                    and value["kms_density_match_error"] < 1e-14
+                ), errors
+            if name == "negative_energy_candidate_has_slower_source_clock":
+                return (
+                    min(range(len(value["phi"])), key=value["phi"].__getitem__) == 2
+                    and value["center_to_edge_clock_rate_ratio"] < 1.0
+                    and value["edge_observed_redshift"] > 0.0
+                    and value["constraint_residual"] < 1e-12
+                ), errors
+    except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+        return None, [f"check {name!r} decision operands are invalid: {exc}"]
+
+    return None, [
+        f"check {name!r} in {relative_path} has no registered executable decision predicate"
+    ]
+
+
 def check_validation_semantics(
     document: Any,
     relative_path: str,
@@ -321,6 +551,17 @@ def check_validation_semantics(
         else:
             noninformational_names.add(name)
             noninformational_outcomes.append(passed)
+        recomputed, decision_errors = _decision_outcome(
+            document,
+            check,
+            relative_path,
+        )
+        errors.extend(decision_errors)
+        if recomputed is not None and passed is not recomputed:
+            errors.append(
+                f"check {name!r} passed={passed} but retained operands recompute to "
+                f"{recomputed}"
+            )
 
     expected_informational = INFORMATIONAL_CHECK_ALLOWLIST.get(
         relative_path, frozenset()
@@ -428,6 +669,9 @@ def compare_visual_artifact(
                     reference_rgba = reference_image.convert("RGBA")
                     candidate_rgba = candidate_image.convert("RGBA")
                     difference = ImageChops.difference(reference_rgba, candidate_rgba)
+                    reference_array = np.asarray(reference_rgba, dtype=np.int16)
+                    candidate_array = np.asarray(candidate_rgba, dtype=np.int16)
+                    absolute_error = np.abs(reference_array - candidate_array)
                     histogram = difference.histogram()
                     channel_samples = reference_rgba.width * reference_rgba.height * 4
                     total_error = sum(
@@ -440,6 +684,29 @@ def compare_visual_artifact(
                         if value % 256 > VISUAL_LARGE_ERROR_THRESHOLD
                     )
                     large_error_fraction = large_error_count / channel_samples
+                    pixel_error = absolute_error.mean(axis=2) / 255.0
+                    local_mean_error = float(
+                        ndimage.uniform_filter(
+                            pixel_error,
+                            size=VISUAL_LOCAL_WINDOW_SIZE,
+                            mode="constant",
+                        ).max()
+                    )
+                    high_error_pixels = (
+                        absolute_error.max(axis=2) > VISUAL_LARGE_ERROR_THRESHOLD
+                    )
+                    components, component_count = ndimage.label(
+                        high_error_pixels,
+                        structure=np.ones((3, 3), dtype=np.uint8),
+                    )
+                    component_sizes = (
+                        np.bincount(components.ravel())[1:]
+                        if component_count
+                        else np.asarray([], dtype=int)
+                    )
+                    largest_component = (
+                        int(component_sizes.max()) if component_sizes.size else 0
+                    )
                     if mean_absolute_error > VISUAL_MEAN_ABSOLUTE_ERROR_LIMIT:
                         errors.append(
                             f"frame {frame_index}: normalized mean absolute pixel error "
@@ -451,6 +718,19 @@ def compare_visual_artifact(
                             f"frame {frame_index}: large-error channel fraction "
                             f"{large_error_fraction:.6g} exceeds "
                             f"{VISUAL_LARGE_ERROR_FRACTION_LIMIT:.6g}"
+                        )
+                    if local_mean_error > VISUAL_LOCAL_MEAN_ERROR_LIMIT:
+                        errors.append(
+                            f"frame {frame_index}: maximum local {VISUAL_LOCAL_WINDOW_SIZE}x"
+                            f"{VISUAL_LOCAL_WINDOW_SIZE} normalized mean pixel error "
+                            f"{local_mean_error:.6g} exceeds "
+                            f"{VISUAL_LOCAL_MEAN_ERROR_LIMIT:.6g}"
+                        )
+                    if largest_component > VISUAL_LARGEST_HIGH_ERROR_COMPONENT_LIMIT:
+                        errors.append(
+                            f"frame {frame_index}: largest connected high-error region has "
+                            f"{largest_component} pixels, exceeding "
+                            f"{VISUAL_LARGEST_HIGH_ERROR_COMPONENT_LIMIT}"
                         )
                 return errors
     except (OSError, UnidentifiedImageError) as exc:
@@ -581,31 +861,14 @@ def check_repository(
             )
 
     if enforce_change_boundary:
-        changed_paths = {
-            line
-            for line in _run_git(repo_root, "diff", "--name-only", base_ref).splitlines()
-            if line
-        }
-        untracked_paths = {
-            line
-            for line in _run_git(
+        errors.extend(
+            check_repository_boundary(
                 repo_root,
-                "ls-files",
-                "--others",
-                "--exclude-standard",
-            ).splitlines()
-            if line
-        }
-        unexpected_changes = changed_paths - declared_artifact_paths
-        if unexpected_changes:
-            errors.append(
-                "non-artifact tracked paths changed during regeneration: "
-                f"{sorted(unexpected_changes)}"
+                declared_artifact_paths,
+                base_ref=base_ref,
+                allowed_ignored_path=is_known_runtime_ignored_path,
             )
-        if untracked_paths:
-            errors.append(
-                f"untracked repository paths exist after regeneration: {sorted(untracked_paths)}"
-            )
+        )
 
     return errors
 
