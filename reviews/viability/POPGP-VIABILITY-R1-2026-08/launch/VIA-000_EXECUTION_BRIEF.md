@@ -35,7 +35,7 @@ copy its conclusions as evidence.
 ## Required order
 
 1. Custodian verifies the two sealed VIA-000 commitments without revealing contents.
-2. Falsifier commits a public attack plan covering all nine frozen mutation families.
+2. Falsifier commits a public attack plan covering all ten frozen mutation families.
 3. The campaign maintainer records lifecycle `attacked`, `holdout_started: true`, and
    the attack-plan receipt; the validator must remain clean.
 4. Reproduction runner executes the exact protocol in fresh exact-SHA Linux and
@@ -79,17 +79,18 @@ commitment exists.
 ```text
 Act as falsifier for POPGP campaign POPGP-VIABILITY-R1-2026-08, packet VIA-000.
 Your frozen seat identity is codex-via000-falsifier and your session ID is
-popgp-viability-r1-2026-08-via000-falsifier-session-4.
+popgp-viability-r1-2026-08-via000-falsifier-session-5.
 
 Use a fresh isolated task at the activated handoff listed above. Read the required
 public files named in VIA-000_EXECUTION_BRIEF.md. Do not request or inspect sealed manifests, final labels,
-or builder conclusions. Independently construct executable attacks for all nine frozen
+or builder conclusions. Independently construct executable attacks for all ten frozen
 mutation families and add boundary attacks for undeclared state, OS-only success,
 semantic drift, PDF failure, dirty regeneration, and evidence available only in a
 summary. Specifically attack ignored virtual-environment customize and executable
-`.pth` startup hooks, isolated/frozen uv execution, and the base-interpreter
+`.pth` startup hooks including self-cleaning allowed-file variants, isolated/frozen
+non-editable uv execution, and the base-interpreter
 preflight/postflight boundary. Do not repair the implementation.
-Create `attacks/VIA-000-ATTACK-PLAN-4.md`, record exact commands and expected
+Create `attacks/VIA-000-ATTACK-PLAN-5.md`, record exact commands and expected
 rejection conditions, commit only that artifact,
 leave the worktree clean, and return its commit, path, SHA-256, actual identity fields,
 and whether any exposure boundary was crossed.
@@ -106,7 +107,7 @@ Start only after the packet is validator-clean in attacked/holdout-started state
 Use fresh exact-SHA clones of scientific candidate
 9a29e05f803666bf0e3a28417ea399e3e26769fc. Do not inspect the sealed holdout or seed.
 Run every command in protocols/POPGP-VIABILITY-R1-2026-08/VIA-000.json on Linux and
-Windows as specified, repeat the PDF command twice, execute the nine committed mutation
+Windows as specified, repeat the PDF command twice, execute the ten committed mutation
 tests corresponding exactly to the mutation plan, and retain raw stdout/stderr,
 environment, exit status, duration, artifact hashes, PDF metadata, Git cleanliness,
 and residue checks. No native/CUDA result is in scope.
