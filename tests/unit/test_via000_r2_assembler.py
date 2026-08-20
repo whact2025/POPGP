@@ -8,6 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+import yaml
+
+from scripts.check_viability_campaign import _validate_custody
 from tests.unit.test_viability_raw_evidence_contract import (
     CANDIDATE_COMMIT,
     CANDIDATE_TREE,
@@ -21,6 +25,7 @@ from tests.unit.test_viability_raw_evidence_contract import (
 )
 
 ASSEMBLER = ROOT / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py"
+PACKET = ROOT / "reviews/viability/POPGP-VIABILITY-R2-2026-08/packets/VIA-000.yaml"
 
 
 def _write_json(path: Path, document: object) -> None:
@@ -93,7 +98,11 @@ def _assembler_inputs(
 
 
 def _run_assembler(
-    roots: dict[str, Path], mutation_files: dict[str, Path], output: Path
+    roots: dict[str, Path],
+    mutation_files: dict[str, Path],
+    output: Path,
+    *,
+    committed_by: str = "test-runner",
 ) -> subprocess.CompletedProcess[str]:
     command = [
         sys.executable,
@@ -111,7 +120,7 @@ def _run_assembler(
             "--output-dir",
             str(output),
             "--committed-by",
-            "test-runner",
+            committed_by,
             "--committed-at",
             "2026-08-20T00:00:00Z",
         ]
@@ -143,6 +152,98 @@ def test_assembler_roundtrip_produces_valid_raw_results_and_commitment(
     receipts["raw-results"]["_resolved_path"] = raw_path
     receipts["raw-results-schema"]["_resolved_path"] = SCHEMA_SOURCE
     assert _validate(packet, receipts, context) == []
+
+
+def test_assembler_commitment_roundtrips_through_custody_reveal(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    tmp_path = tmp_path_factory.mktemp("custody")
+    roots, mutation_files, _packet, _receipts = _assembler_inputs(tmp_path)
+    packet = yaml.safe_load(PACKET.read_text(encoding="utf-8"))
+    runner_identity = packet["seats"]["reproduction_runner"]["agent_identity"]
+    custodian_identity = packet["seats"]["evaluator_custodian"]["agent_identity"]
+    output = tmp_path / "custody-output"
+    result = _run_assembler(
+        roots,
+        mutation_files,
+        output,
+        committed_by=runner_identity,
+    )
+    assert result.returncode == 0, result.stderr
+
+    raw_path = output / "raw-results.json"
+    commitment_path = output / "output-commitment.json"
+    commitment = json.loads(commitment_path.read_text(encoding="utf-8"))
+    holdout_path = tmp_path / "revealed-holdout.json"
+    seed_path = tmp_path / "revealed-seed.json"
+    holdout_path.write_text('{"labels": [0, 1]}\n', encoding="utf-8")
+    seed_path.write_text('{"seeds": [17, 29]}\n', encoding="utf-8")
+    holdout_hash = hashlib.sha256(holdout_path.read_bytes()).hexdigest()
+    seed_hash = hashlib.sha256(seed_path.read_bytes()).hexdigest()
+    reveal_path = tmp_path / "reveal-record.json"
+    reveal_document = {
+        "packet_id": "VIA-000",
+        "authorized_by": custodian_identity,
+        "revealed_at": "2026-08-20T01:00:00Z",
+        "output_commitment_receipt_id": "output-commitment",
+        "post_reveal_holdout_sha256": holdout_hash,
+        "post_reveal_seed_sha256": seed_hash,
+    }
+    _write_json(reveal_path, reveal_document)
+
+    packet["lifecycle_phase"] = "reproduced"
+    packet["holdout_started"] = True
+    custody = packet["blind_custody"]
+    custody["hidden_holdout_manifest"]["sha256"] = holdout_hash
+    custody["secret_seed_manifest"]["sha256"] = seed_hash
+    custody["output_commitment"] = {
+        "receipt_id": "output-commitment",
+        **commitment,
+    }
+    custody["reveal"] = {
+        "status": "revealed",
+        "authorized_by": custodian_identity,
+        "revealed_at": reveal_document["revealed_at"],
+        "post_reveal_holdout_sha256": holdout_hash,
+        "post_reveal_seed_sha256": seed_hash,
+        "post_reveal_holdout_receipt_id": "revealed-holdout",
+        "post_reveal_seed_receipt_id": "revealed-seed",
+        "reveal_receipt_id": "reveal-record",
+    }
+
+    receipts = {
+        "raw-results": {
+            "kind": "raw-results",
+            "media_type": "application/json",
+            "sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),
+            "_resolved_path": raw_path,
+        },
+        "output-commitment": {
+            "kind": "output-commitment",
+            "media_type": "application/json",
+            "sha256": hashlib.sha256(commitment_path.read_bytes()).hexdigest(),
+            "_resolved_path": commitment_path,
+        },
+        "revealed-holdout": {
+            "kind": "revealed-manifest",
+            "media_type": "application/json",
+            "sha256": holdout_hash,
+            "_resolved_path": holdout_path,
+        },
+        "revealed-seed": {
+            "kind": "revealed-manifest",
+            "media_type": "application/json",
+            "sha256": seed_hash,
+            "_resolved_path": seed_path,
+        },
+        "reveal-record": {
+            "kind": "reveal-record",
+            "media_type": "application/json",
+            "sha256": hashlib.sha256(reveal_path.read_bytes()).hexdigest(),
+            "_resolved_path": reveal_path,
+        },
+    }
+    assert _validate_custody(packet, receipts, "VIA-000") == []
 
 
 def test_assembler_rejects_partial_or_failed_fragments_without_commitment(
