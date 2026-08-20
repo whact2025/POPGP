@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -302,16 +303,28 @@ def assemble(args: argparse.Namespace) -> None:
             raise ValueError("assembled raw results fail schema: " + schema_errors[0].message)
         raw_path = temporary / "raw-results.json"
         _write_json(raw_path, raw_document)
+        repo_root = args.repo_root.resolve()
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from scripts.check_viability_campaign import validate_via000_raw_results
+
+        semantic_errors = validate_via000_raw_results(
+            args.protocol,
+            args.schema,
+            raw_path,
+            repo_root=repo_root,
+        )
+        if semantic_errors:
+            raise ValueError(
+                "assembled raw results fail authoritative validation: "
+                + semantic_errors[0]
+            )
         commitment = {
-            "schema_version": 1,
-            "campaign_id": raw_document["campaign_id"],
             "packet_id": raw_document["packet_id"],
-            "candidate_commit": raw_document["candidate_commit"],
-            "candidate_tree": raw_document["candidate_tree"],
             "committed_by": args.committed_by,
             "committed_at": args.committed_at,
-            "raw_results_path": "raw-results.json",
-            "raw_results_sha256": _sha256(raw_path),
+            "output_receipt_id": "raw-results",
+            "output_sha256": _sha256(raw_path),
         }
         _write_json(temporary / "output-commitment.json", commitment)
         os.replace(temporary, args.output_dir)
@@ -325,6 +338,7 @@ def main() -> int:
     here = Path(__file__).resolve().parent
     parser.add_argument("--protocol", type=Path, default=here / "VIA-000.json")
     parser.add_argument("--schema", type=Path, default=here / "VIA-000-RAW-RESULTS.schema.json")
+    parser.add_argument("--repo-root", type=Path, default=here.parents[1])
     parser.add_argument("--platform-root", action="append", default=[], required=True)
     parser.add_argument("--mutation-file", action="append", default=[], required=True)
     parser.add_argument("--output-dir", type=Path, required=True)

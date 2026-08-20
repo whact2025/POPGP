@@ -128,7 +128,13 @@ def test_assembler_roundtrip_produces_valid_raw_results_and_commitment(
     assert result.returncode == 0, result.stderr
     raw_path = output / "raw-results.json"
     commitment = json.loads((output / "output-commitment.json").read_text())
-    assert commitment["raw_results_sha256"] == hashlib.sha256(raw_path.read_bytes()).hexdigest()
+    assert commitment == {
+        "packet_id": "VIA-000",
+        "committed_by": "test-runner",
+        "committed_at": "2026-08-20T00:00:00Z",
+        "output_receipt_id": "raw-results",
+        "output_sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(),
+    }
     context = {
         "campaign_base": tmp_path,
         "raw_path": raw_path,
@@ -174,4 +180,29 @@ def test_assembler_rejects_partial_or_failed_fragments_without_commitment(
     ]
     result = subprocess.run(command, cwd=ROOT, check=False, capture_output=True, text=True)
     assert result.returncode != 0
+    assert not output.exists()
+
+
+def test_assembler_semantic_gate(tmp_path: Path) -> None:
+    roots, mutation_files, _packet, _receipts = _assembler_inputs(tmp_path)
+    platform = PLATFORMS[0]
+    workspace = roots[platform]
+    manifest_path = workspace / "evidence/evidence-manifest.json"
+    summary_path = workspace / "evidence/platform-summary.json"
+    manifest = json.loads(manifest_path.read_text())
+    summary = json.loads(summary_path.read_text())
+    pdf_entry = next(entry for entry in manifest if entry["role"] == "pdf")
+    pdf_path = workspace / pdf_entry["path"]
+    pdf_path.write_bytes(b"%PDF-1.4\n" + b"not-a-pdf-object\n" * 7_000 + b"%%EOF\n")
+    digest = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+    pdf_entry["sha256"] = digest
+    pdf_entry["byte_count"] = pdf_path.stat().st_size
+    summary["pdf_sha256"] = digest
+    _write_json(manifest_path, manifest)
+    _write_json(summary_path, summary)
+
+    output = tmp_path / "o"
+    result = _run_assembler(roots, mutation_files, output)
+    assert result.returncode != 0
+    assert "authoritative validation" in result.stderr
     assert not output.exists()

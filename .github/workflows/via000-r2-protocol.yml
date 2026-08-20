@@ -86,6 +86,8 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: via000-r2-protocol-${{ matrix.platform }}
-          path: ${{ runner.temp }}/via000-r2-platform/
+          path: |
+            ${{ runner.temp }}/via000-r2-platform/evidence/
+            ${{ runner.temp }}/via000-r2-platform/pdf/
           if-no-files-found: error
           retention-days: 90

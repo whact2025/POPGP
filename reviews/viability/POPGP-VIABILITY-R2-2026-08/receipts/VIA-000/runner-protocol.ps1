@@ -122,6 +122,8 @@ Assert-Success -ExitCode $LASTEXITCODE -Description "pdflatex version query"
 if ($pdfText -ne $ExpectedPdfEngine) {
     throw "expected $ExpectedPdfEngine, observed $pdfText"
 }
+Set-Content -LiteralPath (Join-Path $evidence "pdf-engine-version.txt") `
+    -Value $pdfText -Encoding utf8NoBOM
 
 Invoke-RetainedCommand -Label "001-clone" -ContractId "git-clone" -FilePath "git" `
     -Arguments @("clone", "--no-checkout", $RepositoryUrl, $repo) `
@@ -261,30 +263,17 @@ Invoke-CheckedModule -Label "013-artifact-boundary" `
     -Module "scripts.check_validation_artifacts" `
     -ModuleArguments @("--enforce-change-boundary") -AllowedPaths $allowed
 
-Invoke-RetainedCommand -Label "014-pdflatex-1" -ContractId "pdflatex-pass-1" -FilePath "pdflatex" `
-    -Arguments @(
-        "-interaction=nonstopmode", "-halt-on-error",
-        "-output-directory=$pdfDirectory", "docs/framework.tex"
-    ) -WorkingDirectory $repo -LogDirectory $logs
-Invoke-RetainedCommand -Label "015-pdflatex-2" -ContractId "pdflatex-pass-2" -FilePath "pdflatex" `
-    -Arguments @(
-        "-interaction=nonstopmode", "-halt-on-error",
-        "-output-directory=$pdfDirectory", "docs/framework.tex"
-    ) -WorkingDirectory $repo -LogDirectory $logs
-
-Invoke-RetainedCommand -Label "016-environment-verify" -ContractId "trusted-python-environment-verify" -FilePath "python" `
-    -Arguments @(
-        "-I", "-S", $trustedBoundary,
-        "--repo-root", $repo, "--environment", $environment,
-        "verify", "--manifest", $environmentManifest,
-        "--expected-sha256", $environmentDigest
-    ) -WorkingDirectory $repo -LogDirectory $logs
-
-$finalStatus = (& git -C $repo status --short --ignored --untracked-files=all | Out-String)
-Set-Content -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
-    -Value $finalStatus -Encoding utf8NoBOM
-if ($finalStatus) {
-    throw "candidate repository has tracked, untracked, or ignored residue after execution"
+$generatedStatus = (& git -C $repo status --short --ignored --untracked-files=all | Out-String)
+Set-Content -LiteralPath (Join-Path $evidence "generated-status-with-ignored.txt") `
+    -Value $generatedStatus -Encoding utf8NoBOM
+$allowedSet = @{}
+foreach ($sourcePath in $allowed) { $allowedSet[$sourcePath] = $true }
+foreach ($line in @($generatedStatus -split "`r?`n" | Where-Object { $_ })) {
+    if ($line.Length -lt 4) { throw "malformed generated repository status: $line" }
+    $statusPath = $line.Substring(3).Replace("\", "/")
+    if (-not $allowedSet.ContainsKey($statusPath)) {
+        throw "generated repository status contains undeclared path: $statusPath"
+    }
 }
 
 $artifactRoot = Join-Path $evidence "artifacts"
@@ -312,6 +301,35 @@ foreach ($sourcePath in $allowed) {
     }
 }
 
+& git -C $repo restore --source $CandidateCommit --worktree -- $allowed
+Assert-Success -ExitCode $LASTEXITCODE -Description "restore generated candidate artifacts"
+
+Invoke-RetainedCommand -Label "014-pdflatex-1" -ContractId "pdflatex-pass-1" -FilePath "pdflatex" `
+    -Arguments @(
+        "-interaction=nonstopmode", "-halt-on-error",
+        "-output-directory=$pdfDirectory", "docs/framework.tex"
+    ) -WorkingDirectory $repo -LogDirectory $logs
+Invoke-RetainedCommand -Label "015-pdflatex-2" -ContractId "pdflatex-pass-2" -FilePath "pdflatex" `
+    -Arguments @(
+        "-interaction=nonstopmode", "-halt-on-error",
+        "-output-directory=$pdfDirectory", "docs/framework.tex"
+    ) -WorkingDirectory $repo -LogDirectory $logs
+
+Invoke-RetainedCommand -Label "016-environment-verify" -ContractId "trusted-python-environment-verify" -FilePath "python" `
+    -Arguments @(
+        "-I", "-S", $trustedBoundary,
+        "--repo-root", $repo, "--environment", $environment,
+        "verify", "--manifest", $environmentManifest,
+        "--expected-sha256", $environmentDigest
+    ) -WorkingDirectory $repo -LogDirectory $logs
+
+$finalStatus = (& git -C $repo status --short --ignored --untracked-files=all | Out-String)
+Set-Content -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
+    -Value $finalStatus -Encoding utf8NoBOM
+if ($finalStatus) {
+    throw "candidate repository has tracked, untracked, or ignored residue after execution"
+}
+
 $evidenceEntries = @()
 foreach ($file in @(Get-ChildItem -LiteralPath $evidence, $pdfDirectory -File -Recurse | Sort-Object FullName)) {
     if ($file.Name -in @("evidence-manifest.json", "platform-summary.json")) {
@@ -332,7 +350,11 @@ foreach ($file in @(Get-ChildItem -LiteralPath $evidence, $pdfDirectory -File -R
     elseif ($relative -match "^evidence/commands/.+\.stderr\.txt$") { $role = "command-stderr" }
     elseif ($relative -eq "evidence/environment-manifest.json") { $role = "environment-manifest" }
     elseif ($relative -eq "evidence/source-manifest.json") { $role = "source-manifest" }
-    elseif ($relative -eq "evidence/final-status-with-ignored.txt") { $role = "repository-status" }
+    elseif ($relative -eq "evidence/pdf-engine-version.txt") { $role = "pdf-engine" }
+    elseif ($relative -in @(
+        "evidence/generated-status-with-ignored.txt",
+        "evidence/final-status-with-ignored.txt"
+    )) { $role = "repository-status" }
     elseif ($relative -eq "pdf/framework.pdf") { $role = "pdf" }
     elseif ($relative -match "^pdf/") { $role = "pdf-build" }
     elseif ($relative -match "^evidence/artifacts/") {

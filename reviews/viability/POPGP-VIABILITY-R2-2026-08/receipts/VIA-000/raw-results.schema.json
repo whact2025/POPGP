@@ -224,6 +224,7 @@
             "mutation-result",
             "pdf",
             "pdf-build",
+            "pdf-engine",
             "repository-status",
             "source-manifest",
             "supporting",

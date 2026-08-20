@@ -46,6 +46,13 @@ commands/artifacts, and all eighteen typed mutation receipts per platform before
 can create raw results and the pre-reveal output commitment. Partial or unavailable
 attempts cannot self-declare blockage and are not commit-eligible.
 
+The execution trust boundary is explicit: the assigned reproduction runner, the
+exact-SHA GitHub Actions control plane, and the independent reviewer are trusted
+principals. Hashes and typed logs prove closure and permit independent recomputation;
+they do not prove honest execution by a malicious or colluding trusted principal.
+Amendment 3 records this scope and the parser/direct-comparison/pre-commit safeguards:
+[`VIA-000-R2-PREHOLDOUT-AMENDMENT-3.md`](amendments/VIA-000-R2-PREHOLDOUT-AMENDMENT-3.md).
+
 The packet cannot advance past preregistration until a fresh falsifier approves the
 complete gate. It cannot advance to reproduced until a separate runner creates and
 commits raw results plus an output commitment. Only the custodian may then reveal.

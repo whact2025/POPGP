@@ -25,6 +25,8 @@ from urllib.parse import unquote, urlsplit
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 CONTRACT_VERSION = "popgp-viability-contract-v2"
 REQUIREMENTS_VERSION = "popgp-viability-requirements-v2"
@@ -1393,6 +1395,7 @@ def _validate_raw_evidence_contract(
     """Validate typed, executable, hash-retained VIA raw evidence fail closed."""
 
     from scripts.check_validation_artifacts import (
+        VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT,
         check_validation_semantics,
         compare_validation_documents,
         compare_visual_artifact,
@@ -1410,6 +1413,7 @@ def _validate_raw_evidence_contract(
         "required_command_contracts",
         "required_artifact_paths",
         "required_mutation_ids",
+        "required_mutation_oracles",
         "required_pdf_page_count",
     }
     if not isinstance(contract, Mapping) or set(contract) != required_fields:
@@ -1421,6 +1425,7 @@ def _validate_raw_evidence_contract(
     command_contracts = contract["required_command_contracts"]
     artifact_paths = contract["required_artifact_paths"]
     mutation_ids = contract["required_mutation_ids"]
+    mutation_oracles = contract["required_mutation_oracles"]
     if (
         not isinstance(required_platforms, list)
         or not required_platforms
@@ -1438,6 +1443,11 @@ def _validate_raw_evidence_contract(
         or len(artifact_paths) != 18
         or not isinstance(mutation_ids, list)
         or len(mutation_ids) != len(set(mutation_ids))
+        or not isinstance(mutation_oracles, Mapping)
+        or set(mutation_oracles) != set(mutation_ids)
+        or any(
+            not isinstance(value, str) or not value for value in mutation_oracles.values()
+        )
         or parameters.get("required_mutation_count") != len(mutation_ids)
         or type(contract["required_pdf_page_count"]) is not int
         or contract["required_pdf_page_count"] < 1
@@ -1531,9 +1541,19 @@ def _validate_raw_evidence_contract(
     expected_visual_count = parameters["required_visual_count"]
     expected_uv = parameters["uv_version"]
     expected_pages = contract["required_pdf_page_count"]
+    expected_pdf_banner = parameters["pdf_engine_banner"]
+    if (
+        parameters.get("maximum_cross_platform_channel_delta")
+        != VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT
+    ):
+        return [
+            f"packet {packet_id}: cross-platform visual limit differs from the "
+            "authoritative checker"
+        ]
     platform_evidence: dict[str, bool] = {}
     platform_clean: dict[str, bool] = {}
     platform_mutations: dict[str, bool] = {}
+    platform_visuals: dict[str, dict[str, Path]] = {}
     for platform_name in required_platforms:
         platform_errors_before = len(errors)
         platform = raw_document["platforms"].get(platform_name)
@@ -1686,6 +1706,8 @@ def _validate_raw_evidence_contract(
                             f"{label} visual artifact {source_path!r} is invalid: "
                             f"{artifact_errors[0]}"
                         )
+                    else:
+                        platform_visuals.setdefault(platform_name, {})[source_path] = evidence_file
             except (
                 OSError,
                 UnicodeDecodeError,
@@ -1717,9 +1739,21 @@ def _validate_raw_evidence_contract(
             (path, entry) for path, entry in role_entries if entry.get("role") == "source-manifest"
         ]
         pdf_matches = [(path, entry) for path, entry in role_entries if entry.get("role") == "pdf"]
+        pdf_engine_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "pdf-engine"
+        ]
+        status_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "repository-status"
+        ]
         environment_ok = len(environment_matches) == 1
         source_ok = len(source_matches) == 1
         pdf_ok = len(pdf_matches) == 1
+        pdf_engine_ok = len(pdf_engine_matches) == 1
+        status_ok = len(status_matches) == 2
         if environment_ok:
             path, entry = environment_matches[0]
             environment_ok = entry["sha256"] == platform["environment_manifest_sha256"]
@@ -1752,12 +1786,18 @@ def _validate_raw_evidence_contract(
             path, entry = pdf_matches[0]
             pdf_file = evidence_files[path]
             pdf_bytes = pdf_file.read_bytes()
+            try:
+                pdf_reader = PdfReader(str(pdf_file), strict=True)
+                parsed_pages = len(pdf_reader.pages)
+            except (OSError, PdfReadError, TypeError, ValueError):
+                parsed_pages = -1
             pdf_ok = (
                 entry["sha256"] == platform["pdf_sha256"]
                 and pdf_bytes.startswith(b"%PDF-")
                 and b"%%EOF" in pdf_bytes[-1024:]
                 and len(pdf_bytes) >= 100_000
-                and platform["pdf_page_count"] == expected_pages
+                and parsed_pages == expected_pages
+                and platform["pdf_page_count"] == parsed_pages
             )
             for command_id in ("014-pdflatex-1", "015-pdflatex-2"):
                 stdout_path = command_results.get(command_id, {}).get("stdout_path", "")
@@ -1770,10 +1810,45 @@ def _validate_raw_evidence_contract(
                     and "Output written on" in output
                     and f"({expected_pages} pages" in output
                 )
+        if pdf_engine_ok:
+            path, _entry = pdf_engine_matches[0]
+            engine_file = evidence_files.get(path)
+            pdf_engine_ok = (
+                engine_file is not None
+                and platform["pdf_engine"] == expected_pdf_banner
+                and engine_file.read_text(encoding="utf-8", errors="strict").strip()
+                == expected_pdf_banner
+            )
+        pdf_ok = pdf_ok and pdf_engine_ok
         if not environment_ok:
             errors.append(f"{label} environment evidence is incomplete or invalid")
         if not source_ok:
             errors.append(f"{label} source evidence is incomplete or invalid")
+        if status_ok:
+            status_files = {
+                Path(path).name: evidence_files[path] for path, _entry in status_matches
+            }
+            generated_status = status_files.get("generated-status-with-ignored.txt")
+            final_status = status_files.get("final-status-with-ignored.txt")
+            if generated_status is None or final_status is None:
+                status_ok = False
+            else:
+                generated_paths: set[str] = set()
+                for line in generated_status.read_text(
+                    encoding="utf-8", errors="strict"
+                ).splitlines():
+                    if len(line) < 4:
+                        status_ok = False
+                        break
+                    generated_paths.add(line[3:].replace("\\", "/"))
+                status_ok = (
+                    status_ok
+                    and generated_paths <= set(artifact_paths)
+                    and final_status.read_text(encoding="utf-8", errors="strict").strip()
+                    == ""
+                )
+        if not status_ok:
+            errors.append(f"{label} retained repository-status evidence is incomplete or dirty")
         if not pdf_ok:
             errors.append(f"{label} PDF evidence is incomplete or invalid")
 
@@ -1798,8 +1873,23 @@ def _validate_raw_evidence_contract(
                     continue
                 try:
                     mutation_document = _load_json(evidence_file)
+                    execution = mutation_document.get("execution", {})
+                    oracle_errors = mutation_document.get("oracle_errors", [])
                     mutation_ok = mutation_ok and (
                         isinstance(mutation_document, Mapping)
+                        and set(mutation_document)
+                        == {
+                            "schema_version",
+                            "mutation_id",
+                            "platform_family",
+                            "candidate_commit",
+                            "candidate_tree",
+                            "rejected",
+                            "attack",
+                            "oracle_id",
+                            "oracle_errors",
+                            "execution",
+                        }
                         and mutation_document.get("schema_version") == 1
                         and mutation_document.get("mutation_id") == mutation["mutation_id"]
                         and mutation_document.get("platform_family") == platform_name
@@ -1808,10 +1898,58 @@ def _validate_raw_evidence_contract(
                         and mutation_document.get("rejected") is True
                         and isinstance(mutation_document.get("attack"), str)
                         and bool(mutation_document.get("attack"))
-                        and isinstance(mutation_document.get("oracle_errors"), list)
-                        and bool(mutation_document.get("oracle_errors"))
+                        and mutation_document.get("oracle_id")
+                        == mutation_oracles[mutation["mutation_id"]]
+                        and isinstance(oracle_errors, list)
+                        and bool(oracle_errors)
+                        and all(
+                            isinstance(item, Mapping)
+                            and set(item) == {"error_id", "message"}
+                            and isinstance(item["error_id"], str)
+                            and isinstance(item["message"], str)
+                            and bool(item["message"])
+                            for item in oracle_errors
+                        )
+                        and any(
+                            item["error_id"] == mutation_oracles[mutation["mutation_id"]]
+                            for item in oracle_errors
+                        )
+                        and isinstance(execution, Mapping)
+                        and set(execution)
+                        == {
+                            "command",
+                            "exit_code",
+                            "started_at",
+                            "finished_at",
+                            "test_ids",
+                            "passed_test_count",
+                            "stdout_sha256",
+                            "stderr_sha256",
+                        }
+                        and isinstance(execution.get("command"), str)
+                        and bool(execution.get("command"))
+                        and execution.get("exit_code") == 0
+                        and isinstance(execution.get("started_at"), str)
+                        and isinstance(execution.get("finished_at"), str)
+                        and isinstance(execution.get("test_ids"), list)
+                        and bool(execution.get("test_ids"))
+                        and execution.get("passed_test_count") == len(execution["test_ids"])
+                        and all(
+                            isinstance(test_id, str) and bool(test_id)
+                            for test_id in execution["test_ids"]
+                        )
+                        and re.fullmatch(r"[0-9a-f]{64}", execution.get("stdout_sha256", ""))
+                        is not None
+                        and re.fullmatch(r"[0-9a-f]{64}", execution.get("stderr_sha256", ""))
+                        is not None
                     )
-                except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+                except (
+                    OSError,
+                    AttributeError,
+                    UnicodeDecodeError,
+                    ValueError,
+                    json.JSONDecodeError,
+                ):
                     mutation_ok = False
         if not mutation_ok:
             errors.append(f"{label} mutation evidence is incomplete, untyped, or accepted")
@@ -1828,7 +1966,7 @@ def _validate_raw_evidence_contract(
             "commands_passed": command_ok,
             "semantic_contract_passed": semantic_ok,
             "visual_contract_passed": visual_ok,
-            "source_boundary_passed": source_ok,
+            "source_boundary_passed": source_ok and status_ok,
             "environment_boundary_passed": environment_ok,
             "pdf_passed": pdf_ok,
             "mutations_rejected": mutation_ok,
@@ -1844,6 +1982,7 @@ def _validate_raw_evidence_contract(
                 semantic_ok,
                 visual_ok,
                 source_ok,
+                status_ok,
                 environment_ok,
                 pdf_ok,
                 uv_ok,
@@ -1865,6 +2004,30 @@ def _validate_raw_evidence_contract(
         platform_clean[platform_name] = clean
         platform_mutations[platform_name] = mutation_ok
 
+    if len(required_platforms) >= 2:
+        reference_platform = required_platforms[0]
+        reference_visuals = platform_visuals.get(reference_platform, {})
+        for compared_platform in required_platforms[1:]:
+            compared_visuals = platform_visuals.get(compared_platform, {})
+            for source_path in artifact_paths:
+                if not source_path.lower().endswith((".gif", ".jpeg", ".jpg", ".png", ".webp")):
+                    continue
+                reference_file = reference_visuals.get(source_path)
+                compared_file = compared_visuals.get(source_path)
+                if reference_file is None or compared_file is None:
+                    continue
+                cross_platform_errors = compare_visual_artifact(
+                    reference_file.read_bytes(), compared_file
+                )
+                if cross_platform_errors:
+                    errors.append(
+                        f"packet {packet_id}: cross-platform visual {source_path!r} differs "
+                        f"between {reference_platform} and {compared_platform}: "
+                        f"{cross_platform_errors[0]}"
+                    )
+                    platform_clean[reference_platform] = False
+                    platform_clean[compared_platform] = False
+
     expected_capabilities = {
         "evidence-contract": all(platform_evidence.values()),
         "cross-platform-reproduction": all(platform_clean.values()),
@@ -1878,6 +2041,52 @@ def _validate_raw_evidence_contract(
     if raw_document["failed"] is not (not all(expected_capabilities.values())):
         errors.append(f"packet {packet_id}: raw failed Boolean differs from retained evidence")
     return errors
+
+
+def validate_via000_raw_results(
+    protocol_path: Path | str,
+    schema_path: Path | str,
+    raw_results_path: Path | str,
+    *,
+    repo_root: Path | str | None = None,
+) -> list[str]:
+    """Validate an assembled VIA-000 package before creating a commitment."""
+
+    try:
+        protocol_path = Path(protocol_path).resolve()
+        schema_path = Path(schema_path).resolve()
+        raw_results_path = Path(raw_results_path).resolve()
+        root = Path(repo_root).resolve() if repo_root is not None else _repo_root()
+        protocol = _load_json(protocol_path)
+        parameters = protocol["parameters"]
+        contract = parameters["raw_results_contract"]
+        packet = {
+            "preregistration": {"parameters": parameters},
+            "candidate_commit": parameters["candidate_commit"],
+            "tree_hash": parameters["candidate_tree"],
+            "lifecycle_phase": "reproduced",
+        }
+        receipts = {
+            contract["schema_receipt_id"]: {
+                "kind": "protocol",
+                "media_type": "application/schema+json",
+                "_resolved_path": schema_path,
+            },
+            contract["raw_results_receipt_id"]: {
+                "kind": "raw-results",
+                "media_type": "application/json",
+                "_resolved_path": raw_results_path,
+            },
+        }
+        return _validate_raw_evidence_contract(
+            packet,
+            receipts,
+            protocol["packet_id"],
+            raw_results_path.parent,
+            root,
+        )
+    except Exception as exc:
+        return [f"VIA-000 raw-results validation failed closed: {type(exc).__name__}: {exc}"]
 
 
 def _structured_external_receipt(

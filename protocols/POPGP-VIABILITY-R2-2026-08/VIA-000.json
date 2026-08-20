@@ -19,13 +19,14 @@
     "required_command_count": 16,
     "maximum_cross_platform_channel_delta": 4,
     "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",
+    "pdf_engine_banner": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
     "pdf_pass_count": 2,
     "runner_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1",
-    "runner_protocol_sha256": "a4113a4cceeed7a1aec7f191a28199383af8c717920b7dc433a79b2bc6fa5cc3",
+    "runner_protocol_sha256": "53b3344699f0ef2a1dd763f0fc348211fa2ccaf93be3730e64be3ed8ea646457",
     "raw_results_schema_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json",
-    "raw_results_schema_sha256": "d45a32583a48f4b746119d4b27c26f1a41b4f2296b037c017394e5ee7824457d",
+    "raw_results_schema_sha256": "63f1ce00ad0057c7868c5d3051b11b1c24f0914e17c333233507adf4d9eecbe0",
     "assembler_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py",
-    "assembler_protocol_sha256": "30d99ed3eb911f6c4244e40b17a5d7ec6831afc6843aff5714812569efb4e95d",
+    "assembler_protocol_sha256": "7b1428073dfb94c5437702219ccef0fc638948620cbf898dd20a08d75522ffff",
     "raw_results_contract": {
       "schema_receipt_id": "raw-results-schema",
       "raw_results_receipt_id": "raw-results",
@@ -92,14 +93,49 @@
         "family-17",
         "family-18"
       ],
+      "required_mutation_oracles": {
+        "family-01": "semantic-check-identity",
+        "family-02": "semantic-type-shape-finiteness",
+        "family-03": "semantic-config-threshold",
+        "family-04": "visual-locality",
+        "family-05": "grid-raw-phi",
+        "family-06": "simple-source-raw",
+        "family-07": "many-body-raw",
+        "family-08": "clock-graph-weight",
+        "family-09": "clock-mutual-information",
+        "family-10": "clock-source-provenance",
+        "family-11": "clock-config-source",
+        "family-12": "startup-root-environment",
+        "family-13": "startup-environment-hooks",
+        "family-14": "environment-dependency-bytecode",
+        "family-15": "repository-index-byte-boundary",
+        "family-16": "transient-source-boundary",
+        "family-17": "platform-evidence-pdf-boundary",
+        "family-18": "receipt-commitment-chronology"
+      },
       "required_pdf_page_count": 11
+    },
+    "execution_trust_model": {
+      "trusted_principals": [
+        "assigned-reproduction-runner-seat",
+        "github-actions-control-plane",
+        "independent-reviewer-seat"
+      ],
+      "untrusted_surfaces": [
+        "retained-evidence-bytes",
+        "platform-fragment-transport",
+        "assembler-inputs",
+        "declared-summary-booleans"
+      ],
+      "excluded_threat": "A malicious or colluding assigned runner/control-plane principal that fabricates a complete internally consistent execution transcript is outside the R2 claim.",
+      "validator_claim": "The validator proves typed byte closure, candidate/protocol identity, and recomputed scientific/boundary predicates for evidence supplied by the trusted execution principals; it does not independently prove that a hostile runner executed a command merely because a retained record says so."
     },
     "native_or_scalable_claim_in_scope": false,
     "seed_policy": "Use only committed public seeds or the custodian-supplied secret seed; never inspect, reselect, rerun, or replace output after commitment."
   },
-  "measurement_procedure": "On both declared platforms, execute the supporting runner protocol from the frozen protocol snapshot. It creates a fresh exact-candidate clone, a fresh locked non-editable Python environment, external caches and evidence directories, and extracts the trusted reproduction-boundary checker from the candidate Git object database with a base Python interpreter under -I -S. Retain literal source and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary validation, two pinned pdfTeX passes to an external directory, and all eighteen frozen mutation families. The runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.",
+  "measurement_procedure": "On both declared platforms, the assigned reproduction-runner seat executes the supporting runner protocol from the frozen protocol snapshot, with an exact-SHA GitHub Actions run retained as an independent control-plane witness. The runner creates a fresh exact-candidate clone, a fresh locked non-editable Python environment, external caches and evidence directories, and extracts the trusted reproduction-boundary checker from the candidate Git object database with a base Python interpreter under -I -S. Retain literal source and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary validation, two pinned pdfTeX passes to an external directory, and all eighteen frozen mutation families. The validator checks the supplied transcript fail closed but does not claim to prove honest execution by a malicious or colluding runner/control-plane principal. The runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.",
   "uncertainty_procedure": "Candidate commit/tree, Git object and mode bindings, command exits, test/example/mutation counts, environment/source manifests, startup-hook isolation, tracked/untracked/ignored cleanliness, PDF engine/output, raw semantic identities, structure, types, shapes, pass Booleans, and receipt hashes are exact. Numeric comparison uses only the frozen checker tolerances; after canonicalized near-zero plot annotations, every cross-platform raster channel must differ by at most 4. Stored summaries cannot substitute for recomputation from the lowest-level retained operands.",
-  "statistical_analysis": "Pass only if both platform families execute the complete protocol at the exact candidate, all 366 tests and six generators pass, every semantic and visual decision is recomputed and valid, all twelve visuals satisfy the calibrated channel bound, the fresh two-pass PDF build succeeds with the pinned engine, source and environment boundaries remain valid, all eighteen corruptions are rejected by the complete gate, and every required result is present in hash-retained raw evidence. Any missing command, platform-only success, pre-existing or substituted environment/evidence path, undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, surviving mutation, uncommitted output, or evidence available only in prose is a failure. R2 raw results cannot self-declare blockage; an incomplete or unavailable execution is an invalid attempt that must not be assembled or committed, while malformed protocol, custody, evidence, or rule state invalidates the round rather than producing a scientific outcome.",
+  "statistical_analysis": "Pass only if both trusted platform executions complete the protocol at the exact candidate, all 366 tests and six generators pass, every semantic and visual decision is recomputed and valid, all twelve corresponding Ubuntu/Windows rasters directly satisfy the calibrated channel bound, the fresh two-pass PDF parses independently as exactly eleven pages under the pinned engine, source and environment boundaries remain valid, all eighteen corruptions are rejected by the complete gate, and every required result is present in hash-retained raw evidence. Hash closure is not represented as proof against a malicious or colluding assigned runner/control-plane principal; that threat is explicitly outside R2 and is mitigated operationally by separate runner, hosted-control, falsifier, reviewer, custodian, and adjudicator seats. Any missing command, platform-only success, pre-existing or substituted environment/evidence path, undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, surviving mutation, uncommitted output, or evidence available only in prose is a failure. R2 raw results cannot self-declare blockage; an incomplete or unavailable execution is an invalid attempt that must not be assembled or committed, while malformed protocol, custody, evidence, or rule state invalidates the round rather than producing a scientific outcome.",
   "resource_budget": {
     "wall_time_seconds": 5400,
     "memory_bytes": 12884901888,

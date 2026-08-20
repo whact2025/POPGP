@@ -20,6 +20,7 @@ R1 valid/failed result. No seat may invent model/version metadata.
 - Raw-results schema: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json`
 
 Before role-specific work, read the campaign, packet, all four protocol artifacts,
+all activated pre-holdout amendments,
 `docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md`,
 `docs/governance/AGENT_REVIEW_WORKFLOW.md`, and
 `docs/governance/REVIEWER_IDENTITY.md` completely. Verify the exact candidate,
@@ -44,6 +45,11 @@ protocol, and handoff commits. Do not access the untracked builder handoff memo.
 
 Do not combine the falsifier, runner, custodian, or adjudicator seats in one task.
 Builder calibration and prior reviewer conclusions are not falsifier/runner evidence.
+The assigned runner, exact-SHA GitHub Actions control plane, and independent reviewer
+are the declared trusted execution principals. The retained-evidence validator proves
+byte closure and recomputed predicates, not honesty of a malicious or colluding
+trusted principal; every seat must disclose this limitation rather than overclaiming
+that self-contained hashes alone prove execution.
 
 ## Custodian verification prompt
 

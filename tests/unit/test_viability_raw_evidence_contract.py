@@ -3,10 +3,14 @@ from __future__ import annotations
 import copy
 import functools
 import hashlib
+import io
 import json
 import subprocess
 from pathlib import Path
 from typing import Any
+
+import numpy as np
+from PIL import Image
 
 from scripts.check_viability_campaign import _validate_raw_evidence_contract
 
@@ -27,6 +31,7 @@ PLATFORMS = tuple(CONTRACT["required_platforms"])
 COMMAND_CONTRACTS = CONTRACT["required_command_contracts"]
 ARTIFACT_PATHS = tuple(CONTRACT["required_artifact_paths"])
 MUTATION_IDS = tuple(CONTRACT["required_mutation_ids"])
+MUTATION_ORACLES = CONTRACT["required_mutation_oracles"]
 
 
 def _sha256(path: Path) -> str:
@@ -283,6 +288,24 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
                 "environment-manifest",
             ),
             ("source-manifest.json", source_manifest_bytes, "application/json", "source-manifest"),
+            (
+                "generated-status-with-ignored.txt",
+                b"",
+                "text/plain",
+                "repository-status",
+            ),
+            (
+                "final-status-with-ignored.txt",
+                b"",
+                "text/plain",
+                "repository-status",
+            ),
+            (
+                "pdf-engine-version.txt",
+                (PARAMETERS["pdf_engine_banner"] + "\n").encode(),
+                "text/plain",
+                "pdf-engine",
+            ),
             ("framework.pdf", PDF_SOURCE.read_bytes(), "application/pdf", "pdf"),
         ):
             path = evidence_dir / platform / name
@@ -301,7 +324,23 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
                 "candidate_tree": CANDIDATE_TREE,
                 "rejected": True,
                 "attack": f"frozen {mutation_id} adversarial mutation",
-                "oracle_errors": ["complete gate rejected mutated evidence"],
+                "oracle_id": MUTATION_ORACLES[mutation_id],
+                "oracle_errors": [
+                    {
+                        "error_id": MUTATION_ORACLES[mutation_id],
+                        "message": "complete gate rejected mutated evidence",
+                    }
+                ],
+                "execution": {
+                    "command": f"pytest frozen::{mutation_id}",
+                    "exit_code": 0,
+                    "started_at": "2026-08-20T00:00:00Z",
+                    "finished_at": "2026-08-20T00:00:01Z",
+                    "test_ids": [f"frozen::{mutation_id}"],
+                    "passed_test_count": 1,
+                    "stdout_sha256": hashlib.sha256(b"1 passed\n").hexdigest(),
+                    "stderr_sha256": hashlib.sha256(b"").hexdigest(),
+                },
             }
             _write(path, json.dumps(document).encode())
             evidence_manifest.append(
@@ -406,7 +445,10 @@ def _validate(
     )
 
 
-def test_raw_evidence_contract_accepts_typed_hash_closed_results(tmp_path: Path) -> None:
+def test_raw_evidence_contract_accepts_structural_trusted_runner_fixture(tmp_path: Path) -> None:
+    # This fixture exercises typed byte/semantic closure.  Execution honesty belongs
+    # to the declared trusted runner/control-plane boundary and is independently
+    # audited from the real hosted runner artifacts.
     packet, receipts, context = _fixture(tmp_path)
     assert _validate(packet, receipts, context) == []
 
@@ -458,8 +500,94 @@ def test_raw_evidence_contract_recomputes_commands_artifacts_and_mutations(tmp_p
     platform["mutation_results"][0]["rejected"] = False
     assert any("mutation evidence" in error for error in _validate(packet, receipts, context))
 
+    packet, receipts, context = _fixture(tmp_path / "mutation-detail")
+    document = context["raw_document"]
+    platform = document["platforms"][PLATFORMS[1]]
+    mutation_path = platform["mutation_results"][0]["evidence_paths"][0]
+    mutation_file = context["raw_path"].parent / mutation_path
+    mutation_id = platform["mutation_results"][0]["mutation_id"]
+    mutation_file.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "mutation_id": mutation_id,
+                "platform_family": PLATFORMS[1],
+                "candidate_commit": CANDIDATE_COMMIT,
+                "candidate_tree": CANDIDATE_TREE,
+                "rejected": True,
+                "attack": "generic mutation assertion",
+                "oracle_errors": ["complete gate rejected mutated evidence"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest_entry = next(
+        entry for entry in document["evidence_manifest"] if entry["path"] == mutation_path
+    )
+    manifest_entry["sha256"] = _sha256(mutation_file)
+    manifest_entry["byte_count"] = mutation_file.stat().st_size
+    assert any("mutation evidence" in error for error in _validate(packet, receipts, context))
+
     packet, receipts, context = _fixture(tmp_path / "visual")
     platform = context["raw_document"]["platforms"][PLATFORMS[0]]
     first_visual = next(path for path in ARTIFACT_PATHS if path.endswith(".png"))
     platform["artifact_results"][first_visual]["media_type"] = "application/json"
     assert any("artifact" in error for error in _validate(packet, receipts, context))
+
+    packet, receipts, context = _fixture(tmp_path / "status")
+    document = context["raw_document"]
+    final_entry = next(
+        entry
+        for entry in document["evidence_manifest"]
+        if entry["platform_family"] == PLATFORMS[0]
+        and entry["path"].endswith("final-status-with-ignored.txt")
+    )
+    final_file = context["raw_path"].parent / final_entry["path"]
+    final_file.write_text(" M popgp/simulator.py\n", encoding="utf-8")
+    final_entry["sha256"] = _sha256(final_file)
+    final_entry["byte_count"] = final_file.stat().st_size
+    assert any("repository-status" in error for error in _validate(packet, receipts, context))
+
+
+def test_raw_evidence_contract_parses_pdf_and_compares_platform_rasters(tmp_path: Path) -> None:
+    packet, receipts, context = _fixture(tmp_path / "pdf")
+    document = context["raw_document"]
+    for platform_name in PLATFORMS:
+        pdf_entry = next(
+            entry
+            for entry in document["evidence_manifest"]
+            if entry["platform_family"] == platform_name and entry["role"] == "pdf"
+        )
+        pdf_path = context["raw_path"].parent / pdf_entry["path"]
+        pdf_path.write_bytes(b"%PDF-1.4\n" + b"not-a-pdf-object\n" * 7_000 + b"%%EOF\n")
+        digest = _sha256(pdf_path)
+        pdf_entry["sha256"] = digest
+        pdf_entry["byte_count"] = pdf_path.stat().st_size
+        document["platforms"][platform_name]["pdf_sha256"] = digest
+    assert any("PDF evidence" in error for error in _validate(packet, receipts, context))
+
+    packet, receipts, context = _fixture(tmp_path / "visual")
+    document = context["raw_document"]
+    visual_path = next(path for path in ARTIFACT_PATHS if path.endswith(".png"))
+    reference = _git_bytes(visual_path)
+    with Image.open(io.BytesIO(reference)) as image:
+        pixels = np.asarray(image.convert("RGBA"), dtype=np.uint8).copy()
+    candidate_indices = np.argwhere((pixels[..., :3] >= 4) & (pixels[..., :3] <= 251))
+    row, column, channel = (int(value) for value in candidate_indices[0])
+    for platform_name, offset in zip(PLATFORMS, (-4, 4), strict=True):
+        changed = pixels.copy()
+        changed[row, column, channel] = int(changed[row, column, channel]) + offset
+        result = document["platforms"][platform_name]["artifact_results"][visual_path]
+        retained_path = context["raw_path"].parent / result["evidence_path"]
+        Image.fromarray(changed, mode="RGBA").save(retained_path, format="PNG")
+        digest = _sha256(retained_path)
+        result["sha256"] = digest
+        manifest_entry = next(
+            entry
+            for entry in document["evidence_manifest"]
+            if entry["path"] == result["evidence_path"]
+        )
+        manifest_entry["sha256"] = digest
+        manifest_entry["byte_count"] = retained_path.stat().st_size
+    errors = _validate(packet, receipts, context)
+    assert any("cross-platform visual" in error for error in errors)
