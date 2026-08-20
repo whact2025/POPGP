@@ -75,8 +75,12 @@ VALIDATION_GLOB = "examples/physics_qg/*/results/validation.json"
 # while making every rendered feature part of the contract; aggregate error budgets
 # otherwise permit small labels and one-pixel curves to disappear completely.
 VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT = 4
-RECOMPUTED_REL_TOL = 1e-10
-RECOMPUTED_ABS_TOL = 1e-15
+# Retained Windows/Ubuntu LAPACK fits differ by at most roughly 3e-15 in the
+# recomputed sensitivity slope deviations.  These narrow equality tolerances admit
+# that measured roundoff while remaining orders of magnitude below every registered
+# decision margin and the 4e-9 adversarial raw-operand mutations.
+RECOMPUTED_REL_TOL = 1e-9
+RECOMPUTED_ABS_TOL = 2e-15
 INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
     "examples/physics_qg/ca_model/results/validation.json": frozenset(
         {"survivor_entropy_filter_regression"}
