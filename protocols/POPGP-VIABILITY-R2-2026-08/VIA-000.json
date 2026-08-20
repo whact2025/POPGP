@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-000",
+  "parameters": {
+    "candidate_commit": "5be3c38a0822d49953d0933f14ccab32ca12c896",
+    "candidate_tree": "6ad387f9f4e0bab7f97df1bb54a03177887f0707",
+    "comparison_baseline": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+    "dependency_lock": "uv.lock",
+    "python_minor": "3.11",
+    "uv_version": "0.11.11",
+    "platform_families": [
+      "ubuntu-latest-x86_64",
+      "windows-x86_64"
+    ],
+    "required_test_count": 366,
+    "required_example_count": 6,
+    "required_visual_count": 12,
+    "required_mutation_count": 18,
+    "maximum_cross_platform_channel_delta": 4,
+    "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",
+    "pdf_pass_count": 2,
+    "runner_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1",
+    "runner_protocol_sha256": "b627852b880ffaaa4e716ddb90591fd0701fe0afc9e58c29f4b0ffcf44cb1d8a",
+    "native_or_scalable_claim_in_scope": false,
+    "seed_policy": "Use only committed public seeds or the custodian-supplied secret seed; never inspect, reselect, rerun, or replace output after commitment."
+  },
+  "measurement_procedure": "On both declared platforms, execute the supporting runner protocol from the frozen protocol snapshot. It creates a fresh exact-candidate clone, a fresh locked non-editable Python environment, external caches and evidence directories, and extracts the trusted reproduction-boundary checker from the candidate Git object database with a base Python interpreter under -I -S. Retain literal source and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary validation, two pinned pdfTeX passes to an external directory, and all eighteen frozen mutation families. The runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.",
+  "uncertainty_procedure": "Candidate commit/tree, Git object and mode bindings, command exits, test/example/mutation counts, environment/source manifests, startup-hook isolation, tracked/untracked/ignored cleanliness, PDF engine/output, raw semantic identities, structure, types, shapes, pass Booleans, and receipt hashes are exact. Numeric comparison uses only the frozen checker tolerances; after canonicalized near-zero plot annotations, every cross-platform raster channel must differ by at most 4. Stored summaries cannot substitute for recomputation from the lowest-level retained operands.",
+  "statistical_analysis": "Pass only if both platform families execute the complete protocol at the exact candidate, all 366 tests and six generators pass, every semantic and visual decision is recomputed and valid, all twelve visuals satisfy the calibrated channel bound, the fresh two-pass PDF build succeeds with the pinned engine, source and environment boundaries remain valid, all eighteen corruptions are rejected by the complete gate, and every required result is present in hash-retained raw evidence. Any missing command, platform-only success, pre-existing or substituted environment/evidence path, undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, surviving mutation, uncommitted output, or evidence available only in prose is a failure. A separately declared unavailable execution prerequisite may block; malformed protocol, custody, evidence, or rule state invalidates the round rather than producing a scientific outcome.",
+  "resource_budget": {
+    "wall_time_seconds": 5400,
+    "memory_bytes": 12884901888,
+    "accelerator_seconds": 0
+  },
+  "commands": [
+    "pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot C:/src/POPGP-VIABILITY-R2-2026-08-WINDOWS -PlatformFamily windows-x86_64",
+    "pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot /tmp/POPGP-VIABILITY-R2-2026-08-UBUNTU -PlatformFamily ubuntu-latest-x86_64"
+  ],
+  "mutation_plan": [
+    "Add an unregistered check identity, remove a required check, or flip a required pass Boolean; require semantic rejection.",
+    "Change a required measurement array type or shape, introduce a non-finite value, or add a stale summary; require fail-closed rejection.",
+    "Change stable configuration or a declared decision threshold while retaining the prior Boolean; require rejection.",
+    "Remove or overwrite a compact feature, one-pixel or dashed curve, rendered label, or real annotation in a required visual; require rejection under the calibrated visual contract.",
+    "Move a raw grid clock-potential operand across the placeholder criterion while retaining range, extrema, mean, and pass summaries; require recomputation and rejection.",
+    "Mutate a simple-source entropy, modular-energy, or relative-entropy operand within portability tolerance while retaining fitted slopes, affine identities, solver ratios, and Booleans; require recomputation and rejection.",
+    "Mutate many-body local/global energy operands, KMS or first-law operands, endpoint/control data, or order-sensitivity aliases while retaining derived identities and Booleans; require recomputation and rejection.",
+    "Alter a clock weight-matrix diagonal, sign, symmetry, inferred-edge support, or non-edge entry, including a correlated source update that preserves the solver residual; require graph-provenance rejection.",
+    "Alter the retained mutual-information matrix or inferred-edge list coherently with the clock weight matrix; require independent MI structure, kernel, and edge-support rejection.",
+    "Alter a raw source, removed background, zero-mode policy, effective source, or zero-sum condition, including correlated transformations that preserve the finite-graph equation; require source-provenance rejection.",
+    "Alter configured mass, gauge, normalization, source model, diagnostic center, or point strength together with correlated downstream fields; require configuration/source-model rejection.",
+    "Activate root sitecustomize.py through PYTHONPATH or another blocked environment variable, including a self-cleaning hook; require base-interpreter/process-boundary rejection.",
+    "Preplant or inject ignored environment sitecustomize.py, usercustomize.py, executable .pth, or editable self-cleaning startup state; require isolated -I -S execution and complete environment-manifest rejection.",
+    "Modify an installed dependency, add executable bytecode or another importable cache, or substitute the locked environment after snapshot; require environment-manifest rejection.",
+    "Use assume-unchanged, staged/index flags, ignored source, symlink substitution, or repository-local clean filters to conceal changed source bytes or modes; require literal Git-object boundary rejection.",
+    "Execute a transient tracked-source mutation that restores itself before final status, including a self-deleting or self-restoring startup carrier; require per-command pre/post source-boundary rejection.",
+    "Create a platform-only regeneration, dirty generated artifact, repository-local PDF output, pre-existing external evidence directory, or missing Linux/Windows result; require rejection.",
+    "Supply a result only in an agent summary, replace raw results after output commitment, reveal before commitment, or break a receipt/hash/chronology binding; require contract rejection."
+  ]
+}

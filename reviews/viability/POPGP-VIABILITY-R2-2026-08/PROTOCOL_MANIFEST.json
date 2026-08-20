@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "contract_version": "popgp-viability-contract-v2",
+  "requirements_version": "popgp-viability-requirements-v2",
+  "campaign_id": "POPGP-VIABILITY-R2-2026-08",
+  "candidate_commit": "5be3c38a0822d49953d0933f14ccab32ca12c896",
+  "baseline_commit": "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+  "tree_hash": "6ad387f9f4e0bab7f97df1bb54a03177887f0707",
+  "packet_freeze_version": "popgp-packet-freeze-v4",
+  "requirements": {
+    "path": "schemas/viability/requirements-v2.json",
+    "sha256": "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
+  },
+  "contract_files": [
+    {
+      "path": "docs/scientific_hardening/CLAIMS_MATRIX.md",
+      "sha256": "33d0e656131b6aea52c3a644f59f91c302b777014839ceb13e5f6f93758e8e6d"
+    },
+    {
+      "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
+      "sha256": "7af3e9dec3a172831c34a26bc28f496b38857f7499dc04440d773b0a7726fbb2"
+    },
+    {
+      "path": "schemas/viability/campaign-v2.schema.json",
+      "sha256": "13ba43394a9ae4162d47fc44662232e9c51b73d3c0a32515ab81562f3007fbca"
+    },
+    {
+      "path": "schemas/viability/independent-rereview-v2.schema.json",
+      "sha256": "8b0a6e224abbf09a6b33890acdb628c15c82d083d2ae8bf7273ee2a26d01e567"
+    },
+    {
+      "path": "schemas/viability/independent-review-v2.schema.json",
+      "sha256": "032eedcdd5651bc8deaedf06ec20805aec028eaafad8ba0eea9d8acdcc76e8a1"
+    },
+    {
+      "path": "schemas/viability/packet-v2.schema.json",
+      "sha256": "9278b165eafcab04bd0989d489db3fe4fe881ade0c04e7f77cad5e9d69f5217d"
+    },
+    {
+      "path": "schemas/viability/primary-protocol-v1.schema.json",
+      "sha256": "d3360469bf7eb5b501da9eb42350df17fa946d5c9e598b20534240fcb7d8f801"
+    },
+    {
+      "path": "schemas/viability/protocol-manifest-v2.schema.json",
+      "sha256": "78f3c6a0dcf59a7ed134e5df2743cc7b9cdace8cc7b312af171a8c9e0381f10d"
+    },
+    {
+      "path": "schemas/viability/review-response-v2.schema.json",
+      "sha256": "0719e843fced8109e37f522e538be9905b7f43fcb42a06a3eb50239258785a1d"
+    },
+    {
+      "path": "scripts/check_viability_campaign.py",
+      "sha256": "f3cebec20a326db062351fb25a01f01ad36bd96284262ea354f8d69349d21298"
+    }
+  ],
+  "packet_rule_sha256": {
+    "VIA-000": "d47049565cd5ef7f4f5baf7baf6e5bb619352608412f1def87f5b55562492598",
+    "VIA-010": "f7ef66d9b7c41ece73e9c38946e995f0a2121b3a293fcd726324753366ad2a13",
+    "VIA-100": "c4a573ffce6c0c92bdb8d2c8f10af9d9f59230fcf7561b351af41e267b621851",
+    "VIA-150": "3f3b3b221575d96556a2f43784665025ca5837d829545bb1c5e1267e459d9d63",
+    "VIA-200": "e44aa3939a5b53ba68630cfc388f2c0a91b3503768f87535d6cc049b4dfb3ef8",
+    "VIA-300": "be225e8ca0e737bc16623848bf928d523a8dc1aa08de37d73a90cf8fce7e47ca",
+    "VIA-400": "86b1940706af2294b5910c400b25000c477c3c66d9245d21af943cd765a098dc"
+  }
+}

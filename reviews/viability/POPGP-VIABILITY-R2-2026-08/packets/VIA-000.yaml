@@ -1,0 +1,411 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R2-2026-08
+packet_id: VIA-000
+candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
+baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
+protocol_commit: f7bffc98d851ad2c333c5b01e4221b655908de7e
+protocol_rule_sha256: d47049565cd5ef7f4f5baf7baf6e5bb619352608412f1def87f5b55562492598
+lifecycle_phase: preregistered
+claims:
+- C03
+- C04
+- C06
+- C08
+- C09
+- C10
+- C11
+- C12
+- C13
+existing_gates:
+- GATE-SOURCE-KMS-RESPONSE
+- GATE-ENTROPY-CONFOUND
+- GATE-MODULAR-LOCALIZATION
+- GATE-BLIND-TOPOLOGY
+- GATE-NONGEOMETRIC-CONTROLS
+- GATE-PARAMETER-ROBUSTNESS
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- evidence-contract
+- cross-platform-reproduction
+- mutation-rejection
+capability_rules:
+  evidence-contract:
+    compare:
+      left:
+        binding: evidence-contract
+      op: eq
+      right:
+        value: true
+  cross-platform-reproduction:
+    compare:
+      left:
+        binding: cross-platform-reproduction
+      op: eq
+      right:
+        value: true
+  mutation-rejection:
+    compare:
+      left:
+        binding: mutation-rejection
+      op: eq
+      right:
+        value: true
+hypothesis: The independently reviewed candidate can be rebuilt on Linux and Windows from a literal Git/object
+  and complete locked-environment boundary, reproduce every retained decision from raw operands and declared
+  provenance, build the manuscript, and reject every preregistered evidence, startup, source-boundary,
+  visual, and correlated semantic corruption.
+null_or_competitors:
+- The apparent passes depend on undeclared builder state, one operating system, or mutable environment/source
+  bytes.
+- The semantic or visual oracle accepts a decision-changing corruption within its portability tolerance.
+- Correlated graph, source, or solver-configuration changes preserve a residual while contradicting upstream
+  retained provenance.
+- The manuscript or committed structured artifacts cannot be reproduced from the exact candidate.
+known_failure_to_retain: Retain the valid failed R1 VIA-000 outcome, Linux regeneration/startup-boundary
+  failures, CA failed headline, perturbed-Bell false geometry, raw-relative-entropy source failure, entropy
+  confound, and reduced-modular localization failure. R2 may not overwrite or reinterpret R1.
+threat_model:
+- undeclared local, environment, startup, cache, index, filter, symlink, or platform state
+- regeneration without semantic or calibrated visual equivalence
+- stale, duplicated, weakened, mistyped, non-finite, or summary-only decision evidence
+- correlated graph, source, mass, gauge, policy, and diagnostic mutations that preserve a downstream residual
+- repository-local PDF output, dirty regeneration, missing raw logs, or evidence available only in prose
+- post-output replacement, premature reveal, or broken custody/receipt chronology
+preregistration:
+  parameters:
+    candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
+    candidate_tree: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
+    comparison_baseline: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+    dependency_lock: uv.lock
+    python_minor: '3.11'
+    uv_version: 0.11.11
+    platform_families:
+    - ubuntu-latest-x86_64
+    - windows-x86_64
+    required_test_count: 366
+    required_example_count: 6
+    required_visual_count: 12
+    required_mutation_count: 18
+    maximum_cross_platform_channel_delta: 4
+    pdf_engine: pdfTeX-1.40.29-TeX-Live-2026
+    pdf_pass_count: 2
+    runner_protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1
+    runner_protocol_sha256: b627852b880ffaaa4e716ddb90591fd0701fe0afc9e58c29f4b0ffcf44cb1d8a
+    native_or_scalable_claim_in_scope: false
+    seed_policy: Use only committed public seeds or the custodian-supplied secret seed; never inspect,
+      reselect, rerun, or replace output after commitment.
+  measurement_procedure: On both declared platforms, execute the supporting runner protocol from the frozen
+    protocol snapshot. It creates a fresh exact-candidate clone, a fresh locked non-editable Python environment,
+    external caches and evidence directories, and extracts the trusted reproduction-boundary checker from
+    the candidate Git object database with a base Python interpreter under -I -S. Retain literal source
+    and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run
+    Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary
+    validation, two pinned pdfTeX passes to an external directory, and all eighteen frozen mutation families.
+    The runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.
+  uncertainty_procedure: Candidate commit/tree, Git object and mode bindings, command exits, test/example/mutation
+    counts, environment/source manifests, startup-hook isolation, tracked/untracked/ignored cleanliness,
+    PDF engine/output, raw semantic identities, structure, types, shapes, pass Booleans, and receipt hashes
+    are exact. Numeric comparison uses only the frozen checker tolerances; after canonicalized near-zero
+    plot annotations, every cross-platform raster channel must differ by at most 4. Stored summaries cannot
+    substitute for recomputation from the lowest-level retained operands.
+  statistical_analysis: Pass only if both platform families execute the complete protocol at the exact
+    candidate, all 366 tests and six generators pass, every semantic and visual decision is recomputed
+    and valid, all twelve visuals satisfy the calibrated channel bound, the fresh two-pass PDF build succeeds
+    with the pinned engine, source and environment boundaries remain valid, all eighteen corruptions are
+    rejected by the complete gate, and every required result is present in hash-retained raw evidence.
+    Any missing command, platform-only success, pre-existing or substituted environment/evidence path,
+    undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory
+    raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, surviving
+    mutation, uncommitted output, or evidence available only in prose is a failure. A separately declared
+    unavailable execution prerequisite may block; malformed protocol, custody, evidence, or rule state
+    invalidates the round rather than producing a scientific outcome.
+  resource_budget:
+    wall_time_seconds: 5400
+    memory_bytes: 12884901888
+    accelerator_seconds: 0
+  commands:
+  - pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot C:/src/POPGP-VIABILITY-R2-2026-08-WINDOWS
+    -PlatformFamily windows-x86_64
+  - pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot /tmp/POPGP-VIABILITY-R2-2026-08-UBUNTU
+    -PlatformFamily ubuntu-latest-x86_64
+  mutation_plan:
+  - Add an unregistered check identity, remove a required check, or flip a required pass Boolean; require
+    semantic rejection.
+  - Change a required measurement array type or shape, introduce a non-finite value, or add a stale summary;
+    require fail-closed rejection.
+  - Change stable configuration or a declared decision threshold while retaining the prior Boolean; require
+    rejection.
+  - Remove or overwrite a compact feature, one-pixel or dashed curve, rendered label, or real annotation
+    in a required visual; require rejection under the calibrated visual contract.
+  - Move a raw grid clock-potential operand across the placeholder criterion while retaining range, extrema,
+    mean, and pass summaries; require recomputation and rejection.
+  - Mutate a simple-source entropy, modular-energy, or relative-entropy operand within portability tolerance
+    while retaining fitted slopes, affine identities, solver ratios, and Booleans; require recomputation
+    and rejection.
+  - Mutate many-body local/global energy operands, KMS or first-law operands, endpoint/control data, or
+    order-sensitivity aliases while retaining derived identities and Booleans; require recomputation and
+    rejection.
+  - Alter a clock weight-matrix diagonal, sign, symmetry, inferred-edge support, or non-edge entry, including
+    a correlated source update that preserves the solver residual; require graph-provenance rejection.
+  - Alter the retained mutual-information matrix or inferred-edge list coherently with the clock weight
+    matrix; require independent MI structure, kernel, and edge-support rejection.
+  - Alter a raw source, removed background, zero-mode policy, effective source, or zero-sum condition,
+    including correlated transformations that preserve the finite-graph equation; require source-provenance
+    rejection.
+  - Alter configured mass, gauge, normalization, source model, diagnostic center, or point strength together
+    with correlated downstream fields; require configuration/source-model rejection.
+  - Activate root sitecustomize.py through PYTHONPATH or another blocked environment variable, including
+    a self-cleaning hook; require base-interpreter/process-boundary rejection.
+  - Preplant or inject ignored environment sitecustomize.py, usercustomize.py, executable .pth, or editable
+    self-cleaning startup state; require isolated -I -S execution and complete environment-manifest rejection.
+  - Modify an installed dependency, add executable bytecode or another importable cache, or substitute
+    the locked environment after snapshot; require environment-manifest rejection.
+  - Use assume-unchanged, staged/index flags, ignored source, symlink substitution, or repository-local
+    clean filters to conceal changed source bytes or modes; require literal Git-object boundary rejection.
+  - Execute a transient tracked-source mutation that restores itself before final status, including a
+    self-deleting or self-restoring startup carrier; require per-command pre/post source-boundary rejection.
+  - Create a platform-only regeneration, dirty generated artifact, repository-local PDF output, pre-existing
+    external evidence directory, or missing Linux/Windows result; require rejection.
+  - Supply a result only in an agent summary, replace raw results after output commitment, reveal before
+    commitment, or break a receipt/hash/chronology binding; require contract rejection.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-000/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json
+    sha256: 0af64cbc713790d10243feee5fad590c6063027fb771633c49045206b51388fb
+    media_type: application/json
+  - receipt_id: runner-protocol
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/runner-protocol.ps1
+    protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1
+    sha256: b627852b880ffaaa4e716ddb90591fd0701fe0afc9e58c29f4b0ffcf44cb1d8a
+    media_type: text/plain
+holdout_started: false
+seats:
+  protocol_designer:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-protocol
+    session_id: popgp-viability-r2-2026-08-via000-protocol-session
+  builder:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-builder
+    session_id: popgp-viability-r2-2026-08-via000-builder-session
+  falsifier:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-falsifier
+    session_id: popgp-viability-r2-2026-08-via000-falsifier-session-1
+  statistical_auditor:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-statistics
+    session_id: popgp-viability-r2-2026-08-via000-statistics-session
+  reproduction_runner:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-runner
+    session_id: popgp-viability-r2-2026-08-via000-runner-session
+  claim_auditor:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-claims
+    session_id: popgp-viability-r2-2026-08-via000-claims-session
+  adjudicator:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-adjudicator
+    session_id: popgp-viability-r2-2026-08-via000-adjudicator-session
+  evaluator_custodian:
+    model_identity: OpenAI Codex (GPT-5)
+    model_version: not-exposed
+    operator: NVIDIA.COM\rfuoco
+    orchestrator_id: codex-desktop
+    organization: not-exposed
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: true
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r2-custodian
+    session_id: popgp-viability-r2-2026-08-via000-custodian-session
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R2-2026-08/VIA-000-hidden-holdout.json
+    sha256: 54363a171f866bb99008f2d854f7ac55505b24c1c0a306560bb39ab1c6b371c7
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R2-2026-08/VIA-000-secret-seed.json
+    sha256: 32cb4d567ba894e3d736507477fdfb34fb9396f581581dce8b6580f3e4be8eb1
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Retain commitments, sealed manifests, raw outputs, and reveal records for the lifetime
+      of the campaign.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R2-2026-08/archive/VIA-000
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    evidence-contract:
+      receipt_id: raw-results
+      json_pointer: /capabilities/evidence-contract
+      expected_type: boolean
+    cross-platform-reproduction:
+      receipt_id: raw-results
+      json_pointer: /capabilities/cross-platform-reproduction
+      expected_type: boolean
+    mutation-rejection:
+      receipt_id: raw-results
+      json_pointer: /capabilities/mutation-rejection
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: evidence-contract
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: cross-platform-reproduction
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: mutation-rejection
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-000/protocol.json
+  sha256: 0af64cbc713790d10243feee5fad590c6063027fb771633c49045206b51388fb
+  media_type: application/json
+- id: runner-protocol
+  kind: protocol
+  path: ../receipts/VIA-000/runner-protocol.ps1
+  sha256: b627852b880ffaaa4e716ddb90591fd0701fe0afc9e58c29f4b0ffcf44cb1d8a
+  media_type: text/plain
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

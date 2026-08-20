@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-100",
+  "parameters": {
+    "noncommuting_family_count": 2,
+    "commuting_family_count": 2,
+    "sizes": [
+      3,
+      5,
+      7
+    ],
+    "betas": [
+      0.5,
+      1.0,
+      2.0,
+      2.5,
+      3.0
+    ],
+    "continuity_normalized_residual_max": 1e-06,
+    "convention_relative_spread_max": 0.1,
+    "temporal_retained_fraction_min": 0.8,
+    "susceptibility_error_margin_min": 10.0,
+    "single_global_calibration": true
+  },
+  "measurement_procedure": "Compare four named sources over commuting/noncommuting, affine/non-affine, isospectral, equal-energy entropy, boundary, location, temperature, size, and held-out coupling families; derive a local current and propagate the winner through the clock solve.",
+  "uncertainty_procedure": "Cross-check the weakest susceptibility with independent extended precision and propagate eigensolver, Richardson, continuity, convention, temporal, and clock errors.",
+  "statistical_analysis": "Pass only if one nonidentity candidate clears the floor, global-sum and continuity laws, convention and temporal bounds, and held-out predictions with one calibration.",
+  "resource_budget": {
+    "wall_time_seconds": 14400,
+    "memory_bytes": 17179869184,
+    "accelerator_seconds": 0
+  },
+  "commands": [
+    "uv run pytest -q tests/scientific/test_many_body_source_law.py tests/scientific/test_source_law_controls.py tests/unit/test_simulator.py",
+    "uv run python -m examples.physics_qg.source_law_many_body"
+  ],
+  "mutation_plan": [
+    "Add a first-order relative-entropy term.",
+    "Change the local energy decomposition.",
+    "Break one current sign.",
+    "Select the temporal window after holdout.",
+    "Refit clock normalization per case."
+  ]
+}
