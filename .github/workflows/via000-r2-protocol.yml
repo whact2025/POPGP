@@ -1,0 +1,91 @@
+name: VIA-000 R2 frozen protocol calibration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - campaign/via000-r2-protocol-*
+
+permissions:
+  contents: read
+
+jobs:
+  platform-fragment:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: ubuntu-latest-x86_64
+          - os: windows-latest
+            platform: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact protocol candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Set up base Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11"
+
+      - name: Set up exact TeX Live 2026
+        uses: TeX-Live/setup-texlive-action@eb78d21f41941476d9121e3a0abcab73265c876f
+        with:
+          version: "2026"
+          cache: "false"
+          packages: >-
+            scheme-small revtex amsmath graphics hyperref tools booktabs ec
+
+      - name: Install exact uv runner
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check uv==0.11.11
+
+      - name: Execute frozen clean platform protocol
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $workspace = Join-Path $env:RUNNER_TEMP "via000-r2-platform"
+          pwsh -NoProfile -File `
+            protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 `
+            -WorkspaceRoot $workspace `
+            -PlatformFamily "${{ matrix.platform }}"
+          if ($LASTEXITCODE -ne 0) { throw "frozen platform runner failed" }
+
+          @'
+          import json
+          import os
+          from pathlib import Path
+          from jsonschema import Draft202012Validator, FormatChecker
+
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "via000-r2-platform"
+          schema = json.loads(Path(
+              "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json"
+          ).read_text(encoding="utf-8"))
+          summary = json.loads(
+              (workspace / "evidence/platform-summary.json").read_text(encoding="utf-8")
+          )
+          fragment_schema = {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$defs": schema["$defs"],
+              "$ref": "#/$defs/platform",
+          }
+          errors = list(Draft202012Validator(
+              fragment_schema, format_checker=FormatChecker()
+          ).iter_errors(summary))
+          if errors:
+              raise SystemExit(errors[0].message)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw "platform fragment schema validation failed" }
+
+      - name: Retain immutable platform fragment
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: via000-r2-protocol-${{ matrix.platform }}
+          path: ${{ runner.temp }}/via000-r2-platform/
+          if-no-files-found: error
+          retention-days: 90
