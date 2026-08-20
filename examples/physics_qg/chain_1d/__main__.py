@@ -252,6 +252,17 @@ if result.pi_time is not None:
 phi = result.pi_time.phi.numpy() if result.pi_time is not None else None
 phi_range = float(phi.max() - phi.min()) if phi is not None else None
 phi_mean = float(phi.mean()) if phi is not None else None
+phi_index_moment = (
+    float(
+        np.dot(
+            np.arange(1, len(phi) + 1, dtype=float)
+            / np.sum(np.arange(1, len(phi) + 1, dtype=float)),
+            phi,
+        )
+    )
+    if phi is not None
+    else None
+)
 
 report = {
     "example": "chain_1d",
@@ -330,6 +341,11 @@ report = {
             "phi_max": float(phi.max()) if phi is not None else None,
             "phi_range": phi_range,
             "phi_mean": phi_mean,
+            "phi_index_moment": phi_index_moment,
+            "weight_matrix": result.pi_loc.weight_matrix.tolist(),
+            "effective_source": result.pi_time.delta_rho.tolist(),
+            "mu": float(cfg.pi_time.mu),
+            "normalize_potential": cfg.pi_time.normalize_potential,
             "constraint_residual": result.pi_time.constraint_residual,
         },
     },

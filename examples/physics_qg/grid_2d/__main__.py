@@ -155,12 +155,17 @@ if result.pi_time is not None:
     phi_grid = phi.reshape(HEIGHT, WIDTH)
     phi_range = phi.max() - phi.min()
     phi_mean = phi.mean()
+    max_absolute_phi = np.max(np.abs(phi))
 
     fig, ax = plt.subplots(figsize=(6, 5))
     effective_source_norm = float(
         torch.linalg.vector_norm(result.pi_time.delta_rho).item()
     )
-    placeholder_degenerate = effective_source_norm < 1e-12 and phi_range < 1e-12
+    placeholder_degenerate = (
+        effective_source_norm < 1e-12
+        and phi_range < 1e-12
+        and max_absolute_phi < 1e-12
+    )
     display_phi_grid = np.zeros_like(phi_grid) if placeholder_degenerate else phi_grid
     display_limits = {"vmin": -1e-12, "vmax": 1e-12} if placeholder_degenerate else {}
     im = ax.imshow(
@@ -195,6 +200,18 @@ if result.pi_time is not None:
 phi = result.pi_time.phi.numpy() if result.pi_time is not None else None
 phi_range = float(phi.max() - phi.min()) if phi is not None else None
 phi_mean = float(phi.mean()) if phi is not None else None
+max_absolute_phi = float(np.max(np.abs(phi))) if phi is not None else None
+phi_index_moment = (
+    float(
+        np.dot(
+            np.arange(1, len(phi) + 1, dtype=float)
+            / np.sum(np.arange(1, len(phi) + 1, dtype=float)),
+            phi,
+        )
+    )
+    if phi is not None
+    else None
+)
 effective_source_norm = (
     float(torch.linalg.vector_norm(result.pi_time.delta_rho).item())
     if result.pi_time is not None
@@ -205,6 +222,8 @@ placeholder_degenerate = (
     and effective_source_norm < 1e-12
     and phi_range is not None
     and phi_range < 1e-12
+    and max_absolute_phi is not None
+    and max_absolute_phi < 1e-12
 )
 
 report = {
@@ -271,6 +290,12 @@ report = {
             "phi_max": float(phi.max()) if phi is not None else None,
             "phi_range": phi_range,
             "phi_mean": phi_mean,
+            "max_absolute_phi": max_absolute_phi,
+            "phi_index_moment": phi_index_moment,
+            "weight_matrix": result.pi_loc.weight_matrix.tolist(),
+            "effective_source": result.pi_time.delta_rho.tolist(),
+            "mu": float(cfg.pi_time.mu),
+            "normalize_potential": cfg.pi_time.normalize_potential,
             "constraint_residual": result.pi_time.constraint_residual,
             "effective_source_norm": effective_source_norm,
         },
@@ -353,10 +378,14 @@ report = {
                 "placeholder constant, so zero-mode removal gives Phi=0"
             ),
             "framework_section": "4.4.5",
-            "criterion": "effective_source_norm < 1e-12 and phi_range < 1e-12",
+            "criterion": (
+                "effective_source_norm < 1e-12 and phi_range < 1e-12 and "
+                "max_absolute_phi < 1e-12"
+            ),
             "value": {
                 "effective_source_norm": effective_source_norm,
                 "phi_range": phi_range,
+                "max_absolute_phi": max_absolute_phi,
                 "constraint_residual": result.pi_time.constraint_residual,
             },
             "passed": placeholder_degenerate,

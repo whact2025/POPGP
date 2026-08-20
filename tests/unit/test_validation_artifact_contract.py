@@ -363,7 +363,10 @@ def test_threshold_crossing_operand_recomputes_failed_gate() -> None:
     semantic_errors = check_validation_semantics(document, relative_path)
 
     assert comparison.passed  # The bounded portability comparison is not the decision oracle.
-    assert any("recompute to False" in error for error in semantic_errors)
+    assert any(
+        "phi_range differs from recomputed raw potential" in error
+        for error in semantic_errors
+    )
 
 
 @pytest.mark.negative_control
@@ -393,6 +396,182 @@ def test_threshold_crossing_pipeline_alias_cannot_leave_stale_check(
     errors = check_validation_semantics(document, relative_path)
 
     assert any("authoritative retained field" in error for error in errors), errors
+
+
+POTENTIAL_ARRAY_PATHS: tuple[
+    tuple[str, tuple[str, ...]], ...
+] = (
+    (
+        "examples/physics_qg/chain_1d/results/validation.json",
+        ("pipeline", "pi_time", "phi"),
+    ),
+    (
+        "examples/physics_qg/grid_2d/results/validation.json",
+        ("pipeline", "pi_time", "phi"),
+    ),
+    (
+        "examples/physics_qg/gravity_well/results/validation.json",
+        ("pipeline", "pi_time_natural", "phi"),
+    ),
+    (
+        "examples/physics_qg/gravity_well/results/validation.json",
+        ("pipeline", "gravity_test", "phi_point"),
+    ),
+)
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(("relative_path", "array_path"), POTENTIAL_ARRAY_PATHS)
+def test_every_retained_potential_element_recomputes_summaries(
+    relative_path: str,
+    array_path: tuple[str, ...],
+) -> None:
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    raw = reference
+    for part in array_path:
+        raw = raw[part]
+
+    for index in range(len(raw)):
+        candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+        target = candidate
+        for part in array_path:
+            target = target[part]
+        target[index] += 4e-9
+
+        comparison = compare_validation_documents(reference, candidate)
+        errors = check_validation_semantics(candidate, relative_path)
+
+        assert comparison.passed, (relative_path, index, comparison.errors)
+        assert any("recomputed raw potential" in error for error in errors), (
+            relative_path,
+            index,
+            errors,
+        )
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("transform", ["scale", "sign", "reverse", "roll", "shift"])
+def test_grid_raw_potential_transformations_cannot_leave_stale_summaries(
+    transform: str,
+) -> None:
+    relative_path = "examples/physics_qg/grid_2d/results/validation.json"
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    phi = candidate["pipeline"]["pi_time"]["phi"]
+    if transform == "scale":
+        mutated = [value * 1e7 for value in phi]
+    elif transform == "sign":
+        mutated = [-value for value in phi]
+    elif transform == "reverse":
+        mutated = list(reversed(phi))
+    elif transform == "roll":
+        mutated = [phi[-1], *phi[:-1]]
+    else:
+        mutated = [value + 4e-9 for value in phi]
+    candidate["pipeline"]["pi_time"]["phi"] = mutated
+
+    comparison = compare_validation_documents(reference, candidate)
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert comparison.passed, (transform, comparison.errors)
+    assert any("recomputed raw potential" in error for error in errors), errors
+
+
+@pytest.mark.negative_control
+def test_grid_correlated_uniform_potential_shift_fails_absolute_gate() -> None:
+    relative_path = "examples/physics_qg/grid_2d/results/validation.json"
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    pi_time = candidate["pipeline"]["pi_time"]
+    phi = [value + 4e-9 for value in pi_time["phi"]]
+    pi_time["phi"] = phi
+    pi_time["phi_min"] = min(phi)
+    pi_time["phi_max"] = max(phi)
+    pi_time["phi_range"] = max(phi) - min(phi)
+    pi_time["phi_mean"] = sum(phi) / len(phi)
+    pi_time["max_absolute_phi"] = max(abs(value) for value in phi)
+    pi_time["phi_index_moment"] = sum(
+        (index + 1) * value for index, value in enumerate(phi)
+    ) / sum(range(1, len(phi) + 1))
+    placeholder = next(
+        check
+        for check in candidate["checks"]
+        if check["name"] == "placeholder_source_degeneracy"
+    )
+    placeholder["value"]["phi_range"] = pi_time["phi_range"]
+    placeholder["value"]["max_absolute_phi"] = pi_time["max_absolute_phi"]
+
+    comparison = compare_validation_documents(reference, candidate)
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert comparison.passed, comparison.errors
+    assert any("recompute to False" in error for error in errors), errors
+
+
+@pytest.mark.negative_control
+def test_grid_correlated_potential_scale_recomputes_solver_residual() -> None:
+    relative_path = "examples/physics_qg/grid_2d/results/validation.json"
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    pi_time = candidate["pipeline"]["pi_time"]
+    phi = [value * 1e7 for value in pi_time["phi"]]
+    pi_time["phi"] = phi
+    pi_time["phi_min"] = min(phi)
+    pi_time["phi_max"] = max(phi)
+    pi_time["phi_range"] = max(phi) - min(phi)
+    pi_time["phi_mean"] = sum(phi) / len(phi)
+    pi_time["max_absolute_phi"] = max(abs(value) for value in phi)
+    pi_time["phi_index_moment"] = sum(
+        (index + 1) * value for index, value in enumerate(phi)
+    ) / sum(range(1, len(phi) + 1))
+    placeholder = next(
+        check
+        for check in candidate["checks"]
+        if check["name"] == "placeholder_source_degeneracy"
+    )
+    placeholder["value"]["phi_range"] = pi_time["phi_range"]
+    placeholder["value"]["max_absolute_phi"] = pi_time["max_absolute_phi"]
+
+    comparison = compare_validation_documents(reference, candidate)
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert comparison.passed, comparison.errors
+    assert any(
+        "constraint_residual differs from recomputed raw operands" in error
+        for error in errors
+    ), errors
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "mutation",
+    ["nonfinite_phi", "weight_shape", "source_shape", "negative_mu", "normalize_type"],
+)
+def test_clock_solver_raw_operands_are_fail_closed(mutation: str) -> None:
+    relative_path = "examples/physics_qg/grid_2d/results/validation.json"
+    candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    pi_time = candidate["pipeline"]["pi_time"]
+    if mutation == "nonfinite_phi":
+        pi_time["phi"][0] = float("nan")
+    elif mutation == "weight_shape":
+        pi_time["weight_matrix"].pop()
+    elif mutation == "source_shape":
+        pi_time["effective_source"].pop()
+    elif mutation == "negative_mu":
+        pi_time["mu"] = -1.0
+    elif mutation == "normalize_type":
+        pi_time["normalize_potential"] = 1
+    else:  # pragma: no cover - parametrization is exhaustive.
+        raise AssertionError(mutation)
+
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert errors
+    assert any(
+        "retained potential operands are invalid" in error
+        or "finite" in error
+        for error in errors
+    ), errors
 
 
 def _increment_path(document: dict, path: tuple[str | int, ...], delta: float) -> None:

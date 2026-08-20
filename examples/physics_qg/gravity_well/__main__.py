@@ -413,11 +413,32 @@ report = {
             "phi": phi_natural.tolist() if phi_natural is not None else None,
             "phi_min": float(phi_natural.min()) if phi_natural is not None else None,
             "phi_max": float(phi_natural.max()) if phi_natural is not None else None,
+            "phi_index_moment": (
+                float(
+                    np.dot(
+                        np.arange(1, len(phi_natural) + 1, dtype=float)
+                        / np.sum(
+                            np.arange(1, len(phi_natural) + 1, dtype=float)
+                        ),
+                        phi_natural,
+                    )
+                )
+                if phi_natural is not None
+                else None
+            ),
+            "weight_matrix": result.pi_loc.weight_matrix.tolist(),
+            "effective_source": result.pi_time.delta_rho.tolist(),
+            "mu": float(cfg.pi_time.mu),
+            "normalize_potential": cfg.pi_time.normalize_potential,
+            "constraint_residual": result.pi_time.constraint_residual,
         },
         "gravity_test": {
             "scientific_status": "numerical_green_function_diagnostic",
             "physical_source_law_validated": False,
+            "weight_matrix": w.tolist(),
             "effective_source": effective_source.tolist(),
+            "mu": float(MU),
+            "normalize_potential": True,
             "source_background": float(source_background),
             "constraint_residual": float(constraint_residual),
             "relative_constraint_residual": float(relative_constraint_residual),
@@ -425,6 +446,13 @@ report = {
             "phi_min": float(phi_point.min()),
             "phi_max": float(phi_point.max()),
             "phi_at_source": float(phi_point[center]),
+            "phi_index_moment": float(
+                np.dot(
+                    np.arange(1, len(phi_point) + 1, dtype=float)
+                    / np.sum(np.arange(1, len(phi_point) + 1, dtype=float)),
+                    phi_point,
+                )
+            ),
             "graph_distances": graph_dist.astype(int).tolist(),
             "radial_profile": {
                 "distances": radial_d.tolist(),

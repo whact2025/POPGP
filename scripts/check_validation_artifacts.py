@@ -394,6 +394,268 @@ def _bind_recomputed(
         )
 
 
+def _bind_potential_summaries(
+    errors: list[str],
+    value: Any,
+    *,
+    location: str,
+    include_mean_and_range: bool,
+    include_max_absolute: bool = False,
+) -> np.ndarray:
+    """Bind a retained potential array to every serialized scalar summary."""
+
+    if not isinstance(value, dict):
+        raise ValueError(f"{location} must be an object")
+    phi = _finite_array(value["phi"], ndim=1, location=f"{location}.phi")
+    expected = {
+        "phi_min": float(np.min(phi)),
+        "phi_max": float(np.max(phi)),
+    }
+    if include_mean_and_range:
+        expected.update(
+            {
+                "phi_range": float(np.max(phi) - np.min(phi)),
+                "phi_mean": float(np.mean(phi)),
+            }
+        )
+    if include_max_absolute:
+        expected["max_absolute_phi"] = float(np.max(np.abs(phi)))
+    index_weights = np.arange(1, len(phi) + 1, dtype=float)
+    expected["phi_index_moment"] = float(
+        np.dot(index_weights / np.sum(index_weights), phi)
+    )
+    for key, recomputed in expected.items():
+        observed = value[key]
+        if type(observed) is not float or not math.isfinite(observed):
+            errors.append(f"{location}.{key} must be a finite JSON float")
+        elif not math.isclose(observed, recomputed, rel_tol=1e-12, abs_tol=1e-30):
+            errors.append(
+                f"{location}.{key} differs from recomputed raw potential "
+                f"(observed={observed!r}, expected={recomputed!r})"
+            )
+    return phi
+
+
+def _bind_clock_solver(
+    errors: list[str],
+    value: dict[str, Any],
+    phi: np.ndarray,
+    *,
+    location: str,
+) -> float:
+    """Recompute the retained finite-graph clock equation from raw operands."""
+
+    weights = _finite_array(
+        value["weight_matrix"], ndim=2, location=f"{location}.weight_matrix"
+    )
+    source = _finite_array(
+        value["effective_source"], ndim=1, location=f"{location}.effective_source"
+    )
+    if weights.shape != (len(phi), len(phi)) or source.shape != phi.shape:
+        raise ValueError(f"{location} clock-solver operand shapes differ")
+    mu = value["mu"]
+    if type(mu) is not float or not math.isfinite(mu) or mu < 0.0:
+        raise ValueError(f"{location}.mu must be a nonnegative finite JSON float")
+    normalize_potential = value["normalize_potential"]
+    if type(normalize_potential) is not bool:
+        raise ValueError(f"{location}.normalize_potential must be a boolean")
+
+    laplacian = np.diag(np.sum(weights, axis=1)) - weights
+    operator = laplacian + mu**2 * np.eye(len(phi))
+    expected_residual = float(np.linalg.norm(operator @ phi - source))
+    _bind_recomputed(
+        errors,
+        value["constraint_residual"],
+        expected_residual,
+        location=f"{location}.constraint_residual",
+    )
+    if normalize_potential and abs(float(np.mean(phi))) >= 1e-12:
+        errors.append(
+            f"{location}.phi violates the normalized zero-mean potential gauge"
+        )
+    return expected_residual
+
+
+def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
+    """Recompute potential summaries and gravity derivatives from raw arrays."""
+
+    example = document.get("example")
+    errors: list[str] = []
+    try:
+        if example in {"chain_1d", "grid_2d"}:
+            pi_time = document["pipeline"]["pi_time"]
+            phi = _bind_potential_summaries(
+                errors,
+                pi_time,
+                location="pipeline.pi_time",
+                include_mean_and_range=True,
+                include_max_absolute=example == "grid_2d",
+            )
+            _bind_clock_solver(errors, pi_time, phi, location="pipeline.pi_time")
+            if example == "grid_2d":
+                source = _finite_array(
+                    pi_time["effective_source"],
+                    ndim=1,
+                    location="pipeline.pi_time.effective_source",
+                )
+                _bind_recomputed(
+                    errors,
+                    pi_time["effective_source_norm"],
+                    float(np.linalg.norm(source)),
+                    location="pipeline.pi_time.effective_source_norm",
+                )
+            return errors
+
+        if example != "gravity_well":
+            return errors
+
+        pipeline = document["pipeline"]
+        natural = pipeline["pi_time_natural"]
+        natural_phi = _bind_potential_summaries(
+            errors,
+            natural,
+            location="pipeline.pi_time_natural",
+            include_mean_and_range=False,
+        )
+        _bind_clock_solver(
+            errors,
+            natural,
+            natural_phi,
+            location="pipeline.pi_time_natural",
+        )
+
+        gravity = pipeline["gravity_test"]
+        if not isinstance(gravity, dict):
+            raise ValueError("pipeline.gravity_test must be an object")
+        phi = _finite_array(
+            gravity["phi_point"],
+            ndim=1,
+            location="pipeline.gravity_test.phi_point",
+        )
+        graph_distances_raw = gravity["graph_distances"]
+        if not isinstance(graph_distances_raw, list) or any(
+            type(item) is not int or item < 0 for item in graph_distances_raw
+        ):
+            raise ValueError(
+                "pipeline.gravity_test.graph_distances must contain nonnegative integers"
+            )
+        graph_distances = np.asarray(graph_distances_raw, dtype=int)
+        if graph_distances.shape != phi.shape:
+            raise ValueError(
+                "pipeline.gravity_test graph_distances and phi_point shapes differ"
+            )
+        center = document["config"]["center_cell"]
+        if type(center) is not int or not 0 <= center < len(phi):
+            raise ValueError("config.center_cell is not a valid phi_point index")
+
+        for key, recomputed in {
+            "phi_min": float(np.min(phi)),
+            "phi_max": float(np.max(phi)),
+            "phi_at_source": float(phi[center]),
+            "phi_index_moment": float(
+                np.dot(
+                    np.arange(1, len(phi) + 1, dtype=float)
+                    / np.sum(np.arange(1, len(phi) + 1, dtype=float)),
+                    phi,
+                )
+            ),
+        }.items():
+            observed = gravity[key]
+            if type(observed) is not float or not math.isfinite(observed):
+                errors.append(f"pipeline.gravity_test.{key} must be a finite JSON float")
+            elif not math.isclose(
+                observed,
+                recomputed,
+                rel_tol=1e-12,
+                abs_tol=1e-30,
+            ):
+                errors.append(
+                    f"pipeline.gravity_test.{key} differs from recomputed raw potential "
+                    f"(observed={observed!r}, expected={recomputed!r})"
+                )
+
+        unique_distances = np.unique(graph_distances)
+        radial_means = np.asarray(
+            [float(np.mean(phi[graph_distances == distance])) for distance in unique_distances]
+        )
+        radial_stds = np.asarray(
+            [float(np.std(phi[graph_distances == distance])) for distance in unique_distances]
+        )
+        expected_radial = {
+            "distances": [float(distance) for distance in unique_distances],
+            "phi_avg": [float(item) for item in radial_means],
+            "phi_std": [float(item) for item in radial_stds],
+        }
+        _bind_recomputed(
+            errors,
+            gravity["radial_profile"],
+            expected_radial,
+            location="pipeline.gravity_test.radial_profile",
+        )
+
+        fit_mask = unique_distances > 0
+        if int(np.sum(fit_mask)) >= 2:
+            log_distance = np.log(unique_distances[fit_mask].astype(float))
+            fit_values = radial_means[fit_mask]
+            design = np.column_stack([log_distance, np.ones_like(log_distance)])
+            coefficients, *_ = np.linalg.lstsq(design, fit_values, rcond=None)
+            prediction = design @ coefficients
+            residual_sum = float(np.sum((fit_values - prediction) ** 2))
+            total_sum = float(np.sum((fit_values - np.mean(fit_values)) ** 2))
+            expected_log_fit = {
+                "slope": float(coefficients[0]),
+                "intercept": float(coefficients[1]),
+                "r_squared": 1.0 - residual_sum / total_sum if total_sum > 0.0 else 0.0,
+            }
+        else:
+            expected_log_fit = {"slope": 0.0, "intercept": 0.0, "r_squared": 0.0}
+        _bind_recomputed(
+            errors,
+            gravity["log_fit"],
+            expected_log_fit,
+            location="pipeline.gravity_test.log_fit",
+        )
+
+        phi_source = float(phi[center])
+        phi_boundary = float(radial_means[-1])
+        one_plus_z = float(np.exp(phi_boundary - phi_source))
+        expected_redshift = {
+            "phi_source": phi_source,
+            "phi_boundary": phi_boundary,
+            "z": one_plus_z - 1.0,
+            "one_plus_z": one_plus_z,
+        }
+        _bind_recomputed(
+            errors,
+            gravity["redshift"],
+            expected_redshift,
+            location="pipeline.gravity_test.redshift",
+        )
+        expected_residual = _bind_clock_solver(
+            errors,
+            gravity,
+            phi,
+            location="pipeline.gravity_test",
+        )
+        source = _finite_array(
+            gravity["effective_source"],
+            ndim=1,
+            location="pipeline.gravity_test.effective_source",
+        )
+        source_norm = float(np.linalg.norm(source))
+        if source_norm == 0.0:
+            raise ValueError("pipeline.gravity_test.effective_source has zero norm")
+        _bind_recomputed(
+            errors,
+            gravity["relative_constraint_residual"],
+            expected_residual / source_norm,
+            location="pipeline.gravity_test.relative_constraint_residual",
+        )
+    except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+        errors.append(f"retained potential operands are invalid: {exc}")
+    return errors
+
+
 def _fit_dict_from_raw(
     amplitudes: Any,
     responses: Any,
@@ -692,7 +954,34 @@ def _decision_outcome(
                 ordered = [value[key] for key in sorted(value, key=lambda key: int(key[2:]))]
                 return all(left < right for left, right in zip(ordered, ordered[1:])), errors
             if name == "grid_symmetry":
-                return value < check["threshold"], errors
+                phi = _finite_array(
+                    gravity["phi_point"],
+                    ndim=1,
+                    location="pipeline.gravity_test.phi_point",
+                )
+                graph_distances = _finite_array(
+                    gravity["graph_distances"],
+                    ndim=1,
+                    location="pipeline.gravity_test.graph_distances",
+                )
+                if graph_distances.shape != phi.shape:
+                    raise ValueError("gravity phi and graph-distance shapes differ")
+                expected_asymmetry = 0.0
+                for distance in np.unique(graph_distances):
+                    shell = phi[graph_distances == distance]
+                    if len(shell) > 1:
+                        scale = max(float(np.max(np.abs(shell))), 1e-12)
+                        expected_asymmetry = max(
+                            expected_asymmetry,
+                            float((np.max(shell) - np.min(shell)) / scale * 100.0),
+                        )
+                _bind_recomputed(
+                    errors,
+                    value,
+                    expected_asymmetry,
+                    location=f"check {name!r}.value",
+                )
+                return expected_asymmetry < check["threshold"], errors
             if name == "negative_well_at_source":
                 authoritative_argmin = min(
                     range(len(gravity["phi_point"])),
@@ -808,14 +1097,36 @@ def _decision_outcome(
                 return value < 0.5, errors
             if name == "placeholder_source_degeneracy":
                 pipeline_value = document["pipeline"]["pi_time"]
-                for key in ("effective_source_norm", "phi_range", "constraint_residual"):
-                    if value[key] != pipeline_value[key]:
-                        errors.append(
-                            f"{name!r} operand {key!r} differs from pipeline.pi_time"
-                        )
+                phi = _finite_array(
+                    pipeline_value["phi"],
+                    ndim=1,
+                    location="pipeline.pi_time.phi",
+                )
+                expected_range = float(np.max(phi) - np.min(phi))
+                expected_max_absolute = float(np.max(np.abs(phi)))
+                for key in ("effective_source_norm", "constraint_residual"):
+                    _bind_exact(
+                        errors,
+                        value[key],
+                        pipeline_value[key],
+                        location=f"check {name!r}.value.{key}",
+                    )
+                _bind_recomputed(
+                    errors,
+                    value["phi_range"],
+                    expected_range,
+                    location=f"check {name!r}.value.phi_range",
+                )
+                _bind_recomputed(
+                    errors,
+                    value["max_absolute_phi"],
+                    expected_max_absolute,
+                    location=f"check {name!r}.value.max_absolute_phi",
+                )
                 return (
                     value["effective_source_norm"] < 1e-12
-                    and value["phi_range"] < 1e-12
+                    and expected_range < 1e-12
+                    and expected_max_absolute < 1e-12
                 ), errors
 
         if example == "source_law":
@@ -1750,7 +2061,7 @@ def check_validation_semantics(
     if not isinstance(overall_pass, bool):
         return ["overall_pass must be a boolean"]
 
-    errors: list[str] = []
+    errors: list[str] = _retained_potential_errors(document)
     names: set[str] = set()
     informational_names: set[str] = set()
     noninformational_names: set[str] = set()
