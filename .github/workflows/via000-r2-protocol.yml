@@ -55,6 +55,12 @@ jobs:
             -PlatformFamily "${{ matrix.platform }}"
           if ($LASTEXITCODE -ne 0) { throw "frozen platform runner failed" }
 
+          $candidatePython = if ($IsWindows) {
+            Join-Path $workspace "python-environment/Scripts/python.exe"
+          } else {
+            Join-Path $workspace "python-environment/bin/python"
+          }
+
           @'
           import json
           import os
@@ -78,7 +84,7 @@ jobs:
           ).iter_errors(summary))
           if errors:
               raise SystemExit(errors[0].message)
-          '@ | python -
+          '@ | & $candidatePython -I -
           if ($LASTEXITCODE -ne 0) { throw "platform fragment schema validation failed" }
 
       - name: Retain immutable platform fragment
