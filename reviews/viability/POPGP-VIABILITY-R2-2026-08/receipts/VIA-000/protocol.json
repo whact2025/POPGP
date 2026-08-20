@@ -16,11 +16,41 @@
     "required_example_count": 6,
     "required_visual_count": 12,
     "required_mutation_count": 18,
+    "required_command_count": 16,
     "maximum_cross_platform_channel_delta": 4,
     "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",
     "pdf_pass_count": 2,
     "runner_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1",
-    "runner_protocol_sha256": "b627852b880ffaaa4e716ddb90591fd0701fe0afc9e58c29f4b0ffcf44cb1d8a",
+    "runner_protocol_sha256": "fbaae8b898da1f4496953b9a3eef969bfdc0d2ac428cef9ff1beea41fc9c9cbd",
+    "raw_results_schema_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json",
+    "raw_results_schema_sha256": "29d56719e6d0a7211ca878dba038fcd71d2d1d49deecbb69ac9a48583b774975",
+    "raw_results_contract": {
+      "schema_receipt_id": "raw-results-schema",
+      "raw_results_receipt_id": "raw-results",
+      "evidence_manifest_pointer": "/evidence_manifest",
+      "required_platforms": [
+        "ubuntu-latest-x86_64",
+        "windows-x86_64"
+      ],
+      "required_command_ids": [
+        "001-clone",
+        "002-checkout",
+        "003-sync",
+        "004-ruff",
+        "005-check-tex",
+        "006-pytest",
+        "007-chain",
+        "008-grid",
+        "009-gravity",
+        "010-source-law",
+        "011-many-body",
+        "012-ca",
+        "013-artifact-boundary",
+        "014-pdflatex-1",
+        "015-pdflatex-2",
+        "016-environment-verify"
+      ]
+    },
     "native_or_scalable_claim_in_scope": false,
     "seed_policy": "Use only committed public seeds or the custodian-supplied secret seed; never inspect, reselect, rerun, or replace output after commitment."
   },

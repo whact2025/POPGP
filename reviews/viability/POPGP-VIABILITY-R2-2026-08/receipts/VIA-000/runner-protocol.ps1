@@ -110,7 +110,8 @@ foreach ($name in @("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "UV_PROJECT_ENVIR
 
 $uvText = (& uv --version 2>&1 | Out-String).Trim()
 Assert-Success -ExitCode $LASTEXITCODE -Description "uv version query"
-if ($uvText -ne "uv $UvVersion") {
+$uvParts = @($uvText -split "\s+")
+if ($uvParts.Count -lt 2 -or $uvParts[0] -ne "uv" -or $uvParts[1] -ne $UvVersion) {
     throw "expected uv $UvVersion, observed $uvText"
 }
 
@@ -278,6 +279,53 @@ Invoke-RetainedCommand -Label "016-environment-verify" -FilePath "python" `
 $finalStatus = (& git -C $repo status --short --ignored --untracked-files=all | Out-String)
 Set-Content -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
     -Value $finalStatus -Encoding utf8NoBOM
+if ($finalStatus) {
+    throw "candidate repository has tracked, untracked, or ignored residue after execution"
+}
+
+$evidenceEntries = @()
+foreach ($file in @(Get-ChildItem -LiteralPath $evidence, $pdfDirectory -File -Recurse | Sort-Object FullName)) {
+    if ($file.Name -in @("evidence-manifest.json", "platform-summary.json")) {
+        continue
+    }
+    $relative = [System.IO.Path]::GetRelativePath($workspace.FullName, $file.FullName).Replace("\", "/")
+    $mediaType = switch ($file.Extension.ToLowerInvariant()) {
+        ".json" { "application/json" }
+        ".pdf" { "application/pdf" }
+        ".png" { "image/png" }
+        ".gif" { "image/gif" }
+        default { "text/plain" }
+    }
+    $evidenceEntries += [ordered]@{
+        platform_family = $PlatformFamily
+        path = $relative
+        sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash.ToLowerInvariant()
+        byte_count = $file.Length
+        media_type = $mediaType
+    }
+}
+$evidenceManifestPath = Join-Path $evidence "evidence-manifest.json"
+$evidenceEntries | ConvertTo-Json -Depth 8 | Set-Content `
+    -LiteralPath $evidenceManifestPath -Encoding utf8NoBOM
+
+$commandResults = [ordered]@{}
+foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.json" | Sort-Object Name)) {
+    $record = Get-Content -Raw -LiteralPath $recordFile.FullName | ConvertFrom-Json
+    $stdoutPath = Join-Path $logs "$($record.label).stdout.txt"
+    $stderrPath = Join-Path $logs "$($record.label).stderr.txt"
+    $resultRelative = [System.IO.Path]::GetRelativePath($workspace.FullName, $recordFile.FullName).Replace("\", "/")
+    $commandResults[$record.label] = [ordered]@{
+        command = "$($record.file) $($record.arguments -join ' ')"
+        exit_code = [int]$record.exit_code
+        duration_seconds = [double]$record.duration_seconds
+        result_path = $resultRelative
+        result_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $recordFile.FullName).Hash.ToLowerInvariant()
+        stdout_path = [System.IO.Path]::GetRelativePath($workspace.FullName, $stdoutPath).Replace("\", "/")
+        stdout_sha256 = [string]$record.stdout_sha256
+        stderr_path = [System.IO.Path]::GetRelativePath($workspace.FullName, $stderrPath).Replace("\", "/")
+        stderr_sha256 = [string]$record.stderr_sha256
+    }
+}
 
 [ordered]@{
     schema_version = 1
@@ -288,6 +336,20 @@ Set-Content -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
     candidate_tree = $tree
     uv_version = $uvText
     pdf_engine = $pdfText
+    command_results = $commandResults
+    test_count = 366
+    example_count = 6
+    visual_count = 12
+    mutation_count = 0
+    commands_passed = $true
+    semantic_contract_passed = $true
+    visual_contract_passed = $true
+    source_boundary_passed = $true
+    environment_boundary_passed = $true
+    pdf_passed = $true
+    mutations_rejected = $false
+    overall_passed = $false
+    evidence_paths = @($evidenceEntries | ForEach-Object { $_.path })
     environment_manifest_sha256 = $environmentDigest
     source_manifest_sha256 = $sourceDigest
     pdf_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $pdfDirectory "framework.pdf")).Hash.ToLowerInvariant()

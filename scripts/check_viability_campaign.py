@@ -798,6 +798,7 @@ def _receipt_map(
             continue
         if receipt.get("media_type") in {
             "application/json",
+            "application/schema+json",
             "application/yaml",
             "text/yaml",
             "text/markdown",
@@ -973,7 +974,7 @@ def _structured_receipt_document(receipt: Mapping[str, Any]) -> Mapping[str, Any
         raise ValueError("receipt file is unavailable")
     media_type = receipt.get("media_type")
     text = _read_structured_text(path)
-    if media_type == "application/json":
+    if media_type in {"application/json", "application/schema+json"}:
         document = _load_json_text(text)
     elif media_type in {"application/yaml", "text/yaml"}:
         document = _load_yaml_text(text)
@@ -1258,6 +1259,360 @@ def _validate_preregistration(
                     f"packet {packet_id}: primary protocol differs from exact "
                     "frozen preregistration envelope"
                 )
+    return errors
+
+
+def _validate_raw_evidence_contract(
+    packet: Mapping[str, Any],
+    receipts: Mapping[str, Any],
+    packet_id: str,
+    campaign_base: Path,
+) -> list[str]:
+    """Validate an opt-in frozen raw-results schema and its retained evidence bytes."""
+
+    errors: list[str] = []
+    parameters = packet["preregistration"]["parameters"]
+    contract = parameters.get("raw_results_contract")
+    if contract is None:
+        return errors
+    required_fields = {
+        "schema_receipt_id",
+        "raw_results_receipt_id",
+        "evidence_manifest_pointer",
+        "required_platforms",
+        "required_command_ids",
+    }
+    if not isinstance(contract, Mapping) or set(contract) != required_fields:
+        return [
+            f"packet {packet_id}: raw_results_contract must contain exactly "
+            f"{sorted(required_fields)}"
+        ]
+    schema_receipt_id = contract["schema_receipt_id"]
+    raw_receipt_id = contract["raw_results_receipt_id"]
+    manifest_pointer = contract["evidence_manifest_pointer"]
+    required_platforms = contract["required_platforms"]
+    required_command_ids = contract["required_command_ids"]
+    if (
+        not isinstance(schema_receipt_id, str)
+        or not schema_receipt_id
+        or not isinstance(raw_receipt_id, str)
+        or not raw_receipt_id
+        or not isinstance(manifest_pointer, str)
+        or not manifest_pointer.startswith("/")
+        or not isinstance(required_platforms, list)
+        or not required_platforms
+        or any(not isinstance(item, str) or not item for item in required_platforms)
+        or len(required_platforms) != len(set(required_platforms))
+        or not isinstance(required_command_ids, list)
+        or not required_command_ids
+        or any(not isinstance(item, str) or not item for item in required_command_ids)
+        or len(required_command_ids) != len(set(required_command_ids))
+        or type(parameters.get("required_command_count")) is not int
+        or parameters["required_command_count"] != len(required_command_ids)
+    ):
+        return [f"packet {packet_id}: raw_results_contract has malformed values"]
+
+    schema_receipt = receipts.get(schema_receipt_id)
+    if (
+        schema_receipt is None
+        or schema_receipt.get("kind") != "protocol"
+        or schema_receipt.get("media_type") != "application/schema+json"
+    ):
+        return [
+            f"packet {packet_id}: raw-results schema receipt {schema_receipt_id!r} "
+            "is missing or mistyped"
+        ]
+    try:
+        raw_schema = _structured_receipt_document(schema_receipt)
+        Draft202012Validator.check_schema(raw_schema)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+        TypeError,
+        json.JSONDecodeError,
+        yaml.YAMLError,
+    ) as exc:
+        return [f"packet {packet_id}: raw-results schema is invalid: {exc}"]
+
+    raw_receipt = receipts.get(raw_receipt_id)
+    raw_required = LIFECYCLE_ORDER[packet["lifecycle_phase"]] >= LIFECYCLE_ORDER["reproduced"]
+    if raw_receipt is None:
+        if raw_required:
+            errors.append(
+                f"packet {packet_id}: reproduced lifecycle requires raw-results receipt "
+                f"{raw_receipt_id!r}"
+            )
+        return errors
+    if raw_receipt.get("kind") != "raw-results" or raw_receipt.get(
+        "media_type"
+    ) != "application/json":
+        return [
+            f"packet {packet_id}: raw-results receipt {raw_receipt_id!r} is mistyped"
+        ]
+    try:
+        raw_document = _structured_receipt_document(raw_receipt)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+        json.JSONDecodeError,
+        yaml.YAMLError,
+    ) as exc:
+        return [f"packet {packet_id}: raw-results document cannot be parsed: {exc}"]
+    schema_errors = _schema_errors(
+        raw_document, raw_schema, f"packet {packet_id} raw-results"
+    )
+    errors.extend(schema_errors)
+    if schema_errors:
+        return errors
+
+    try:
+        evidence_manifest = _json_pointer(raw_document, manifest_pointer)
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        return [f"packet {packet_id}: evidence manifest cannot resolve: {exc}"]
+    if not isinstance(evidence_manifest, list):
+        return [f"packet {packet_id}: evidence manifest must be an array"]
+
+    raw_path = raw_receipt.get("_resolved_path")
+    if not isinstance(raw_path, Path):
+        return [f"packet {packet_id}: raw-results path is unavailable"]
+    evidence_by_path: dict[str, Mapping[str, Any]] = {}
+    evidence_files: dict[str, Path] = {}
+    for index, entry in enumerate(evidence_manifest):
+        relative = entry["path"]
+        if relative in evidence_by_path:
+            errors.append(
+                f"packet {packet_id}: duplicate evidence-manifest path {relative!r}"
+            )
+            continue
+        evidence_by_path[relative] = entry
+        resolved = _resolve_inside(raw_path.parent, relative, campaign_base)
+        if resolved is None or resolved == raw_path.resolve():
+            errors.append(
+                f"packet {packet_id}: evidence-manifest path {relative!r} escapes or is cyclic"
+            )
+            continue
+        if not resolved.is_file():
+            errors.append(
+                f"packet {packet_id}: evidence-manifest path {relative!r} does not exist"
+            )
+            continue
+        evidence_files[relative] = resolved
+        observed_size = resolved.stat().st_size
+        observed_hash = _sha256(resolved)
+        if observed_size != entry["byte_count"]:
+            errors.append(
+                f"packet {packet_id}: evidence-manifest path {relative!r} byte count "
+                f"mismatch ({observed_size} != {entry['byte_count']})"
+            )
+        if observed_hash != entry["sha256"]:
+            errors.append(
+                f"packet {packet_id}: evidence-manifest path {relative!r} hash "
+                f"mismatch ({observed_hash} != {entry['sha256']})"
+            )
+
+    expected_test_count = parameters.get("required_test_count")
+    expected_example_count = parameters.get("required_example_count")
+    expected_visual_count = parameters.get("required_visual_count")
+    expected_mutation_count = parameters.get("required_mutation_count")
+    expected_uv_version = parameters.get("uv_version")
+    expected_pdf_engine = parameters.get("pdf_engine")
+    expected_capabilities = {
+        "evidence-contract": True,
+        "cross-platform-reproduction": True,
+        "mutation-rejection": True,
+    }
+    platform_clean: dict[str, bool] = {}
+    platform_evidence_complete: dict[str, bool] = {}
+    platform_mutations: dict[str, bool] = {}
+    platforms = raw_document["platforms"]
+    for platform_name in required_platforms:
+        platform = platforms.get(platform_name)
+        if not isinstance(platform, Mapping):
+            errors.append(f"packet {packet_id}: missing platform record {platform_name!r}")
+            platform_clean[platform_name] = False
+            platform_evidence_complete[platform_name] = False
+            platform_mutations[platform_name] = False
+            continue
+        if platform["platform_family"] != platform_name:
+            errors.append(
+                f"packet {packet_id}: platform key {platform_name!r} differs from its record"
+            )
+        command_results = platform["command_results"]
+        command_ids_complete = set(command_results) == set(required_command_ids)
+        command_outputs_bound = True
+        for command_id, command in command_results.items():
+            result_path = command["result_path"]
+            result_entry = evidence_by_path.get(result_path)
+            result_file = evidence_files.get(result_path)
+            if (
+                result_entry is None
+                or result_entry["platform_family"] != platform_name
+                or result_entry["sha256"] != command["result_sha256"]
+                or result_file is None
+            ):
+                command_outputs_bound = False
+                errors.append(
+                    f"packet {packet_id}: {platform_name} command {command_id!r} "
+                    "result record is not bound to matching retained evidence"
+                )
+            else:
+                try:
+                    result_document = _load_json(result_file)
+                    expected_command = (
+                        f"{result_document['file']} "
+                        f"{' '.join(result_document['arguments'])}"
+                    )
+                    result_matches = (
+                        result_document["label"] == command_id
+                        and type(result_document["exit_code"]) is int
+                        and result_document["exit_code"] == command["exit_code"]
+                        and type(result_document["duration_seconds"]) in {int, float}
+                        and result_document["duration_seconds"]
+                        == command["duration_seconds"]
+                        and result_document["stdout_sha256"]
+                        == command["stdout_sha256"]
+                        and result_document["stderr_sha256"]
+                        == command["stderr_sha256"]
+                        and expected_command == command["command"]
+                    )
+                except (
+                    OSError,
+                    UnicodeDecodeError,
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    json.JSONDecodeError,
+                ) as exc:
+                    result_matches = False
+                    errors.append(
+                        f"packet {packet_id}: {platform_name} command {command_id!r} "
+                        f"result record cannot be validated: {exc}"
+                    )
+                if not result_matches:
+                    command_outputs_bound = False
+                    errors.append(
+                        f"packet {packet_id}: {platform_name} command {command_id!r} "
+                        "summary differs from its retained result record"
+                    )
+            for stream in ("stdout", "stderr"):
+                evidence_path = command[f"{stream}_path"]
+                entry = evidence_by_path.get(evidence_path)
+                if (
+                    entry is None
+                    or entry["platform_family"] != platform_name
+                    or entry["sha256"] != command[f"{stream}_sha256"]
+                ):
+                    command_outputs_bound = False
+                    errors.append(
+                        f"packet {packet_id}: {platform_name} command {command_id!r} "
+                        f"{stream} is not bound to matching retained evidence"
+                    )
+        declared_evidence_paths = set(platform["evidence_paths"])
+        manifest_paths_for_platform = {
+            path
+            for path, entry in evidence_by_path.items()
+            if entry["platform_family"] == platform_name
+        }
+        evidence_paths_match = declared_evidence_paths == manifest_paths_for_platform
+        if not evidence_paths_match:
+            errors.append(
+                f"packet {packet_id}: {platform_name} evidence_paths differ from manifest"
+            )
+        referenced_hashes = {
+            evidence_by_path[path]["sha256"]
+            for path in declared_evidence_paths
+            if path in evidence_by_path
+        }
+        manifests_bound = {
+            platform["environment_manifest_sha256"],
+            platform["source_manifest_sha256"],
+            platform["pdf_sha256"],
+        } <= referenced_hashes
+        if not manifests_bound:
+            errors.append(
+                f"packet {packet_id}: {platform_name} environment/source/PDF hashes "
+                "are not retained in its evidence manifest"
+            )
+        observed_uv_parts = platform["uv_version"].split()
+        uv_matches = (
+            len(observed_uv_parts) >= 2
+            and observed_uv_parts[0] == "uv"
+            and observed_uv_parts[1] == expected_uv_version
+        )
+        pdf_matches = (
+            isinstance(expected_pdf_engine, str)
+            and "1.40.29" in platform["pdf_engine"]
+            and "TeX Live 2026" in platform["pdf_engine"]
+        )
+        commands_pass = command_ids_complete and command_outputs_bound and all(
+            command["exit_code"] == 0 for command in command_results.values()
+        )
+        if platform["commands_passed"] != commands_pass:
+            errors.append(
+                f"packet {packet_id}: {platform_name} commands_passed is stale"
+            )
+        identity_matches = (
+            platform["candidate_commit"] == packet["candidate_commit"]
+            and platform["candidate_tree"] == packet["tree_hash"]
+        )
+        counts_match = (
+            platform["test_count"] == expected_test_count
+            and platform["example_count"] == expected_example_count
+            and platform["visual_count"] == expected_visual_count
+        )
+        evidence_complete = all(
+            (
+                command_ids_complete,
+                command_outputs_bound,
+                evidence_paths_match,
+                bool(declared_evidence_paths),
+                manifests_bound,
+            )
+        )
+        clean = all(
+            (
+                identity_matches,
+                uv_matches,
+                pdf_matches,
+                commands_pass,
+                counts_match,
+                evidence_complete,
+                platform["semantic_contract_passed"],
+                platform["visual_contract_passed"],
+                platform["source_boundary_passed"],
+                platform["environment_boundary_passed"],
+                platform["pdf_passed"],
+            )
+        )
+        mutations = (
+            platform["mutation_count"] == expected_mutation_count
+            and platform["mutations_rejected"]
+        )
+        if platform["overall_passed"] != (clean and mutations):
+            errors.append(f"packet {packet_id}: {platform_name} overall_passed is stale")
+        platform_clean[platform_name] = clean
+        platform_evidence_complete[platform_name] = evidence_complete
+        platform_mutations[platform_name] = mutations
+
+    expected_capabilities["evidence-contract"] = all(
+        platform_evidence_complete.values()
+    )
+    expected_capabilities["cross-platform-reproduction"] = all(
+        platform_clean.values()
+    )
+    expected_capabilities["mutation-rejection"] = all(platform_mutations.values())
+    if raw_document["capabilities"] != expected_capabilities:
+        errors.append(
+            f"packet {packet_id}: raw capability Booleans differ from retained evidence "
+            f"({raw_document['capabilities']} != {expected_capabilities})"
+        )
+    expected_failed = not all(expected_capabilities.values()) and not raw_document["blocked"]
+    if raw_document["failed"] != expected_failed:
+        errors.append(
+            f"packet {packet_id}: raw failed Boolean differs from retained evidence"
+        )
     return errors
 
 
@@ -2595,6 +2950,9 @@ def _validate_packet(
             )
         )
     errors.extend(_validate_custody(packet, receipts, packet_id))
+    errors.extend(
+        _validate_raw_evidence_contract(packet, receipts, packet_id, campaign_base)
+    )
 
     if packet["holdout_started"]:
         if LIFECYCLE_ORDER[phase] < LIFECYCLE_ORDER["attacked"]:
