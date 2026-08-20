@@ -51,7 +51,7 @@
       }
     },
     "failed": {"type": "boolean"},
-    "blocked": {"type": "boolean"}
+    "blocked": {"const": false}
   },
   "$defs": {
     "sha256": {
@@ -68,6 +68,7 @@
       "additionalProperties": false,
       "required": [
         "command",
+        "contract_id",
         "exit_code",
         "duration_seconds",
         "result_path",
@@ -79,6 +80,7 @@
       ],
       "properties": {
         "command": {"type": "string", "minLength": 1},
+        "contract_id": {"type": "string", "minLength": 1},
         "exit_code": {"type": "integer"},
         "duration_seconds": {"type": "number", "minimum": 0},
         "result_path": {"$ref": "#/$defs/safe_path"},
@@ -94,11 +96,16 @@
       "additionalProperties": false,
       "required": [
         "platform_family",
+        "schema_version",
+        "campaign_id",
+        "packet_id",
         "candidate_commit",
         "candidate_tree",
         "uv_version",
         "pdf_engine",
         "command_results",
+        "artifact_results",
+        "mutation_results",
         "test_count",
         "example_count",
         "visual_count",
@@ -114,9 +121,14 @@
         "evidence_paths",
         "environment_manifest_sha256",
         "source_manifest_sha256",
-        "pdf_sha256"
+        "pdf_sha256",
+        "pdf_page_count",
+        "completed_at"
       ],
       "properties": {
+        "schema_version": {"const": 1},
+        "campaign_id": {"const": "POPGP-VIABILITY-R2-2026-08"},
+        "packet_id": {"const": "VIA-000"},
         "platform_family": {
           "enum": ["ubuntu-latest-x86_64", "windows-x86_64"]
         },
@@ -128,6 +140,17 @@
           "type": "object",
           "minProperties": 1,
           "additionalProperties": {"$ref": "#/$defs/command_result"}
+        },
+        "artifact_results": {
+          "type": "object",
+          "minProperties": 18,
+          "maxProperties": 18,
+          "additionalProperties": {"$ref": "#/$defs/artifact_result"}
+        },
+        "mutation_results": {
+          "type": "array",
+          "maxItems": 18,
+          "items": {"$ref": "#/$defs/mutation_result"}
         },
         "test_count": {"type": "integer", "minimum": 0},
         "example_count": {"type": "integer", "minimum": 0},
@@ -149,13 +172,41 @@
         },
         "environment_manifest_sha256": {"$ref": "#/$defs/sha256"},
         "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
-        "pdf_sha256": {"$ref": "#/$defs/sha256"}
+        "pdf_sha256": {"$ref": "#/$defs/sha256"},
+        "pdf_page_count": {"type": "integer", "minimum": 1},
+        "completed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "artifact_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "evidence_path", "sha256", "media_type"],
+      "properties": {
+        "source_path": {"$ref": "#/$defs/safe_path"},
+        "evidence_path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "media_type": {"enum": ["application/json", "image/gif", "image/png"]}
+      }
+    },
+    "mutation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutation_id", "rejected", "evidence_paths"],
+      "properties": {
+        "mutation_id": {"type": "string", "pattern": "^family-(?:0[1-9]|1[0-8])$"},
+        "rejected": {"type": "boolean"},
+        "evidence_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safe_path"}
+        }
       }
     },
     "evidence_entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["platform_family", "path", "sha256", "byte_count", "media_type"],
+      "required": ["platform_family", "path", "sha256", "byte_count", "media_type", "role"],
       "properties": {
         "platform_family": {
           "enum": ["ubuntu-latest-x86_64", "windows-x86_64"]
@@ -163,7 +214,24 @@
         "path": {"$ref": "#/$defs/safe_path"},
         "sha256": {"$ref": "#/$defs/sha256"},
         "byte_count": {"type": "integer", "minimum": 0},
-        "media_type": {"type": "string", "minLength": 1}
+        "media_type": {"type": "string", "minLength": 1},
+        "role": {
+          "enum": [
+            "command-result",
+            "command-stderr",
+            "command-stdout",
+            "environment-manifest",
+            "mutation-result",
+            "pdf",
+            "pdf-build",
+            "repository-status",
+            "source-manifest",
+            "supporting",
+            "validation-json",
+            "visual"
+          ]
+        },
+        "source_path": {"$ref": "#/$defs/safe_path"}
       }
     },
     "sha1": {

@@ -93,9 +93,11 @@ preregistration:
     pdf_engine: pdfTeX-1.40.29-TeX-Live-2026
     pdf_pass_count: 2
     runner_protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1
-    runner_protocol_sha256: fbaae8b898da1f4496953b9a3eef969bfdc0d2ac428cef9ff1beea41fc9c9cbd
+    runner_protocol_sha256: a4113a4cceeed7a1aec7f191a28199383af8c717920b7dc433a79b2bc6fa5cc3
     raw_results_schema_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json
-    raw_results_schema_sha256: 29d56719e6d0a7211ca878dba038fcd71d2d1d49deecbb69ac9a48583b774975
+    raw_results_schema_sha256: d45a32583a48f4b746119d4b27c26f1a41b4f2296b037c017394e5ee7824457d
+    assembler_protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py
+    assembler_protocol_sha256: 30d99ed3eb911f6c4244e40b17a5d7ec6831afc6843aff5714812569efb4e95d
     raw_results_contract:
       schema_receipt_id: raw-results-schema
       raw_results_receipt_id: raw-results
@@ -103,23 +105,62 @@ preregistration:
       required_platforms:
       - ubuntu-latest-x86_64
       - windows-x86_64
-      required_command_ids:
-      - 001-clone
-      - 002-checkout
-      - 003-sync
-      - 004-ruff
-      - 005-check-tex
-      - 006-pytest
-      - 007-chain
-      - 008-grid
-      - 009-gravity
-      - 010-source-law
-      - 011-many-body
-      - 012-ca
-      - 013-artifact-boundary
-      - 014-pdflatex-1
-      - 015-pdflatex-2
-      - 016-environment-verify
+      required_command_contracts:
+        001-clone: git-clone
+        002-checkout: git-checkout
+        003-sync: uv-sync-frozen-no-editable
+        004-ruff: trusted-python-ruff
+        005-check-tex: trusted-python-check-tex
+        006-pytest: trusted-python-pytest
+        007-chain: trusted-python-chain-generator
+        008-grid: trusted-python-grid-generator
+        009-gravity: trusted-python-gravity-generator
+        010-source-law: trusted-python-source-law-generator
+        011-many-body: trusted-python-many-body-generator
+        012-ca: trusted-python-ca-generator
+        013-artifact-boundary: trusted-python-artifact-boundary
+        014-pdflatex-1: pdflatex-pass-1
+        015-pdflatex-2: pdflatex-pass-2
+        016-environment-verify: trusted-python-environment-verify
+      required_artifact_paths:
+      - examples/physics_qg/chain_1d/results/clock_potential.png
+      - examples/physics_qg/chain_1d/results/embedding.png
+      - examples/physics_qg/chain_1d/results/entropy_growth.png
+      - examples/physics_qg/chain_1d/results/validation.json
+      - examples/physics_qg/grid_2d/results/clock_potential.png
+      - examples/physics_qg/grid_2d/results/embedding.png
+      - examples/physics_qg/grid_2d/results/validation.json
+      - examples/physics_qg/gravity_well/results/gravity_embedding.png
+      - examples/physics_qg/gravity_well/results/gravity_well.png
+      - examples/physics_qg/gravity_well/results/source_comparison.png
+      - examples/physics_qg/gravity_well/results/validation.json
+      - examples/physics_qg/source_law/results/source_scaling.png
+      - examples/physics_qg/source_law/results/validation.json
+      - examples/physics_qg/source_law_many_body/results/many_body_source.png
+      - examples/physics_qg/source_law_many_body/results/validation.json
+      - examples/physics_qg/ca_model/results/dynamics_cooling.png
+      - examples/physics_qg/ca_model/results/evolution_cooling.gif
+      - examples/physics_qg/ca_model/results/validation.json
+      required_mutation_ids:
+      - family-01
+      - family-02
+      - family-03
+      - family-04
+      - family-05
+      - family-06
+      - family-07
+      - family-08
+      - family-09
+      - family-10
+      - family-11
+      - family-12
+      - family-13
+      - family-14
+      - family-15
+      - family-16
+      - family-17
+      - family-18
+      required_pdf_page_count: 11
     native_or_scalable_claim_in_scope: false
     seed_policy: Use only committed public seeds or the custodian-supplied secret seed; never inspect,
       reselect, rerun, or replace output after commitment.
@@ -145,9 +186,10 @@ preregistration:
     Any missing command, platform-only success, pre-existing or substituted environment/evidence path,
     undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory
     raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, surviving
-    mutation, uncommitted output, or evidence available only in prose is a failure. A separately declared
-    unavailable execution prerequisite may block; malformed protocol, custody, evidence, or rule state
-    invalidates the round rather than producing a scientific outcome.
+    mutation, uncommitted output, or evidence available only in prose is a failure. R2 raw results cannot
+    self-declare blockage; an incomplete or unavailable execution is an invalid attempt that must not be
+    assembled or committed, while malformed protocol, custody, evidence, or rule state invalidates the
+    round rather than producing a scientific outcome.
   resource_budget:
     wall_time_seconds: 5400
     memory_bytes: 12884901888
@@ -202,20 +244,26 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json
-    sha256: ade83952c0250e5d1e2301f818972af3b2a9efad6636da8b8654c5579b59f443
+    sha256: 74a6746b465c8885919fa36be2f1203614b07c4304c58c14f5d145ebfd809ce9
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
     campaign_path: ../receipts/VIA-000/runner-protocol.ps1
     protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1
-    sha256: fbaae8b898da1f4496953b9a3eef969bfdc0d2ac428cef9ff1beea41fc9c9cbd
+    sha256: a4113a4cceeed7a1aec7f191a28199383af8c717920b7dc433a79b2bc6fa5cc3
     media_type: text/plain
   - receipt_id: raw-results-schema
     content_role: supporting
     campaign_path: ../receipts/VIA-000/raw-results.schema.json
     protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json
-    sha256: 29d56719e6d0a7211ca878dba038fcd71d2d1d49deecbb69ac9a48583b774975
+    sha256: d45a32583a48f4b746119d4b27c26f1a41b4f2296b037c017394e5ee7824457d
     media_type: application/schema+json
+  - receipt_id: assembler-protocol
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/assembler-protocol.py
+    protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py
+    sha256: 30d99ed3eb911f6c4244e40b17a5d7ec6831afc6843aff5714812569efb4e95d
+    media_type: text/plain
 holdout_started: false
 seats:
   protocol_designer:
@@ -419,18 +467,23 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: ade83952c0250e5d1e2301f818972af3b2a9efad6636da8b8654c5579b59f443
+  sha256: 74a6746b465c8885919fa36be2f1203614b07c4304c58c14f5d145ebfd809ce9
   media_type: application/json
 - id: runner-protocol
   kind: protocol
   path: ../receipts/VIA-000/runner-protocol.ps1
-  sha256: fbaae8b898da1f4496953b9a3eef969bfdc0d2ac428cef9ff1beea41fc9c9cbd
+  sha256: a4113a4cceeed7a1aec7f191a28199383af8c717920b7dc433a79b2bc6fa5cc3
   media_type: text/plain
 - id: raw-results-schema
   kind: protocol
   path: ../receipts/VIA-000/raw-results.schema.json
-  sha256: 29d56719e6d0a7211ca878dba038fcd71d2d1d49deecbb69ac9a48583b774975
+  sha256: d45a32583a48f4b746119d4b27c26f1a41b4f2296b037c017394e5ee7824457d
   media_type: application/schema+json
+- id: assembler-protocol
+  kind: protocol
+  path: ../receipts/VIA-000/assembler-protocol.py
+  sha256: 30d99ed3eb911f6c4244e40b17a5d7ec6831afc6843aff5714812569efb4e95d
+  media_type: text/plain
 review_chain:
   initial_review_receipt: null
   initial_review_ref: null

@@ -16,8 +16,10 @@ R1 valid/failed result. No seat may invent model/version metadata.
 - Packet: `reviews/viability/POPGP-VIABILITY-R2-2026-08/packets/VIA-000.yaml`
 - Primary protocol: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json`
 - Supporting runner: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1`
+- Frozen assembler: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py`
+- Raw-results schema: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json`
 
-Before role-specific work, read the campaign, packet, both protocol artifacts,
+Before role-specific work, read the campaign, packet, all four protocol artifacts,
 `docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md`,
 `docs/governance/AGENT_REVIEW_WORKFLOW.md`, and
 `docs/governance/REVIEWER_IDENTITY.md` completely. Verify the exact candidate,
@@ -90,15 +92,17 @@ packet VIA-000, using the frozen runner identity/session. Begin only after the p
 validator-clean in attacked/holdout-started state and the falsifier artifact authorizes
 the complete gate. Do not inspect sealed holdouts or seeds.
 
-Materialize the two protocol artifacts from the frozen protocol snapshot. Execute the
+Materialize all four protocol artifacts from the frozen protocol snapshot. Execute the
 exact Windows and Ubuntu commands from the primary protocol in fresh paths, then
 execute all eighteen committed attack families. Retain every raw stdout/stderr stream,
 environment/source manifest, exit status, duration, PDF artifact, visual/JSON result,
-mutation result, and Git boundary result. Write strict JSON raw results containing
-Boolean capabilities evidence-contract, cross-platform-reproduction, and
-mutation-rejection, plus Boolean failed and blocked. Commit a distinct output-
-commitment receipt binding the raw-results receipt ID and SHA-256 before requesting
-reveal. Do not rerun, replace, or reinterpret output after reveal.
+mutation result, and Git boundary result. Use only the frozen assembler to combine the
+two complete platform fragments and two complete eighteen-family mutation receipts.
+The assembler must refuse a missing/nonzero/contradictory input and emit no commitment.
+R2 raw results always record blocked=false; an unavailable or incomplete attempt is
+invalid and cannot be assembled. Commit the assembler's distinct output-commitment
+receipt binding the raw-results SHA-256 before requesting reveal. Do not rerun,
+replace, or reinterpret output after reveal.
 ```
 
 ## Adjudicator prompt

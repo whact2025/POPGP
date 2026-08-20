@@ -36,12 +36,8 @@ MAX_STRUCTURED_INPUT_BYTES = 16 * 1024 * 1024
 MAX_JSON_NUMBER_CHARACTERS = 256
 GIT_BUNDLE_TIMEOUT_SECONDS = 30
 PROCESS_TREE_CLEANUP_SECONDS = 5
-GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS = (
-    GIT_BUNDLE_TIMEOUT_SECONDS + PROCESS_TREE_CLEANUP_SECONDS
-)
-KNOWN_REQUIREMENTS_SHA256 = (
-    "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
-)
+GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS = GIT_BUNDLE_TIMEOUT_SECONDS + PROCESS_TREE_CLEANUP_SECONDS
+KNOWN_REQUIREMENTS_SHA256 = "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 
 CONTRACT_FILE_PATHS = {
     "docs/scientific_hardening/CLAIMS_MATRIX.md",
@@ -216,9 +212,7 @@ def _validate_structured_graph(document: Any) -> None:
 
     def metrics(value: Any, depth: int) -> tuple[int, int]:
         if depth > MAX_STRUCTURED_NESTING:
-            raise ValueError(
-                f"structured input nesting exceeds limit {MAX_STRUCTURED_NESTING}"
-            )
+            raise ValueError(f"structured input nesting exceeds limit {MAX_STRUCTURED_NESTING}")
         if type(value) is float and not math.isfinite(value):
             raise ValueError("structured input contains a non-finite number")
         if not isinstance(value, (Mapping, list)):
@@ -229,9 +223,7 @@ def _validate_structured_graph(document: Any) -> None:
         if marker in cache:
             expanded_nodes, height = cache[marker]
             if depth + height > MAX_STRUCTURED_NESTING:
-                raise ValueError(
-                    f"structured input nesting exceeds limit {MAX_STRUCTURED_NESTING}"
-                )
+                raise ValueError(f"structured input nesting exceeds limit {MAX_STRUCTURED_NESTING}")
             return expanded_nodes, height
 
         active.add(marker)
@@ -267,9 +259,7 @@ def _read_structured_text(path: Path) -> str:
     with path.open("rb") as stream:
         content = stream.read(MAX_STRUCTURED_INPUT_BYTES + 1)
     if len(content) > MAX_STRUCTURED_INPUT_BYTES:
-        raise ValueError(
-            f"structured input exceeds {MAX_STRUCTURED_INPUT_BYTES} bytes"
-        )
+        raise ValueError(f"structured input exceeds {MAX_STRUCTURED_INPUT_BYTES} bytes")
     return content.decode("utf-8")
 
 
@@ -292,17 +282,13 @@ def _reject_json_constant(value: str) -> Any:
 
 def _parse_json_integer(value: str) -> int:
     if len(value) > MAX_JSON_NUMBER_CHARACTERS:
-        raise ValueError(
-            f"JSON integer exceeds {MAX_JSON_NUMBER_CHARACTERS} characters"
-        )
+        raise ValueError(f"JSON integer exceeds {MAX_JSON_NUMBER_CHARACTERS} characters")
     return int(value)
 
 
 def _parse_json_float(value: str) -> float:
     if len(value) > MAX_JSON_NUMBER_CHARACTERS:
-        raise ValueError(
-            f"JSON number exceeds {MAX_JSON_NUMBER_CHARACTERS} characters"
-        )
+        raise ValueError(f"JSON number exceeds {MAX_JSON_NUMBER_CHARACTERS} characters")
     try:
         exact = Decimal(value)
         parsed = float(value)
@@ -333,18 +319,14 @@ def _check_json_nesting(text: str) -> None:
         elif character in "[{":
             depth += 1
             if depth > MAX_STRUCTURED_NESTING:
-                raise ValueError(
-                    f"JSON nesting exceeds limit {MAX_STRUCTURED_NESTING}"
-                )
+                raise ValueError(f"JSON nesting exceeds limit {MAX_STRUCTURED_NESTING}")
         elif character in "]}":
             depth -= 1
 
 
 def _load_json_bytes(content: bytes) -> Any:
     if len(content) > MAX_STRUCTURED_INPUT_BYTES:
-        raise ValueError(
-            f"structured input exceeds {MAX_STRUCTURED_INPUT_BYTES} bytes"
-        )
+        raise ValueError(f"structured input exceeds {MAX_STRUCTURED_INPUT_BYTES} bytes")
     return _load_json_text(content.decode("utf-8"))
 
 
@@ -506,9 +488,7 @@ def _canonical_claim_ids(root: Path) -> set[str]:
 
 
 def _canonical_gate_ids(root: Path) -> set[str]:
-    text = (root / "docs/scientific_hardening/GATE_TEST_REGISTRY.md").read_text(
-        encoding="utf-8"
-    )
+    text = (root / "docs/scientific_hardening/GATE_TEST_REGISTRY.md").read_text(encoding="utf-8")
     return set(re.findall(r"^\| `(GATE-[A-Z0-9-]+)` \|", text, flags=re.MULTILINE))
 
 
@@ -848,14 +828,10 @@ def _binding_values(
             )
             continue
         if receipt.get("kind") != "raw-results":
-            errors.append(
-                f"packet {packet_id}: binding {name!r} must use a raw-results receipt"
-            )
+            errors.append(f"packet {packet_id}: binding {name!r} must use a raw-results receipt")
             continue
         if receipt.get("media_type") != "application/json":
-            errors.append(
-                f"packet {packet_id}: binding {name!r} must use application/json"
-            )
+            errors.append(f"packet {packet_id}: binding {name!r} must use application/json")
             continue
         path = receipt.get("_resolved_path")
         if not isinstance(path, Path) or not path.is_file():
@@ -868,9 +844,7 @@ def _binding_values(
             observed_type = _json_value_type(value)
             expected_type = binding.get("expected_type")
             if observed_type != expected_type:
-                raise TypeError(
-                    f"expected {expected_type}, observed {observed_type}"
-                )
+                raise TypeError(f"expected {expected_type}, observed {observed_type}")
             if observed_type == "number" and not math.isfinite(value):
                 raise TypeError("non-finite numeric binding")
             values[name] = value
@@ -1052,33 +1026,23 @@ def _review_commit_binding_errors(
     builder = packet["seats"]["builder"]
     declaration = document["independence_declaration"]
     if declaration["builder_model_identity"] != builder["model_identity"]:
-        errors.append(
-            f"packet {packet_id}: review builder model differs from packet builder"
-        )
+        errors.append(f"packet {packet_id}: review builder model differs from packet builder")
     model_differs = document["reviewer_model_identity"] != builder["model_identity"]
     if declaration["reviewer_model_differs_from_builder"] != model_differs:
-        errors.append(
-            f"packet {packet_id}: reviewer model-separation declaration is contradictory"
-        )
+        errors.append(f"packet {packet_id}: reviewer model-separation declaration is contradictory")
     shared_operator = document["reviewer_operator"] == builder["operator"]
     if declaration["shared_operator"] != shared_operator:
-        errors.append(
-            f"packet {packet_id}: reviewer shared-operator declaration is contradictory"
-        )
+        errors.append(f"packet {packet_id}: reviewer shared-operator declaration is contradictory")
     if declaration["builder_session_id"] != builder["session_id"]:
         errors.append(f"packet {packet_id}: review builder session differs from packet builder")
     shared_session = document["reviewer_session_id"] == builder["session_id"]
     if declaration["shared_session"] != shared_session:
-        errors.append(
-            f"packet {packet_id}: reviewer shared-session declaration is contradictory"
-        )
+        errors.append(f"packet {packet_id}: reviewer shared-session declaration is contradictory")
     if declaration["builder_orchestrator_id"] != builder["orchestrator_id"]:
         errors.append(
             f"packet {packet_id}: review builder orchestrator differs from packet builder"
         )
-    shared_orchestrator = (
-        document["reviewer_orchestrator_id"] == builder["orchestrator_id"]
-    )
+    shared_orchestrator = document["reviewer_orchestrator_id"] == builder["orchestrator_id"]
     if declaration["shared_orchestrator"] != shared_orchestrator:
         errors.append(
             f"packet {packet_id}: reviewer shared-orchestrator declaration is contradictory"
@@ -1117,9 +1081,7 @@ def _response_provenance_errors(
             f"packet {packet_id}: response round {round_index} builder organization is unrelated"
         )
     rereview_declaration = rereview["independence_declaration"]
-    if rereview_declaration["builder_model_identity"] != response.get(
-        "builder_model_identity"
-    ):
+    if rereview_declaration["builder_model_identity"] != response.get("builder_model_identity"):
         errors.append(
             f"packet {packet_id}: re-review round {round_index} builder identity differs "
             "from response"
@@ -1155,17 +1117,13 @@ def _validate_preregistration(
     if len(protocol_paths) != len(set(protocol_paths)):
         errors.append(f"packet {packet_id}: preregistered protocol paths must be unique")
     primary_artifacts = [
-        artifact
-        for artifact in artifacts
-        if artifact.get("content_role") == "primary-protocol"
+        artifact for artifact in artifacts if artifact.get("content_role") == "primary-protocol"
     ]
     if len(primary_artifacts) != 1:
         errors.append(f"packet {packet_id}: preregistration requires one primary protocol")
     registered = set(receipt_ids)
     declared = {
-        receipt_id
-        for receipt_id, receipt in receipts.items()
-        if receipt.get("kind") == "protocol"
+        receipt_id for receipt_id, receipt in receipts.items() if receipt.get("kind") == "protocol"
     }
     if declared != registered:
         errors.append(
@@ -1176,9 +1134,7 @@ def _validate_preregistration(
         receipt_id = artifact["receipt_id"]
         receipt = receipts.get(receipt_id)
         if receipt is None:
-            errors.append(
-                f"packet {packet_id}: frozen protocol receipt {receipt_id!r} is missing"
-            )
+            errors.append(f"packet {packet_id}: frozen protocol receipt {receipt_id!r} is missing")
             continue
         expected = {
             "kind": "protocol",
@@ -1193,9 +1149,7 @@ def _validate_preregistration(
                     "differs from frozen preregistration"
                 )
         try:
-            frozen_bytes = _git_blob(
-                root, packet["protocol_commit"], artifact["protocol_path"]
-            )
+            frozen_bytes = _git_blob(root, packet["protocol_commit"], artifact["protocol_path"])
         except (OSError, subprocess.SubprocessError, ValueError) as exc:
             errors.append(
                 f"packet {packet_id}: preregistered protocol blob "
@@ -1210,9 +1164,7 @@ def _validate_preregistration(
             )
         if artifact.get("content_role") == "primary-protocol":
             if receipt.get("media_type") != "application/json":
-                errors.append(
-                    f"packet {packet_id}: primary protocol must use application/json"
-                )
+                errors.append(f"packet {packet_id}: primary protocol must use application/json")
                 continue
             try:
                 document = _structured_receipt_document(receipt)
@@ -1223,9 +1175,7 @@ def _validate_preregistration(
                 json.JSONDecodeError,
                 yaml.YAMLError,
             ) as exc:
-                errors.append(
-                    f"packet {packet_id}: primary protocol cannot be parsed: {exc}"
-                )
+                errors.append(f"packet {packet_id}: primary protocol cannot be parsed: {exc}")
                 continue
             try:
                 primary_schema = _load_json(
@@ -1262,66 +1212,247 @@ def _validate_preregistration(
     return errors
 
 
+def _raw_command_matches_contract(
+    contract_id: str,
+    record: Mapping[str, Any],
+    candidate_commit: str,
+) -> bool:
+    """Bind a retained command record to the frozen executable/argument contract."""
+
+    file_name = Path(str(record.get("file", ""))).name.lower()
+    if file_name.endswith(".exe"):
+        file_name = file_name[:-4]
+    arguments = record.get("arguments")
+    if not isinstance(arguments, list) or not all(isinstance(item, str) for item in arguments):
+        return False
+    if contract_id == "git-clone":
+        return (
+            file_name == "git"
+            and len(arguments) == 4
+            and arguments[:3] == ["clone", "--no-checkout", "https://github.com/whact2025/POPGP"]
+        )
+    if contract_id == "git-checkout":
+        return file_name == "git" and arguments == ["checkout", "--detach", candidate_commit]
+    if contract_id == "uv-sync-frozen-no-editable":
+        return file_name == "uv" and arguments == ["sync", "--frozen", "--no-editable"]
+    if contract_id in {"pdflatex-pass-1", "pdflatex-pass-2"}:
+        return (
+            file_name == "pdflatex"
+            and len(arguments) == 4
+            and arguments[:2] == ["-interaction=nonstopmode", "-halt-on-error"]
+            and arguments[2].startswith("-output-directory=")
+            and arguments[3] == "docs/framework.tex"
+        )
+    expected_modules = {
+        "trusted-python-ruff": ("ruff", ["check", "."]),
+        "trusted-python-check-tex": ("scripts.check_tex", []),
+        "trusted-python-pytest": ("pytest", ["-q", "-p", "no:cacheprovider"]),
+        "trusted-python-chain-generator": ("examples.physics_qg.chain_1d", []),
+        "trusted-python-grid-generator": ("examples.physics_qg.grid_2d", []),
+        "trusted-python-gravity-generator": ("examples.physics_qg.gravity_well", []),
+        "trusted-python-source-law-generator": ("examples.physics_qg.source_law", []),
+        "trusted-python-many-body-generator": (
+            "examples.physics_qg.source_law_many_body",
+            [],
+        ),
+        "trusted-python-ca-generator": ("examples.physics_qg.ca_model", []),
+        "trusted-python-artifact-boundary": (
+            "scripts.check_validation_artifacts",
+            ["--enforce-change-boundary"],
+        ),
+    }
+    if contract_id == "trusted-python-environment-verify":
+        return (
+            file_name == "python"
+            and arguments[:2] == ["-I", "-S"]
+            and "check_reproduction_boundary.py" in arguments[2].replace("\\", "/")
+            and "verify" in arguments
+            and "--manifest" in arguments
+            and "--expected-sha256" in arguments
+        )
+    expected = expected_modules.get(contract_id)
+    if expected is None or file_name != "python" or arguments[:2] != ["-I", "-S"]:
+        return False
+    module, module_arguments = expected
+    try:
+        module_index = arguments.index("--module")
+        separator_index = arguments.index("--", module_index + 2)
+    except ValueError:
+        return False
+    return (
+        "check_reproduction_boundary.py" in arguments[2].replace("\\", "/")
+        and "run" in arguments
+        and arguments[module_index + 1] == module
+        and arguments[separator_index + 1 :] == module_arguments
+        and "run_without_startup_hooks.py" in " ".join(arguments).replace("\\", "/")
+    )
+
+
+def _git_tree_entries(root: Path, commit: str) -> dict[str, tuple[str, str]]:
+    entries: dict[str, tuple[str, str]] = {}
+    for raw_entry in _git_output(root, "ls-tree", "-r", "-z", commit).split(b"\0"):
+        if not raw_entry:
+            continue
+        metadata, raw_path = raw_entry.split(b"\t", 1)
+        mode, _kind, object_id = metadata.decode("ascii").split()
+        entries[raw_path.decode("utf-8")] = (mode, object_id)
+    return entries
+
+
+def _source_manifest_errors(
+    document: Any,
+    root: Path,
+    commit: str,
+    tree: str,
+    label: str,
+) -> list[str]:
+    if not isinstance(document, Mapping) or set(document) != {
+        "manifest_version",
+        "base_ref",
+        "base_commit",
+        "base_tree",
+        "entries",
+    }:
+        return [f"{label} has malformed source-manifest envelope"]
+    if (
+        document["manifest_version"] != 2
+        or document["base_ref"] != commit
+        or document["base_commit"] != commit
+        or document["base_tree"] != tree
+        or not isinstance(document["entries"], list)
+    ):
+        return [f"{label} source-manifest identity differs from frozen candidate"]
+    expected = _git_tree_entries(root, commit)
+    observed: dict[str, tuple[str, str, str]] = {}
+    errors: list[str] = []
+    for entry in document["entries"]:
+        if not isinstance(entry, Mapping):
+            return [f"{label} source-manifest entry is not an object"]
+        try:
+            path = entry["path"]
+            value = (entry["mode"], entry["git_object_id"], entry["worktree_sha256"])
+        except KeyError as exc:
+            return [f"{label} source-manifest entry is missing {exc}"]
+        if path in observed:
+            errors.append(f"{label} source-manifest duplicates {path!r}")
+        observed[path] = value
+    if set(observed) != set(expected):
+        errors.append(f"{label} source-manifest path set differs from candidate tree")
+    for path in set(observed) & set(expected):
+        mode, object_id = expected[path]
+        observed_mode, observed_id, observed_sha = observed[path]
+        if (observed_mode, observed_id) != (mode, object_id):
+            errors.append(f"{label} source-manifest Git binding differs for {path!r}")
+        if observed_sha != _sha256_bytes(_git_blob(root, commit, path)):
+            errors.append(f"{label} source-manifest byte hash differs for {path!r}")
+    return errors
+
+
+def _environment_manifest_errors(document: Any, label: str) -> list[str]:
+    if not isinstance(document, Mapping) or set(document) != {"manifest_version", "entries"}:
+        return [f"{label} has malformed environment-manifest envelope"]
+    entries = document["entries"]
+    if document["manifest_version"] != 2 or not isinstance(entries, list) or not entries:
+        return [f"{label} environment-manifest is empty or has the wrong version"]
+    paths: set[str] = set()
+    errors: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, Mapping) or set(entry) != {
+            "path",
+            "kind",
+            "mode",
+            "size_bytes",
+            "sha256",
+        }:
+            return [f"{label} environment-manifest entry is malformed"]
+        path = entry["path"]
+        if path in paths:
+            errors.append(f"{label} environment-manifest duplicates {path!r}")
+        paths.add(path)
+        if (
+            not isinstance(path, str)
+            or not path
+            or entry["kind"] not in {"file", "symlink"}
+            or type(entry["mode"]) is not int
+            or type(entry["size_bytes"]) is not int
+            or entry["size_bytes"] < 0
+            or not isinstance(entry["sha256"], str)
+            or re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is None
+        ):
+            errors.append(f"{label} environment-manifest has invalid typed data")
+    return errors
+
+
 def _validate_raw_evidence_contract(
     packet: Mapping[str, Any],
     receipts: Mapping[str, Any],
     packet_id: str,
     campaign_base: Path,
+    root: Path,
 ) -> list[str]:
-    """Validate an opt-in frozen raw-results schema and its retained evidence bytes."""
+    """Validate typed, executable, hash-retained VIA raw evidence fail closed."""
 
-    errors: list[str] = []
+    from scripts.check_validation_artifacts import (
+        check_validation_semantics,
+        compare_validation_documents,
+        compare_visual_artifact,
+    )
+
     parameters = packet["preregistration"]["parameters"]
     contract = parameters.get("raw_results_contract")
     if contract is None:
-        return errors
+        return []
     required_fields = {
         "schema_receipt_id",
         "raw_results_receipt_id",
         "evidence_manifest_pointer",
         "required_platforms",
-        "required_command_ids",
+        "required_command_contracts",
+        "required_artifact_paths",
+        "required_mutation_ids",
+        "required_pdf_page_count",
     }
     if not isinstance(contract, Mapping) or set(contract) != required_fields:
         return [
             f"packet {packet_id}: raw_results_contract must contain exactly "
             f"{sorted(required_fields)}"
         ]
+    required_platforms = contract["required_platforms"]
+    command_contracts = contract["required_command_contracts"]
+    artifact_paths = contract["required_artifact_paths"]
+    mutation_ids = contract["required_mutation_ids"]
+    if (
+        not isinstance(required_platforms, list)
+        or not required_platforms
+        or len(required_platforms) != len(set(required_platforms))
+        or required_platforms != parameters.get("platform_families")
+        or not isinstance(command_contracts, Mapping)
+        or not command_contracts
+        or any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in command_contracts.items()
+        )
+        or parameters.get("required_command_count") != len(command_contracts)
+        or not isinstance(artifact_paths, list)
+        or len(artifact_paths) != len(set(artifact_paths))
+        or len(artifact_paths) != 18
+        or not isinstance(mutation_ids, list)
+        or len(mutation_ids) != len(set(mutation_ids))
+        or parameters.get("required_mutation_count") != len(mutation_ids)
+        or type(contract["required_pdf_page_count"]) is not int
+        or contract["required_pdf_page_count"] < 1
+    ):
+        return [f"packet {packet_id}: raw_results_contract has malformed or contradictory values"]
+
     schema_receipt_id = contract["schema_receipt_id"]
     raw_receipt_id = contract["raw_results_receipt_id"]
-    manifest_pointer = contract["evidence_manifest_pointer"]
-    required_platforms = contract["required_platforms"]
-    required_command_ids = contract["required_command_ids"]
-    if (
-        not isinstance(schema_receipt_id, str)
-        or not schema_receipt_id
-        or not isinstance(raw_receipt_id, str)
-        or not raw_receipt_id
-        or not isinstance(manifest_pointer, str)
-        or not manifest_pointer.startswith("/")
-        or not isinstance(required_platforms, list)
-        or not required_platforms
-        or any(not isinstance(item, str) or not item for item in required_platforms)
-        or len(required_platforms) != len(set(required_platforms))
-        or not isinstance(required_command_ids, list)
-        or not required_command_ids
-        or any(not isinstance(item, str) or not item for item in required_command_ids)
-        or len(required_command_ids) != len(set(required_command_ids))
-        or type(parameters.get("required_command_count")) is not int
-        or parameters["required_command_count"] != len(required_command_ids)
-    ):
-        return [f"packet {packet_id}: raw_results_contract has malformed values"]
-
     schema_receipt = receipts.get(schema_receipt_id)
     if (
         schema_receipt is None
         or schema_receipt.get("kind") != "protocol"
         or schema_receipt.get("media_type") != "application/schema+json"
     ):
-        return [
-            f"packet {packet_id}: raw-results schema receipt {schema_receipt_id!r} "
-            "is missing or mistyped"
-        ]
+        return [f"packet {packet_id}: raw-results schema receipt is missing or mistyped"]
     try:
         raw_schema = _structured_receipt_document(schema_receipt)
         Draft202012Validator.check_schema(raw_schema)
@@ -1334,285 +1465,418 @@ def _validate_raw_evidence_contract(
         yaml.YAMLError,
     ) as exc:
         return [f"packet {packet_id}: raw-results schema is invalid: {exc}"]
+    schema_platforms = raw_schema.get("properties", {}).get("platforms", {})
+    if (
+        schema_platforms.get("required") != required_platforms
+        or set(schema_platforms.get("properties", {})) != set(required_platforms)
+        or schema_platforms.get("additionalProperties") is not False
+    ):
+        return [f"packet {packet_id}: raw-results schema platform set differs from frozen contract"]
 
     raw_receipt = receipts.get(raw_receipt_id)
     raw_required = LIFECYCLE_ORDER[packet["lifecycle_phase"]] >= LIFECYCLE_ORDER["reproduced"]
     if raw_receipt is None:
-        if raw_required:
-            errors.append(
-                f"packet {packet_id}: reproduced lifecycle requires raw-results receipt "
-                f"{raw_receipt_id!r}"
-            )
-        return errors
-    if raw_receipt.get("kind") != "raw-results" or raw_receipt.get(
-        "media_type"
-    ) != "application/json":
-        return [
-            f"packet {packet_id}: raw-results receipt {raw_receipt_id!r} is mistyped"
-        ]
+        return (
+            [
+                f"packet {packet_id}: reproduced lifecycle requires raw-results "
+                f"receipt {raw_receipt_id!r}"
+            ]
+            if raw_required
+            else []
+        )
+    if (
+        raw_receipt.get("kind") != "raw-results"
+        or raw_receipt.get("media_type") != "application/json"
+    ):
+        return [f"packet {packet_id}: raw-results receipt {raw_receipt_id!r} is mistyped"]
     try:
         raw_document = _structured_receipt_document(raw_receipt)
-    except (
-        OSError,
-        UnicodeDecodeError,
-        ValueError,
-        json.JSONDecodeError,
-        yaml.YAMLError,
-    ) as exc:
+    except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         return [f"packet {packet_id}: raw-results document cannot be parsed: {exc}"]
-    schema_errors = _schema_errors(
-        raw_document, raw_schema, f"packet {packet_id} raw-results"
-    )
-    errors.extend(schema_errors)
-    if schema_errors:
+    errors = _schema_errors(raw_document, raw_schema, f"packet {packet_id} raw-results")
+    if errors:
         return errors
+    if raw_document["candidate_commit"] != packet["candidate_commit"]:
+        errors.append(f"packet {packet_id}: raw-results candidate commit differs from packet")
+    if raw_document["candidate_tree"] != packet["tree_hash"]:
+        errors.append(f"packet {packet_id}: raw-results candidate tree differs from packet")
+    if raw_document["blocked"] is not False:
+        errors.append(f"packet {packet_id}: R2 raw results cannot self-declare blockage")
 
     try:
-        evidence_manifest = _json_pointer(raw_document, manifest_pointer)
+        evidence_manifest = _json_pointer(raw_document, contract["evidence_manifest_pointer"])
     except (KeyError, IndexError, TypeError, ValueError) as exc:
         return [f"packet {packet_id}: evidence manifest cannot resolve: {exc}"]
-    if not isinstance(evidence_manifest, list):
-        return [f"packet {packet_id}: evidence manifest must be an array"]
-
     raw_path = raw_receipt.get("_resolved_path")
-    if not isinstance(raw_path, Path):
-        return [f"packet {packet_id}: raw-results path is unavailable"]
+    if not isinstance(raw_path, Path) or not isinstance(evidence_manifest, list):
+        return [f"packet {packet_id}: raw-results path or evidence manifest is unavailable"]
     evidence_by_path: dict[str, Mapping[str, Any]] = {}
     evidence_files: dict[str, Path] = {}
-    for index, entry in enumerate(evidence_manifest):
+    for entry in evidence_manifest:
         relative = entry["path"]
         if relative in evidence_by_path:
-            errors.append(
-                f"packet {packet_id}: duplicate evidence-manifest path {relative!r}"
-            )
+            errors.append(f"packet {packet_id}: duplicate evidence-manifest path {relative!r}")
             continue
         evidence_by_path[relative] = entry
         resolved = _resolve_inside(raw_path.parent, relative, campaign_base)
-        if resolved is None or resolved == raw_path.resolve():
-            errors.append(
-                f"packet {packet_id}: evidence-manifest path {relative!r} escapes or is cyclic"
-            )
-            continue
-        if not resolved.is_file():
-            errors.append(
-                f"packet {packet_id}: evidence-manifest path {relative!r} does not exist"
-            )
+        if resolved is None or resolved == raw_path.resolve() or not resolved.is_file():
+            errors.append(f"packet {packet_id}: evidence path is missing or unsafe: {relative!r}")
             continue
         evidence_files[relative] = resolved
-        observed_size = resolved.stat().st_size
-        observed_hash = _sha256(resolved)
-        if observed_size != entry["byte_count"]:
-            errors.append(
-                f"packet {packet_id}: evidence-manifest path {relative!r} byte count "
-                f"mismatch ({observed_size} != {entry['byte_count']})"
-            )
-        if observed_hash != entry["sha256"]:
-            errors.append(
-                f"packet {packet_id}: evidence-manifest path {relative!r} hash "
-                f"mismatch ({observed_hash} != {entry['sha256']})"
-            )
+        if resolved.stat().st_size != entry["byte_count"] or _sha256(resolved) != entry["sha256"]:
+            errors.append(f"packet {packet_id}: evidence bytes differ from manifest: {relative!r}")
 
-    expected_test_count = parameters.get("required_test_count")
-    expected_example_count = parameters.get("required_example_count")
-    expected_visual_count = parameters.get("required_visual_count")
-    expected_mutation_count = parameters.get("required_mutation_count")
-    expected_uv_version = parameters.get("uv_version")
-    expected_pdf_engine = parameters.get("pdf_engine")
-    expected_capabilities = {
-        "evidence-contract": True,
-        "cross-platform-reproduction": True,
-        "mutation-rejection": True,
-    }
+    expected_test_count = parameters["required_test_count"]
+    expected_example_count = parameters["required_example_count"]
+    expected_visual_count = parameters["required_visual_count"]
+    expected_uv = parameters["uv_version"]
+    expected_pages = contract["required_pdf_page_count"]
+    platform_evidence: dict[str, bool] = {}
     platform_clean: dict[str, bool] = {}
-    platform_evidence_complete: dict[str, bool] = {}
     platform_mutations: dict[str, bool] = {}
-    platforms = raw_document["platforms"]
     for platform_name in required_platforms:
-        platform = platforms.get(platform_name)
+        platform_errors_before = len(errors)
+        platform = raw_document["platforms"].get(platform_name)
         if not isinstance(platform, Mapping):
             errors.append(f"packet {packet_id}: missing platform record {platform_name!r}")
+            platform_evidence[platform_name] = False
             platform_clean[platform_name] = False
-            platform_evidence_complete[platform_name] = False
             platform_mutations[platform_name] = False
             continue
+        label = f"packet {packet_id}: {platform_name}"
         if platform["platform_family"] != platform_name:
-            errors.append(
-                f"packet {packet_id}: platform key {platform_name!r} differs from its record"
-            )
+            errors.append(f"{label} platform record is under the wrong key")
+        if platform["candidate_commit"] != packet["candidate_commit"]:
+            errors.append(f"{label} candidate commit differs from packet")
+        if platform["candidate_tree"] != packet["tree_hash"]:
+            errors.append(f"{label} candidate tree differs from packet")
+
         command_results = platform["command_results"]
-        command_ids_complete = set(command_results) == set(required_command_ids)
-        command_outputs_bound = True
-        for command_id, command in command_results.items():
+        if set(command_results) != set(command_contracts):
+            errors.append(f"{label} command set differs from frozen contract")
+        command_ok = True
+        for command_id, expected_contract_id in command_contracts.items():
+            command = command_results.get(command_id)
+            if not isinstance(command, Mapping):
+                command_ok = False
+                continue
             result_path = command["result_path"]
             result_entry = evidence_by_path.get(result_path)
             result_file = evidence_files.get(result_path)
+            stdout_entry = evidence_by_path.get(command["stdout_path"])
+            stderr_entry = evidence_by_path.get(command["stderr_path"])
             if (
                 result_entry is None
-                or result_entry["platform_family"] != platform_name
-                or result_entry["sha256"] != command["result_sha256"]
+                or result_entry.get("role") != "command-result"
+                or result_entry.get("platform_family") != platform_name
+                or result_entry.get("sha256") != command["result_sha256"]
                 or result_file is None
+                or stdout_entry is None
+                or stdout_entry.get("role") != "command-stdout"
+                or stdout_entry.get("sha256") != command["stdout_sha256"]
+                or stderr_entry is None
+                or stderr_entry.get("role") != "command-stderr"
+                or stderr_entry.get("sha256") != command["stderr_sha256"]
             ):
-                command_outputs_bound = False
-                errors.append(
-                    f"packet {packet_id}: {platform_name} command {command_id!r} "
-                    "result record is not bound to matching retained evidence"
+                command_ok = False
+                errors.append(f"{label} command {command_id!r} is not typed and hash-bound")
+                continue
+            try:
+                record = _load_json(result_file)
+                expected_command = f"{record['file']} {' '.join(record['arguments'])}"
+                matches = (
+                    record["label"] == command_id
+                    and record["contract_id"] == expected_contract_id
+                    and command["contract_id"] == expected_contract_id
+                    and record["exit_code"] == command["exit_code"]
+                    and record["duration_seconds"] == command["duration_seconds"]
+                    and record["stdout_sha256"] == command["stdout_sha256"]
+                    and record["stderr_sha256"] == command["stderr_sha256"]
+                    and command["command"] == expected_command
+                    and _raw_command_matches_contract(
+                        expected_contract_id, record, packet["candidate_commit"]
+                    )
                 )
-            else:
-                try:
-                    result_document = _load_json(result_file)
-                    expected_command = (
-                        f"{result_document['file']} "
-                        f"{' '.join(result_document['arguments'])}"
+            except (
+                OSError,
+                UnicodeDecodeError,
+                ValueError,
+                TypeError,
+                KeyError,
+                json.JSONDecodeError,
+            ):
+                matches = False
+            if not matches or command["exit_code"] != 0:
+                command_ok = False
+                errors.append(f"{label} command {command_id!r} violates its executable contract")
+
+        pytest_stdout = evidence_files.get(
+            command_results.get("006-pytest", {}).get("stdout_path", "")
+        )
+        test_count_ok = False
+        if pytest_stdout is not None:
+            text = pytest_stdout.read_text(encoding="utf-8", errors="replace")
+            match = re.search(r"(?m)(\d+) passed in ", text)
+            test_count_ok = match is not None and int(match.group(1)) == expected_test_count
+        if platform["test_count"] != expected_test_count or not test_count_ok:
+            errors.append(f"{label} retained pytest output does not prove the frozen test count")
+
+        artifact_results = platform["artifact_results"]
+        artifact_ok = set(artifact_results) == set(artifact_paths)
+        if not artifact_ok:
+            errors.append(f"{label} artifact set differs from frozen contract")
+        semantic_ok = True
+        visual_ok = True
+        actual_visual_count = 0
+        for source_path in artifact_paths:
+            result = artifact_results.get(source_path)
+            if not isinstance(result, Mapping):
+                semantic_ok = False
+                visual_ok = False
+                continue
+            entry = evidence_by_path.get(result["evidence_path"])
+            evidence_file = evidence_files.get(result["evidence_path"])
+            expected_media = (
+                "application/json"
+                if source_path.endswith(".json")
+                else "image/gif"
+                if source_path.endswith(".gif")
+                else "image/png"
+            )
+            expected_role = "validation-json" if expected_media == "application/json" else "visual"
+            bound = (
+                result["source_path"] == source_path
+                and result["media_type"] == expected_media
+                and entry is not None
+                and entry.get("platform_family") == platform_name
+                and entry.get("role") == expected_role
+                and entry.get("source_path") == source_path
+                and entry.get("sha256") == result["sha256"]
+                and evidence_file is not None
+            )
+            if not bound:
+                errors.append(f"{label} artifact {source_path!r} is not typed and hash-bound")
+                semantic_ok = False
+                visual_ok = False
+                continue
+            try:
+                reference = _git_blob(root, packet["candidate_commit"], source_path)
+                if expected_media == "application/json":
+                    reference_document = _load_json_bytes(reference)
+                    candidate_document = _load_json(evidence_file)
+                    comparison = compare_validation_documents(
+                        reference_document, candidate_document
                     )
-                    result_matches = (
-                        result_document["label"] == command_id
-                        and type(result_document["exit_code"]) is int
-                        and result_document["exit_code"] == command["exit_code"]
-                        and type(result_document["duration_seconds"]) in {int, float}
-                        and result_document["duration_seconds"]
-                        == command["duration_seconds"]
-                        and result_document["stdout_sha256"]
-                        == command["stdout_sha256"]
-                        and result_document["stderr_sha256"]
-                        == command["stderr_sha256"]
-                        and expected_command == command["command"]
-                    )
-                except (
-                    OSError,
-                    UnicodeDecodeError,
-                    ValueError,
-                    TypeError,
-                    KeyError,
-                    json.JSONDecodeError,
-                ) as exc:
-                    result_matches = False
-                    errors.append(
-                        f"packet {packet_id}: {platform_name} command {command_id!r} "
-                        f"result record cannot be validated: {exc}"
-                    )
-                if not result_matches:
-                    command_outputs_bound = False
-                    errors.append(
-                        f"packet {packet_id}: {platform_name} command {command_id!r} "
-                        "summary differs from its retained result record"
-                    )
-            for stream in ("stdout", "stderr"):
-                evidence_path = command[f"{stream}_path"]
+                    artifact_errors = [
+                        *comparison.errors,
+                        *check_validation_semantics(candidate_document, source_path),
+                    ]
+                    if artifact_errors:
+                        semantic_ok = False
+                        errors.append(
+                            f"{label} validation artifact {source_path!r} is invalid: "
+                            f"{artifact_errors[0]}"
+                        )
+                else:
+                    actual_visual_count += 1
+                    artifact_errors = compare_visual_artifact(reference, evidence_file)
+                    if artifact_errors:
+                        visual_ok = False
+                        errors.append(
+                            f"{label} visual artifact {source_path!r} is invalid: "
+                            f"{artifact_errors[0]}"
+                        )
+            except (
+                OSError,
+                UnicodeDecodeError,
+                ValueError,
+                TypeError,
+                json.JSONDecodeError,
+            ) as exc:
+                errors.append(f"{label} artifact {source_path!r} cannot be validated: {exc}")
+                semantic_ok = False
+                visual_ok = False
+        if (
+            platform["visual_count"] != actual_visual_count
+            or actual_visual_count != expected_visual_count
+        ):
+            visual_ok = False
+            errors.append(f"{label} visual count is not derived from retained artifacts")
+
+        role_entries = [
+            (path, entry)
+            for path, entry in evidence_by_path.items()
+            if entry.get("platform_family") == platform_name
+        ]
+        environment_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "environment-manifest"
+        ]
+        source_matches = [
+            (path, entry) for path, entry in role_entries if entry.get("role") == "source-manifest"
+        ]
+        pdf_matches = [(path, entry) for path, entry in role_entries if entry.get("role") == "pdf"]
+        environment_ok = len(environment_matches) == 1
+        source_ok = len(source_matches) == 1
+        pdf_ok = len(pdf_matches) == 1
+        if environment_ok:
+            path, entry = environment_matches[0]
+            environment_ok = entry["sha256"] == platform["environment_manifest_sha256"]
+            try:
+                environment_document = _load_json(evidence_files[path])
+                environment_errors = _environment_manifest_errors(environment_document, label)
+                environment_ok = environment_ok and not environment_errors
+                errors.extend(environment_errors)
+            except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+                environment_ok = False
+                errors.append(f"{label} environment manifest cannot be validated: {exc}")
+        if source_ok:
+            path, entry = source_matches[0]
+            source_ok = entry["sha256"] == platform["source_manifest_sha256"]
+            try:
+                source_document = _load_json(evidence_files[path])
+                source_errors = _source_manifest_errors(
+                    source_document,
+                    root,
+                    packet["candidate_commit"],
+                    packet["tree_hash"],
+                    label,
+                )
+                source_ok = source_ok and not source_errors
+                errors.extend(source_errors)
+            except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+                source_ok = False
+                errors.append(f"{label} source manifest cannot be validated: {exc}")
+        if pdf_ok:
+            path, entry = pdf_matches[0]
+            pdf_file = evidence_files[path]
+            pdf_bytes = pdf_file.read_bytes()
+            pdf_ok = (
+                entry["sha256"] == platform["pdf_sha256"]
+                and pdf_bytes.startswith(b"%PDF-")
+                and b"%%EOF" in pdf_bytes[-1024:]
+                and len(pdf_bytes) >= 100_000
+                and platform["pdf_page_count"] == expected_pages
+            )
+            for command_id in ("014-pdflatex-1", "015-pdflatex-2"):
+                stdout_path = command_results.get(command_id, {}).get("stdout_path", "")
+                stdout_file = evidence_files.get(stdout_path)
+                output = (
+                    stdout_file.read_text(encoding="utf-8", errors="replace") if stdout_file else ""
+                )
+                pdf_ok = (
+                    pdf_ok
+                    and "Output written on" in output
+                    and f"({expected_pages} pages" in output
+                )
+        if not environment_ok:
+            errors.append(f"{label} environment evidence is incomplete or invalid")
+        if not source_ok:
+            errors.append(f"{label} source evidence is incomplete or invalid")
+        if not pdf_ok:
+            errors.append(f"{label} PDF evidence is incomplete or invalid")
+
+        mutation_results = platform["mutation_results"]
+        mutation_ok = (
+            len(mutation_results) == len(mutation_ids)
+            and {item["mutation_id"] for item in mutation_results} == set(mutation_ids)
+            and all(item["rejected"] is True for item in mutation_results)
+        )
+        for mutation in mutation_results:
+            for evidence_path in mutation["evidence_paths"]:
                 entry = evidence_by_path.get(evidence_path)
+                evidence_file = evidence_files.get(evidence_path)
                 if (
                     entry is None
-                    or entry["platform_family"] != platform_name
-                    or entry["sha256"] != command[f"{stream}_sha256"]
+                    or entry.get("platform_family") != platform_name
+                    or entry.get("role") != "mutation-result"
+                    or entry.get("media_type") != "application/json"
+                    or evidence_file is None
                 ):
-                    command_outputs_bound = False
-                    errors.append(
-                        f"packet {packet_id}: {platform_name} command {command_id!r} "
-                        f"{stream} is not bound to matching retained evidence"
+                    mutation_ok = False
+                    continue
+                try:
+                    mutation_document = _load_json(evidence_file)
+                    mutation_ok = mutation_ok and (
+                        isinstance(mutation_document, Mapping)
+                        and mutation_document.get("schema_version") == 1
+                        and mutation_document.get("mutation_id") == mutation["mutation_id"]
+                        and mutation_document.get("platform_family") == platform_name
+                        and mutation_document.get("candidate_commit") == packet["candidate_commit"]
+                        and mutation_document.get("candidate_tree") == packet["tree_hash"]
+                        and mutation_document.get("rejected") is True
+                        and isinstance(mutation_document.get("attack"), str)
+                        and bool(mutation_document.get("attack"))
+                        and isinstance(mutation_document.get("oracle_errors"), list)
+                        and bool(mutation_document.get("oracle_errors"))
                     )
-        declared_evidence_paths = set(platform["evidence_paths"])
-        manifest_paths_for_platform = {
-            path
-            for path, entry in evidence_by_path.items()
-            if entry["platform_family"] == platform_name
+                except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError):
+                    mutation_ok = False
+        if not mutation_ok:
+            errors.append(f"{label} mutation evidence is incomplete, untyped, or accepted")
+
+        declared_paths = set(platform["evidence_paths"])
+        manifest_paths = {path for path, entry in role_entries}
+        evidence_paths_ok = declared_paths == manifest_paths and bool(declared_paths)
+        if not evidence_paths_ok:
+            errors.append(f"{label} evidence_paths differ from manifest")
+        uv_parts = platform["uv_version"].split()
+        uv_ok = len(uv_parts) >= 2 and uv_parts[:2] == ["uv", expected_uv]
+        example_count_ok = platform["example_count"] == expected_example_count
+        fields = {
+            "commands_passed": command_ok,
+            "semantic_contract_passed": semantic_ok,
+            "visual_contract_passed": visual_ok,
+            "source_boundary_passed": source_ok,
+            "environment_boundary_passed": environment_ok,
+            "pdf_passed": pdf_ok,
+            "mutations_rejected": mutation_ok,
         }
-        evidence_paths_match = declared_evidence_paths == manifest_paths_for_platform
-        if not evidence_paths_match:
-            errors.append(
-                f"packet {packet_id}: {platform_name} evidence_paths differ from manifest"
-            )
-        referenced_hashes = {
-            evidence_by_path[path]["sha256"]
-            for path in declared_evidence_paths
-            if path in evidence_by_path
-        }
-        manifests_bound = {
-            platform["environment_manifest_sha256"],
-            platform["source_manifest_sha256"],
-            platform["pdf_sha256"],
-        } <= referenced_hashes
-        if not manifests_bound:
-            errors.append(
-                f"packet {packet_id}: {platform_name} environment/source/PDF hashes "
-                "are not retained in its evidence manifest"
-            )
-        observed_uv_parts = platform["uv_version"].split()
-        uv_matches = (
-            len(observed_uv_parts) >= 2
-            and observed_uv_parts[0] == "uv"
-            and observed_uv_parts[1] == expected_uv_version
-        )
-        pdf_matches = (
-            isinstance(expected_pdf_engine, str)
-            and "1.40.29" in platform["pdf_engine"]
-            and "TeX Live 2026" in platform["pdf_engine"]
-        )
-        commands_pass = command_ids_complete and command_outputs_bound and all(
-            command["exit_code"] == 0 for command in command_results.values()
-        )
-        if platform["commands_passed"] != commands_pass:
-            errors.append(
-                f"packet {packet_id}: {platform_name} commands_passed is stale"
-            )
-        identity_matches = (
-            platform["candidate_commit"] == packet["candidate_commit"]
-            and platform["candidate_tree"] == packet["tree_hash"]
-        )
-        counts_match = (
-            platform["test_count"] == expected_test_count
-            and platform["example_count"] == expected_example_count
-            and platform["visual_count"] == expected_visual_count
-        )
-        evidence_complete = all(
-            (
-                command_ids_complete,
-                command_outputs_bound,
-                evidence_paths_match,
-                bool(declared_evidence_paths),
-                manifests_bound,
-            )
-        )
+        for field, expected in fields.items():
+            if platform[field] is not expected:
+                errors.append(f"{label} {field} differs from typed retained evidence")
         clean = all(
             (
-                identity_matches,
-                uv_matches,
-                pdf_matches,
-                commands_pass,
-                counts_match,
-                evidence_complete,
-                platform["semantic_contract_passed"],
-                platform["visual_contract_passed"],
-                platform["source_boundary_passed"],
-                platform["environment_boundary_passed"],
-                platform["pdf_passed"],
+                command_ok,
+                test_count_ok,
+                example_count_ok,
+                semantic_ok,
+                visual_ok,
+                source_ok,
+                environment_ok,
+                pdf_ok,
+                uv_ok,
+                evidence_paths_ok,
+                platform["candidate_commit"] == packet["candidate_commit"],
+                platform["candidate_tree"] == packet["tree_hash"],
             )
         )
-        mutations = (
-            platform["mutation_count"] == expected_mutation_count
-            and platform["mutations_rejected"]
+        if platform["mutation_count"] != len(mutation_results):
+            errors.append(f"{label} mutation_count differs from retained records")
+        if platform["overall_passed"] is not (clean and mutation_ok):
+            errors.append(f"{label} overall_passed differs from retained evidence")
+        platform_evidence[platform_name] = (
+            len(errors) == platform_errors_before
+            and command_ok
+            and artifact_ok
+            and evidence_paths_ok
         )
-        if platform["overall_passed"] != (clean and mutations):
-            errors.append(f"packet {packet_id}: {platform_name} overall_passed is stale")
         platform_clean[platform_name] = clean
-        platform_evidence_complete[platform_name] = evidence_complete
-        platform_mutations[platform_name] = mutations
+        platform_mutations[platform_name] = mutation_ok
 
-    expected_capabilities["evidence-contract"] = all(
-        platform_evidence_complete.values()
-    )
-    expected_capabilities["cross-platform-reproduction"] = all(
-        platform_clean.values()
-    )
-    expected_capabilities["mutation-rejection"] = all(platform_mutations.values())
+    expected_capabilities = {
+        "evidence-contract": all(platform_evidence.values()),
+        "cross-platform-reproduction": all(platform_clean.values()),
+        "mutation-rejection": all(platform_mutations.values()),
+    }
     if raw_document["capabilities"] != expected_capabilities:
         errors.append(
             f"packet {packet_id}: raw capability Booleans differ from retained evidence "
             f"({raw_document['capabilities']} != {expected_capabilities})"
         )
-    expected_failed = not all(expected_capabilities.values()) and not raw_document["blocked"]
-    if raw_document["failed"] != expected_failed:
-        errors.append(
-            f"packet {packet_id}: raw failed Boolean differs from retained evidence"
-        )
+    if raw_document["failed"] is not (not all(expected_capabilities.values())):
+        errors.append(f"packet {packet_id}: raw failed Boolean differs from retained evidence")
     return errors
 
 
@@ -1631,9 +1895,7 @@ def _structured_external_receipt(
         )
         return None
     if receipt.get("media_type") != "application/json":
-        errors.append(
-            f"packet {packet_id}: external replication {label} must use application/json"
-        )
+        errors.append(f"packet {packet_id}: external replication {label} must use application/json")
         return None
     try:
         return _structured_receipt_document(receipt)
@@ -1706,8 +1968,10 @@ def _canonical_repository_identity(value: str) -> str | None:
             host = unquote(host, errors="strict")
         except UnicodeDecodeError:
             return None
-        if "%" in host or not _repository_text_is_safe(host) or any(
-            character in host for character in "/\\?#@[]"
+        if (
+            "%" in host
+            or not _repository_text_is_safe(host)
+            or any(character in host for character in "/\\?#@[]")
         ):
             return None
         host = host.rstrip(".").lower()
@@ -1780,8 +2044,7 @@ def _strict_json_equal(actual: Any, expected: Any) -> bool:
         if not isinstance(actual, list) or not isinstance(expected, list):
             return False
         return len(actual) == len(expected) and all(
-            _strict_json_equal(left, right)
-            for left, right in zip(actual, expected, strict=True)
+            _strict_json_equal(left, right) for left, right in zip(actual, expected, strict=True)
         )
     return type(actual) is type(expected) and actual == expected
 
@@ -1840,9 +2103,7 @@ def _run_bounded_process(command: list[str], *, timeout: int | float) -> int:
         stderr=subprocess.DEVNULL,
         start_new_session=os.name != "nt",
         creationflags=(
-            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-            if os.name == "nt"
-            else 0
+            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0
         ),
     )
     try:
@@ -1864,9 +2125,7 @@ def _external_git_bundle_errors(
     if receipt is None or receipt.get("kind") != "independent-repository-bundle":
         return [f"packet {packet_id}: external repository bundle receipt is missing"]
     if receipt.get("media_type") != "application/x-git-bundle":
-        errors.append(
-            f"packet {packet_id}: external repository bundle has wrong media type"
-        )
+        errors.append(f"packet {packet_id}: external repository bundle has wrong media type")
     if receipt.get("sha256") != implementation["repository_bundle_sha256"]:
         errors.append(f"packet {packet_id}: external repository bundle hash differs")
     bundle_path = receipt.get("_resolved_path")
@@ -1953,9 +2212,7 @@ def _validate_external_replication(
     external_repository = _canonical_repository_identity(implementation["repository"])
     candidate_repository = _canonical_repository_identity(campaign["repository"])
     if external_repository is None:
-        errors.append(
-            f"packet {packet_id}: external implementation repository identity is invalid"
-        )
+        errors.append(f"packet {packet_id}: external implementation repository identity is invalid")
     if candidate_repository is None:
         errors.append(f"packet {packet_id}: candidate repository identity is invalid")
     if (
@@ -2020,9 +2277,7 @@ def _validate_external_replication(
         "blinded prediction",
         errors,
     )
-    if prediction_receipt is not None and prediction_receipt.get("sha256") != prediction[
-        "sha256"
-    ]:
+    if prediction_receipt is not None and prediction_receipt.get("sha256") != prediction["sha256"]:
         errors.append(f"packet {packet_id}: blinded prediction hash differs from receipt")
     if prediction["committed_by"] != operator["agent_identity"]:
         errors.append(f"packet {packet_id}: blinded prediction has wrong committer")
@@ -2034,10 +2289,13 @@ def _validate_external_replication(
             "predictions",
         }:
             errors.append(f"packet {packet_id}: blinded prediction envelope is invalid")
-        if any(
-            prediction_document.get(field) != prediction[field]
-            for field in ("committed_by", "committed_at")
-        ) or prediction_document.get("packet_id") != packet_id:
+        if (
+            any(
+                prediction_document.get(field) != prediction[field]
+                for field in ("committed_by", "committed_at")
+            )
+            or prediction_document.get("packet_id") != packet_id
+        ):
             errors.append(f"packet {packet_id}: blinded prediction metadata differs")
         if not isinstance(prediction_document.get("predictions"), list):
             errors.append(f"packet {packet_id}: blinded predictions must be an array")
@@ -2107,10 +2365,7 @@ def _validate_external_replication(
     if not isinstance(custody_commitment, Mapping):
         errors.append(f"packet {packet_id}: comparison requires candidate output commitment")
     else:
-        if (
-            comparison["candidate_output_receipt_id"]
-            != custody_commitment["output_receipt_id"]
-        ):
+        if comparison["candidate_output_receipt_id"] != custody_commitment["output_receipt_id"]:
             errors.append(
                 f"packet {packet_id}: comparison candidate output differs from custody output"
             )
@@ -2118,17 +2373,16 @@ def _validate_external_replication(
             errors.append(
                 f"packet {packet_id}: comparison candidate hash differs from custody output"
             )
-    if candidate_receipt is not None and candidate_receipt.get("sha256") != comparison[
-        "candidate_output_sha256"
-    ]:
+    if (
+        candidate_receipt is not None
+        and candidate_receipt.get("sha256") != comparison["candidate_output_sha256"]
+    ):
         errors.append(f"packet {packet_id}: comparison candidate output hash differs")
     if comparison["external_output_receipt_id"] != reproduction["output_receipt_id"]:
         errors.append(f"packet {packet_id}: comparison external output differs")
     if comparison["external_output_sha256"] != reproduction["output_sha256"]:
         errors.append(f"packet {packet_id}: comparison external output hash differs")
-    if comparison["candidate_output_receipt_id"] == comparison[
-        "external_output_receipt_id"
-    ]:
+    if comparison["candidate_output_receipt_id"] == comparison["external_output_receipt_id"]:
         errors.append(f"packet {packet_id}: comparison reuses one output receipt")
     if candidate_receipt is not None and output_receipt is not None:
         if candidate_receipt.get("sha256") == output_receipt.get("sha256"):
@@ -2149,32 +2403,23 @@ def _validate_external_replication(
     agreement: bool | None = None
     if candidate_document is not None and output_document is not None:
         try:
-            candidate_metric = _json_pointer(
-                candidate_document, comparison["metric_json_pointer"]
-            )
-            external_metric = _json_pointer(
-                output_document, comparison["metric_json_pointer"]
-            )
+            candidate_metric = _json_pointer(candidate_document, comparison["metric_json_pointer"])
+            external_metric = _json_pointer(output_document, comparison["metric_json_pointer"])
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             errors.append(f"packet {packet_id}: comparison metric cannot resolve: {exc}")
         else:
             tolerance = comparison["absolute_tolerance"]
             numeric_values = (candidate_metric, external_metric, tolerance)
             if any(type(value) not in {int, float} for value in numeric_values) or any(
-                type(value) is float and not math.isfinite(value)
-                for value in numeric_values
+                type(value) is float and not math.isfinite(value) for value in numeric_values
             ):
                 errors.append(f"packet {packet_id}: comparison metrics must be finite numbers")
             else:
                 try:
-                    difference = abs(
-                        Decimal(str(candidate_metric)) - Decimal(str(external_metric))
-                    )
+                    difference = abs(Decimal(str(candidate_metric)) - Decimal(str(external_metric)))
                     agreement = difference <= Decimal(str(tolerance))
                 except (InvalidOperation, ValueError):
-                    errors.append(
-                        f"packet {packet_id}: comparison metrics cannot be evaluated"
-                    )
+                    errors.append(f"packet {packet_id}: comparison metrics cannot be evaluated")
                 else:
                     candidate_value = candidate_metric
                     external_value = external_metric
@@ -2209,22 +2454,14 @@ def _validate_external_replication(
         if comparison_document is not None and not _strict_json_equal(
             comparison_document, expected_comparison
         ):
-            errors.append(
-                f"packet {packet_id}: comparison receipt differs from computed outputs"
-            )
+            errors.append(f"packet {packet_id}: comparison receipt differs from computed outputs")
         causes = set(packet["adjudication"]["cause_codes"])
         outcome = packet["adjudication"]["packet_outcome"]
         disagreement_cause = "external-replication-disagreed"
         if agreement and disagreement_cause in causes:
-            errors.append(
-                f"packet {packet_id}: agreement cannot claim external disagreement cause"
-            )
-        if not agreement and (
-            outcome != "failed" or disagreement_cause not in causes
-        ):
-            errors.append(
-                f"packet {packet_id}: external disagreement requires failed adjudication"
-            )
+            errors.append(f"packet {packet_id}: agreement cannot claim external disagreement cause")
+        if not agreement and (outcome != "failed" or disagreement_cause not in causes):
+            errors.append(f"packet {packet_id}: external disagreement requires failed adjudication")
 
     try:
         prediction_time = _parse_datetime(prediction["committed_at"])
@@ -2290,17 +2527,12 @@ def _validate_custody(
             if reveal[field] is None:
                 errors.append(f"packet {packet_id}: revealed custody requires {field}")
         if reveal["authorized_by"] != custodian_identity:
-            errors.append(
-                f"packet {packet_id}: reveal must be authorized by evaluator_custodian"
-            )
+            errors.append(f"packet {packet_id}: reveal must be authorized by evaluator_custodian")
         if not packet["holdout_started"]:
             errors.append(f"packet {packet_id}: reveal cannot precede holdout execution")
         if LIFECYCLE_ORDER[packet["lifecycle_phase"]] < LIFECYCLE_ORDER["reproduced"]:
             errors.append(f"packet {packet_id}: reveal cannot precede reproduction")
-        if (
-            reveal["post_reveal_holdout_sha256"]
-            != custody["hidden_holdout_manifest"]["sha256"]
-        ):
+        if reveal["post_reveal_holdout_sha256"] != custody["hidden_holdout_manifest"]["sha256"]:
             errors.append(f"packet {packet_id}: revealed holdout manifest differs from commitment")
         if reveal["post_reveal_seed_sha256"] != custody["secret_seed_manifest"]["sha256"]:
             errors.append(f"packet {packet_id}: revealed seed manifest differs from commitment")
@@ -2337,9 +2569,7 @@ def _validate_custody(
                 )
             output_receipt = receipts.get(commitment["output_receipt_id"])
             if output_receipt is None or output_receipt.get("kind") != "raw-results":
-                errors.append(
-                    f"packet {packet_id}: output commitment must reference raw-results"
-                )
+                errors.append(f"packet {packet_id}: output commitment must reference raw-results")
             elif output_receipt.get("sha256") != commitment["output_sha256"]:
                 errors.append(
                     f"packet {packet_id}: output commitment hash differs from runner output"
@@ -2399,9 +2629,7 @@ def _validate_custody(
                     "output_commitment_receipt_id": (
                         commitment["receipt_id"] if commitment is not None else None
                     ),
-                    "post_reveal_holdout_sha256": reveal[
-                        "post_reveal_holdout_sha256"
-                    ],
+                    "post_reveal_holdout_sha256": reveal["post_reveal_holdout_sha256"],
                     "post_reveal_seed_sha256": reveal["post_reveal_seed_sha256"],
                 }
                 for field, expected in expected_reveal.items():
@@ -2455,16 +2683,12 @@ def _receipt_artifact(
 ) -> Mapping[str, Any] | None:
     receipt = receipts.get(receipt_id)
     if receipt is None or receipt.get("kind") != expected_kind:
-        errors.append(
-            f"packet {packet_id}: invalid {expected_kind} receipt {receipt_id!r}"
-        )
+        errors.append(f"packet {packet_id}: invalid {expected_kind} receipt {receipt_id!r}")
         return None
     if not isinstance(artifact_ref, str):
         errors.append(f"packet {packet_id}: {expected_kind} receipt lacks immutable ref")
         return None
-    errors.extend(
-        _artifact_ref_errors(artifact_ref, receipt, root, packet_id, expected_kind)
-    )
+    errors.extend(_artifact_ref_errors(artifact_ref, receipt, root, packet_id, expected_kind))
     try:
         document = _structured_receipt_document(receipt)
     except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
@@ -2544,16 +2768,12 @@ def _validate_review_chain(
             "outcome": "unresolved",
             "superseding_id": None,
         }
-    for item in _artifact_items(
-        initial, "requested_tests", "id", packet_id, errors
-    ):
+    for item in _artifact_items(initial, "requested_tests", "id", packet_id, errors):
         test_id = item.get("id")
         if not isinstance(test_id, str) or not test_id:
             continue
         if type(item.get("blocking")) is not bool:
-            errors.append(
-                f"packet {packet_id}: requested test {test_id} lacks Boolean blocking"
-            )
+            errors.append(f"packet {packet_id}: requested test {test_id} lacks Boolean blocking")
             continue
         requested_tests[test_id] = {
             "id": test_id,
@@ -2567,12 +2787,7 @@ def _validate_review_chain(
     response_refs = chain["response_refs"]
     rereviews = chain["rereview_receipts"]
     rereview_refs = chain["rereview_refs"]
-    if not (
-        len(responses)
-        == len(response_refs)
-        == len(rereviews)
-        == len(rereview_refs)
-    ):
+    if not (len(responses) == len(response_refs) == len(rereviews) == len(rereview_refs)):
         errors.append(f"packet {packet_id}: response/re-review receipt/ref counts differ")
     if (findings or requested_tests) and not responses:
         errors.append(f"packet {packet_id}: findings/tests require response and re-review receipts")
@@ -2620,9 +2835,7 @@ def _validate_review_chain(
             )
         if response.get("response_round") != round_index:
             errors.append(f"packet {packet_id}: response round number is not sequential")
-        response_prior_ref = (
-            f"{response.get('review_commit')}:{response.get('review_artifact')}"
-        )
+        response_prior_ref = f"{response.get('review_commit')}:{response.get('review_artifact')}"
         if response_prior_ref != prior_review_ref:
             errors.append(
                 f"packet {packet_id}: response round {round_index} does not bind prior review ref"
@@ -2634,18 +2847,14 @@ def _validate_review_chain(
                 f"packet {packet_id}: response round {round_index} targets wrong candidate"
             )
         if rereview.get("prior_review_ref") != prior_review_ref:
-            errors.append(
-                f"packet {packet_id}: re-review round {round_index} prior ref mismatch"
-            )
+            errors.append(f"packet {packet_id}: re-review round {round_index} prior ref mismatch")
         if rereview.get("builder_response_ref") != response_ref:
             errors.append(
                 f"packet {packet_id}: re-review round {round_index} response ref mismatch"
             )
         errors.extend(_review_commit_binding_errors(rereview, packet, root, packet_id))
         errors.extend(
-            _response_provenance_errors(
-                response, rereview, packet, root, packet_id, round_index
-            )
+            _response_provenance_errors(response, rereview, packet, root, packet_id, round_index)
         )
         response_findings = _artifact_items(
             response, "finding_responses", "finding_id", packet_id, errors
@@ -2842,9 +3051,7 @@ def _validate_packet(
         errors.append(f"packet {packet_id}: cannot compute frozen packet rules: {exc}")
     else:
         if packet["protocol_rule_sha256"] != computed_rule_hash:
-            errors.append(
-                f"packet {packet_id}: protocol_rule_sha256 differs from packet rules"
-            )
+            errors.append(f"packet {packet_id}: protocol_rule_sha256 differs from packet rules")
         expected_rule_hash = protocol_manifest["packet_rule_sha256"].get(packet_id)
         if expected_rule_hash is None:
             errors.append(f"packet {packet_id}: absent from frozen protocol manifest")
@@ -2945,14 +3152,10 @@ def _validate_packet(
     if LIFECYCLE_ORDER[phase] >= LIFECYCLE_ORDER["preregistered"]:
         errors.extend(_validate_preregistration(packet, receipts, packet_id, root))
         errors.extend(
-            _validate_external_replication(
-                packet, receipts, packet_id, campaign, internal_facts
-            )
+            _validate_external_replication(packet, receipts, packet_id, campaign, internal_facts)
         )
     errors.extend(_validate_custody(packet, receipts, packet_id))
-    errors.extend(
-        _validate_raw_evidence_contract(packet, receipts, packet_id, campaign_base)
-    )
+    errors.extend(_validate_raw_evidence_contract(packet, receipts, packet_id, campaign_base, root))
 
     if packet["holdout_started"]:
         if LIFECYCLE_ORDER[phase] < LIFECYCLE_ORDER["attacked"]:
@@ -3021,9 +3224,7 @@ def _validate_packet(
             "record an invalid round"
         )
         return errors
-    computed = {"pass": "passed", "fail": "failed", "blocked": "blocked"}[
-        true_outcomes[0]
-    ]
+    computed = {"pass": "passed", "fail": "failed", "blocked": "blocked"}[true_outcomes[0]]
     if outcome != computed:
         errors.append(f"packet {packet_id}: declared outcome {outcome} != computed {computed}")
     if computed == "passed" and not all(capability_results.values()):
@@ -3040,9 +3241,7 @@ def _validate_packet(
         "blocked": BLOCKAGE_CAUSES,
     }[computed]
     if not causes or not causes <= allowed_causes:
-        errors.append(
-            f"packet {packet_id}: cause codes {sorted(causes)} do not match {computed}"
-        )
+        errors.append(f"packet {packet_id}: cause codes {sorted(causes)} do not match {computed}")
 
     if computed in {"passed", "failed"}:
         errors.extend(_validate_review_chain(packet, receipts, packet_id, root))
@@ -3090,9 +3289,7 @@ def _validate_campaign(
     try:
         campaign_schema = _load_json(root / "schemas/viability/campaign-v2.schema.json")
         packet_schema = _load_json(root / "schemas/viability/packet-v2.schema.json")
-        manifest_schema = _load_json(
-            root / "schemas/viability/protocol-manifest-v2.schema.json"
-        )
+        manifest_schema = _load_json(root / "schemas/viability/protocol-manifest-v2.schema.json")
     except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
         return [f"campaign: cannot load contract schemas: {exc}"]
     errors: list[str] = []
@@ -3132,9 +3329,7 @@ def _validate_campaign(
     extra_packets = set(packet_files) - set(required_packets)
     if extra_packets:
         errors.append(f"campaign: target tier has extra packet files {sorted(extra_packets)}")
-    missing_frozen_rules = set(required_packets) - set(
-        protocol_manifest["packet_rule_sha256"]
-    )
+    missing_frozen_rules = set(required_packets) - set(protocol_manifest["packet_rule_sha256"])
     if missing_frozen_rules:
         errors.append(
             f"campaign: protocol manifest lacks packet rules {sorted(missing_frozen_rules)}"

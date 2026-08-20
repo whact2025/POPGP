@@ -29,6 +29,7 @@ function Assert-Success {
 function Invoke-RetainedCommand {
     param(
         [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$ContractId,
         [Parameter(Mandatory = $true)][string]$FilePath,
         [Parameter(Mandatory = $true)][string[]]$Arguments,
         [Parameter(Mandatory = $true)][string]$WorkingDirectory,
@@ -66,6 +67,7 @@ function Invoke-RetainedCommand {
     [System.IO.File]::WriteAllText($stderrPath, $stderr, [System.Text.UTF8Encoding]::new($false))
     [ordered]@{
         label = $Label
+        contract_id = $ContractId
         file = $FilePath
         arguments = $Arguments
         working_directory = $WorkingDirectory
@@ -121,10 +123,10 @@ if ($pdfText -ne $ExpectedPdfEngine) {
     throw "expected $ExpectedPdfEngine, observed $pdfText"
 }
 
-Invoke-RetainedCommand -Label "001-clone" -FilePath "git" `
+Invoke-RetainedCommand -Label "001-clone" -ContractId "git-clone" -FilePath "git" `
     -Arguments @("clone", "--no-checkout", $RepositoryUrl, $repo) `
     -WorkingDirectory $workspace.FullName -LogDirectory $logs
-Invoke-RetainedCommand -Label "002-checkout" -FilePath "git" `
+Invoke-RetainedCommand -Label "002-checkout" -ContractId "git-checkout" -FilePath "git" `
     -Arguments @("checkout", "--detach", $CandidateCommit) `
     -WorkingDirectory $repo -LogDirectory $logs
 
@@ -152,7 +154,7 @@ $env:PYTHONDONTWRITEBYTECODE = "1"
 $env:RUFF_CACHE_DIR = $ruffCache
 $env:MPLCONFIGDIR = $matplotlibCache
 $env:XDG_CACHE_HOME = $generalCache
-Invoke-RetainedCommand -Label "003-sync" -FilePath "uv" `
+Invoke-RetainedCommand -Label "003-sync" -ContractId "uv-sync-frozen-no-editable" -FilePath "uv" `
     -Arguments @("sync", "--frozen", "--no-editable") `
     -WorkingDirectory $repo -LogDirectory $logs
 Remove-Item Env:UV_PROJECT_ENVIRONMENT
@@ -186,6 +188,7 @@ Set-Content -LiteralPath $sourceDigestPath -Value $sourceDigest -Encoding utf8No
 function Invoke-CheckedModule {
     param(
         [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$ContractId,
         [Parameter(Mandatory = $true)][string]$Module,
         [string[]]$ModuleArguments = @(),
         [string[]]$AllowedPaths = @()
@@ -208,13 +211,13 @@ function Invoke-CheckedModule {
         "--repo-root", $repo, "--module", $Module, "--"
     )
     $arguments += $ModuleArguments
-    Invoke-RetainedCommand -Label $Label -FilePath "python" `
+    Invoke-RetainedCommand -Label $Label -ContractId $ContractId -FilePath "python" `
         -Arguments $arguments -WorkingDirectory $repo -LogDirectory $logs
 }
 
-Invoke-CheckedModule -Label "004-ruff" -Module "ruff" -ModuleArguments @("check", ".")
-Invoke-CheckedModule -Label "005-check-tex" -Module "scripts.check_tex"
-Invoke-CheckedModule -Label "006-pytest" -Module "pytest" `
+Invoke-CheckedModule -Label "004-ruff" -ContractId "trusted-python-ruff" -Module "ruff" -ModuleArguments @("check", ".")
+Invoke-CheckedModule -Label "005-check-tex" -ContractId "trusted-python-check-tex" -Module "scripts.check_tex"
+Invoke-CheckedModule -Label "006-pytest" -ContractId "trusted-python-pytest" -Module "pytest" `
     -ModuleArguments @("-q", "-p", "no:cacheprovider")
 
 $allowed = @(
@@ -223,52 +226,53 @@ $allowed = @(
     "examples/physics_qg/chain_1d/results/entropy_growth.png",
     "examples/physics_qg/chain_1d/results/validation.json"
 )
-Invoke-CheckedModule -Label "007-chain" -Module "examples.physics_qg.chain_1d" -AllowedPaths $allowed
+Invoke-CheckedModule -Label "007-chain" -ContractId "trusted-python-chain-generator" -Module "examples.physics_qg.chain_1d" -AllowedPaths $allowed
 $allowed += @(
     "examples/physics_qg/grid_2d/results/clock_potential.png",
     "examples/physics_qg/grid_2d/results/embedding.png",
     "examples/physics_qg/grid_2d/results/validation.json"
 )
-Invoke-CheckedModule -Label "008-grid" -Module "examples.physics_qg.grid_2d" -AllowedPaths $allowed
+Invoke-CheckedModule -Label "008-grid" -ContractId "trusted-python-grid-generator" -Module "examples.physics_qg.grid_2d" -AllowedPaths $allowed
 $allowed += @(
     "examples/physics_qg/gravity_well/results/gravity_embedding.png",
     "examples/physics_qg/gravity_well/results/gravity_well.png",
     "examples/physics_qg/gravity_well/results/source_comparison.png",
     "examples/physics_qg/gravity_well/results/validation.json"
 )
-Invoke-CheckedModule -Label "009-gravity" -Module "examples.physics_qg.gravity_well" -AllowedPaths $allowed
+Invoke-CheckedModule -Label "009-gravity" -ContractId "trusted-python-gravity-generator" -Module "examples.physics_qg.gravity_well" -AllowedPaths $allowed
 $allowed += @(
     "examples/physics_qg/source_law/results/source_scaling.png",
     "examples/physics_qg/source_law/results/validation.json"
 )
-Invoke-CheckedModule -Label "010-source-law" -Module "examples.physics_qg.source_law" -AllowedPaths $allowed
+Invoke-CheckedModule -Label "010-source-law" -ContractId "trusted-python-source-law-generator" -Module "examples.physics_qg.source_law" -AllowedPaths $allowed
 $allowed += @(
     "examples/physics_qg/source_law_many_body/results/many_body_source.png",
     "examples/physics_qg/source_law_many_body/results/validation.json"
 )
-Invoke-CheckedModule -Label "011-many-body" -Module "examples.physics_qg.source_law_many_body" -AllowedPaths $allowed
+Invoke-CheckedModule -Label "011-many-body" -ContractId "trusted-python-many-body-generator" -Module "examples.physics_qg.source_law_many_body" -AllowedPaths $allowed
 $allowed += @(
     "examples/physics_qg/ca_model/results/dynamics_cooling.png",
     "examples/physics_qg/ca_model/results/evolution_cooling.gif",
     "examples/physics_qg/ca_model/results/validation.json"
 )
-Invoke-CheckedModule -Label "012-ca" -Module "examples.physics_qg.ca_model" -AllowedPaths $allowed
+Invoke-CheckedModule -Label "012-ca" -ContractId "trusted-python-ca-generator" -Module "examples.physics_qg.ca_model" -AllowedPaths $allowed
 Invoke-CheckedModule -Label "013-artifact-boundary" `
+    -ContractId "trusted-python-artifact-boundary" `
     -Module "scripts.check_validation_artifacts" `
     -ModuleArguments @("--enforce-change-boundary") -AllowedPaths $allowed
 
-Invoke-RetainedCommand -Label "014-pdflatex-1" -FilePath "pdflatex" `
+Invoke-RetainedCommand -Label "014-pdflatex-1" -ContractId "pdflatex-pass-1" -FilePath "pdflatex" `
     -Arguments @(
         "-interaction=nonstopmode", "-halt-on-error",
         "-output-directory=$pdfDirectory", "docs/framework.tex"
     ) -WorkingDirectory $repo -LogDirectory $logs
-Invoke-RetainedCommand -Label "015-pdflatex-2" -FilePath "pdflatex" `
+Invoke-RetainedCommand -Label "015-pdflatex-2" -ContractId "pdflatex-pass-2" -FilePath "pdflatex" `
     -Arguments @(
         "-interaction=nonstopmode", "-halt-on-error",
         "-output-directory=$pdfDirectory", "docs/framework.tex"
     ) -WorkingDirectory $repo -LogDirectory $logs
 
-Invoke-RetainedCommand -Label "016-environment-verify" -FilePath "python" `
+Invoke-RetainedCommand -Label "016-environment-verify" -ContractId "trusted-python-environment-verify" -FilePath "python" `
     -Arguments @(
         "-I", "-S", $trustedBoundary,
         "--repo-root", $repo, "--environment", $environment,
@@ -281,6 +285,31 @@ Set-Content -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
     -Value $finalStatus -Encoding utf8NoBOM
 if ($finalStatus) {
     throw "candidate repository has tracked, untracked, or ignored residue after execution"
+}
+
+$artifactRoot = Join-Path $evidence "artifacts"
+$artifactResults = [ordered]@{}
+foreach ($sourcePath in $allowed) {
+    $sourceFile = Join-Path $repo $sourcePath
+    if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
+        throw "required generated artifact is missing: $sourcePath"
+    }
+    $destination = Join-Path $artifactRoot $sourcePath
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    Copy-Item -LiteralPath $sourceFile -Destination $destination
+    $evidencePath = [System.IO.Path]::GetRelativePath($workspace.FullName, $destination).Replace("\", "/")
+    $mediaType = switch ([System.IO.Path]::GetExtension($sourcePath).ToLowerInvariant()) {
+        ".json" { "application/json" }
+        ".png" { "image/png" }
+        ".gif" { "image/gif" }
+        default { throw "unsupported generated artifact type: $sourcePath" }
+    }
+    $artifactResults[$sourcePath] = [ordered]@{
+        source_path = $sourcePath
+        evidence_path = $evidencePath
+        sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $destination).Hash.ToLowerInvariant()
+        media_type = $mediaType
+    }
 }
 
 $evidenceEntries = @()
@@ -296,13 +325,30 @@ foreach ($file in @(Get-ChildItem -LiteralPath $evidence, $pdfDirectory -File -R
         ".gif" { "image/gif" }
         default { "text/plain" }
     }
-    $evidenceEntries += [ordered]@{
+    $role = "supporting"
+    $sourcePath = $null
+    if ($relative -match "^evidence/commands/.+\.result\.json$") { $role = "command-result" }
+    elseif ($relative -match "^evidence/commands/.+\.stdout\.txt$") { $role = "command-stdout" }
+    elseif ($relative -match "^evidence/commands/.+\.stderr\.txt$") { $role = "command-stderr" }
+    elseif ($relative -eq "evidence/environment-manifest.json") { $role = "environment-manifest" }
+    elseif ($relative -eq "evidence/source-manifest.json") { $role = "source-manifest" }
+    elseif ($relative -eq "evidence/final-status-with-ignored.txt") { $role = "repository-status" }
+    elseif ($relative -eq "pdf/framework.pdf") { $role = "pdf" }
+    elseif ($relative -match "^pdf/") { $role = "pdf-build" }
+    elseif ($relative -match "^evidence/artifacts/") {
+        $sourcePath = $relative.Substring("evidence/artifacts/".Length)
+        $role = if ($mediaType -eq "application/json") { "validation-json" } else { "visual" }
+    }
+    $entry = [ordered]@{
         platform_family = $PlatformFamily
         path = $relative
         sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash.ToLowerInvariant()
         byte_count = $file.Length
         media_type = $mediaType
+        role = $role
     }
+    if ($null -ne $sourcePath) { $entry["source_path"] = $sourcePath }
+    $evidenceEntries += $entry
 }
 $evidenceManifestPath = Join-Path $evidence "evidence-manifest.json"
 $evidenceEntries | ConvertTo-Json -Depth 8 | Set-Content `
@@ -316,6 +362,7 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
     $resultRelative = [System.IO.Path]::GetRelativePath($workspace.FullName, $recordFile.FullName).Replace("\", "/")
     $commandResults[$record.label] = [ordered]@{
         command = "$($record.file) $($record.arguments -join ' ')"
+        contract_id = [string]$record.contract_id
         exit_code = [int]$record.exit_code
         duration_seconds = [double]$record.duration_seconds
         result_path = $resultRelative
@@ -337,6 +384,8 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
     uv_version = $uvText
     pdf_engine = $pdfText
     command_results = $commandResults
+    artifact_results = $artifactResults
+    mutation_results = @()
     test_count = 366
     example_count = 6
     visual_count = 12
@@ -353,6 +402,7 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
     environment_manifest_sha256 = $environmentDigest
     source_manifest_sha256 = $sourceDigest
     pdf_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $pdfDirectory "framework.pdf")).Hash.ToLowerInvariant()
+    pdf_page_count = 11
     completed_at = [DateTimeOffset]::UtcNow.ToString("O")
 } | ConvertTo-Json -Depth 8 | Set-Content `
     -LiteralPath (Join-Path $evidence "platform-summary.json") -Encoding utf8NoBOM

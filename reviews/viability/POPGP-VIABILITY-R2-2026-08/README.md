@@ -32,11 +32,19 @@ The primary protocol is
 [`VIA-000.json`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json). Its
 supporting runner is
 [`VIA-000-RUNNER.ps1`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1).
+The typed raw-results contract and sole admissible two-platform assembler are
+[`VIA-000-RAW-RESULTS.schema.json`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json)
+and
+[`VIA-000-ASSEMBLER.py`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py).
 The runner creates a fresh exact-candidate clone, a complete external locked
 environment and cache boundary, and hash-retained raw evidence. It executes the clean
 Linux/Windows sequence only. The separate falsifier must first implement and commit
 attacks for all eighteen frozen mutation families; the reproduction runner then
-executes those attacks without seeing hidden manifests.
+executes those attacks without seeing hidden manifests. Platform summaries alone are
+not campaign results: the frozen assembler requires both exact identities, all typed
+commands/artifacts, and all eighteen typed mutation receipts per platform before it
+can create raw results and the pre-reveal output commitment. Partial or unavailable
+attempts cannot self-declare blockage and are not commit-eligible.
 
 The packet cannot advance past preregistration until a fresh falsifier approves the
 complete gate. It cannot advance to reproduced until a separate runner creates and

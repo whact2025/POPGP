@@ -1,35 +1,182 @@
 from __future__ import annotations
 
 import copy
+import functools
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
 from scripts.check_viability_campaign import _validate_raw_evidence_contract
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_SOURCE = (
+PROTOCOL_PATH = ROOT / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json"
+SCHEMA_SOURCE = ROOT / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json"
+PDF_SOURCE = (
     ROOT
-    / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json"
+    / "reviews/viability/POPGP-VIABILITY-R1-2026-08/receipts/VIA-000/runner"
+    / "windows/pdf/framework.pdf"
 )
-CANDIDATE_COMMIT = "5be3c38a0822d49953d0933f14ccab32ca12c896"
-CANDIDATE_TREE = "6ad387f9f4e0bab7f97df1bb54a03177887f0707"
-PLATFORMS = ("ubuntu-latest-x86_64", "windows-x86_64")
-COMMAND_IDS = tuple(f"{index:03d}-command" for index in range(1, 17))
+PROTOCOL = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+PARAMETERS = PROTOCOL["parameters"]
+CONTRACT = PARAMETERS["raw_results_contract"]
+CANDIDATE_COMMIT = PARAMETERS["candidate_commit"]
+CANDIDATE_TREE = PARAMETERS["candidate_tree"]
+PLATFORMS = tuple(CONTRACT["required_platforms"])
+COMMAND_CONTRACTS = CONTRACT["required_command_contracts"]
+ARTIFACT_PATHS = tuple(CONTRACT["required_artifact_paths"])
+MUTATION_IDS = tuple(CONTRACT["required_mutation_ids"])
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _write(path: Path, content: bytes) -> dict[str, Any]:
+@functools.cache
+def _git_bytes(path: str) -> bytes:
+    return subprocess.run(
+        ["git", "show", f"{CANDIDATE_COMMIT}:{path}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
+def _write(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
-    return {
-        "path": path.as_posix(),
+
+
+def _entry(
+    receipt_dir: Path,
+    path: Path,
+    platform: str,
+    media_type: str,
+    role: str,
+    *,
+    source_path: str | None = None,
+) -> dict[str, Any]:
+    value = {
+        "platform_family": platform,
+        "path": path.relative_to(receipt_dir).as_posix(),
         "sha256": _sha256(path),
         "byte_count": path.stat().st_size,
+        "media_type": media_type,
+        "role": role,
+    }
+    if source_path is not None:
+        value["source_path"] = source_path
+    return value
+
+
+def _command_record(contract_id: str, workspace: Path) -> tuple[str, list[str]]:
+    repo = workspace / "candidate"
+    environment = workspace / "environment"
+    boundary = workspace / "evidence/check_reproduction_boundary.py"
+    module_map = {
+        "trusted-python-ruff": ("ruff", ["check", "."]),
+        "trusted-python-check-tex": ("scripts.check_tex", []),
+        "trusted-python-pytest": ("pytest", ["-q", "-p", "no:cacheprovider"]),
+        "trusted-python-chain-generator": ("examples.physics_qg.chain_1d", []),
+        "trusted-python-grid-generator": ("examples.physics_qg.grid_2d", []),
+        "trusted-python-gravity-generator": ("examples.physics_qg.gravity_well", []),
+        "trusted-python-source-law-generator": ("examples.physics_qg.source_law", []),
+        "trusted-python-many-body-generator": ("examples.physics_qg.source_law_many_body", []),
+        "trusted-python-ca-generator": ("examples.physics_qg.ca_model", []),
+        "trusted-python-artifact-boundary": (
+            "scripts.check_validation_artifacts",
+            ["--enforce-change-boundary"],
+        ),
+    }
+    if contract_id == "git-clone":
+        return "git", ["clone", "--no-checkout", "https://github.com/whact2025/POPGP", str(repo)]
+    if contract_id == "git-checkout":
+        return "git", ["checkout", "--detach", CANDIDATE_COMMIT]
+    if contract_id == "uv-sync-frozen-no-editable":
+        return "uv", ["sync", "--frozen", "--no-editable"]
+    if contract_id.startswith("pdflatex-pass-"):
+        return "pdflatex", [
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            f"-output-directory={workspace / 'pdf'}",
+            "docs/framework.tex",
+        ]
+    if contract_id == "trusted-python-environment-verify":
+        return "python", [
+            "-I",
+            "-S",
+            str(boundary),
+            "--repo-root",
+            str(repo),
+            "--environment",
+            str(environment),
+            "verify",
+            "--manifest",
+            str(workspace / "evidence/environment-manifest.json"),
+            "--expected-sha256",
+            "0" * 64,
+        ]
+    module, module_arguments = module_map[contract_id]
+    return "python", [
+        "-I",
+        "-S",
+        str(boundary),
+        "--repo-root",
+        str(repo),
+        "--environment",
+        str(environment),
+        "run",
+        "--manifest",
+        str(workspace / "evidence/environment-manifest.json"),
+        "--expected-sha256",
+        "0" * 64,
+        "--",
+        str(environment / "python"),
+        "-I",
+        "-S",
+        str(repo / "scripts/run_without_startup_hooks.py"),
+        "--repo-root",
+        str(repo),
+        "--module",
+        module,
+        "--",
+        *module_arguments,
+    ]
+
+
+@functools.lru_cache(maxsize=1)
+def _source_manifest() -> dict[str, Any]:
+    raw = subprocess.run(
+        ["git", "ls-tree", "-r", "-z", CANDIDATE_COMMIT],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    entries = []
+    for item in raw.split(b"\0"):
+        if not item:
+            continue
+        metadata, raw_path = item.split(b"\t", 1)
+        mode, _kind, object_id = metadata.decode("ascii").split()
+        path = raw_path.decode("utf-8")
+        content = _git_bytes(path)
+        entries.append(
+            {
+                "path": path,
+                "kind": "symlink" if mode == "120000" else "file",
+                "mode": mode,
+                "git_object_id": object_id,
+                "size_bytes": len(content),
+                "worktree_sha256": hashlib.sha256(content).hexdigest(),
+            }
+        )
+    return {
+        "manifest_version": 2,
+        "base_ref": CANDIDATE_COMMIT,
+        "base_commit": CANDIDATE_COMMIT,
+        "base_tree": CANDIDATE_TREE,
+        "entries": entries,
     }
 
 
@@ -41,93 +188,148 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
     schema_path = receipt_dir / "raw-results.schema.json"
     schema_path.write_bytes(SCHEMA_SOURCE.read_bytes())
     raw_path = receipt_dir / "raw-results.json"
+    source_manifest_bytes = json.dumps(_source_manifest()).encode()
+    environment_manifest_bytes = json.dumps(
+        {
+            "manifest_version": 2,
+            "entries": [
+                {
+                    "path": "bin/python",
+                    "kind": "file",
+                    "mode": 493,
+                    "size_bytes": 7,
+                    "sha256": hashlib.sha256(b"python\n").hexdigest(),
+                }
+            ],
+        }
+    ).encode()
     evidence_manifest: list[dict[str, Any]] = []
     platforms: dict[str, Any] = {}
 
-    for platform_name in PLATFORMS:
+    for platform in PLATFORMS:
+        workspace = receipt_dir / platform
         command_results: dict[str, Any] = {}
-        platform_paths: list[str] = []
-        for command_id in COMMAND_IDS:
-            for stream in ("stdout", "stderr"):
-                file_path = evidence_dir / platform_name / f"{command_id}.{stream}.txt"
-                metadata = _write(
-                    file_path, f"{platform_name} {command_id} {stream}\n".encode()
-                )
-                relative = file_path.relative_to(receipt_dir).as_posix()
-                evidence_manifest.append(
-                    {
-                        "platform_family": platform_name,
-                        "path": relative,
-                        "sha256": metadata["sha256"],
-                        "byte_count": metadata["byte_count"],
-                        "media_type": "text/plain",
-                    }
-                )
-                platform_paths.append(relative)
-                command_results.setdefault(
-                    command_id,
-                    {
-                        "command": f"trusted-command {command_id}",
-                        "exit_code": 0,
-                        "duration_seconds": 0.1,
-                    },
-                )[f"{stream}_path"] = relative
-                command_results[command_id][f"{stream}_sha256"] = metadata["sha256"]
-            result_path = evidence_dir / platform_name / f"{command_id}.result.json"
-            result_document = {
+        for command_id, contract_id in COMMAND_CONTRACTS.items():
+            stdout = evidence_dir / platform / "commands" / f"{command_id}.stdout.txt"
+            stderr = evidence_dir / platform / "commands" / f"{command_id}.stderr.txt"
+            stdout_text = ""
+            if command_id == "006-pytest":
+                stdout_text = "366 passed in 1.00s\n"
+            if command_id in {"014-pdflatex-1", "015-pdflatex-2"}:
+                stdout_text = "Output written on framework.pdf (11 pages, 535368 bytes).\n"
+            _write(stdout, stdout_text.encode())
+            _write(stderr, b"")
+            file_name, arguments = _command_record(contract_id, workspace)
+            record = {
                 "label": command_id,
-                "file": "trusted-command",
-                "arguments": [command_id],
+                "contract_id": contract_id,
+                "file": file_name,
+                "arguments": arguments,
+                "working_directory": str(workspace / "candidate"),
+                "started_at": "2026-08-20T00:00:00Z",
+                "finished_at": "2026-08-20T00:00:01Z",
+                "duration_seconds": 1.0,
                 "exit_code": 0,
-                "duration_seconds": 0.1,
-                "stdout_sha256": command_results[command_id]["stdout_sha256"],
-                "stderr_sha256": command_results[command_id]["stderr_sha256"],
+                "stdout_sha256": _sha256(stdout),
+                "stderr_sha256": _sha256(stderr),
             }
-            result_metadata = _write(
-                result_path, json.dumps(result_document).encode("utf-8")
-            )
-            result_relative = result_path.relative_to(receipt_dir).as_posix()
-            evidence_manifest.append(
-                {
-                    "platform_family": platform_name,
-                    "path": result_relative,
-                    "sha256": result_metadata["sha256"],
-                    "byte_count": result_metadata["byte_count"],
-                    "media_type": "application/json",
-                }
-            )
-            platform_paths.append(result_relative)
-            command_results[command_id]["result_path"] = result_relative
-            command_results[command_id]["result_sha256"] = result_metadata["sha256"]
+            result_path = stdout.with_name(f"{command_id}.result.json")
+            _write(result_path, json.dumps(record).encode())
+            for path, role, media in (
+                (stdout, "command-stdout", "text/plain"),
+                (stderr, "command-stderr", "text/plain"),
+                (result_path, "command-result", "application/json"),
+            ):
+                evidence_manifest.append(_entry(receipt_dir, path, platform, media, role))
+            command_results[command_id] = {
+                "command": f"{file_name} {' '.join(arguments)}",
+                "contract_id": contract_id,
+                "exit_code": 0,
+                "duration_seconds": 1.0,
+                "result_path": result_path.relative_to(receipt_dir).as_posix(),
+                "result_sha256": _sha256(result_path),
+                "stdout_path": stdout.relative_to(receipt_dir).as_posix(),
+                "stdout_sha256": _sha256(stdout),
+                "stderr_path": stderr.relative_to(receipt_dir).as_posix(),
+                "stderr_sha256": _sha256(stderr),
+            }
 
-        retained_hashes: dict[str, str] = {}
-        for label, media_type in (
-            ("environment-manifest.json", "application/json"),
-            ("source-manifest.json", "application/json"),
-            ("framework.pdf", "application/pdf"),
+        artifact_results: dict[str, Any] = {}
+        for source_path in ARTIFACT_PATHS:
+            target = evidence_dir / platform / "artifacts" / source_path
+            _write(target, _git_bytes(source_path))
+            media = (
+                "application/json"
+                if source_path.endswith(".json")
+                else ("image/gif" if source_path.endswith(".gif") else "image/png")
+            )
+            role = "validation-json" if media == "application/json" else "visual"
+            evidence_manifest.append(
+                _entry(receipt_dir, target, platform, media, role, source_path=source_path)
+            )
+            artifact_results[source_path] = {
+                "source_path": source_path,
+                "evidence_path": target.relative_to(receipt_dir).as_posix(),
+                "sha256": _sha256(target),
+                "media_type": media,
+            }
+
+        retained: dict[str, str] = {}
+        for name, content, media, role in (
+            (
+                "environment-manifest.json",
+                environment_manifest_bytes,
+                "application/json",
+                "environment-manifest",
+            ),
+            ("source-manifest.json", source_manifest_bytes, "application/json", "source-manifest"),
+            ("framework.pdf", PDF_SOURCE.read_bytes(), "application/pdf", "pdf"),
         ):
-            file_path = evidence_dir / platform_name / label
-            metadata = _write(file_path, f"retained {platform_name} {label}\n".encode())
-            relative = file_path.relative_to(receipt_dir).as_posix()
+            path = evidence_dir / platform / name
+            _write(path, content)
+            evidence_manifest.append(_entry(receipt_dir, path, platform, media, role))
+            retained[name] = _sha256(path)
+
+        mutation_results = []
+        for mutation_id in MUTATION_IDS:
+            path = evidence_dir / platform / "mutations" / f"{mutation_id}.json"
+            document = {
+                "schema_version": 1,
+                "mutation_id": mutation_id,
+                "platform_family": platform,
+                "candidate_commit": CANDIDATE_COMMIT,
+                "candidate_tree": CANDIDATE_TREE,
+                "rejected": True,
+                "attack": f"frozen {mutation_id} adversarial mutation",
+                "oracle_errors": ["complete gate rejected mutated evidence"],
+            }
+            _write(path, json.dumps(document).encode())
             evidence_manifest.append(
+                _entry(receipt_dir, path, platform, "application/json", "mutation-result")
+            )
+            mutation_results.append(
                 {
-                    "platform_family": platform_name,
-                    "path": relative,
-                    "sha256": metadata["sha256"],
-                    "byte_count": metadata["byte_count"],
-                    "media_type": media_type,
+                    "mutation_id": mutation_id,
+                    "rejected": True,
+                    "evidence_paths": [path.relative_to(receipt_dir).as_posix()],
                 }
             )
-            platform_paths.append(relative)
-            retained_hashes[label] = metadata["sha256"]
 
-        platforms[platform_name] = {
-            "platform_family": platform_name,
+        platform_paths = [
+            item["path"] for item in evidence_manifest if item["platform_family"] == platform
+        ]
+        platforms[platform] = {
+            "schema_version": 1,
+            "campaign_id": "POPGP-VIABILITY-R2-2026-08",
+            "packet_id": "VIA-000",
+            "platform_family": platform,
             "candidate_commit": CANDIDATE_COMMIT,
             "candidate_tree": CANDIDATE_TREE,
             "uv_version": "uv 0.11.11 (test build metadata)",
             "pdf_engine": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
             "command_results": command_results,
+            "artifact_results": artifact_results,
+            "mutation_results": mutation_results,
             "test_count": 366,
             "example_count": 6,
             "visual_count": 12,
@@ -141,11 +343,11 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             "mutations_rejected": True,
             "overall_passed": True,
             "evidence_paths": platform_paths,
-            "environment_manifest_sha256": retained_hashes[
-                "environment-manifest.json"
-            ],
-            "source_manifest_sha256": retained_hashes["source-manifest.json"],
-            "pdf_sha256": retained_hashes["framework.pdf"],
+            "environment_manifest_sha256": retained["environment-manifest.json"],
+            "source_manifest_sha256": retained["source-manifest.json"],
+            "pdf_sha256": retained["framework.pdf"],
+            "pdf_page_count": 11,
+            "completed_at": "2026-08-20T00:00:01Z",
         }
 
     raw_document = {
@@ -170,24 +372,7 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
         "candidate_commit": CANDIDATE_COMMIT,
         "tree_hash": CANDIDATE_TREE,
         "lifecycle_phase": "reproduced",
-        "preregistration": {
-            "parameters": {
-                "required_test_count": 366,
-                "required_example_count": 6,
-                "required_visual_count": 12,
-                "required_mutation_count": 18,
-                "required_command_count": 16,
-                "uv_version": "0.11.11",
-                "pdf_engine": "pdfTeX-1.40.29-TeX-Live-2026",
-                "raw_results_contract": {
-                    "schema_receipt_id": "raw-results-schema",
-                    "raw_results_receipt_id": "raw-results",
-                    "evidence_manifest_pointer": "/evidence_manifest",
-                    "required_platforms": list(PLATFORMS),
-                    "required_command_ids": list(COMMAND_IDS),
-                },
-            }
-        },
+        "preregistration": {"parameters": copy.deepcopy(PARAMETERS)},
     }
     receipts = {
         "raw-results-schema": {
@@ -201,40 +386,35 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             "_resolved_path": raw_path,
         },
     }
-    context = {
-        "campaign_base": campaign_base,
-        "raw_path": raw_path,
-        "raw_document": raw_document,
-        "evidence_manifest": evidence_manifest,
-    }
-    return packet, receipts, context
+    return (
+        packet,
+        receipts,
+        {
+            "campaign_base": campaign_base,
+            "raw_path": raw_path,
+            "raw_document": raw_document,
+        },
+    )
 
 
 def _validate(
     packet: dict[str, Any], receipts: dict[str, Any], context: dict[str, Any]
 ) -> list[str]:
-    context["raw_path"].write_text(
-        json.dumps(context["raw_document"]), encoding="utf-8"
-    )
+    context["raw_path"].write_text(json.dumps(context["raw_document"]), encoding="utf-8")
     return _validate_raw_evidence_contract(
-        packet, receipts, "VIA-000", context["campaign_base"]
+        packet, receipts, "VIA-000", context["campaign_base"], ROOT
     )
 
 
-def test_raw_evidence_contract_accepts_hash_closed_complete_results(
-    tmp_path: Path,
-) -> None:
+def test_raw_evidence_contract_accepts_typed_hash_closed_results(tmp_path: Path) -> None:
     packet, receipts, context = _fixture(tmp_path)
-
     assert _validate(packet, receipts, context) == []
 
 
-def test_raw_evidence_contract_rejects_summary_only_and_stale_results(
-    tmp_path: Path,
-) -> None:
+def test_raw_evidence_contract_rejects_dummy_or_stale_results(tmp_path: Path) -> None:
     packet, receipts, context = _fixture(tmp_path)
-
-    summary_only = {
+    original = context["raw_document"]
+    context["raw_document"] = {
         "capabilities": {
             "evidence-contract": True,
             "cross-platform-reproduction": True,
@@ -243,49 +423,43 @@ def test_raw_evidence_contract_rejects_summary_only_and_stale_results(
         "failed": False,
         "blocked": False,
     }
-    original = context["raw_document"]
-    context["raw_document"] = summary_only
-    errors = _validate(packet, receipts, context)
-    assert any("is a required property" in error for error in errors)
-
+    assert any("required property" in error for error in _validate(packet, receipts, context))
     context["raw_document"] = copy.deepcopy(original)
-    context["raw_document"]["capabilities"]["evidence-contract"] = False
-    errors = _validate(packet, receipts, context)
-    assert any("raw capability Booleans differ" in error for error in errors)
+    context["raw_document"]["platforms"][PLATFORMS[0]]["artifact_results"] = {}
+    assert any("artifact_results" in error for error in _validate(packet, receipts, context))
 
 
-def test_raw_evidence_contract_rejects_missing_or_changed_evidence(
-    tmp_path: Path,
-) -> None:
+def test_raw_evidence_contract_rejects_identity_contract_and_blockage(tmp_path: Path) -> None:
     packet, receipts, context = _fixture(tmp_path)
-    document = context["raw_document"]
-    first_entry = document["evidence_manifest"][0]
+    context["raw_document"]["platforms"][PLATFORMS[0]]["candidate_commit"] = "0" * 40
+    assert any(
+        "candidate commit differs" in error for error in _validate(packet, receipts, context)
+    )
 
-    first_entry["sha256"] = "0" * 64
-    errors = _validate(packet, receipts, context)
-    assert any("hash mismatch" in error for error in errors)
-    assert any("is not bound to matching retained evidence" in error for error in errors)
+    packet, receipts, context = _fixture(tmp_path / "contract")
+    packet["preregistration"]["parameters"]["platform_families"] = [PLATFORMS[0]]
+    assert any(
+        "malformed or contradictory" in error for error in _validate(packet, receipts, context)
+    )
 
-    packet, receipts, context = _fixture(tmp_path / "missing-platform")
-    del context["raw_document"]["platforms"]["windows-x86_64"]
-    errors = _validate(packet, receipts, context)
-    assert any("is a required property" in error for error in errors)
+    packet, receipts, context = _fixture(tmp_path / "blocked")
+    context["raw_document"]["blocked"] = True
+    assert any("False was expected" in error for error in _validate(packet, receipts, context))
 
 
-def test_raw_evidence_contract_recomputes_commands_counts_and_outcome(
-    tmp_path: Path,
-) -> None:
+def test_raw_evidence_contract_recomputes_commands_artifacts_and_mutations(tmp_path: Path) -> None:
     packet, receipts, context = _fixture(tmp_path)
-    platform = context["raw_document"]["platforms"]["windows-x86_64"]
-    platform["command_results"][COMMAND_IDS[0]]["exit_code"] = 1
-    errors = _validate(packet, receipts, context)
-    assert any("commands_passed is stale" in error for error in errors)
-    assert any("overall_passed is stale" in error for error in errors)
-    assert any("raw capability Booleans differ" in error for error in errors)
+    platform = context["raw_document"]["platforms"][PLATFORMS[1]]
+    platform["command_results"]["006-pytest"]["contract_id"] = "trusted-python-ruff"
+    assert any("executable contract" in error for error in _validate(packet, receipts, context))
 
-    packet, receipts, context = _fixture(tmp_path / "counts")
-    context["raw_document"]["platforms"]["ubuntu-latest-x86_64"][
-        "test_count"
-    ] = 365
-    errors = _validate(packet, receipts, context)
-    assert any("overall_passed is stale" in error for error in errors)
+    packet, receipts, context = _fixture(tmp_path / "mutation")
+    platform = context["raw_document"]["platforms"][PLATFORMS[1]]
+    platform["mutation_results"][0]["rejected"] = False
+    assert any("mutation evidence" in error for error in _validate(packet, receipts, context))
+
+    packet, receipts, context = _fixture(tmp_path / "visual")
+    platform = context["raw_document"]["platforms"][PLATFORMS[0]]
+    first_visual = next(path for path in ARTIFACT_PATHS if path.endswith(".png"))
+    platform["artifact_results"][first_visual]["media_type"] = "application/json"
+    assert any("artifact" in error for error in _validate(packet, receipts, context))
