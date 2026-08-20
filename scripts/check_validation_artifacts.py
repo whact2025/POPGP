@@ -81,6 +81,11 @@ VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT = 4
 # decision margin and the 4e-9 adversarial raw-operand mutations.
 RECOMPUTED_REL_TOL = 1e-9
 RECOMPUTED_ABS_TOL = 2e-15
+# Hosted Linux recomputation of the committed chain index moment differs from the
+# Windows-generated value by 5.49e-19 because NumPy reduces the dot product in a
+# different order.  The smallest registered sign/permutation attack changes the
+# normalized moment by 4.46e-18, so this remains a measured fail-closed separation.
+POTENTIAL_RECOMPUTED_ABS_TOL = 1e-18
 INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
     "examples/physics_qg/ca_model/results/validation.json": frozenset(
         {"survivor_entropy_filter_regression"}
@@ -428,7 +433,12 @@ def _bind_potential_summaries(
         observed = value[key]
         if type(observed) is not float or not math.isfinite(observed):
             errors.append(f"{location}.{key} must be a finite JSON float")
-        elif not math.isclose(observed, recomputed, rel_tol=1e-12, abs_tol=1e-30):
+        elif not math.isclose(
+            observed,
+            recomputed,
+            rel_tol=1e-12,
+            abs_tol=POTENTIAL_RECOMPUTED_ABS_TOL,
+        ):
             errors.append(
                 f"{location}.{key} differs from recomputed raw potential "
                 f"(observed={observed!r}, expected={recomputed!r})"
@@ -567,7 +577,7 @@ def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
                 observed,
                 recomputed,
                 rel_tol=1e-12,
-                abs_tol=1e-30,
+                abs_tol=POTENTIAL_RECOMPUTED_ABS_TOL,
             ):
                 errors.append(
                     f"pipeline.gravity_test.{key} differs from recomputed raw potential "

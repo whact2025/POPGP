@@ -478,6 +478,21 @@ def test_grid_raw_potential_transformations_cannot_leave_stale_summaries(
 
 
 @pytest.mark.negative_control
+def test_potential_moment_tolerance_separates_honest_drift_from_attack() -> None:
+    relative_path = "examples/physics_qg/chain_1d/results/validation.json"
+    honest = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    honest["pipeline"]["pi_time"]["phi_index_moment"] += 5.49e-19
+    attack = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    attack["pipeline"]["pi_time"]["phi_index_moment"] += 4.46e-18
+
+    assert check_validation_semantics(honest, relative_path) == []
+    assert any(
+        "phi_index_moment differs from recomputed raw potential" in error
+        for error in check_validation_semantics(attack, relative_path)
+    )
+
+
+@pytest.mark.negative_control
 def test_grid_correlated_uniform_potential_shift_fails_absolute_gate() -> None:
     relative_path = "examples/physics_qg/grid_2d/results/validation.json"
     reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
