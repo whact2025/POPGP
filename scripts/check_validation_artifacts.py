@@ -446,14 +446,100 @@ def _bind_potential_summaries(
     return phi
 
 
+def _bind_graph_provenance(
+    errors: list[str],
+    value: Any,
+    *,
+    location: str,
+    node_count: int,
+) -> tuple[np.ndarray, list[tuple[int, int]]]:
+    """Reconstruct the solver graph from retained MI and inferred-edge evidence."""
+
+    if not isinstance(value, dict):
+        raise ValueError(f"{location} must be an object")
+    mi = _finite_array(value["mi_matrix"], ndim=2, location=f"{location}.mi_matrix")
+    if mi.shape != (node_count, node_count):
+        raise ValueError(f"{location}.mi_matrix shape does not match the clock graph")
+    if np.any(mi < 0.0):
+        raise ValueError(f"{location}.mi_matrix must be nonnegative")
+    if not np.allclose(
+        mi,
+        mi.T,
+        rtol=RECOMPUTED_REL_TOL,
+        atol=RECOMPUTED_ABS_TOL,
+    ):
+        raise ValueError(f"{location}.mi_matrix must be symmetric")
+    if np.any(np.abs(np.diag(mi)) > RECOMPUTED_ABS_TOL):
+        raise ValueError(f"{location}.mi_matrix must have a zero diagonal")
+
+    positive = mi[mi > 0.0]
+    if positive.size == 0:
+        raise ValueError(f"{location}.mi_matrix must retain positive correlations")
+    _bind_recomputed(
+        errors,
+        value["mi_matrix_shape"],
+        [node_count, node_count],
+        location=f"{location}.mi_matrix_shape",
+    )
+    _bind_recomputed(
+        errors,
+        value["mi_min_positive"],
+        float(np.min(positive)),
+        location=f"{location}.mi_min_positive",
+    )
+    _bind_recomputed(
+        errors,
+        value["mi_max"],
+        float(np.max(mi)),
+        location=f"{location}.mi_max",
+    )
+    if value["weight_kernel"] != "identity_mutual_information":
+        errors.append(
+            f"{location}.weight_kernel must be 'identity_mutual_information'"
+        )
+
+    edges_raw = value["inferred_edges"]
+    if not isinstance(edges_raw, list):
+        raise ValueError(f"{location}.inferred_edges must be a list")
+    edges: list[tuple[int, int]] = []
+    for index, edge in enumerate(edges_raw):
+        if (
+            not isinstance(edge, list)
+            or len(edge) != 2
+            or any(type(node) is not int for node in edge)
+        ):
+            raise ValueError(f"{location}.inferred_edges[{index}] is invalid")
+        left, right = edge
+        if not 0 <= left < right < node_count:
+            raise ValueError(
+                f"{location}.inferred_edges[{index}] must satisfy 0 <= i < j < n"
+            )
+        edges.append((left, right))
+    if len(set(edges)) != len(edges):
+        raise ValueError(f"{location}.inferred_edges contains duplicates")
+
+    expected_weights = np.zeros_like(mi)
+    for left, right in edges:
+        weight = float(mi[left, right])
+        if weight <= 0.0:
+            raise ValueError(
+                f"{location}.inferred edge ({left}, {right}) has nonpositive MI"
+            )
+        expected_weights[left, right] = weight
+        expected_weights[right, left] = weight
+    return expected_weights, edges
+
+
 def _bind_clock_solver(
     errors: list[str],
     value: dict[str, Any],
     phi: np.ndarray,
     *,
     location: str,
+    expected_weights: np.ndarray,
+    configured_solver: Any,
 ) -> float:
-    """Recompute the retained finite-graph clock equation from raw operands."""
+    """Recompute source handling and the clock equation from upstream evidence."""
 
     weights = _finite_array(
         value["weight_matrix"], ndim=2, location=f"{location}.weight_matrix"
@@ -463,12 +549,82 @@ def _bind_clock_solver(
     )
     if weights.shape != (len(phi), len(phi)) or source.shape != phi.shape:
         raise ValueError(f"{location} clock-solver operand shapes differ")
+    if expected_weights.shape != weights.shape:
+        raise ValueError(f"{location} upstream graph shape differs")
+    _bind_recomputed(
+        errors,
+        value["weight_matrix"],
+        expected_weights.tolist(),
+        location=f"{location}.weight_matrix",
+    )
+    if not isinstance(configured_solver, dict):
+        raise ValueError(f"{location} configured solver must be an object")
     mu = value["mu"]
     if type(mu) is not float or not math.isfinite(mu) or mu < 0.0:
         raise ValueError(f"{location}.mu must be a nonnegative finite JSON float")
+    _bind_exact(
+        errors,
+        mu,
+        configured_solver["mu"],
+        location=f"{location}.mu",
+    )
+    zero_mode_policy = value["zero_mode_policy"]
+    if zero_mode_policy not in {"subtract_mean", "require_zero_sum"}:
+        raise ValueError(f"{location}.zero_mode_policy is invalid")
+    _bind_exact(
+        errors,
+        zero_mode_policy,
+        configured_solver["zero_mode_policy"],
+        location=f"{location}.zero_mode_policy",
+    )
     normalize_potential = value["normalize_potential"]
     if type(normalize_potential) is not bool:
         raise ValueError(f"{location}.normalize_potential must be a boolean")
+    _bind_exact(
+        errors,
+        normalize_potential,
+        configured_solver["normalize_potential"],
+        location=f"{location}.normalize_potential",
+    )
+    if "source_model" in configured_solver:
+        _bind_exact(
+            errors,
+            value["source_model"],
+            configured_solver["source_model"],
+            location=f"{location}.source_model",
+        )
+
+    raw_source = _finite_array(
+        value["delta_rho_raw"], ndim=1, location=f"{location}.delta_rho_raw"
+    )
+    if raw_source.shape != phi.shape:
+        raise ValueError(f"{location}.delta_rho_raw shape differs from phi")
+    expected_source = raw_source.copy()
+    expected_background = 0.0
+    remove_constant_mode = mu == 0.0 or normalize_potential
+    if remove_constant_mode:
+        raw_background = float(np.mean(raw_source))
+        if zero_mode_policy == "subtract_mean":
+            expected_background = raw_background
+            expected_source -= raw_background
+        elif abs(float(np.sum(raw_source))) > 1e-10:
+            errors.append(
+                f"{location}.delta_rho_raw violates require_zero_sum compatibility"
+            )
+    _bind_recomputed(
+        errors,
+        value["source_background"],
+        expected_background,
+        location=f"{location}.source_background",
+    )
+    _bind_recomputed(
+        errors,
+        value["effective_source"],
+        expected_source.tolist(),
+        location=f"{location}.effective_source",
+    )
+    if remove_constant_mode and abs(float(np.sum(source))) > 1e-12:
+        errors.append(f"{location}.effective_source violates the zero-sum invariant")
 
     laplacian = np.diag(np.sum(weights, axis=1)) - weights
     operator = laplacian + mu**2 * np.eye(len(phi))
@@ -493,7 +649,8 @@ def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     try:
         if example in {"chain_1d", "grid_2d"}:
-            pi_time = document["pipeline"]["pi_time"]
+            pipeline = document["pipeline"]
+            pi_time = pipeline["pi_time"]
             phi = _bind_potential_summaries(
                 errors,
                 pi_time,
@@ -501,7 +658,20 @@ def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
                 include_mean_and_range=True,
                 include_max_absolute=example == "grid_2d",
             )
-            _bind_clock_solver(errors, pi_time, phi, location="pipeline.pi_time")
+            expected_weights, _ = _bind_graph_provenance(
+                errors,
+                pipeline["pi_loc"],
+                location="pipeline.pi_loc",
+                node_count=len(phi),
+            )
+            _bind_clock_solver(
+                errors,
+                pi_time,
+                phi,
+                location="pipeline.pi_time",
+                expected_weights=expected_weights,
+                configured_solver=document["config"]["pi_time"],
+            )
             if example == "grid_2d":
                 source = _finite_array(
                     pi_time["effective_source"],
@@ -527,11 +697,19 @@ def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
             location="pipeline.pi_time_natural",
             include_mean_and_range=False,
         )
+        expected_weights, inferred_edges = _bind_graph_provenance(
+            errors,
+            pipeline["pi_loc"],
+            location="pipeline.pi_loc",
+            node_count=len(natural_phi),
+        )
         _bind_clock_solver(
             errors,
             natural,
             natural_phi,
             location="pipeline.pi_time_natural",
+            expected_weights=expected_weights,
+            configured_solver=document["config"]["pi_time_natural"],
         )
 
         gravity = pipeline["gravity_test"]
@@ -557,6 +735,27 @@ def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
         center = document["config"]["center_cell"]
         if type(center) is not int or not 0 <= center < len(phi):
             raise ValueError("config.center_cell is not a valid phi_point index")
+        expected_graph_distances = [-1] * len(phi)
+        expected_graph_distances[center] = 0
+        adjacency = {index: set() for index in range(len(phi))}
+        for left, right in inferred_edges:
+            adjacency[left].add(right)
+            adjacency[right].add(left)
+        queue = [center]
+        while queue:
+            node = queue.pop(0)
+            for neighbor in sorted(adjacency[node]):
+                if expected_graph_distances[neighbor] == -1:
+                    expected_graph_distances[neighbor] = expected_graph_distances[node] + 1
+                    queue.append(neighbor)
+        if any(distance < 0 for distance in expected_graph_distances):
+            raise ValueError("pipeline.pi_loc.inferred_edges is disconnected")
+        _bind_recomputed(
+            errors,
+            graph_distances_raw,
+            expected_graph_distances,
+            location="pipeline.gravity_test.graph_distances",
+        )
 
         for key, recomputed in {
             "phi_min": float(np.min(phi)),
@@ -646,6 +845,16 @@ def _retained_potential_errors(document: dict[str, Any]) -> list[str]:
             gravity,
             phi,
             location="pipeline.gravity_test",
+            expected_weights=expected_weights,
+            configured_solver=document["config"]["gravity_test_solver"],
+        )
+        expected_raw_source = np.zeros(len(phi), dtype=float)
+        expected_raw_source[center] = document["config"]["point_source_strength"]
+        _bind_recomputed(
+            errors,
+            gravity["delta_rho_raw"],
+            expected_raw_source.tolist(),
+            location="pipeline.gravity_test.delta_rho_raw",
         )
         source = _finite_array(
             gravity["effective_source"],

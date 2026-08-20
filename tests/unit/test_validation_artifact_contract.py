@@ -589,6 +589,225 @@ def test_clock_solver_raw_operands_are_fail_closed(mutation: str) -> None:
     ), errors
 
 
+_CLOCK_PROVENANCE_CASES = (
+    ("chain_1d", "pi_time", "phi"),
+    ("grid_2d", "pi_time", "phi"),
+    ("gravity_well", "pi_time_natural", "phi"),
+    ("gravity_well", "gravity_test", "phi_point"),
+)
+
+
+def _clock_case(example: str, clock_key: str) -> tuple[str, dict, dict]:
+    relative_path = f"examples/physics_qg/{example}/results/validation.json"
+    document = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    return relative_path, document, document["pipeline"][clock_key]
+
+
+def _recomputed_clock_residual(clock: dict, phi_key: str) -> float:
+    phi = clock[phi_key]
+    source = clock["effective_source"]
+    weights = clock["weight_matrix"]
+    mu_squared = clock["mu"] ** 2
+    residual = []
+    for row, phi_row in enumerate(phi):
+        operator_phi = mu_squared * phi_row
+        for column, weight in enumerate(weights[row]):
+            operator_phi += weight * (phi_row - phi[column])
+        residual.append(operator_phi - source[row])
+    return math.sqrt(sum(value * value for value in residual))
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("example,clock_key,phi_key", _CLOCK_PROVENANCE_CASES)
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "diagonal",
+        "negative",
+        "asymmetric",
+        "new_edge",
+        "correlated_matrix_source",
+        "symmetric_correlated_matrix_source",
+    ],
+)
+def test_clock_weight_matrix_is_bound_to_upstream_mi_graph(
+    example: str,
+    clock_key: str,
+    phi_key: str,
+    mutation: str,
+) -> None:
+    relative_path, candidate, clock = _clock_case(example, clock_key)
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    weights = clock["weight_matrix"]
+    phi = clock[phi_key]
+    if mutation == "diagonal":
+        weights[0][0] += 4e-9
+    elif mutation == "negative":
+        weights[0][1] = -abs(weights[0][1])
+    elif mutation == "asymmetric":
+        weights[0][1] += 4e-9
+    elif mutation == "new_edge":
+        delta = 4e-9
+        weights[0][2] += delta
+        weights[2][0] += delta
+        clock["effective_source"][0] += delta * (phi[0] - phi[2])
+        clock["effective_source"][2] += delta * (phi[2] - phi[0])
+        clock["constraint_residual"] = _recomputed_clock_residual(clock, phi_key)
+    elif mutation == "correlated_matrix_source":
+        delta = 4e-9
+        weights[0][1] += delta
+        clock["effective_source"][0] += delta * (phi[0] - phi[1])
+        clock["constraint_residual"] = _recomputed_clock_residual(clock, phi_key)
+    elif mutation == "symmetric_correlated_matrix_source":
+        delta = 4e-9
+        weights[0][1] += delta
+        weights[1][0] += delta
+        clock["effective_source"][0] += delta * (phi[0] - phi[1])
+        clock["effective_source"][1] += delta * (phi[1] - phi[0])
+        clock["constraint_residual"] = _recomputed_clock_residual(clock, phi_key)
+    else:  # pragma: no cover - parametrization is exhaustive.
+        raise AssertionError(mutation)
+
+    errors = check_validation_semantics(candidate, relative_path)
+
+    if mutation != "negative":
+        assert compare_validation_documents(reference, candidate).passed
+    assert any(
+        "weight_matrix[" in error and "differs from recomputed raw operands" in error
+        for error in errors
+    ), (
+        example,
+        clock_key,
+        mutation,
+        errors,
+    )
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("example,clock_key,phi_key", _CLOCK_PROVENANCE_CASES)
+@pytest.mark.parametrize("mutation", ["mi_diagonal", "mi_asymmetry", "mi_weight", "edge_support"])
+def test_clock_graph_provenance_is_fail_closed(
+    example: str,
+    clock_key: str,
+    phi_key: str,
+    mutation: str,
+) -> None:
+    del phi_key
+    relative_path, candidate, _ = _clock_case(example, clock_key)
+    pi_loc = candidate["pipeline"]["pi_loc"]
+    if mutation == "mi_diagonal":
+        pi_loc["mi_matrix"][0][0] += 4e-9
+    elif mutation == "mi_asymmetry":
+        pi_loc["mi_matrix"][0][1] += 4e-9
+    elif mutation == "mi_weight":
+        pi_loc["mi_matrix"][0][1] += 4e-9
+        pi_loc["mi_matrix"][1][0] += 4e-9
+    elif mutation == "edge_support":
+        pi_loc["inferred_edges"].append([0, 2])
+    else:  # pragma: no cover - parametrization is exhaustive.
+        raise AssertionError(mutation)
+
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert errors, (example, clock_key, mutation)
+    assert any(
+        "mi_matrix" in error
+        or "inferred_edges" in error
+        or ("weight_matrix[" in error and "differs from recomputed raw operands" in error)
+        for error in errors
+    ), errors
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("example,clock_key,phi_key", _CLOCK_PROVENANCE_CASES)
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "background",
+        "raw_source",
+        "effective_source",
+        "mu",
+        "policy",
+        "normalize",
+        "nonzero_sum",
+    ],
+)
+def test_clock_source_and_solver_policy_are_bound_to_configuration(
+    example: str,
+    clock_key: str,
+    phi_key: str,
+    mutation: str,
+) -> None:
+    relative_path, candidate, clock = _clock_case(example, clock_key)
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    if mutation == "background":
+        clock["source_background"] += 4e-9
+    elif mutation == "raw_source":
+        clock["delta_rho_raw"][0] += 4e-9
+    elif mutation == "effective_source":
+        clock["effective_source"][0] += 4e-9
+    elif mutation == "mu":
+        old_mu = clock["mu"]
+        clock["mu"] += 4e-9
+        correction = clock["mu"] ** 2 - old_mu**2
+        clock["effective_source"] = [
+            source + correction * phi
+            for source, phi in zip(clock["effective_source"], clock[phi_key])
+        ]
+        clock["constraint_residual"] = _recomputed_clock_residual(clock, phi_key)
+    elif mutation == "policy":
+        clock["zero_mode_policy"] = "require_zero_sum"
+    elif mutation == "normalize":
+        clock["normalize_potential"] = not clock["normalize_potential"]
+    elif mutation == "nonzero_sum":
+        clock["effective_source"] = [
+            source + 1e-9 for source in clock["effective_source"]
+        ]
+        clock["constraint_residual"] = _recomputed_clock_residual(clock, phi_key)
+    else:  # pragma: no cover - parametrization is exhaustive.
+        raise AssertionError(mutation)
+
+    errors = check_validation_semantics(candidate, relative_path)
+
+    if mutation in {"background", "raw_source", "effective_source", "mu", "nonzero_sum"}:
+        assert compare_validation_documents(reference, candidate).passed
+    assert errors, (example, clock_key, mutation)
+    assert any(
+        "source_background" in error
+        or "effective_source" in error
+        or "delta_rho_raw" in error
+        or ".mu differs from its authoritative" in error
+        or ".zero_mode_policy differs from its authoritative" in error
+        or ".normalize_potential differs from its authoritative" in error
+        or "zero-sum invariant" in error
+        for error in errors
+    ), errors
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize("mutation", ["raw_source", "point_strength", "center"])
+def test_gravity_diagnostic_source_is_bound_to_center_and_strength(
+    mutation: str,
+) -> None:
+    relative_path, candidate, gravity = _clock_case("gravity_well", "gravity_test")
+    if mutation == "raw_source":
+        gravity["delta_rho_raw"][candidate["config"]["center_cell"]] += 4e-9
+    elif mutation == "point_strength":
+        candidate["config"]["point_source_strength"] += 4e-9
+    elif mutation == "center":
+        candidate["config"]["center_cell"] = 0
+    else:  # pragma: no cover - parametrization is exhaustive.
+        raise AssertionError(mutation)
+
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert any(
+        "pipeline.gravity_test.delta_rho_raw[" in error
+        and "differs from recomputed raw operands" in error
+        for error in errors
+    ), errors
+
+
 def _increment_path(document: dict, path: tuple[str | int, ...], delta: float) -> None:
     target = document
     for part in path[:-1]:

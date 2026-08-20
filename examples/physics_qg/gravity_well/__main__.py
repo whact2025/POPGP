@@ -390,6 +390,17 @@ report = {
         "point_source_strength": POINT_SOURCE_STRENGTH,
         "center_cell": int(center),
         "use_exact_backend": cfg.use_exact_backend,
+        "pi_time_natural": {
+            "mu": float(cfg.pi_time.mu),
+            "zero_mode_policy": cfg.pi_time.zero_mode_policy,
+            "normalize_potential": cfg.pi_time.normalize_potential,
+            "source_model": cfg.pi_time.source_model,
+        },
+        "gravity_test_solver": {
+            "mu": float(MU),
+            "zero_mode_policy": "subtract_mean",
+            "normalize_potential": True,
+        },
     },
     "pipeline": {
         "pi_res": {
@@ -401,6 +412,20 @@ report = {
             "n_total_partitions": result.pi_res.n_total,
             "n_admissible_partitions": result.pi_res.n_admissible,
         },
+        "pi_loc": {
+            "mi_matrix": result.pi_loc.mi_matrix.tolist(),
+            "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
+            "mi_min_positive": float(
+                result.pi_loc.mi_matrix[result.pi_loc.mi_matrix > 0].min().item()
+            ),
+            "mi_max": float(result.pi_loc.mi_matrix.max().item()),
+            "connectivity_method": result.pi_loc.connectivity_method,
+            "connectivity_threshold": result.pi_loc.connectivity_threshold,
+            "connectivity_gap_ratio": result.pi_loc.connectivity_gap_ratio,
+            "connectivity_separable": result.pi_loc.connectivity_separable,
+            "inferred_edges": result.pi_loc.edges,
+            "weight_kernel": "identity_mutual_information",
+        },
         "pi_geom": {
             "D_spectral": float(result.pi_geom.D_spectral),
             "D_star": int(result.pi_geom.D_star),
@@ -410,6 +435,8 @@ report = {
             "complex_status": result.pi_geom.complex_status,
         },
         "pi_time_natural": {
+            "source_model": result.pi_time.source_model,
+            "source_status": result.pi_time.source_status,
             "phi": phi_natural.tolist() if phi_natural is not None else None,
             "phi_min": float(phi_natural.min()) if phi_natural is not None else None,
             "phi_max": float(phi_natural.max()) if phi_natural is not None else None,
@@ -428,7 +455,10 @@ report = {
             ),
             "weight_matrix": result.pi_loc.weight_matrix.tolist(),
             "effective_source": result.pi_time.delta_rho.tolist(),
+            "delta_rho_raw": result.pi_time.delta_rho_raw.tolist(),
+            "source_background": float(result.pi_time.source_background),
             "mu": float(cfg.pi_time.mu),
+            "zero_mode_policy": cfg.pi_time.zero_mode_policy,
             "normalize_potential": cfg.pi_time.normalize_potential,
             "constraint_residual": result.pi_time.constraint_residual,
         },
@@ -437,7 +467,9 @@ report = {
             "physical_source_law_validated": False,
             "weight_matrix": w.tolist(),
             "effective_source": effective_source.tolist(),
+            "delta_rho_raw": delta_rho_point.tolist(),
             "mu": float(MU),
+            "zero_mode_policy": "subtract_mean",
             "normalize_potential": True,
             "source_background": float(source_background),
             "constraint_residual": float(constraint_residual),

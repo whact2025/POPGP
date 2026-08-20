@@ -281,6 +281,12 @@ report = {
         "dt": cfg.simulation.dt,
         "n_steps": cfg.simulation.n_steps,
         "use_exact_backend": cfg.use_exact_backend,
+        "pi_time": {
+            "mu": float(cfg.pi_time.mu),
+            "zero_mode_policy": cfg.pi_time.zero_mode_policy,
+            "normalize_potential": cfg.pi_time.normalize_potential,
+            "source_model": cfg.pi_time.source_model,
+        },
     },
     "pipeline": {
         "pi_res": {
@@ -300,6 +306,7 @@ report = {
             "n_admissible_partitions": result.pi_res.n_admissible,
         },
         "pi_loc": {
+            "mi_matrix": result.pi_loc.mi_matrix.tolist(),
             "mi_matrix_shape": list(result.pi_loc.mi_matrix.shape),
             "mi_min_positive": float(
                 result.pi_loc.mi_matrix[result.pi_loc.mi_matrix > 0].min().item()
@@ -309,6 +316,7 @@ report = {
             "connectivity_gap_ratio": result.pi_loc.connectivity_gap_ratio,
             "connectivity_separable": result.pi_loc.connectivity_separable,
             "inferred_edges": result.pi_loc.edges,
+            "weight_kernel": "identity_mutual_information",
             "held_out_reference_edges": sorted(reference_edges),
             "edge_precision": edge_recovery.precision,
             "edge_recall": edge_recovery.recall,
@@ -344,7 +352,10 @@ report = {
             "phi_index_moment": phi_index_moment,
             "weight_matrix": result.pi_loc.weight_matrix.tolist(),
             "effective_source": result.pi_time.delta_rho.tolist(),
+            "delta_rho_raw": result.pi_time.delta_rho_raw.tolist(),
+            "source_background": float(result.pi_time.source_background),
             "mu": float(cfg.pi_time.mu),
+            "zero_mode_policy": cfg.pi_time.zero_mode_policy,
             "normalize_potential": cfg.pi_time.normalize_potential,
             "constraint_residual": result.pi_time.constraint_residual,
         },

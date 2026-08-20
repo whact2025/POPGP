@@ -14,7 +14,13 @@
     "retention_epsilon": 10.0,
     "dt": 0.1,
     "n_steps": 20,
-    "use_exact_backend": true
+    "use_exact_backend": true,
+    "pi_time": {
+      "mu": 0.0,
+      "zero_mode_policy": "subtract_mean",
+      "normalize_potential": true,
+      "source_model": "von_neumann_placeholder"
+    }
   },
   "pipeline": {
     "pi_res": {
@@ -47,6 +53,32 @@
       "n_admissible_partitions": 105
     },
     "pi_loc": {
+      "mi_matrix": [
+        [
+          0.0,
+          0.10636666123736571,
+          0.0003517912597126305,
+          1.4244192860779492e-06
+        ],
+        [
+          0.10636666123736571,
+          0.0,
+          0.10652740874130018,
+          0.0003517912597126305
+        ],
+        [
+          0.0003517912597126305,
+          0.10652740874130018,
+          0.0,
+          0.10636666123736482
+        ],
+        [
+          1.4244192860779492e-06,
+          0.0003517912597126305,
+          0.10636666123736482,
+          0.0
+        ]
+      ],
       "mi_matrix_shape": [
         4,
         4
@@ -70,6 +102,7 @@
           3
         ]
       ],
+      "weight_kernel": "identity_mutual_information",
       "held_out_reference_edges": [
         [
           0,
@@ -208,7 +241,15 @@
         0.004707388686108649,
         -0.004707388686109315
       ],
+      "delta_rho_raw": [
+        1.2787086597610642,
+        1.2881234371332821,
+        1.288123437133282,
+        1.278708659761064
+      ],
+      "source_background": 1.2834160484471733,
       "mu": 0.0,
+      "zero_mode_policy": "subtract_mean",
       "normalize_potential": true,
       "constraint_residual": 4.4365955630223736e-16
     }

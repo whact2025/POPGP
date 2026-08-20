@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1400 s | 295 passed |
+| `pytest -q` | about 1400 s | 366 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -112,7 +112,13 @@ the bootstrap inserts dependency directories directly and never evaluates `.pth`
 duplicated pipeline/check fields and recomputes its fits, quadratic/Richardson
 assessments, first-law and static/evolved local-global identities, global-energy and
 endpoint statistics, controls, sensitivity cases, and derived precision ratios from
-the lowest-level retained raw values. The
+the lowest-level retained raw values. Retained clock solves additionally carry their
+complete mutual-information matrix, inferred-edge support, unmodified source,
+removed constant mode, zero-mode policy, gauge choice, and configured mass. The
+checker reconstructs the sparse symmetric nonnegative zero-diagonal weight matrix
+from MI plus edges, reconstructs the effective source from the raw source and policy,
+and only then recomputes the finite-graph equation. The localized gravity diagnostic
+also derives its raw source from the declared center and point strength. The
 checker rejects malformed, non-finite, mis-shaped, unordered, or zero-denominator
 operands rather than accepting a stale serialized summary.
 These mechanisms await a fresh preregistered two-platform R2 run; they are not a new
