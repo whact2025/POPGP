@@ -179,7 +179,7 @@
     },
     {
       "name": "affine_modular_linearity_identity_regression",
-      "criterion": "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12",
+      "criterion": "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12 and max|D-(DeltaK-DeltaS)| < 1e-12",
       "value": {
         "fit": {
           "slope": 0.9999999999995276,
@@ -187,7 +187,8 @@
           "slope_residual_scale": 1.8074841977714659e-13,
           "r_squared": 1.0
         },
-        "max_absolute_identity_error": 7.020209066843641e-17
+        "max_absolute_identity_error": 7.020209066843641e-17,
+        "max_absolute_first_law_identity_error": 1.079594313252441e-16
       },
       "passed": true
     },

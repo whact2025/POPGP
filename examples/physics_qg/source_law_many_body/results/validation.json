@@ -1478,9 +1478,10 @@
     },
     {
       "name": "local_energy_decomposition_consistency_and_spreading",
-      "criterion": "implementation-consistency drift for the measured global Hamiltonian below 1e-12, initial endpoint fraction below 1e-12, and t=1 endpoint fraction above 0.05",
+      "criterion": "implementation-consistency drift for the measured global Hamiltonian below 1e-12, every evolved local profile sums to its paired global energy within 5e-13, initial endpoint fraction below 1e-12, and t=1 endpoint fraction above 0.05",
       "value": {
         "generator_observable_consistency_drift": 0.0,
+        "evolved_local_decomposition_error": 3.3306690738754696e-16,
         "initial_endpoint_fraction": 4.54123182112811e-16,
         "t1_endpoint_fraction": 0.12078184671097476
       },

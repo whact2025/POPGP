@@ -850,14 +850,29 @@ def _decision_outcome(
                     ndim=1,
                     location="measurements.modular_energy",
                 )
+                relative_entropy = _finite_array(
+                    measurements["relative_entropy"],
+                    ndim=1,
+                    location="measurements.relative_entropy",
+                )
+                entropy_change = _finite_array(
+                    measurements["entropy_change"],
+                    ndim=1,
+                    location="measurements.entropy_change",
+                )
                 reference = _finite_array(
                     config["reference"], ndim=1, location="config.reference"
                 )
                 excitation = _finite_array(
                     config["excitation"], ndim=1, location="config.excitation"
                 )
-                if epsilons.shape != modular_energy.shape:
-                    raise ValueError("source-law epsilon/response shapes differ")
+                if not (
+                    epsilons.shape
+                    == modular_energy.shape
+                    == relative_entropy.shape
+                    == entropy_change.shape
+                ):
+                    raise ValueError("source-law epsilon/identity operand shapes differ")
                 if reference.shape != excitation.shape or np.any(reference <= 0.0):
                     raise ValueError("source-law reference/excitation operands are invalid")
                 expected_fit = _fit_dict_from_raw(
@@ -871,6 +886,13 @@ def _decision_outcome(
                 )
                 identity_error = float(
                     np.max(np.abs(modular_energy - epsilons * modular_coefficient))
+                )
+                first_law_identity_error = float(
+                    np.max(
+                        np.abs(
+                            relative_entropy - (modular_energy - entropy_change)
+                        )
+                    )
                 )
                 _bind_recomputed(
                     errors,
@@ -890,7 +912,19 @@ def _decision_outcome(
                     identity_error,
                     location=f"check {name!r}.value.max_absolute_identity_error",
                 )
-                return identity_error < 1e-12, errors
+                _bind_recomputed(
+                    errors,
+                    value["max_absolute_first_law_identity_error"],
+                    first_law_identity_error,
+                    location=(
+                        f"check {name!r}.value."
+                        "max_absolute_first_law_identity_error"
+                    ),
+                )
+                return (
+                    identity_error < 1e-12
+                    and first_law_identity_error < 1e-12
+                ), errors
             if name == "linear_solver_homogeneity_identity_regression":
                 epsilons = config["epsilons"]
                 relative_fit = _fit_dict_from_raw(
@@ -1280,6 +1314,11 @@ def _decision_outcome(
                     "generator_observable_consistency_drift": float(
                         np.ptp(evolved_total)
                     ),
+                    "evolved_local_decomposition_error": float(
+                        np.max(
+                            np.abs(evolved_profiles.sum(axis=1) - evolved_total)
+                        )
+                    ),
                     "initial_endpoint_fraction": endpoint_fraction(
                         evolved_profiles[0]
                     ),
@@ -1295,6 +1334,7 @@ def _decision_outcome(
                 )
                 return (
                     expected["generator_observable_consistency_drift"] < 1e-12
+                    and expected["evolved_local_decomposition_error"] < 5e-13
                     and expected["initial_endpoint_fraction"] < 1e-12
                     and expected["t1_endpoint_fraction"] > 0.05
                 ), errors

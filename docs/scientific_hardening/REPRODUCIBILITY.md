@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1280 s | 276 passed |
+| `pytest -q` | about 1340 s | 278 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -110,8 +110,9 @@ flags or clean filters, and it permits no ignored checkout state. Python childre
 the bootstrap inserts dependency directories directly and never evaluates `.pth`,
 `sitecustomize.py`, or `usercustomize.py`. Every registered decision also binds
 duplicated pipeline/check fields and recomputes its fits, quadratic/Richardson
-assessments, identities, conservation/locality statistics, controls, sensitivity
-cases, and derived precision ratios from the lowest-level retained raw values. The
+assessments, first-law and static/evolved local-global identities, global-energy and
+endpoint statistics, controls, sensitivity cases, and derived precision ratios from
+the lowest-level retained raw values. The
 checker rejects malformed, non-finite, mis-shaped, unordered, or zero-denominator
 operands rather than accepting a stale serialized summary.
 These mechanisms await a fresh preregistered two-platform R2 run; they are not a new

@@ -435,6 +435,9 @@ def main() -> None:
     generator_observable_consistency_drift = float(
         np.ptp(evolved_total_energy)
     )
+    evolved_local_decomposition_error = float(
+        np.max(np.abs(evolved_profiles.sum(axis=1) - evolved_total_energy))
+    )
     initial_outside_fraction = float(
         np.abs(evolved_profiles[0, [0, 4]]).sum()
         / np.abs(evolved_profiles[0]).sum()
@@ -580,18 +583,23 @@ def main() -> None:
             "name": "local_energy_decomposition_consistency_and_spreading",
             "criterion": (
                 "implementation-consistency drift for the measured global Hamiltonian "
-                "below 1e-12, initial endpoint fraction below 1e-12, and t=1 endpoint "
-                "fraction above 0.05"
+                "below 1e-12, every evolved local profile sums to its paired global "
+                "energy within 5e-13, initial endpoint fraction below 1e-12, and t=1 "
+                "endpoint fraction above 0.05"
             ),
             "value": {
                 "generator_observable_consistency_drift": (
                     generator_observable_consistency_drift
+                ),
+                "evolved_local_decomposition_error": (
+                    evolved_local_decomposition_error
                 ),
                 "initial_endpoint_fraction": initial_outside_fraction,
                 "t1_endpoint_fraction": evolved_outside_fraction,
             },
             "passed": (
                 generator_observable_consistency_drift < 1e-12
+                and evolved_local_decomposition_error < 5e-13
                 and initial_outside_fraction < 1e-12
                 and evolved_outside_fraction > 0.05
             ),

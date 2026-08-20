@@ -408,6 +408,7 @@ def _increment_path(document: dict, path: tuple[str | int, ...], delta: float) -
     [
         "relative_entropy",
         "modular_energy",
+        "entropy_change",
         "relative_entropy_phi_amplitude",
         "modular_energy_phi_amplitude",
     ],
@@ -502,12 +503,9 @@ def test_every_many_body_decision_bearing_raw_array_element_recomputes() -> None
         for column in range(len(profile))
     )
     paths.extend(
-        ("measurements", "evolved_local_energy_profiles", 0, column)
-        for column in (0, 4)
-    )
-    paths.extend(
-        ("measurements", "evolved_local_energy_profiles", 3, column)
-        for column in range(len(measurements["evolved_local_energy_profiles"][3]))
+        ("measurements", "evolved_local_energy_profiles", row, column)
+        for row, profile in enumerate(measurements["evolved_local_energy_profiles"])
+        for column in range(len(profile))
     )
     for key in ("relative_entropy", "modular_energy", "entropy_change"):
         paths.extend(
@@ -544,6 +542,25 @@ def test_every_many_body_decision_bearing_raw_array_element_recomputes() -> None
             or "authoritative retained field" in error
             for error in errors
         ), (raw_path, errors)
+
+
+@pytest.mark.negative_control
+def test_many_body_correlated_global_energy_shift_recomputes_local_identity() -> None:
+    relative_path = (
+        "examples/physics_qg/source_law_many_body/results/validation.json"
+    )
+    reference = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    candidate = json.loads(Path(relative_path).read_text(encoding="utf-8"))
+    candidate["measurements"]["evolved_total_energy"] = [
+        value + 4e-9
+        for value in candidate["measurements"]["evolved_total_energy"]
+    ]
+
+    comparison = compare_validation_documents(reference, candidate)
+    errors = check_validation_semantics(candidate, relative_path)
+
+    assert comparison.passed, comparison.errors
+    assert any("evolved_local_decomposition_error" in error for error in errors), errors
 
 
 @pytest.mark.negative_control

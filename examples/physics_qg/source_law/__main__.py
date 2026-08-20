@@ -160,6 +160,13 @@ modular_coefficient = modular_energy_delta(excitation, reference)
 modular_identity_error = float(
     np.max(np.abs(modular_energy_values - epsilons * modular_coefficient))
 )
+first_law_identity_error = float(
+    np.max(
+        np.abs(
+            relative_entropy_values - (modular_energy_values - entropy_changes)
+        )
+    )
+)
 relative_solver_ratios = relative_phi_amplitudes / relative_entropy_values
 modular_solver_ratios = modular_phi_amplitudes / np.abs(modular_energy_values)
 solver_homogeneity_spread = float(
@@ -199,12 +206,19 @@ report = {
         },
         {
             "name": "affine_modular_linearity_identity_regression",
-            "criterion": "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12",
+            "criterion": (
+                "max|DeltaK(epsilon)-epsilon*DeltaK(1)| < 1e-12 and "
+                "max|D-(DeltaK-DeltaS)| < 1e-12"
+            ),
             "value": {
                 "fit": _fit_dict("modular_energy"),
                 "max_absolute_identity_error": modular_identity_error,
+                "max_absolute_first_law_identity_error": first_law_identity_error,
             },
-            "passed": modular_identity_error < 1e-12,
+            "passed": (
+                modular_identity_error < 1e-12
+                and first_law_identity_error < 1e-12
+            ),
         },
         {
             "name": "linear_solver_homogeneity_identity_regression",
