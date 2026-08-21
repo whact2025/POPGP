@@ -306,7 +306,7 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             ("source-manifest.json", source_manifest_bytes, "application/json", "source-manifest"),
             (
                 "generated-status-with-ignored.txt",
-                b"",
+                b"\n\n",
                 "text/plain",
                 "repository-status",
             ),

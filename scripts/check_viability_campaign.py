@@ -2122,6 +2122,8 @@ def _validate_raw_evidence_contract(
                 for line in generated_status.read_text(
                     encoding="utf-8", errors="strict"
                 ).splitlines():
+                    if line == "":
+                        continue
                     if len(line) < 4:
                         status_ok = False
                         break

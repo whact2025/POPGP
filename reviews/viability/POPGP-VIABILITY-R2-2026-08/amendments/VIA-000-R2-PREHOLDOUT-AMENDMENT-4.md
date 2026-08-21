@@ -52,6 +52,12 @@ independently measured genuine Ubuntu-to-Windows recomputation difference of abo
 `1.24345e-18` while retaining rejection of the smallest registered attack at about
 `4.46e-18`. Direct raster comparison remains bounded at four channel values.
 
+The runner writes repository-status receipts as exact UTF-8 text without adding a
+second newline. The verifier ignores empty separator lines but parses and allowlists
+every nonempty Git porcelain record, then requires the final status to be literally
+empty after trimming. This preserves rejection of undeclared residue while accepting
+the signed status representation produced by both hosted shells.
+
 ## Required evidence before refreeze
 
 The amendment is not approval to refreeze or start holdout. The exact response commit

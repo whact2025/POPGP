@@ -268,8 +268,11 @@ Invoke-CheckedModule -Label "013-artifact-boundary" `
     -ModuleArguments @("--enforce-change-boundary") -AllowedPaths $allowed
 
 $generatedStatus = (& git -C $repo status --short --ignored --untracked-files=all | Out-String)
-Set-Content -LiteralPath (Join-Path $evidence "generated-status-with-ignored.txt") `
-    -Value $generatedStatus -Encoding utf8NoBOM
+[System.IO.File]::WriteAllText(
+    (Join-Path $evidence "generated-status-with-ignored.txt"),
+    $generatedStatus,
+    [System.Text.UTF8Encoding]::new($false)
+)
 $allowedSet = @{}
 foreach ($sourcePath in $allowed) { $allowedSet[$sourcePath] = $true }
 foreach ($line in @($generatedStatus -split "`r?`n" | Where-Object { $_ })) {
@@ -328,8 +331,11 @@ Invoke-RetainedCommand -Label "016-environment-verify" -ContractId "trusted-pyth
     ) -WorkingDirectory $repo -LogDirectory $logs
 
 $finalStatus = (& git -C $repo status --short --ignored --untracked-files=all | Out-String)
-Set-Content -LiteralPath (Join-Path $evidence "final-status-with-ignored.txt") `
-    -Value $finalStatus -Encoding utf8NoBOM
+[System.IO.File]::WriteAllText(
+    (Join-Path $evidence "final-status-with-ignored.txt"),
+    $finalStatus,
+    [System.Text.UTF8Encoding]::new($false)
+)
 if ($finalStatus) {
     throw "candidate repository has tracked, untracked, or ignored residue after execution"
 }

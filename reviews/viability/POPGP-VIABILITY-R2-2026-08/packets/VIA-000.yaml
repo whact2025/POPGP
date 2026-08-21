@@ -6,7 +6,7 @@ candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
 protocol_commit: da5dd8a45420bf20a075d867f06d61d79b4df8eb
-protocol_rule_sha256: 50aa5fa03a8033a89fa36368bec18d196f1379a7b9530020a04cffba21f2cc2b
+protocol_rule_sha256: a0e917747ea335d406cb2e193a3490d194f97ae8d704611bdaef47807cbbd6b4
 lifecycle_phase: preregistered
 claims:
 - C03
@@ -94,7 +94,7 @@ preregistration:
     pdf_engine_banner: pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
     pdf_pass_count: 2
     runner_protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1
-    runner_protocol_sha256: 0acbc31a47cf26b6f82a38068af993368ff3d7b2f8f9eec11a5db41aff93dd0b
+    runner_protocol_sha256: 9539e1c9b597d203a5eeaf5a2b940e417bd75d661a5868e92df001d750c2f182
     raw_results_schema_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json
     raw_results_schema_sha256: aae1720287ed077ea911e4ac79fd9fd755f7139a599df6f851ed58346d924899
     assembler_protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py
@@ -404,13 +404,13 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json
-    sha256: 9e24c4a78d52d8426c08466057982bcf8cc4653848140ec8a7a2cbd0a041bc28
+    sha256: cd870426bc6e335a0eca5f0b2fdc168b2300c7f71786bcf003c161db43e13593
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
     campaign_path: ../receipts/VIA-000/runner-protocol.ps1
     protocol_path: protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1
-    sha256: 0acbc31a47cf26b6f82a38068af993368ff3d7b2f8f9eec11a5db41aff93dd0b
+    sha256: 9539e1c9b597d203a5eeaf5a2b940e417bd75d661a5868e92df001d750c2f182
     media_type: text/plain
   - receipt_id: raw-results-schema
     content_role: supporting
