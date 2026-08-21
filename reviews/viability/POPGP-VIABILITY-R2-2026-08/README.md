@@ -13,12 +13,18 @@ candidate `9a29e05f803666bf0e3a28417ea399e3e26769fc`.
 ## Current state
 
 - Campaign decision: pending.
-- `VIA-000`: preregistered, not attacked, holdout not started, unrevealed, and not run.
+- `VIA-000`: attacked and holdout-started, but still unrevealed and not run. The
+  post-refreeze falsifier passed the exact clean control and rejected all eighteen
+  frozen mutation families across 145 executed test nodes, as recorded in
+  [`attacks/VIA-000-R2-ATTACK-PLAN-2.md`](attacks/VIA-000-R2-ATTACK-PLAN-2.md).
 - `VIA-010`, `VIA-100`, `VIA-150`, `VIA-200`, `VIA-300`, `VIA-400`: drafted and
   dependency-gated.
 - Fourteen fresh R2 hidden holdout/seed commitments are bound in the seven packets.
   They were created by the custodian outside Git. The protocol designer and builder
-  received hashes and byte counts only; no hidden bytes were revealed.
+  received hashes and byte counts only; no hidden bytes were revealed. Before the
+  holdout transition, a separate custodian verified all fourteen raw-byte commitments
+  and packet IDs with zero mismatches, as recorded without sealed details in
+  [`custody/VIA-000-R2-PREHOLDOUT-CUSTODY-VERIFICATION-1.md`](custody/VIA-000-R2-PREHOLDOUT-CUSTODY-VERIFICATION-1.md).
 - The implementation remediation was independently approved with zero blockers in
   `f7bffc98d851ad2c333c5b01e4221b655908de7e`. That approval licenses protocol freeze;
   it is not a packet outcome or a Tier-R result.
