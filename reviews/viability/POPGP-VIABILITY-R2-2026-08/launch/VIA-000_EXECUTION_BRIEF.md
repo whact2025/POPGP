@@ -12,7 +12,7 @@ R1 valid/failed result. No seat may invent model/version metadata.
 - Independent implementation approval: `f7bffc98d851ad2c333c5b01e4221b655908de7e`
 - Independent protocol-boundary approval: `610701ae04d1ae644da62814a71765b4ba8c0ede`
 - Protocol snapshot: `9a0e28de5605a6d84965cbd594fa1ab0baf9a7b9`
-- Activated campaign handoff: `PENDING_R2_ACTIVATION`
+- Activated campaign handoff: `3bf74151b8f848ab8b6d44bcf84946ab6a890bde`
 - Campaign: `reviews/viability/POPGP-VIABILITY-R2-2026-08/CAMPAIGN.yaml`
 - Packet: `reviews/viability/POPGP-VIABILITY-R2-2026-08/packets/VIA-000.yaml`
 - Primary protocol: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json`
