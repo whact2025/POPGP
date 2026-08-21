@@ -81,11 +81,12 @@ VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT = 4
 # decision margin and the 4e-9 adversarial raw-operand mutations.
 RECOMPUTED_REL_TOL = 1e-9
 RECOMPUTED_ABS_TOL = 2e-15
-# Hosted Linux recomputation of the committed chain index moment differs from the
-# Windows-generated value by 5.49e-19 because NumPy reduces the dot product in a
-# different order.  The smallest registered sign/permutation attack changes the
-# normalized moment by 4.46e-18, so this remains a measured fail-closed separation.
-POTENTIAL_RECOMPUTED_ABS_TOL = 1e-18
+# Genuine attested Ubuntu bytes recomputed on the Windows assembler differ from the
+# committed chain index moment by 1.24345e-18 because NumPy reduces the dot product
+# in a different order.  A 2e-18 portability ceiling admits that measured boundary
+# while the smallest registered sign/permutation attack changes the normalized
+# moment by 4.46e-18 and therefore remains fail closed by more than a factor of two.
+POTENTIAL_RECOMPUTED_ABS_TOL = 2e-18
 INFORMATIONAL_CHECK_ALLOWLIST: dict[str, frozenset[str]] = {
     "examples/physics_qg/ca_model/results/validation.json": frozenset(
         {"survivor_entropy_filter_regression"}

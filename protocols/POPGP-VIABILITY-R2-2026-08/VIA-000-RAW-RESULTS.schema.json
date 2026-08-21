@@ -10,6 +10,7 @@
     "packet_id",
     "candidate_commit",
     "candidate_tree",
+    "protocol_source_commit",
     "platforms",
     "evidence_manifest",
     "capabilities",
@@ -22,6 +23,7 @@
     "packet_id": {"const": "VIA-000"},
     "candidate_commit": {"const": "5be3c38a0822d49953d0933f14ccab32ca12c896"},
     "candidate_tree": {"const": "6ad387f9f4e0bab7f97df1bb54a03177887f0707"},
+    "protocol_source_commit": {"$ref": "#/$defs/sha1"},
     "platforms": {
       "type": "object",
       "additionalProperties": false,
@@ -101,6 +103,8 @@
         "packet_id",
         "candidate_commit",
         "candidate_tree",
+        "protocol_source_commit",
+        "producer_attestation",
         "uv_version",
         "pdf_engine",
         "command_results",
@@ -134,6 +138,8 @@
         },
         "candidate_commit": {"$ref": "#/$defs/sha1"},
         "candidate_tree": {"$ref": "#/$defs/sha1"},
+        "protocol_source_commit": {"$ref": "#/$defs/sha1"},
+        "producer_attestation": {"$ref": "#/$defs/producer_attestation"},
         "uv_version": {"type": "string", "minLength": 2},
         "pdf_engine": {"type": "string", "minLength": 2},
         "command_results": {
@@ -203,6 +209,32 @@
         }
       }
     },
+    "producer_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "signer_workflow",
+        "source_commit",
+        "bundle_path",
+        "subject_paths"
+      ],
+      "properties": {
+        "repository": {"const": "whact2025/POPGP"},
+        "signer_workflow": {
+          "const": "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml"
+        },
+        "source_commit": {"$ref": "#/$defs/sha1"},
+        "bundle_path": {"$ref": "#/$defs/safe_path"},
+        "subject_paths": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safe_path"}
+        }
+      }
+    },
     "evidence_entry": {
       "type": "object",
       "additionalProperties": false,
@@ -222,10 +254,16 @@
             "command-stdout",
             "environment-manifest",
             "mutation-result",
+            "mutation-suite-result",
+            "mutation-suite-stderr",
+            "mutation-suite-stdout",
             "pdf",
             "pdf-build",
             "pdf-engine",
             "repository-status",
+            "producer-attestation",
+            "producer-manifest",
+            "producer-summary",
             "source-manifest",
             "supporting",
             "validation-json",

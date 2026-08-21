@@ -13,11 +13,10 @@ import yaml
 
 from scripts.check_viability_campaign import _validate_custody
 from tests.unit.test_viability_raw_evidence_contract import (
-    CANDIDATE_COMMIT,
-    CANDIDATE_TREE,
     CONTRACT,
     PLATFORMS,
     PROTOCOL_PATH,
+    PROTOCOL_SOURCE_COMMIT,
     ROOT,
     SCHEMA_SOURCE,
     _fixture,
@@ -28,6 +27,14 @@ ASSEMBLER = ROOT / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py"
 PACKET = ROOT / "reviews/viability/POPGP-VIABILITY-R2-2026-08/packets/VIA-000.yaml"
 
 
+@pytest.fixture(autouse=True)
+def _trusted_attestation_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "scripts.check_viability_campaign._github_attestation_errors",
+        lambda *_args, **_kwargs: [],
+    )
+
+
 def _write_json(path: Path, document: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document), encoding="utf-8")
@@ -35,77 +42,60 @@ def _write_json(path: Path, document: object) -> None:
 
 def _assembler_inputs(
     tmp_path: Path,
-) -> tuple[dict[str, Path], dict[str, Path], dict[str, object], dict[str, object]]:
+) -> tuple[dict[str, Path], dict[str, object], dict[str, object]]:
     packet, receipts, context = _fixture(tmp_path / "fixture")
     document = context["raw_document"]
     receipt_dir = context["raw_path"].parent
     roots: dict[str, Path] = {}
-    mutation_files: dict[str, Path] = {}
     for platform in PLATFORMS:
         workspace = tmp_path / f"runner-{platform}"
         roots[platform] = workspace
-        entries = [
-            copy.deepcopy(entry)
-            for entry in document["evidence_manifest"]
-            if entry["platform_family"] == platform and entry["role"] != "mutation-result"
-        ]
-        for entry in entries:
+        prefix = f"evidence/{platform}/"
+        entries = []
+        for entry in document["evidence_manifest"]:
+            if entry["platform_family"] != platform or entry["role"].startswith("producer-"):
+                continue
             source = receipt_dir / entry["path"]
-            target = workspace / entry["path"]
+            original = copy.deepcopy(entry)
+            original["path"] = original["path"].removeprefix(prefix)
+            entries.append(original)
+            target = workspace / original["path"]
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
-        summary = copy.deepcopy(document["platforms"][platform])
-        summary["mutation_results"] = []
-        summary["mutation_count"] = 0
-        summary["mutations_rejected"] = False
-        summary["overall_passed"] = False
-        summary["evidence_paths"] = sorted(entry["path"] for entry in entries)
+        for entry in entries:
+            assert (workspace / entry["path"]).is_file()
+        provenance = receipt_dir / f"evidence/{platform}/provenance"
+        summary = json.loads((provenance / "platform-summary.json").read_text())
         _write_json(workspace / "evidence/evidence-manifest.json", entries)
         _write_json(workspace / "evidence/platform-summary.json", summary)
-
-        mutation_root = tmp_path / f"mutations-{platform}"
-        mutations = []
-        for mutation in document["platforms"][platform]["mutation_results"]:
-            source = receipt_dir / mutation["evidence_paths"][0]
-            target = mutation_root / f"{mutation['mutation_id']}.json"
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-            mutations.append(
-                {
-                    "mutation_id": mutation["mutation_id"],
-                    "rejected": True,
-                    "evidence": [
-                        {
-                            "path": target.name,
-                            "media_type": "application/json",
-                        }
-                    ],
-                }
-            )
-        mutation_file = mutation_root / "mutations.json"
-        _write_json(
-            mutation_file,
-            {
-                "schema_version": 1,
-                "platform_family": platform,
-                "candidate_commit": CANDIDATE_COMMIT,
-                "candidate_tree": CANDIDATE_TREE,
-                "mutations": mutations,
-            },
+        shutil.copyfile(
+            provenance / "producer-attestation.sigstore.json",
+            workspace / "evidence/producer-attestation.sigstore.json",
         )
-        mutation_files[platform] = mutation_file
-    return roots, mutation_files, packet, receipts
+    return roots, packet, receipts
 
 
 def _run_assembler(
     roots: dict[str, Path],
-    mutation_files: dict[str, Path],
     output: Path,
     *,
     committed_by: str = "test-runner",
 ) -> subprocess.CompletedProcess[str]:
+    bootstrap = (
+        "import importlib.util,sys;"
+        "path=sys.argv.pop(1);"
+        "spec=importlib.util.spec_from_file_location('via000_assembler_test',path);"
+        "module=importlib.util.module_from_spec(spec);"
+        "spec.loader.exec_module(module);"
+        "module._verify_attestation=lambda *args,**kwargs:None;"
+        "import scripts.check_viability_campaign as campaign;"
+        "campaign._github_attestation_errors=lambda *args,**kwargs:[];"
+        "raise SystemExit(module.main())"
+    )
     command = [
         sys.executable,
+        "-c",
+        bootstrap,
         str(ASSEMBLER),
         "--protocol",
         str(PROTOCOL_PATH),
@@ -114,9 +104,10 @@ def _run_assembler(
     ]
     for platform in CONTRACT["required_platforms"]:
         command.extend(["--platform-root", f"{platform}={roots[platform]}"])
-        command.extend(["--mutation-file", f"{platform}={mutation_files[platform]}"])
     command.extend(
         [
+            "--protocol-source-commit",
+            PROTOCOL_SOURCE_COMMIT,
             "--output-dir",
             str(output),
             "--committed-by",
@@ -125,15 +116,21 @@ def _run_assembler(
             "2026-08-20T00:00:00Z",
         ]
     )
-    return subprocess.run(command, cwd=ROOT, check=False, capture_output=True, text=True)
+    return subprocess.run(
+        command,
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_assembler_roundtrip_produces_valid_raw_results_and_commitment(
     tmp_path: Path,
 ) -> None:
-    roots, mutation_files, packet, receipts = _assembler_inputs(tmp_path)
+    roots, packet, receipts = _assembler_inputs(tmp_path)
     output = tmp_path / "assembled"
-    result = _run_assembler(roots, mutation_files, output)
+    result = _run_assembler(roots, output)
     assert result.returncode == 0, result.stderr
     raw_path = output / "raw-results.json"
     commitment = json.loads((output / "output-commitment.json").read_text())
@@ -158,14 +155,13 @@ def test_assembler_commitment_roundtrips_through_custody_reveal(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
     tmp_path = tmp_path_factory.mktemp("custody")
-    roots, mutation_files, _packet, _receipts = _assembler_inputs(tmp_path)
+    roots, _packet, _receipts = _assembler_inputs(tmp_path)
     packet = yaml.safe_load(PACKET.read_text(encoding="utf-8"))
     runner_identity = packet["seats"]["reproduction_runner"]["agent_identity"]
     custodian_identity = packet["seats"]["evaluator_custodian"]["agent_identity"]
     output = tmp_path / "custody-output"
     result = _run_assembler(
         roots,
-        mutation_files,
         output,
         committed_by=runner_identity,
     )
@@ -249,29 +245,27 @@ def test_assembler_commitment_roundtrips_through_custody_reveal(
 def test_assembler_rejects_partial_or_failed_fragments_without_commitment(
     tmp_path: Path,
 ) -> None:
-    roots, mutation_files, _packet, _receipts = _assembler_inputs(tmp_path)
+    roots, _packet, _receipts = _assembler_inputs(tmp_path)
     platform = PLATFORMS[0]
     summary_path = roots[platform] / "evidence/platform-summary.json"
     summary = json.loads(summary_path.read_text())
     summary["command_results"]["006-pytest"]["exit_code"] = 1
     _write_json(summary_path, summary)
     output = tmp_path / "failed-output"
-    result = _run_assembler(roots, mutation_files, output)
+    result = _run_assembler(roots, output)
     assert result.returncode != 0
     assert not output.exists()
 
-    roots, mutation_files, _packet, _receipts = _assembler_inputs(tmp_path / "missing")
-    mutation_files.pop(PLATFORMS[1])
+    roots, _packet, _receipts = _assembler_inputs(tmp_path / "missing")
+    roots.pop(PLATFORMS[1])
     output = tmp_path / "missing-output"
     command = [
         sys.executable,
         str(ASSEMBLER),
         "--platform-root",
         f"{PLATFORMS[0]}={roots[PLATFORMS[0]]}",
-        "--platform-root",
-        f"{PLATFORMS[1]}={roots[PLATFORMS[1]]}",
-        "--mutation-file",
-        f"{PLATFORMS[0]}={mutation_files[PLATFORMS[0]]}",
+        "--protocol-source-commit",
+        PROTOCOL_SOURCE_COMMIT,
         "--output-dir",
         str(output),
         "--committed-by",
@@ -285,7 +279,7 @@ def test_assembler_rejects_partial_or_failed_fragments_without_commitment(
 
 
 def test_assembler_semantic_gate(tmp_path: Path) -> None:
-    roots, mutation_files, _packet, _receipts = _assembler_inputs(tmp_path)
+    roots, _packet, _receipts = _assembler_inputs(tmp_path)
     platform = PLATFORMS[0]
     workspace = roots[platform]
     manifest_path = workspace / "evidence/evidence-manifest.json"
@@ -303,7 +297,7 @@ def test_assembler_semantic_gate(tmp_path: Path) -> None:
     _write_json(summary_path, summary)
 
     output = tmp_path / "o"
-    result = _run_assembler(roots, mutation_files, output)
+    result = _run_assembler(roots, output)
     assert result.returncode != 0
     assert "authoritative validation" in result.stderr
     assert not output.exists()

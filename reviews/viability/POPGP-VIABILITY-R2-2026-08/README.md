@@ -32,26 +32,35 @@ The primary protocol is
 [`VIA-000.json`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json). Its
 supporting runner is
 [`VIA-000-RUNNER.ps1`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1).
+The frozen mutation-test runner is
+[`VIA-000-MUTATION-RUNNER.py`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-MUTATION-RUNNER.py).
 The typed raw-results contract and sole admissible two-platform assembler are
 [`VIA-000-RAW-RESULTS.schema.json`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json)
 and
 [`VIA-000-ASSEMBLER.py`](../../../protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py).
 The runner creates a fresh exact-candidate clone, a complete external locked
 environment and cache boundary, and hash-retained raw evidence. It executes the clean
-Linux/Windows sequence only. The separate falsifier must first implement and commit
-attacks for all eighteen frozen mutation families; the reproduction runner then
-executes those attacks without seeing hidden manifests. Platform summaries alone are
-not campaign results: the frozen assembler requires both exact identities, all typed
-commands/artifacts, and all eighteen typed mutation receipts per platform before it
-can create raw results and the pre-reveal output commitment. Partial or unavailable
-attempts cannot self-declare blockage and are not commit-eligible.
+Linux/Windows sequence. The mutation runner separately executes the frozen public
+rejection-test matrix and derives each of the eighteen mutation receipts from the
+retained verbose pytest node stream. GitHub Actions then signs each platform summary
+and manifest with an OIDC/Sigstore artifact attestation bound to the exact repository,
+workflow, and source commit. Platform summaries or self-contained hashes alone are
+not campaign results: the frozen assembler verifies the external attestations before
+it copies or validates evidence, requires both exact identities, all typed commands
+and artifacts, and all eighteen execution-bound mutation receipts per platform, then
+performs authoritative semantic validation before it can create raw results and the
+pre-reveal output commitment. Partial, unattested, or unavailable attempts cannot
+self-declare blockage and are not commit-eligible.
 
 The execution trust boundary is explicit: the assigned reproduction runner, the
 exact-SHA GitHub Actions control plane, and the independent reviewer are trusted
 principals. Hashes and typed logs prove closure and permit independent recomputation;
 they do not prove honest execution by a malicious or colluding trusted principal.
-Amendment 3 records this scope and the parser/direct-comparison/pre-commit safeguards:
-[`VIA-000-R2-PREHOLDOUT-AMENDMENT-3.md`](amendments/VIA-000-R2-PREHOLDOUT-AMENDMENT-3.md).
+Amendment 3 records the parser/direct-comparison/pre-commit safeguards. Amendment 4
+adds authenticated producer provenance, signed mutation execution, and portable
+Linux-symlink/numeric verification:
+[`VIA-000-R2-PREHOLDOUT-AMENDMENT-3.md`](amendments/VIA-000-R2-PREHOLDOUT-AMENDMENT-3.md),
+[`VIA-000-R2-PREHOLDOUT-AMENDMENT-4.md`](amendments/VIA-000-R2-PREHOLDOUT-AMENDMENT-4.md).
 
 The packet cannot advance past preregistration until a fresh falsifier approves the
 complete gate. It cannot advance to reproduced until a separate runner creates and

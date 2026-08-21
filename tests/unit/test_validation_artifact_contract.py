@@ -481,7 +481,7 @@ def test_grid_raw_potential_transformations_cannot_leave_stale_summaries(
 def test_potential_moment_tolerance_separates_honest_drift_from_attack() -> None:
     relative_path = "examples/physics_qg/chain_1d/results/validation.json"
     honest = json.loads(Path(relative_path).read_text(encoding="utf-8"))
-    honest["pipeline"]["pi_time"]["phi_index_moment"] += 5.49e-19
+    honest["pipeline"]["pi_time"]["phi_index_moment"] += 1.25e-18
     attack = json.loads(Path(relative_path).read_text(encoding="utf-8"))
     attack["pipeline"]["pi_time"]["phi_index_moment"] += 4.46e-18
 

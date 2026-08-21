@@ -6,7 +6,9 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -72,10 +74,68 @@ def _prefixed(platform: str, relative: str) -> str:
     return f"evidence/{platform}/{relative}"
 
 
+def _verify_attestation(
+    subject: Path,
+    bundle: Path,
+    *,
+    repository: str,
+    signer_workflow: str,
+    source_commit: str,
+    predicate_type: str,
+    minimum_gh_version: str,
+) -> None:
+    version = subprocess.run(
+        ["gh", "--version"], capture_output=True, text=True, check=False
+    )
+    match = re.search(r"(?m)^gh version (\d+)\.(\d+)\.(\d+)", version.stdout)
+    expected = tuple(int(item) for item in minimum_gh_version.split("."))
+    if version.returncode != 0 or match is None or tuple(map(int, match.groups())) < expected:
+        raise ValueError(
+            f"GitHub CLI {minimum_gh_version}+ is required for attestation verification"
+        )
+    completed = subprocess.run(
+        [
+            "gh",
+            "attestation",
+            "verify",
+            str(subject),
+            "--bundle",
+            str(bundle),
+            "--repo",
+            repository,
+            "--signer-workflow",
+            signer_workflow,
+            "--source-digest",
+            source_commit,
+            "--predicate-type",
+            predicate_type,
+            "--deny-self-hosted-runners",
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise ValueError(
+            f"producer attestation verification failed for {subject.name}: "
+            f"{completed.stderr.strip()}"
+        )
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise ValueError("GitHub attestation verifier returned malformed JSON") from exc
+    if not isinstance(result, (list, dict)) or not result:
+        raise ValueError("GitHub attestation verifier returned no verified attestation")
+
+
 def _copy_manifest_evidence(
     platform: str,
     workspace: Path,
     destination: Path,
+    attestation_contract: dict[str, Any],
+    protocol_source_commit: str,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     evidence_root = workspace / "evidence"
     summary_path = evidence_root / "platform-summary.json"
@@ -86,6 +146,38 @@ def _copy_manifest_evidence(
     manifest = _load_json(manifest_path)
     if not isinstance(summary, dict) or not isinstance(manifest, list):
         raise ValueError(f"{platform}: malformed platform evidence documents")
+    producer = summary.get("producer_attestation")
+    expected_producer = {
+        "repository": attestation_contract["repository"],
+        "signer_workflow": attestation_contract["signer_workflow"],
+        "source_commit": protocol_source_commit,
+        "bundle_path": attestation_contract["bundle_path"],
+        "subject_paths": attestation_contract["subject_paths"],
+    }
+    if (
+        summary.get("protocol_source_commit") != protocol_source_commit
+        or producer != expected_producer
+    ):
+        raise ValueError(f"{platform}: producer-attestation identity differs from frozen contract")
+    bundle_path = _safe_source(workspace, producer["bundle_path"])
+    _verify_attestation(
+        summary_path,
+        bundle_path,
+        repository=attestation_contract["repository"],
+        signer_workflow=attestation_contract["signer_workflow"],
+        source_commit=protocol_source_commit,
+        predicate_type=attestation_contract["predicate_type"],
+        minimum_gh_version=attestation_contract["minimum_gh_version"],
+    )
+    _verify_attestation(
+        manifest_path,
+        bundle_path,
+        repository=attestation_contract["repository"],
+        signer_workflow=attestation_contract["signer_workflow"],
+        source_commit=protocol_source_commit,
+        predicate_type=attestation_contract["predicate_type"],
+        minimum_gh_version=attestation_contract["minimum_gh_version"],
+    )
 
     observed_paths: set[str] = set()
     rewritten_manifest: list[dict[str, Any]] = []
@@ -121,79 +213,49 @@ def _copy_manifest_evidence(
             command[field] = _prefixed(platform, command[field])
     for artifact in rewritten_summary.get("artifact_results", {}).values():
         artifact["evidence_path"] = _prefixed(platform, artifact["evidence_path"])
-    return rewritten_summary, rewritten_manifest
-
-
-def _copy_mutations(
-    platform: str,
-    mutation_path: Path,
-    destination: Path,
-    candidate_commit: str,
-    candidate_tree: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    document = _load_json(mutation_path)
-    if not isinstance(document, dict) or set(document) != {
-        "schema_version",
-        "platform_family",
-        "candidate_commit",
-        "candidate_tree",
-        "mutations",
-    }:
-        raise ValueError(f"{platform}: malformed mutation document")
-    if (
-        document["schema_version"] != 1
-        or document["platform_family"] != platform
-        or document["candidate_commit"] != candidate_commit
-        or document["candidate_tree"] != candidate_tree
-    ):
-        raise ValueError(f"{platform}: mutation identity mismatch")
-    mutations = document["mutations"]
-    if not isinstance(mutations, list):
-        raise ValueError(f"{platform}: mutations must be an array")
-    results: list[dict[str, Any]] = []
-    entries: list[dict[str, Any]] = []
-    for mutation in mutations:
-        if not isinstance(mutation, dict) or set(mutation) != {
-            "mutation_id",
-            "rejected",
-            "evidence",
-        }:
-            raise ValueError(f"{platform}: malformed mutation record")
-        if mutation["rejected"] is not True:
-            raise ValueError(f"{platform}: mutation was not rejected: {mutation['mutation_id']}")
-        evidence_paths: list[str] = []
-        evidence_items = mutation["evidence"]
-        if not isinstance(evidence_items, list) or not evidence_items:
-            raise ValueError(f"{platform}: mutation evidence is empty")
-        for item in evidence_items:
-            if not isinstance(item, dict) or set(item) != {"path", "media_type"}:
-                raise ValueError(f"{platform}: malformed mutation evidence")
-            source = _safe_source(mutation_path.parent, item["path"])
-            target_relative = _prefixed(
-                platform, f"mutations/{mutation['mutation_id']}/{item['path']}"
-            )
-            target = destination / target_relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
-            evidence_paths.append(target_relative)
-            entries.append(
-                {
-                    "platform_family": platform,
-                    "path": target_relative,
-                    "sha256": _sha256(target),
-                    "byte_count": target.stat().st_size,
-                    "media_type": item["media_type"],
-                    "role": "mutation-result",
-                }
-            )
-        results.append(
+    for mutation in rewritten_summary.get("mutation_results", []):
+        mutation["evidence_paths"] = [
+            _prefixed(platform, path) for path in mutation["evidence_paths"]
+        ]
+    provenance_root = destination / "evidence" / platform / "provenance"
+    provenance_root.mkdir(parents=True, exist_ok=True)
+    provenance_sources = (
+        (summary_path, "platform-summary.json", "producer-summary", "application/json"),
+        (manifest_path, "evidence-manifest.json", "producer-manifest", "application/json"),
+        (
+            bundle_path,
+            "producer-attestation.sigstore.json",
+            "producer-attestation",
+            "application/json",
+        ),
+    )
+    provenance_paths: dict[str, str] = {}
+    for source, name, role, media_type in provenance_sources:
+        target = provenance_root / name
+        shutil.copyfile(source, target)
+        relative = target.relative_to(destination).as_posix()
+        provenance_paths[name] = relative
+        rewritten_manifest.append(
             {
-                "mutation_id": mutation["mutation_id"],
-                "rejected": True,
-                "evidence_paths": evidence_paths,
+                "platform_family": platform,
+                "path": relative,
+                "sha256": _sha256(target),
+                "byte_count": target.stat().st_size,
+                "media_type": media_type,
+                "role": role,
             }
         )
-    return results, entries
+    rewritten_summary["producer_attestation"] = {
+        "repository": attestation_contract["repository"],
+        "signer_workflow": attestation_contract["signer_workflow"],
+        "source_commit": protocol_source_commit,
+        "bundle_path": provenance_paths["producer-attestation.sigstore.json"],
+        "subject_paths": [
+            provenance_paths["platform-summary.json"],
+            provenance_paths["evidence-manifest.json"],
+        ],
+    }
+    return rewritten_summary, rewritten_manifest
 
 
 def assemble(args: argparse.Namespace) -> None:
@@ -202,11 +264,8 @@ def assemble(args: argparse.Namespace) -> None:
     contract = protocol["parameters"]["raw_results_contract"]
     required_platforms = contract["required_platforms"]
     platform_roots = _parse_bindings(args.platform_root, "platform root")
-    mutation_files = _parse_bindings(args.mutation_file, "mutation file")
-    if set(platform_roots) != set(required_platforms) or set(mutation_files) != set(
-        required_platforms
-    ):
-        raise ValueError("platform and mutation inputs must exactly match frozen platforms")
+    if set(platform_roots) != set(required_platforms):
+        raise ValueError("platform inputs must exactly match frozen platforms")
     if args.output_dir.exists():
         raise ValueError(f"output directory must not exist: {args.output_dir}")
     args.output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -219,14 +278,11 @@ def assemble(args: argparse.Namespace) -> None:
         expected_mutations = set(contract["required_mutation_ids"])
         for platform in required_platforms:
             summary, platform_manifest = _copy_manifest_evidence(
-                platform, platform_roots[platform], temporary
-            )
-            mutation_results, mutation_manifest = _copy_mutations(
                 platform,
-                mutation_files[platform],
+                platform_roots[platform],
                 temporary,
-                protocol["parameters"]["candidate_commit"],
-                protocol["parameters"]["candidate_tree"],
+                contract["producer_attestation"],
+                args.protocol_source_commit,
             )
             if summary.get("candidate_commit") != protocol["parameters"]["candidate_commit"]:
                 raise ValueError(f"{platform}: candidate commit mismatch")
@@ -240,11 +296,16 @@ def assemble(args: argparse.Namespace) -> None:
                 raise ValueError(f"{platform}: nonzero command result")
             if set(summary.get("artifact_results", {})) != set(contract["required_artifact_paths"]):
                 raise ValueError(f"{platform}: incomplete artifact set")
-            if {item["mutation_id"] for item in mutation_results} != expected_mutations:
+            mutation_results = summary.get("mutation_results", [])
+            if (
+                {item["mutation_id"] for item in mutation_results} != expected_mutations
+                or any(item.get("rejected") is not True for item in mutation_results)
+            ):
                 raise ValueError(f"{platform}: incomplete mutation set")
-            summary["mutation_results"] = mutation_results
-            summary["mutation_count"] = len(mutation_results)
-            summary["mutations_rejected"] = all(item["rejected"] for item in mutation_results)
+            if summary.get("mutation_count") != len(mutation_results):
+                raise ValueError(f"{platform}: mutation count differs from retained results")
+            if summary.get("mutations_rejected") is not True:
+                raise ValueError(f"{platform}: mutation rejection was not derived as true")
             summary["overall_passed"] = all(
                 summary[field]
                 for field in (
@@ -257,12 +318,8 @@ def assemble(args: argparse.Namespace) -> None:
                     "mutations_rejected",
                 )
             )
-            summary["evidence_paths"] = sorted(
-                [*summary["evidence_paths"], *[entry["path"] for entry in mutation_manifest]]
-            )
             platforms[platform] = summary
             manifest.extend(platform_manifest)
-            manifest.extend(mutation_manifest)
 
         raw_document = {
             "schema_version": 1,
@@ -270,6 +327,7 @@ def assemble(args: argparse.Namespace) -> None:
             "packet_id": "VIA-000",
             "candidate_commit": protocol["parameters"]["candidate_commit"],
             "candidate_tree": protocol["parameters"]["candidate_tree"],
+            "protocol_source_commit": args.protocol_source_commit,
             "platforms": platforms,
             "evidence_manifest": sorted(manifest, key=lambda item: item["path"]),
             "capabilities": {
@@ -340,11 +398,13 @@ def main() -> int:
     parser.add_argument("--schema", type=Path, default=here / "VIA-000-RAW-RESULTS.schema.json")
     parser.add_argument("--repo-root", type=Path, default=here.parents[1])
     parser.add_argument("--platform-root", action="append", default=[], required=True)
-    parser.add_argument("--mutation-file", action="append", default=[], required=True)
+    parser.add_argument("--protocol-source-commit", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--committed-by", required=True)
     parser.add_argument("--committed-at", required=True)
     args = parser.parse_args()
+    if re.fullmatch(r"[0-9a-f]{40}", args.protocol_source_commit) is None:
+        parser.error("--protocol-source-commit must be a full lowercase Git commit")
     assemble(args)
     return 0
 

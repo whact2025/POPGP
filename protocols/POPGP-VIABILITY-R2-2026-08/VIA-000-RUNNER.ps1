@@ -4,7 +4,11 @@ param(
 
     [Parameter(Mandatory = $true)]
     [ValidateSet("ubuntu-latest-x86_64", "windows-x86_64")]
-    [string]$PlatformFamily
+    [string]$PlatformFamily,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("^[0-9a-f]{40}$")]
+    [string]$ProtocolSourceCommit
 )
 
 $ErrorActionPreference = "Stop"
@@ -403,6 +407,17 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
     platform_family = $PlatformFamily
     candidate_commit = $head
     candidate_tree = $tree
+    protocol_source_commit = $ProtocolSourceCommit
+    producer_attestation = [ordered]@{
+        repository = "whact2025/POPGP"
+        signer_workflow = "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml"
+        source_commit = $ProtocolSourceCommit
+        bundle_path = "evidence/producer-attestation.sigstore.json"
+        subject_paths = @(
+            "evidence/platform-summary.json",
+            "evidence/evidence-manifest.json"
+        )
+    }
     uv_version = $uvText
     pdf_engine = $pdfText
     command_results = $commandResults

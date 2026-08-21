@@ -22,11 +22,13 @@
     "pdf_engine_banner": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
     "pdf_pass_count": 2,
     "runner_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1",
-    "runner_protocol_sha256": "53b3344699f0ef2a1dd763f0fc348211fa2ccaf93be3730e64be3ed8ea646457",
+    "runner_protocol_sha256": "0acbc31a47cf26b6f82a38068af993368ff3d7b2f8f9eec11a5db41aff93dd0b",
     "raw_results_schema_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json",
-    "raw_results_schema_sha256": "63f1ce00ad0057c7868c5d3051b11b1c24f0914e17c333233507adf4d9eecbe0",
+    "raw_results_schema_sha256": "aae1720287ed077ea911e4ac79fd9fd755f7139a599df6f851ed58346d924899",
     "assembler_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py",
-    "assembler_protocol_sha256": "7b1428073dfb94c5437702219ccef0fc638948620cbf898dd20a08d75522ffff",
+    "assembler_protocol_sha256": "c0a186d20d1d4b9947ad06220fb27a27ee9ea4f595ad4d63efda77b919bdfbc7",
+    "mutation_runner_protocol_path": "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-MUTATION-RUNNER.py",
+    "mutation_runner_protocol_sha256": "159493f53921c324c43ec76d96731841ed71e65fb5fcedb99fc016a9d4536b0e",
     "raw_results_contract": {
       "schema_receipt_id": "raw-results-schema",
       "raw_results_receipt_id": "raw-results",
@@ -113,6 +115,95 @@
         "family-17": "platform-evidence-pdf-boundary",
         "family-18": "receipt-commitment-chronology"
       },
+      "required_mutation_tests": {
+        "family-01": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_changed_gate_outcome_is_rejected", "expected_passed_count": 1}
+        ],
+        "family-02": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_changed_array_shape_is_rejected", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_non_finite_diagnostic_is_rejected", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_clock_solver_raw_operands_are_fail_closed", "expected_passed_count": 5}
+        ],
+        "family-03": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_meaningful_stable_config_change_is_rejected", "expected_passed_count": 1}
+        ],
+        "family-04": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_localized_structured_corruption", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_thin_and_annotation_mutations", "expected_passed_count": 3},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_small_meaningful_features", "expected_passed_count": 4},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_actual_plot_annotation_removal", "expected_passed_count": 1}
+        ],
+        "family-05": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_threshold_crossing_operand_recomputes_failed_gate", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_grid_raw_potential_transformations_cannot_leave_stale_summaries", "expected_passed_count": 5},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_grid_correlated_uniform_potential_shift_fails_absolute_gate", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_grid_correlated_potential_scale_recomputes_solver_residual", "expected_passed_count": 1}
+        ],
+        "family-06": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_source_law_raw_fit_and_identity_operands_recompute", "expected_passed_count": 5}
+        ],
+        "family-07": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_many_body_raw_fit_identity_and_control_operands_recompute", "expected_passed_count": 12},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_every_many_body_decision_bearing_raw_array_element_recomputes", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_many_body_correlated_global_energy_shift_recomputes_local_identity", "expected_passed_count": 1}
+        ],
+        "family-08": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_clock_weight_matrix_is_bound_to_upstream_mi_graph", "expected_passed_count": 24}
+        ],
+        "family-09": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_clock_graph_provenance_is_fail_closed", "expected_passed_count": 16}
+        ],
+        "family-10": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_clock_source_and_solver_policy_are_bound_to_configuration", "expected_passed_count": 28}
+        ],
+        "family-11": [
+          {"test_prefix": "tests/unit/test_validation_artifact_contract.py::test_gravity_diagnostic_source_is_bound_to_center_and_strength", "expected_passed_count": 3}
+        ],
+        "family-12": [
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_snapshot_creation_requires_base_interpreter_and_clean_environment", "expected_passed_count": 1}
+        ],
+        "family-13": [
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_checked_command_rejects_transient_startup_carriers_before_execution", "expected_passed_count": 9},
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_site_disabled_bootstrap_does_not_evaluate_measured_hooks", "expected_passed_count": 1}
+        ],
+        "family-14": [
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_checked_command_rejects_modified_installed_package_before_execution", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_repository_boundary_rejects_ignored_executable_bytecode", "expected_passed_count": 1}
+        ],
+        "family-15": [
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_repository_boundary_ignores_no_mutable_index_flags", "expected_passed_count": 2},
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_repository_boundary_ignores_no_git_clean_filter", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_repository_boundary_rejects_ignored_staged_deleted_and_renamed_state", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_repository_boundary_rejects_symlink_substitution_when_supported", "expected_passed_count": 1}
+        ],
+        "family-16": [
+          {"test_prefix": "tests/unit/test_reproduction_boundary.py::test_checked_command_rejects_byte_restoring_tracked_source_before_execution", "expected_passed_count": 1}
+        ],
+        "family-17": [
+          {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_raw_evidence_contract_requires_verified_producer_attestation", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_environment_manifest_accepts_typed_linux_symlinks", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_raw_evidence_contract_parses_pdf_and_compares_platform_rasters", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_via000_r2_assembler.py::test_assembler_rejects_partial_or_failed_fragments_without_commitment", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_via000_r2_assembler.py::test_assembler_semantic_gate", "expected_passed_count": 1}
+        ],
+        "family-18": [
+          {"test_prefix": "tests/unit/test_via000_r2_assembler.py::test_assembler_commitment_roundtrips_through_custody_reveal", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_viability_campaign_contract.py::test_structured_receipts_and_governance_provenance_fail_closed", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_viability_campaign_contract.py::test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations", "expected_passed_count": 1}
+        ]
+      },
+      "producer_attestation": {
+        "repository": "whact2025/POPGP",
+        "signer_workflow": "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml",
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "action_commit": "1e69f48acb82d1966a394da916b4c1698aa569d6",
+        "minimum_gh_version": "2.97.0",
+        "bundle_path": "evidence/producer-attestation.sigstore.json",
+        "subject_paths": [
+          "evidence/platform-summary.json",
+          "evidence/evidence-manifest.json"
+        ]
+      },
       "required_pdf_page_count": 11
     },
     "execution_trust_model": {
@@ -128,22 +219,24 @@
         "declared-summary-booleans"
       ],
       "excluded_threat": "A malicious or colluding assigned runner/control-plane principal that fabricates a complete internally consistent execution transcript is outside the R2 claim.",
-      "validator_claim": "The validator proves typed byte closure, candidate/protocol identity, and recomputed scientific/boundary predicates for evidence supplied by the trusted execution principals; it does not independently prove that a hostile runner executed a command merely because a retained record says so."
+      "validator_claim": "The validator proves GitHub-OIDC/Sigstore producer provenance for the exact frozen signer workflow and protocol-source commit, typed byte closure, candidate/protocol identity, and recomputed scientific/boundary predicates. It derives all eighteen mutation outcomes from the attested verbose test execution instead of accepting transport-supplied mutation assertions. It does not claim to defeat a malicious or colluding trusted GitHub control-plane principal."
     },
     "native_or_scalable_claim_in_scope": false,
     "seed_policy": "Use only committed public seeds or the custodian-supplied secret seed; never inspect, reselect, rerun, or replace output after commitment."
   },
-  "measurement_procedure": "On both declared platforms, the assigned reproduction-runner seat executes the supporting runner protocol from the frozen protocol snapshot, with an exact-SHA GitHub Actions run retained as an independent control-plane witness. The runner creates a fresh exact-candidate clone, a fresh locked non-editable Python environment, external caches and evidence directories, and extracts the trusted reproduction-boundary checker from the candidate Git object database with a base Python interpreter under -I -S. Retain literal source and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary validation, two pinned pdfTeX passes to an external directory, and all eighteen frozen mutation families. The validator checks the supplied transcript fail closed but does not claim to prove honest execution by a malicious or colluding runner/control-plane principal. The runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.",
+  "measurement_procedure": "On both declared platforms, the assigned reproduction-runner seat executes the supporting runner protocol from the frozen protocol snapshot in the exact pinned GitHub Actions workflow. The runner creates a fresh exact-candidate clone, a fresh locked non-editable Python environment, external caches and evidence directories, and extracts the trusted reproduction-boundary checker from the candidate Git object database with a base Python interpreter under -I -S. Retain literal source and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary validation, two pinned pdfTeX passes to an external directory, and the frozen mutation-test matrix. The workflow signs the exact platform summary and evidence manifest with GitHub OIDC/Sigstore provenance. The assembler and public validator verify that bundle against the exact repository, signer workflow, and packet protocol commit before accepting any transported bytes. The runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.",
   "uncertainty_procedure": "Candidate commit/tree, Git object and mode bindings, command exits, test/example/mutation counts, environment/source manifests, startup-hook isolation, tracked/untracked/ignored cleanliness, PDF engine/output, raw semantic identities, structure, types, shapes, pass Booleans, and receipt hashes are exact. Numeric comparison uses only the frozen checker tolerances; after canonicalized near-zero plot annotations, every cross-platform raster channel must differ by at most 4. Stored summaries cannot substitute for recomputation from the lowest-level retained operands.",
-  "statistical_analysis": "Pass only if both trusted platform executions complete the protocol at the exact candidate, all 366 tests and six generators pass, every semantic and visual decision is recomputed and valid, all twelve corresponding Ubuntu/Windows rasters directly satisfy the calibrated channel bound, the fresh two-pass PDF parses independently as exactly eleven pages under the pinned engine, source and environment boundaries remain valid, all eighteen corruptions are rejected by the complete gate, and every required result is present in hash-retained raw evidence. Hash closure is not represented as proof against a malicious or colluding assigned runner/control-plane principal; that threat is explicitly outside R2 and is mitigated operationally by separate runner, hosted-control, falsifier, reviewer, custodian, and adjudicator seats. Any missing command, platform-only success, pre-existing or substituted environment/evidence path, undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, surviving mutation, uncommitted output, or evidence available only in prose is a failure. R2 raw results cannot self-declare blockage; an incomplete or unavailable execution is an invalid attempt that must not be assembled or committed, while malformed protocol, custody, evidence, or rule state invalidates the round rather than producing a scientific outcome.",
+  "statistical_analysis": "Pass only if both GitHub-attested platform executions complete the protocol at the exact candidate and frozen protocol source, all 366 candidate tests and six generators pass, the attested mutation suite proves every frozen family through the exact preregistered test prefixes and case counts, every semantic and visual decision is recomputed and valid, all twelve corresponding Ubuntu/Windows rasters directly satisfy the calibrated channel bound, the fresh two-pass PDF parses independently as exactly eleven pages under the pinned engine, source and environment boundaries remain valid, and every required result is present in signed and hash-retained raw evidence. Any missing or invalid producer attestation, command, platform-only success, pre-existing or substituted environment/evidence path, undeclared startup or import state, tracked/untracked/ignored source residue, stale or contradictory raw/derived decision, conspicuous localized visual corruption, repository-local PDF residue, missing mutation case, surviving mutation, uncommitted output, or evidence available only in prose is a failure. R2 raw results cannot self-declare blockage; an incomplete or unavailable execution is an invalid attempt that must not be assembled or committed, while malformed protocol, custody, evidence, provenance, or rule state invalidates the round rather than producing a scientific outcome.",
   "resource_budget": {
     "wall_time_seconds": 5400,
     "memory_bytes": 12884901888,
     "accelerator_seconds": 0
   },
   "commands": [
-    "pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot C:/src/POPGP-VIABILITY-R2-2026-08-WINDOWS -PlatformFamily windows-x86_64",
-    "pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot /tmp/POPGP-VIABILITY-R2-2026-08-UBUNTU -PlatformFamily ubuntu-latest-x86_64"
+    "pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot C:/src/POPGP-VIABILITY-R2-2026-08-WINDOWS -PlatformFamily windows-x86_64 -ProtocolSourceCommit $env:POPGP_PROTOCOL_SOURCE_COMMIT",
+    "python -I -S protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-MUTATION-RUNNER.py --workspace-root C:/src/POPGP-VIABILITY-R2-2026-08-WINDOWS --platform-family windows-x86_64 --protocol-source-commit $env:POPGP_PROTOCOL_SOURCE_COMMIT",
+    "pwsh -NoProfile -File protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot /tmp/POPGP-VIABILITY-R2-2026-08-UBUNTU -PlatformFamily ubuntu-latest-x86_64 -ProtocolSourceCommit $env:POPGP_PROTOCOL_SOURCE_COMMIT",
+    "python -I -S protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-MUTATION-RUNNER.py --workspace-root /tmp/POPGP-VIABILITY-R2-2026-08-UBUNTU --platform-family ubuntu-latest-x86_64 --protocol-source-commit $env:POPGP_PROTOCOL_SOURCE_COMMIT"
   ],
   "mutation_plan": [
     "Add an unregistered check identity, remove a required check, or flip a required pass Boolean; require semantic rejection.",

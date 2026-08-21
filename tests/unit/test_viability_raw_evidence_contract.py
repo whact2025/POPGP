@@ -10,9 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pytest
 from PIL import Image
 
-from scripts.check_viability_campaign import _validate_raw_evidence_contract
+from scripts.check_viability_campaign import (
+    _environment_manifest_errors,
+    _validate_raw_evidence_contract,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL_PATH = ROOT / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json"
@@ -32,6 +36,16 @@ COMMAND_CONTRACTS = CONTRACT["required_command_contracts"]
 ARTIFACT_PATHS = tuple(CONTRACT["required_artifact_paths"])
 MUTATION_IDS = tuple(CONTRACT["required_mutation_ids"])
 MUTATION_ORACLES = CONTRACT["required_mutation_oracles"]
+MUTATION_TESTS = CONTRACT["required_mutation_tests"]
+PROTOCOL_SOURCE_COMMIT = "a" * 40
+
+
+@pytest.fixture(autouse=True)
+def _trusted_attestation_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "scripts.check_viability_campaign._github_attestation_errors",
+        lambda *_args, **_kwargs: [],
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -313,6 +327,70 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             evidence_manifest.append(_entry(receipt_dir, path, platform, media, role))
             retained[name] = _sha256(path)
 
+        selectors = sorted(
+            {
+                requirement["test_prefix"]
+                for requirements in MUTATION_TESTS.values()
+                for requirement in requirements
+            }
+        )
+        suite_command = [
+            "uv",
+            "run",
+            "--isolated",
+            "--frozen",
+            "--no-editable",
+            "python",
+            "-m",
+            "pytest",
+            "-vv",
+            "-p",
+            "no:cacheprovider",
+            *selectors,
+        ]
+        passed_by_mutation: dict[str, list[str]] = {}
+        suite_nodes: list[str] = []
+        for mutation_id in MUTATION_IDS:
+            nodes: list[str] = []
+            for requirement in MUTATION_TESTS[mutation_id]:
+                prefix = requirement["test_prefix"]
+                count = requirement["expected_passed_count"]
+                nodes.extend(
+                    [prefix]
+                    if count == 1
+                    else [f"{prefix}[case-{index}]" for index in range(count)]
+                )
+            passed_by_mutation[mutation_id] = nodes
+            suite_nodes.extend(nodes)
+        mutation_stdout = evidence_dir / platform / "mutations/mutation-suite.stdout.txt"
+        mutation_stderr = evidence_dir / platform / "mutations/mutation-suite.stderr.txt"
+        mutation_result = evidence_dir / platform / "mutations/mutation-suite.result.json"
+        _write(
+            mutation_stdout,
+            ("\n".join(f"{node} PASSED" for node in sorted(set(suite_nodes))) + "\n").encode(),
+        )
+        _write(mutation_stderr, b"")
+        suite_result_document = {
+            "schema_version": 1,
+            "candidate_commit": CANDIDATE_COMMIT,
+            "candidate_tree": CANDIDATE_TREE,
+            "platform_family": platform,
+            "protocol_source_commit": PROTOCOL_SOURCE_COMMIT,
+            "command": suite_command,
+            "started_at": "2026-08-20T00:00:00Z",
+            "finished_at": "2026-08-20T00:00:01Z",
+            "exit_code": 0,
+            "stdout_sha256": _sha256(mutation_stdout),
+            "stderr_sha256": _sha256(mutation_stderr),
+        }
+        _write(mutation_result, json.dumps(suite_result_document).encode())
+        for path, role, media in (
+            (mutation_stdout, "mutation-suite-stdout", "text/plain"),
+            (mutation_stderr, "mutation-suite-stderr", "text/plain"),
+            (mutation_result, "mutation-suite-result", "application/json"),
+        ):
+            evidence_manifest.append(_entry(receipt_dir, path, platform, media, role))
+
         mutation_results = []
         for mutation_id in MUTATION_IDS:
             path = evidence_dir / platform / "mutations" / f"{mutation_id}.json"
@@ -332,14 +410,14 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
                     }
                 ],
                 "execution": {
-                    "command": f"pytest frozen::{mutation_id}",
+                    "command": " ".join(suite_command),
                     "exit_code": 0,
                     "started_at": "2026-08-20T00:00:00Z",
                     "finished_at": "2026-08-20T00:00:01Z",
-                    "test_ids": [f"frozen::{mutation_id}"],
-                    "passed_test_count": 1,
-                    "stdout_sha256": hashlib.sha256(b"1 passed\n").hexdigest(),
-                    "stderr_sha256": hashlib.sha256(b"").hexdigest(),
+                    "test_ids": sorted(passed_by_mutation[mutation_id]),
+                    "passed_test_count": len(passed_by_mutation[mutation_id]),
+                    "stdout_sha256": _sha256(mutation_stdout),
+                    "stderr_sha256": _sha256(mutation_stderr),
                 },
             }
             _write(path, json.dumps(document).encode())
@@ -354,9 +432,9 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
                 }
             )
 
-        platform_paths = [
+        platform_paths = sorted(
             item["path"] for item in evidence_manifest if item["platform_family"] == platform
-        ]
+        )
         platforms[platform] = {
             "schema_version": 1,
             "campaign_id": "POPGP-VIABILITY-R2-2026-08",
@@ -364,6 +442,19 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             "platform_family": platform,
             "candidate_commit": CANDIDATE_COMMIT,
             "candidate_tree": CANDIDATE_TREE,
+            "protocol_source_commit": PROTOCOL_SOURCE_COMMIT,
+            "producer_attestation": {
+                "repository": CONTRACT["producer_attestation"]["repository"],
+                "signer_workflow": CONTRACT["producer_attestation"]["signer_workflow"],
+                "source_commit": PROTOCOL_SOURCE_COMMIT,
+                "bundle_path": (
+                    f"evidence/{platform}/provenance/producer-attestation.sigstore.json"
+                ),
+                "subject_paths": [
+                    f"evidence/{platform}/provenance/platform-summary.json",
+                    f"evidence/{platform}/provenance/evidence-manifest.json",
+                ],
+            },
             "uv_version": "uv 0.11.11 (test build metadata)",
             "pdf_engine": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
             "command_results": command_results,
@@ -389,12 +480,55 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             "completed_at": "2026-08-20T00:00:01Z",
         }
 
+        prefix = f"evidence/{platform}/"
+        original_manifest = []
+        for entry in evidence_manifest:
+            if entry["platform_family"] != platform:
+                continue
+            original_entry = copy.deepcopy(entry)
+            original_entry["path"] = original_entry["path"].removeprefix(prefix)
+            original_manifest.append(original_entry)
+        original_summary = copy.deepcopy(platforms[platform])
+        original_summary["evidence_paths"] = [
+            path.removeprefix(prefix) for path in original_summary["evidence_paths"]
+        ]
+        for command in original_summary["command_results"].values():
+            for field in ("result_path", "stdout_path", "stderr_path"):
+                command[field] = command[field].removeprefix(prefix)
+        for artifact in original_summary["artifact_results"].values():
+            artifact["evidence_path"] = artifact["evidence_path"].removeprefix(prefix)
+        for mutation in original_summary["mutation_results"]:
+            mutation["evidence_paths"] = [
+                path.removeprefix(prefix) for path in mutation["evidence_paths"]
+            ]
+        original_summary["producer_attestation"] = {
+            "repository": CONTRACT["producer_attestation"]["repository"],
+            "signer_workflow": CONTRACT["producer_attestation"]["signer_workflow"],
+            "source_commit": PROTOCOL_SOURCE_COMMIT,
+            "bundle_path": CONTRACT["producer_attestation"]["bundle_path"],
+            "subject_paths": CONTRACT["producer_attestation"]["subject_paths"],
+        }
+        provenance_dir = evidence_dir / platform / "provenance"
+        summary_subject = provenance_dir / "platform-summary.json"
+        manifest_subject = provenance_dir / "evidence-manifest.json"
+        bundle = provenance_dir / "producer-attestation.sigstore.json"
+        _write(summary_subject, json.dumps(original_summary).encode())
+        _write(manifest_subject, json.dumps(original_manifest).encode())
+        _write(bundle, b"{}")
+        for path, role in (
+            (summary_subject, "producer-summary"),
+            (manifest_subject, "producer-manifest"),
+            (bundle, "producer-attestation"),
+        ):
+            evidence_manifest.append(_entry(receipt_dir, path, platform, "application/json", role))
+
     raw_document = {
         "schema_version": 1,
         "campaign_id": "POPGP-VIABILITY-R2-2026-08",
         "packet_id": "VIA-000",
         "candidate_commit": CANDIDATE_COMMIT,
         "candidate_tree": CANDIDATE_TREE,
+        "protocol_source_commit": PROTOCOL_SOURCE_COMMIT,
         "platforms": platforms,
         "evidence_manifest": evidence_manifest,
         "capabilities": {
@@ -410,6 +544,7 @@ def _fixture(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, 
         "packet_id": "VIA-000",
         "candidate_commit": CANDIDATE_COMMIT,
         "tree_hash": CANDIDATE_TREE,
+        "protocol_commit": PROTOCOL_SOURCE_COMMIT,
         "lifecycle_phase": "reproduced",
         "preregistration": {"parameters": copy.deepcopy(PARAMETERS)},
     }
@@ -446,11 +581,42 @@ def _validate(
 
 
 def test_raw_evidence_contract_accepts_structural_trusted_runner_fixture(tmp_path: Path) -> None:
-    # This fixture exercises typed byte/semantic closure.  Execution honesty belongs
-    # to the declared trusted runner/control-plane boundary and is independently
-    # audited from the real hosted runner artifacts.
+    # This fixture exercises typed byte/semantic closure after the external Sigstore
+    # primitive is mocked. Real exact-SHA hosted bundles are verified separately.
     packet, receipts, context = _fixture(tmp_path)
     assert _validate(packet, receipts, context) == []
+
+
+def test_raw_evidence_contract_requires_verified_producer_attestation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    packet, receipts, context = _fixture(tmp_path)
+    monkeypatch.setattr(
+        "scripts.check_viability_campaign._github_attestation_errors",
+        lambda *_args, **_kwargs: ["producer signature rejected"],
+    )
+    errors = _validate(packet, receipts, context)
+    assert any("producer signature rejected" in error for error in errors), errors
+    assert any("capability Booleans differ" in error for error in errors), errors
+
+
+def test_environment_manifest_accepts_typed_linux_symlinks() -> None:
+    document = {
+        "manifest_version": 2,
+        "entries": [
+            {"path": "bin/python", "kind": "symlink", "target": "/opt/python3.11"},
+            {
+                "path": "lib/site.py",
+                "kind": "file",
+                "mode": 420,
+                "size_bytes": 3,
+                "sha256": hashlib.sha256(b"x\n").hexdigest(),
+            },
+        ],
+    }
+    assert _environment_manifest_errors(document, "linux") == []
+    document["entries"][0]["target"] = ""
+    assert _environment_manifest_errors(document, "linux")
 
 
 def test_raw_evidence_contract_rejects_dummy_or_stale_results(tmp_path: Path) -> None:

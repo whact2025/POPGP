@@ -16,10 +16,11 @@ R1 valid/failed result. No seat may invent model/version metadata.
 - Packet: `reviews/viability/POPGP-VIABILITY-R2-2026-08/packets/VIA-000.yaml`
 - Primary protocol: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000.json`
 - Supporting runner: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1`
+- Mutation runner: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-MUTATION-RUNNER.py`
 - Frozen assembler: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-ASSEMBLER.py`
 - Raw-results schema: `protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RAW-RESULTS.schema.json`
 
-Before role-specific work, read the campaign, packet, all four protocol artifacts,
+Before role-specific work, read the campaign, packet, all five protocol artifacts,
 all activated pre-holdout amendments,
 `docs/scientific_hardening/VIABILITY_DEMONSTRATION_PLAN.md`,
 `docs/governance/AGENT_REVIEW_WORKFLOW.md`, and
@@ -45,11 +46,13 @@ protocol, and handoff commits. Do not access the untracked builder handoff memo.
 
 Do not combine the falsifier, runner, custodian, or adjudicator seats in one task.
 Builder calibration and prior reviewer conclusions are not falsifier/runner evidence.
-The assigned runner, exact-SHA GitHub Actions control plane, and independent reviewer
-are the declared trusted execution principals. The retained-evidence validator proves
-byte closure and recomputed predicates, not honesty of a malicious or colluding
-trusted principal; every seat must disclose this limitation rather than overclaiming
-that self-contained hashes alone prove execution.
+The exact-SHA GitHub Actions workflow is the authenticated producer. Each accepted
+platform summary and evidence manifest must have a GitHub OIDC/Sigstore attestation
+for the frozen repository, signer workflow, and protocol source commit. Self-contained
+hashes or caller-supplied identity text are insufficient. The assigned runner and
+independent reviewer remain operationally trusted seats; the protocol still does not
+claim protection against a malicious or colluding GitHub control plane or repository
+administrator able to authorize the exact signer workflow.
 
 ## Custodian verification prompt
 
@@ -98,12 +101,13 @@ packet VIA-000, using the frozen runner identity/session. Begin only after the p
 validator-clean in attacked/holdout-started state and the falsifier artifact authorizes
 the complete gate. Do not inspect sealed holdouts or seeds.
 
-Materialize all four protocol artifacts from the frozen protocol snapshot. Execute the
-exact Windows and Ubuntu commands from the primary protocol in fresh paths, then
-execute all eighteen committed attack families. Retain every raw stdout/stderr stream,
+Materialize all five protocol artifacts from the frozen protocol snapshot. Execute the
+exact Windows and Ubuntu commands from the primary protocol in fresh paths, then run
+the frozen mutation runner against the exact protocol source commit. Retain every raw stdout/stderr stream,
 environment/source manifest, exit status, duration, PDF artifact, visual/JSON result,
-mutation result, and Git boundary result. Use only the frozen assembler to combine the
-two complete platform fragments and two complete eighteen-family mutation receipts.
+mutation suite/result, derived mutation receipt, producer-attestation bundle, and Git
+boundary result. Use only the frozen assembler to combine the two complete attested
+platform fragments. Do not supply or accept separately authored mutation files.
 The assembler must refuse a missing/nonzero/contradictory input and emit no commitment.
 R2 raw results always record blocked=false; an unavailable or incomplete attempt is
 invalid and cannot be assembled. Commit the assembler's distinct output-commitment

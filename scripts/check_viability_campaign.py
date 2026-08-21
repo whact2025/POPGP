@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import functools
 import hashlib
 import ipaddress
@@ -1359,30 +1360,142 @@ def _environment_manifest_errors(document: Any, label: str) -> list[str]:
     paths: set[str] = set()
     errors: list[str] = []
     for entry in entries:
-        if not isinstance(entry, Mapping) or set(entry) != {
-            "path",
-            "kind",
-            "mode",
-            "size_bytes",
-            "sha256",
-        }:
+        if not isinstance(entry, Mapping):
             return [f"{label} environment-manifest entry is malformed"]
-        path = entry["path"]
+        kind = entry.get("kind")
+        expected_fields = (
+            {"path", "kind", "target"}
+            if kind == "symlink"
+            else {"path", "kind", "mode", "size_bytes", "sha256"}
+        )
+        if set(entry) != expected_fields:
+            return [f"{label} environment-manifest entry is malformed"]
+        path = entry.get("path")
+        if not isinstance(path, str):
+            errors.append(f"{label} environment-manifest has invalid typed data")
+            continue
         if path in paths:
             errors.append(f"{label} environment-manifest duplicates {path!r}")
         paths.add(path)
-        if (
-            not isinstance(path, str)
-            or not path
-            or entry["kind"] not in {"file", "symlink"}
-            or type(entry["mode"]) is not int
-            or type(entry["size_bytes"]) is not int
-            or entry["size_bytes"] < 0
-            or not isinstance(entry["sha256"], str)
-            or re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is None
-        ):
+        path_ok = bool(path) and "\x00" not in path
+        if kind == "symlink":
+            target = entry.get("target")
+            typed = isinstance(target, str) and bool(target) and "\x00" not in target
+        else:
+            typed = (
+                kind == "file"
+                and type(entry.get("mode")) is int
+                and type(entry.get("size_bytes")) is int
+                and entry["size_bytes"] >= 0
+                and isinstance(entry.get("sha256"), str)
+                and re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is not None
+            )
+        if not path_ok or not typed:
             errors.append(f"{label} environment-manifest has invalid typed data")
     return errors
+
+
+def _github_attestation_errors(
+    subject: Path,
+    bundle: Path,
+    *,
+    repository: str,
+    signer_workflow: str,
+    source_commit: str,
+    predicate_type: str,
+    minimum_gh_version: str,
+    label: str,
+) -> list[str]:
+    try:
+        version = subprocess.run(
+            ["gh", "--version"], capture_output=True, text=True, check=False, timeout=30
+        )
+        match = re.search(r"(?m)^gh version (\d+)\.(\d+)\.(\d+)", version.stdout)
+        expected = tuple(int(item) for item in minimum_gh_version.split("."))
+        if (
+            version.returncode != 0
+            or match is None
+            or tuple(map(int, match.groups())) < expected
+        ):
+            return [f"{label} requires GitHub CLI {minimum_gh_version}+ for provenance"]
+        completed = subprocess.run(
+            [
+                "gh",
+                "attestation",
+                "verify",
+                str(subject),
+                "--bundle",
+                str(bundle),
+                "--repo",
+                repository,
+                "--signer-workflow",
+                signer_workflow,
+                "--source-digest",
+                source_commit,
+                "--predicate-type",
+                predicate_type,
+                "--deny-self-hosted-runners",
+                "--format",
+                "json",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        if completed.returncode != 0:
+            return [f"{label} producer attestation failed verification"]
+        result = json.loads(completed.stdout)
+        if not isinstance(result, (list, dict)) or not result:
+            return [f"{label} producer attestation returned no verified statement"]
+    except (OSError, ValueError, subprocess.SubprocessError, json.JSONDecodeError):
+        return [f"{label} producer attestation could not be verified"]
+    return []
+
+
+def _passed_pytest_nodes(stdout: str) -> list[str]:
+    nodes: list[str] = []
+    for line in stdout.splitlines():
+        match = re.match(r"^(tests/\S+::\S+)\s+PASSED(?:\s+\[.*\])?$", line.strip())
+        if match is not None:
+            nodes.append(match.group(1))
+    return nodes
+
+
+def _prefixed_platform_path(platform: str, relative: str) -> str:
+    return f"evidence/{platform}/{relative}"
+
+
+def _rewrite_attested_platform_summary(
+    summary: Mapping[str, Any], platform: str, producer_contract: Mapping[str, Any]
+) -> dict[str, Any]:
+    rewritten = copy.deepcopy(dict(summary))
+    rewritten["evidence_paths"] = sorted(
+        _prefixed_platform_path(platform, path) for path in summary["evidence_paths"]
+    )
+    for command in rewritten["command_results"].values():
+        for field in ("result_path", "stdout_path", "stderr_path"):
+            command[field] = _prefixed_platform_path(platform, command[field])
+    for artifact in rewritten["artifact_results"].values():
+        artifact["evidence_path"] = _prefixed_platform_path(
+            platform, artifact["evidence_path"]
+        )
+    for mutation in rewritten["mutation_results"]:
+        mutation["evidence_paths"] = [
+            _prefixed_platform_path(platform, path) for path in mutation["evidence_paths"]
+        ]
+    provenance_root = f"evidence/{platform}/provenance"
+    rewritten["producer_attestation"] = {
+        "repository": producer_contract["repository"],
+        "signer_workflow": producer_contract["signer_workflow"],
+        "source_commit": summary["protocol_source_commit"],
+        "bundle_path": f"{provenance_root}/producer-attestation.sigstore.json",
+        "subject_paths": [
+            f"{provenance_root}/platform-summary.json",
+            f"{provenance_root}/evidence-manifest.json",
+        ],
+    }
+    return rewritten
 
 
 def _validate_raw_evidence_contract(
@@ -1414,6 +1527,8 @@ def _validate_raw_evidence_contract(
         "required_artifact_paths",
         "required_mutation_ids",
         "required_mutation_oracles",
+        "required_mutation_tests",
+        "producer_attestation",
         "required_pdf_page_count",
     }
     if not isinstance(contract, Mapping) or set(contract) != required_fields:
@@ -1426,6 +1541,8 @@ def _validate_raw_evidence_contract(
     artifact_paths = contract["required_artifact_paths"]
     mutation_ids = contract["required_mutation_ids"]
     mutation_oracles = contract["required_mutation_oracles"]
+    mutation_tests = contract["required_mutation_tests"]
+    producer_contract = contract["producer_attestation"]
     if (
         not isinstance(required_platforms, list)
         or not required_platforms
@@ -1448,6 +1565,43 @@ def _validate_raw_evidence_contract(
         or any(
             not isinstance(value, str) or not value for value in mutation_oracles.values()
         )
+        or not isinstance(mutation_tests, Mapping)
+        or set(mutation_tests) != set(mutation_ids)
+        or any(
+            not isinstance(requirements, list)
+            or not requirements
+            or any(
+                not isinstance(item, Mapping)
+                or set(item) != {"test_prefix", "expected_passed_count"}
+                or not isinstance(item["test_prefix"], str)
+                or not item["test_prefix"].startswith("tests/")
+                or type(item["expected_passed_count"]) is not int
+                or item["expected_passed_count"] < 1
+                for item in requirements
+            )
+            for requirements in mutation_tests.values()
+        )
+        or not isinstance(producer_contract, Mapping)
+        or set(producer_contract)
+        != {
+            "repository",
+            "signer_workflow",
+            "predicate_type",
+            "action_commit",
+            "minimum_gh_version",
+            "bundle_path",
+            "subject_paths",
+        }
+        or producer_contract["repository"] != "whact2025/POPGP"
+        or producer_contract["signer_workflow"]
+        != "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml"
+        or producer_contract["predicate_type"] != "https://slsa.dev/provenance/v1"
+        or re.fullmatch(r"[0-9a-f]{40}", producer_contract["action_commit"]) is None
+        or re.fullmatch(r"\d+\.\d+\.\d+", producer_contract["minimum_gh_version"])
+        is None
+        or producer_contract["bundle_path"] != "evidence/producer-attestation.sigstore.json"
+        or producer_contract["subject_paths"]
+        != ["evidence/platform-summary.json", "evidence/evidence-manifest.json"]
         or parameters.get("required_mutation_count") != len(mutation_ids)
         or type(contract["required_pdf_page_count"]) is not int
         or contract["required_pdf_page_count"] < 1
@@ -1510,6 +1664,9 @@ def _validate_raw_evidence_contract(
         errors.append(f"packet {packet_id}: raw-results candidate commit differs from packet")
     if raw_document["candidate_tree"] != packet["tree_hash"]:
         errors.append(f"packet {packet_id}: raw-results candidate tree differs from packet")
+    protocol_commit = packet.get("protocol_commit", raw_document["protocol_source_commit"])
+    if raw_document["protocol_source_commit"] != protocol_commit:
+        errors.append(f"packet {packet_id}: raw-results protocol source differs from packet")
     if raw_document["blocked"] is not False:
         errors.append(f"packet {packet_id}: R2 raw results cannot self-declare blockage")
 
@@ -1570,6 +1727,122 @@ def _validate_raw_evidence_contract(
             errors.append(f"{label} candidate commit differs from packet")
         if platform["candidate_tree"] != packet["tree_hash"]:
             errors.append(f"{label} candidate tree differs from packet")
+        if platform["protocol_source_commit"] != protocol_commit:
+            errors.append(f"{label} protocol source commit differs from packet")
+
+        provenance_root = f"evidence/{platform_name}/provenance"
+        expected_producer = {
+            "repository": producer_contract["repository"],
+            "signer_workflow": producer_contract["signer_workflow"],
+            "source_commit": protocol_commit,
+            "bundle_path": f"{provenance_root}/producer-attestation.sigstore.json",
+            "subject_paths": [
+                f"{provenance_root}/platform-summary.json",
+                f"{provenance_root}/evidence-manifest.json",
+            ],
+        }
+        producer = platform.get("producer_attestation")
+        provenance_ok = producer == expected_producer
+        if not provenance_ok:
+            errors.append(f"{label} producer-attestation envelope differs from frozen contract")
+        else:
+            expected_roles = {
+                expected_producer["bundle_path"]: "producer-attestation",
+                expected_producer["subject_paths"][0]: "producer-summary",
+                expected_producer["subject_paths"][1]: "producer-manifest",
+            }
+            provenance_entries_ok = all(
+                path in evidence_files
+                and evidence_by_path.get(path, {}).get("platform_family") == platform_name
+                and evidence_by_path.get(path, {}).get("role") == role
+                for path, role in expected_roles.items()
+            )
+            if not provenance_entries_ok:
+                provenance_ok = False
+                errors.append(f"{label} producer-attestation subjects are missing or mistyped")
+            else:
+                bundle_file = evidence_files[expected_producer["bundle_path"]]
+                summary_subject = evidence_files[expected_producer["subject_paths"][0]]
+                manifest_subject = evidence_files[expected_producer["subject_paths"][1]]
+                summary_attestation_errors = _github_attestation_errors(
+                    summary_subject,
+                    bundle_file,
+                    repository=producer_contract["repository"],
+                    signer_workflow=producer_contract["signer_workflow"],
+                    source_commit=protocol_commit,
+                    predicate_type=producer_contract["predicate_type"],
+                    minimum_gh_version=producer_contract["minimum_gh_version"],
+                    label=label,
+                )
+                manifest_attestation_errors = _github_attestation_errors(
+                    manifest_subject,
+                    bundle_file,
+                    repository=producer_contract["repository"],
+                    signer_workflow=producer_contract["signer_workflow"],
+                    source_commit=protocol_commit,
+                    predicate_type=producer_contract["predicate_type"],
+                    minimum_gh_version=producer_contract["minimum_gh_version"],
+                    label=label,
+                )
+                errors.extend(summary_attestation_errors)
+                errors.extend(manifest_attestation_errors)
+                provenance_ok = not summary_attestation_errors and not manifest_attestation_errors
+                try:
+                    original_summary = _load_json(summary_subject)
+                    original_manifest = _load_json(manifest_subject)
+                    original_producer = {
+                        "repository": producer_contract["repository"],
+                        "signer_workflow": producer_contract["signer_workflow"],
+                        "source_commit": protocol_commit,
+                        "bundle_path": producer_contract["bundle_path"],
+                        "subject_paths": producer_contract["subject_paths"],
+                    }
+                    if (
+                        not isinstance(original_summary, Mapping)
+                        or original_summary.get("producer_attestation") != original_producer
+                        or original_summary.get("protocol_source_commit") != protocol_commit
+                        or _rewrite_attested_platform_summary(
+                            original_summary, platform_name, producer_contract
+                        )
+                        != platform
+                    ):
+                        provenance_ok = False
+                        errors.append(f"{label} raw platform record differs from attested summary")
+                    if not isinstance(original_manifest, list):
+                        raise ValueError("attested evidence manifest is not an array")
+                    expected_manifest = sorted(
+                        [
+                            {
+                                **dict(entry),
+                                "path": _prefixed_platform_path(platform_name, entry["path"]),
+                            }
+                            for entry in original_manifest
+                        ],
+                        key=lambda entry: entry["path"],
+                    )
+                    observed_manifest = sorted(
+                        [
+                            dict(entry)
+                            for entry in evidence_manifest
+                            if entry.get("platform_family") == platform_name
+                            and entry.get("role")
+                            not in {"producer-attestation", "producer-summary", "producer-manifest"}
+                        ],
+                        key=lambda entry: entry["path"],
+                    )
+                    if expected_manifest != observed_manifest:
+                        provenance_ok = False
+                        errors.append(f"{label} raw evidence differs from attested manifest")
+                except (
+                    OSError,
+                    UnicodeDecodeError,
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    json.JSONDecodeError,
+                ):
+                    provenance_ok = False
+                    errors.append(f"{label} attested subjects cannot be reconciled")
 
         command_results = platform["command_results"]
         if set(command_results) != set(command_contracts):
@@ -1858,7 +2131,121 @@ def _validate_raw_evidence_contract(
             and {item["mutation_id"] for item in mutation_results} == set(mutation_ids)
             and all(item["rejected"] is True for item in mutation_results)
         )
+        suite_stdout_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "mutation-suite-stdout"
+        ]
+        suite_stderr_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "mutation-suite-stderr"
+        ]
+        suite_result_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "mutation-suite-result"
+        ]
+        passed_nodes: list[str] = []
+        suite_result: Mapping[str, Any] = {}
+        if not (
+            len(suite_stdout_matches) == 1
+            and len(suite_stderr_matches) == 1
+            and len(suite_result_matches) == 1
+        ):
+            mutation_ok = False
+        else:
+            stdout_path, stdout_entry = suite_stdout_matches[0]
+            stderr_path, stderr_entry = suite_stderr_matches[0]
+            result_path, _result_entry = suite_result_matches[0]
+            try:
+                stdout_file = evidence_files[stdout_path]
+                stderr_file = evidence_files[stderr_path]
+                suite_result = _load_json(evidence_files[result_path])
+                expected_selectors = {
+                    requirement["test_prefix"]
+                    for requirements in mutation_tests.values()
+                    for requirement in requirements
+                }
+                command = suite_result["command"]
+                mutation_ok = mutation_ok and (
+                    isinstance(suite_result, Mapping)
+                    and set(suite_result)
+                    == {
+                        "schema_version",
+                        "candidate_commit",
+                        "candidate_tree",
+                        "platform_family",
+                        "protocol_source_commit",
+                        "command",
+                        "started_at",
+                        "finished_at",
+                        "exit_code",
+                        "stdout_sha256",
+                        "stderr_sha256",
+                    }
+                    and suite_result["schema_version"] == 1
+                    and suite_result["candidate_commit"] == packet["candidate_commit"]
+                    and suite_result["candidate_tree"] == packet["tree_hash"]
+                    and suite_result["platform_family"] == platform_name
+                    and suite_result["protocol_source_commit"] == protocol_commit
+                    and isinstance(command, list)
+                    and command[:10]
+                    == [
+                        "uv",
+                        "run",
+                        "--isolated",
+                        "--frozen",
+                        "--no-editable",
+                        "python",
+                        "-m",
+                        "pytest",
+                        "-vv",
+                        "-p",
+                    ]
+                    and len(command) >= 11
+                    and command[10] == "no:cacheprovider"
+                    and set(command[11:]) == expected_selectors
+                    and len(command[11:]) == len(expected_selectors)
+                    and suite_result["exit_code"] == 0
+                    and suite_result["stdout_sha256"] == stdout_entry["sha256"]
+                    and suite_result["stderr_sha256"] == stderr_entry["sha256"]
+                )
+                passed_nodes = _passed_pytest_nodes(
+                    stdout_file.read_text(encoding="utf-8", errors="strict")
+                )
+                stderr_file.read_text(encoding="utf-8", errors="strict")
+            except (
+                OSError,
+                UnicodeDecodeError,
+                ValueError,
+                TypeError,
+                KeyError,
+                json.JSONDecodeError,
+            ):
+                mutation_ok = False
         for mutation in mutation_results:
+            mutation_id = mutation["mutation_id"]
+            requirements = mutation_tests[mutation_id]
+            expected_test_ids = sorted(
+                node
+                for requirement in requirements
+                for node in passed_nodes
+                if node.startswith(requirement["test_prefix"])
+            )
+            mutation_ok = mutation_ok and all(
+                len(
+                    [
+                        node
+                        for node in passed_nodes
+                        if node.startswith(requirement["test_prefix"])
+                    ]
+                )
+                == requirement["expected_passed_count"]
+                for requirement in requirements
+            )
+            if len(mutation["evidence_paths"]) != 1:
+                mutation_ok = False
             for evidence_path in mutation["evidence_paths"]:
                 entry = evidence_by_path.get(evidence_path)
                 evidence_file = evidence_files.get(evidence_path)
@@ -1891,7 +2278,7 @@ def _validate_raw_evidence_contract(
                             "execution",
                         }
                         and mutation_document.get("schema_version") == 1
-                        and mutation_document.get("mutation_id") == mutation["mutation_id"]
+                        and mutation_document.get("mutation_id") == mutation_id
                         and mutation_document.get("platform_family") == platform_name
                         and mutation_document.get("candidate_commit") == packet["candidate_commit"]
                         and mutation_document.get("candidate_tree") == packet["tree_hash"]
@@ -1899,7 +2286,7 @@ def _validate_raw_evidence_contract(
                         and isinstance(mutation_document.get("attack"), str)
                         and bool(mutation_document.get("attack"))
                         and mutation_document.get("oracle_id")
-                        == mutation_oracles[mutation["mutation_id"]]
+                        == mutation_oracles[mutation_id]
                         and isinstance(oracle_errors, list)
                         and bool(oracle_errors)
                         and all(
@@ -1911,7 +2298,7 @@ def _validate_raw_evidence_contract(
                             for item in oracle_errors
                         )
                         and any(
-                            item["error_id"] == mutation_oracles[mutation["mutation_id"]]
+                            item["error_id"] == mutation_oracles[mutation_id]
                             for item in oracle_errors
                         )
                         and isinstance(execution, Mapping)
@@ -1926,22 +2313,19 @@ def _validate_raw_evidence_contract(
                             "stdout_sha256",
                             "stderr_sha256",
                         }
-                        and isinstance(execution.get("command"), str)
-                        and bool(execution.get("command"))
-                        and execution.get("exit_code") == 0
+                        and execution.get("command")
+                        == " ".join(suite_result.get("command", []))
+                        and execution.get("exit_code") == suite_result.get("exit_code") == 0
                         and isinstance(execution.get("started_at"), str)
                         and isinstance(execution.get("finished_at"), str)
-                        and isinstance(execution.get("test_ids"), list)
-                        and bool(execution.get("test_ids"))
-                        and execution.get("passed_test_count") == len(execution["test_ids"])
-                        and all(
-                            isinstance(test_id, str) and bool(test_id)
-                            for test_id in execution["test_ids"]
-                        )
-                        and re.fullmatch(r"[0-9a-f]{64}", execution.get("stdout_sha256", ""))
-                        is not None
-                        and re.fullmatch(r"[0-9a-f]{64}", execution.get("stderr_sha256", ""))
-                        is not None
+                        and execution.get("started_at") == suite_result.get("started_at")
+                        and execution.get("finished_at") == suite_result.get("finished_at")
+                        and execution.get("test_ids") == expected_test_ids
+                        and execution.get("passed_test_count") == len(expected_test_ids)
+                        and execution.get("stdout_sha256")
+                        == suite_result.get("stdout_sha256")
+                        and execution.get("stderr_sha256")
+                        == suite_result.get("stderr_sha256")
                     )
                 except (
                     OSError,
@@ -1955,7 +2339,12 @@ def _validate_raw_evidence_contract(
             errors.append(f"{label} mutation evidence is incomplete, untyped, or accepted")
 
         declared_paths = set(platform["evidence_paths"])
-        manifest_paths = {path for path, entry in role_entries}
+        manifest_paths = {
+            path
+            for path, entry in role_entries
+            if entry.get("role")
+            not in {"producer-attestation", "producer-summary", "producer-manifest"}
+        }
         evidence_paths_ok = declared_paths == manifest_paths and bool(declared_paths)
         if not evidence_paths_ok:
             errors.append(f"{label} evidence_paths differ from manifest")
@@ -1987,6 +2376,7 @@ def _validate_raw_evidence_contract(
                 pdf_ok,
                 uv_ok,
                 evidence_paths_ok,
+                provenance_ok,
                 platform["candidate_commit"] == packet["candidate_commit"],
                 platform["candidate_tree"] == packet["tree_hash"],
             )
@@ -2000,6 +2390,7 @@ def _validate_raw_evidence_contract(
             and command_ok
             and artifact_ok
             and evidence_paths_ok
+            and provenance_ok
         )
         platform_clean[platform_name] = clean
         platform_mutations[platform_name] = mutation_ok
@@ -2058,12 +2449,14 @@ def validate_via000_raw_results(
         raw_results_path = Path(raw_results_path).resolve()
         root = Path(repo_root).resolve() if repo_root is not None else _repo_root()
         protocol = _load_json(protocol_path)
+        raw_document = _load_json(raw_results_path)
         parameters = protocol["parameters"]
         contract = parameters["raw_results_contract"]
         packet = {
             "preregistration": {"parameters": parameters},
             "candidate_commit": parameters["candidate_commit"],
             "tree_hash": parameters["candidate_tree"],
+            "protocol_commit": raw_document.get("protocol_source_commit"),
             "lifecycle_phase": "reproduced",
         }
         receipts = {
