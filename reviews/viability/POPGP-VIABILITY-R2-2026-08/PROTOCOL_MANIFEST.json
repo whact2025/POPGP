@@ -50,11 +50,11 @@
     },
     {
       "path": "scripts/check_viability_campaign.py",
-      "sha256": "b0a2d4d1939c3fcd08ed6ddfce7ac4768adf7886262749d45919fcac95a15b97"
+      "sha256": "9b529c287454b929e4c63aa33f25bf9171f9836ff346ff72cfc2bb5056b78db9"
     }
   ],
   "packet_rule_sha256": {
-    "VIA-000": "a0e917747ea335d406cb2e193a3490d194f97ae8d704611bdaef47807cbbd6b4",
+    "VIA-000": "98bbe33c2c5f2a2a321675d12b47e074e83f92ee3463a131f398c81c21d3367b",
     "VIA-010": "f7ef66d9b7c41ece73e9c38946e995f0a2121b3a293fcd726324753366ad2a13",
     "VIA-100": "c4a573ffce6c0c92bdb8d2c8f10af9d9f59230fcf7561b351af41e267b621851",
     "VIA-150": "3f3b3b221575d96556a2f43784665025ca5837d829545bb1c5e1267e459d9d63",

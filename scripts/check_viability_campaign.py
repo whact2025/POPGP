@@ -1240,8 +1240,15 @@ def _raw_command_matches_contract(
     if contract_id == "git-clone":
         return (
             file_name == "git"
-            and len(arguments) == 4
-            and arguments[:3] == ["clone", "--no-checkout", "https://github.com/whact2025/POPGP"]
+            and len(arguments) == 6
+            and arguments[:5]
+            == [
+                "clone",
+                "-c",
+                "core.autocrlf=false",
+                "--no-checkout",
+                "https://github.com/whact2025/POPGP",
+            ]
         )
     if contract_id == "git-checkout":
         return file_name == "git" and arguments == ["checkout", "--detach", candidate_commit]

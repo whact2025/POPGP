@@ -130,7 +130,7 @@ Set-Content -LiteralPath (Join-Path $evidence "pdf-engine-version.txt") `
     -Value $pdfText -Encoding utf8NoBOM
 
 Invoke-RetainedCommand -Label "001-clone" -ContractId "git-clone" -FilePath "git" `
-    -Arguments @("clone", "--no-checkout", $RepositoryUrl, $repo) `
+    -Arguments @("clone", "-c", "core.autocrlf=false", "--no-checkout", $RepositoryUrl, $repo) `
     -WorkingDirectory $workspace.FullName -LogDirectory $logs
 Invoke-RetainedCommand -Label "002-checkout" -ContractId "git-checkout" -FilePath "git" `
     -Arguments @("checkout", "--detach", $CandidateCommit) `

@@ -58,6 +58,12 @@ every nonempty Git porcelain record, then requires the final status to be litera
 empty after trimming. This preserves rejection of undeclared residue while accepting
 the signed status representation produced by both hosted shells.
 
+The fresh clone stores `core.autocrlf=false` before its detached checkout. This makes
+the worktree bytes identical to the candidate Git blobs on Windows as well as Linux;
+the source boundary remains a literal byte-and-mode comparison and is not weakened to
+accept line-ending conversion. The retained clone command and its exact configuration
+argument are part of the frozen executable contract.
+
 ## Required evidence before refreeze
 
 The amendment is not approval to refreeze or start holdout. The exact response commit

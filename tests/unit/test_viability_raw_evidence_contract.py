@@ -17,6 +17,7 @@ from scripts.check_viability_campaign import (
     MAX_ENVIRONMENT_MANIFEST_EXPANDED_NODES,
     _environment_manifest_errors,
     _load_json_text,
+    _raw_command_matches_contract,
     _validate_raw_evidence_contract,
 )
 
@@ -111,7 +112,14 @@ def _command_record(contract_id: str, workspace: Path) -> tuple[str, list[str]]:
         ),
     }
     if contract_id == "git-clone":
-        return "git", ["clone", "--no-checkout", "https://github.com/whact2025/POPGP", str(repo)]
+        return "git", [
+            "clone",
+            "-c",
+            "core.autocrlf=false",
+            "--no-checkout",
+            "https://github.com/whact2025/POPGP",
+            str(repo),
+        ]
     if contract_id == "git-checkout":
         return "git", ["checkout", "--detach", CANDIDATE_COMMIT]
     if contract_id == "uv-sync-frozen-no-editable":
@@ -643,6 +651,45 @@ def test_environment_manifest_uses_calibrated_expanded_node_limit() -> None:
         max_expanded_nodes=MAX_ENVIRONMENT_MANIFEST_EXPANDED_NODES,
     )
     assert _environment_manifest_errors(parsed, "hosted-linux") == []
+
+
+def test_runner_disables_checkout_line_ending_conversion() -> None:
+    runner = (
+        ROOT / "protocols/POPGP-VIABILITY-R2-2026-08/VIA-000-RUNNER.ps1"
+    ).read_text(encoding="utf-8")
+    frozen_arguments = (
+        '@("clone", "-c", "core.autocrlf=false", "--no-checkout", '
+        "$RepositoryUrl, $repo)"
+    )
+    assert frozen_arguments in runner
+    assert _raw_command_matches_contract(
+        "git-clone",
+        {
+            "file": "git",
+            "arguments": [
+                "clone",
+                "-c",
+                "core.autocrlf=false",
+                "--no-checkout",
+                "https://github.com/whact2025/POPGP",
+                "C:/fresh/candidate",
+            ],
+        },
+        CANDIDATE_COMMIT,
+    )
+    assert not _raw_command_matches_contract(
+        "git-clone",
+        {
+            "file": "git",
+            "arguments": [
+                "clone",
+                "--no-checkout",
+                "https://github.com/whact2025/POPGP",
+                "C:/fresh/candidate",
+            ],
+        },
+        CANDIDATE_COMMIT,
+    )
 
 
 def test_raw_evidence_contract_rejects_dummy_or_stale_results(tmp_path: Path) -> None:
