@@ -35,6 +35,7 @@ RULE_LANGUAGE = "popgp-bool-v2"
 PACKET_FREEZE_VERSION = "popgp-packet-freeze-v4"
 MAX_STRUCTURED_NESTING = 128
 MAX_STRUCTURED_EXPANDED_NODES = 100_000
+MAX_ENVIRONMENT_MANIFEST_EXPANDED_NODES = 150_000
 MAX_STRUCTURED_INPUT_BYTES = 16 * 1024 * 1024
 MAX_JSON_NUMBER_CHARACTERS = 256
 GIT_BUNDLE_TIMEOUT_SECONDS = 30
@@ -208,7 +209,9 @@ _UniqueKeyLoader.add_constructor(
 )
 
 
-def _validate_structured_graph(document: Any) -> None:
+def _validate_structured_graph(
+    document: Any, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES
+) -> None:
     """Bound depth and logical expansion for every parsed structured input."""
     cache: dict[int, tuple[int, int]] = {}
     active: set[int] = set()
@@ -236,10 +239,10 @@ def _validate_structured_graph(document: Any) -> None:
         for child in children:
             child_nodes, child_height = metrics(child, depth + 1)
             expanded_nodes += child_nodes
-            if expanded_nodes > MAX_STRUCTURED_EXPANDED_NODES:
+            if expanded_nodes > max_expanded_nodes:
                 raise ValueError(
                     "structured input expanded node count exceeds limit "
-                    f"{MAX_STRUCTURED_EXPANDED_NODES}"
+                    f"{max_expanded_nodes}"
                 )
             height = max(height, child_height + 1)
         active.remove(marker)
@@ -333,7 +336,9 @@ def _load_json_bytes(content: bytes) -> Any:
     return _load_json_text(content.decode("utf-8"))
 
 
-def _load_json_text(text: str) -> Any:
+def _load_json_text(
+    text: str, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES
+) -> Any:
     _check_json_nesting(text)
     try:
         document = json.loads(
@@ -345,12 +350,16 @@ def _load_json_text(text: str) -> Any:
         )
     except RecursionError as exc:
         raise ValueError("JSON nesting exceeds parser limit") from exc
-    _validate_structured_graph(document)
+    _validate_structured_graph(document, max_expanded_nodes=max_expanded_nodes)
     return document
 
 
-def _load_json(path: Path) -> Any:
-    return _load_json_text(_read_structured_text(path))
+def _load_json(
+    path: Path, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES
+) -> Any:
+    return _load_json_text(
+        _read_structured_text(path), max_expanded_nodes=max_expanded_nodes
+    )
 
 
 def _format_path(parts: list[Any]) -> str:
@@ -2031,7 +2040,10 @@ def _validate_raw_evidence_contract(
             path, entry = environment_matches[0]
             environment_ok = entry["sha256"] == platform["environment_manifest_sha256"]
             try:
-                environment_document = _load_json(evidence_files[path])
+                environment_document = _load_json(
+                    evidence_files[path],
+                    max_expanded_nodes=MAX_ENVIRONMENT_MANIFEST_EXPANDED_NODES,
+                )
                 environment_errors = _environment_manifest_errors(environment_document, label)
                 environment_ok = environment_ok and not environment_errors
                 errors.extend(environment_errors)

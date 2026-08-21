@@ -182,6 +182,7 @@
         "family-17": [
           {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_raw_evidence_contract_requires_verified_producer_attestation", "expected_passed_count": 1},
           {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_environment_manifest_accepts_typed_linux_symlinks", "expected_passed_count": 1},
+          {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_environment_manifest_uses_calibrated_expanded_node_limit", "expected_passed_count": 1},
           {"test_prefix": "tests/unit/test_viability_raw_evidence_contract.py::test_raw_evidence_contract_parses_pdf_and_compares_platform_rasters", "expected_passed_count": 1},
           {"test_prefix": "tests/unit/test_via000_r2_assembler.py::test_assembler_rejects_partial_or_failed_fragments_without_commitment", "expected_passed_count": 1},
           {"test_prefix": "tests/unit/test_via000_r2_assembler.py::test_assembler_semantic_gate", "expected_passed_count": 1}

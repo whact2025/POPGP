@@ -42,6 +42,11 @@ control plane or a repository administrator able to authorize the exact workflow
 
 The environment-manifest verifier now accepts the runner's canonical regular-file
 records and canonical Linux symlink records, while rejecting mixed or extra shapes.
+Its parser retains the default 100,000-node public-input ceiling everywhere else and
+uses a 150,000-node ceiling only for the typed, attested environment manifest. The
+limit admits the genuine hosted Ubuntu and Windows manifests measured at 133,309 and
+127,917 expanded nodes while remaining bounded by the unchanged 16 MiB byte ceiling,
+depth, cycle, numeric, and exact-entry-shape checks.
 The potential-moment recomputation tolerance is calibrated to `2e-18`: it admits the
 independently measured genuine Ubuntu-to-Windows recomputation difference of about
 `1.24345e-18` while retaining rejection of the smallest registered attack at about

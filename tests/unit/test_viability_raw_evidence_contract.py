@@ -14,7 +14,9 @@ import pytest
 from PIL import Image
 
 from scripts.check_viability_campaign import (
+    MAX_ENVIRONMENT_MANIFEST_EXPANDED_NODES,
     _environment_manifest_errors,
+    _load_json_text,
     _validate_raw_evidence_contract,
 )
 
@@ -617,6 +619,30 @@ def test_environment_manifest_accepts_typed_linux_symlinks() -> None:
     assert _environment_manifest_errors(document, "linux") == []
     document["entries"][0]["target"] = ""
     assert _environment_manifest_errors(document, "linux")
+
+
+def test_environment_manifest_uses_calibrated_expanded_node_limit() -> None:
+    document = {
+        "manifest_version": 2,
+        "entries": [
+            {
+                "path": f"lib/package-{index}.py",
+                "kind": "file",
+                "mode": 420,
+                "size_bytes": 2,
+                "sha256": hashlib.sha256(b"x\n").hexdigest(),
+            }
+            for index in range(22_219)
+        ],
+    }
+    encoded = json.dumps(document)
+    with pytest.raises(ValueError, match="expanded node count exceeds limit 100000"):
+        _load_json_text(encoded)
+    parsed = _load_json_text(
+        encoded,
+        max_expanded_nodes=MAX_ENVIRONMENT_MANIFEST_EXPANDED_NODES,
+    )
+    assert _environment_manifest_errors(parsed, "hosted-linux") == []
 
 
 def test_raw_evidence_contract_rejects_dummy_or_stale_results(tmp_path: Path) -> None:
