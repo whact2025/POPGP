@@ -55,6 +55,15 @@ CONTRACT_FILE_PATHS = {
     "schemas/viability/review-response-v2.schema.json",
     "scripts/check_viability_campaign.py",
 }
+R3_CONTRACT_FILE_PATHS = CONTRACT_FILE_PATHS | {
+    ".gitattributes",
+    "popgp/diagnostics.py",
+    "scripts/check_reproduction_boundary.py",
+    "scripts/check_validation_artifacts.py",
+    "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py",
+    "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/"
+    "VIA-000-AUTHORIZED-SIGNERS",
+}
 
 PACKET_FREEZE_FIELDS = (
     "schema_version",
@@ -569,10 +578,15 @@ def _validate_frozen_inputs(
     contract_paths = [reference["path"] for reference in contract_refs]
     if len(contract_paths) != len(set(contract_paths)):
         errors.append("campaign: protocol manifest contract file paths must be unique")
-    if set(contract_paths) != CONTRACT_FILE_PATHS:
+    expected_contract_paths = (
+        R3_CONTRACT_FILE_PATHS
+        if campaign["campaign_id"] == "POPGP-VIABILITY-R3-2026-08"
+        else CONTRACT_FILE_PATHS
+    )
+    if set(contract_paths) != expected_contract_paths:
         errors.append(
             "campaign: protocol manifest contract file set differs from v2 authority "
-            f"({sorted(contract_paths)} != {sorted(CONTRACT_FILE_PATHS)})"
+            f"({sorted(contract_paths)} != {sorted(expected_contract_paths)})"
         )
     for reference in contract_refs:
         relative = reference["path"]
@@ -1572,6 +1586,9 @@ def _validate_raw_evidence_contract(
         "event_name": "workflow_dispatch",
         "source_ref_prefix": "refs/tags/popgp-via000-r3-protocol-",
         "source_ref_suffix": "protocol-snapshot-commit",
+        "authorization_ref_prefix": "refs/tags/popgp-via000-r3-authorization-",
+        "authorization_ref_suffix": "authorization-record-sha256",
+        "require_signed_campaign_packet": True,
         "require_workflow_sha_match": True,
         "require_checkout_head_match": True,
         "require_single_producer_run": True,
@@ -1714,6 +1731,9 @@ def _validate_raw_evidence_contract(
             or dispatch.get("event_name") != dispatch_contract["event_name"]
             or dispatch.get("source_ref") != expected_ref
             or dispatch.get("protocol_snapshot_commit") != protocol_commit
+            or dispatch.get("authorization_ref")
+            != dispatch_contract["authorization_ref_prefix"]
+            + str(dispatch.get("authorization_record_sha256", ""))
         ):
             errors.append(
                 f"packet {packet_id}: raw dispatch identity differs from protocol snapshot"
@@ -2503,6 +2523,7 @@ def validate_via000_raw_results(
     schema_path: Path | str,
     raw_results_path: Path | str,
     *,
+    packet_path: Path | str | None = None,
     repo_root: Path | str | None = None,
 ) -> list[str]:
     """Validate an assembled VIA-000 package before creating a commitment."""
@@ -2516,13 +2537,25 @@ def validate_via000_raw_results(
         raw_document = _load_json(raw_results_path)
         parameters = protocol["parameters"]
         contract = parameters["raw_results_contract"]
-        packet = {
-            "preregistration": {"parameters": parameters},
-            "candidate_commit": parameters["candidate_commit"],
-            "tree_hash": parameters["candidate_tree"],
-            "protocol_commit": raw_document.get("protocol_source_commit"),
-            "lifecycle_phase": "reproduced",
-        }
+        if packet_path is None:
+            packet = {
+                "preregistration": {"parameters": parameters},
+                "candidate_commit": parameters["candidate_commit"],
+                "tree_hash": parameters["candidate_tree"],
+                "protocol_commit": raw_document.get("protocol_source_commit"),
+                "lifecycle_phase": "reproduced",
+            }
+        else:
+            packet = _load_yaml(Path(packet_path).resolve())
+            if (
+                packet.get("packet_id") != protocol["packet_id"]
+                or packet.get("candidate_commit") != parameters["candidate_commit"]
+                or packet.get("tree_hash") != parameters["candidate_tree"]
+                or not _strict_json_equal(
+                    packet.get("preregistration", {}).get("parameters"), parameters
+                )
+            ):
+                return ["VIA-000 authorized packet differs from the frozen protocol"]
         receipts = {
             contract["schema_receipt_id"]: {
                 "kind": "protocol",
@@ -4123,7 +4156,33 @@ def main(argv: list[str] | None = None) -> int:
         metavar=("COMMIT", "PATH"),
         help="print the SHA-256 of a repository blob at a frozen commit",
     )
+    parser.add_argument("--via000-raw-results", type=Path)
+    parser.add_argument("--via000-protocol", type=Path)
+    parser.add_argument("--via000-schema", type=Path)
+    parser.add_argument("--via000-packet", type=Path)
+    parser.add_argument("--via000-repo-root", type=Path)
     args = parser.parse_args(argv)
+    via000_values = (
+        args.via000_raw_results,
+        args.via000_protocol,
+        args.via000_schema,
+        args.via000_packet,
+        args.via000_repo_root,
+    )
+    if any(value is not None for value in via000_values):
+        if not all(value is not None for value in via000_values):
+            parser.error("the frozen VIA-000 precommit mode requires all five inputs")
+        if args.campaign is not None or args.packet_rule_sha256 or args.git_blob_sha256:
+            parser.error("VIA-000 precommit mode cannot be combined with another mode")
+        errors = validate_via000_raw_results(
+            args.via000_protocol,
+            args.via000_schema,
+            args.via000_raw_results,
+            packet_path=args.via000_packet,
+            repo_root=args.via000_repo_root,
+        )
+        print(json.dumps({"errors": errors}, allow_nan=False, sort_keys=True))
+        return 1 if errors else 0
     if args.packet_rule_sha256 is not None:
         if args.campaign is not None or args.git_blob_sha256 is not None:
             parser.error("packet hashing cannot be combined with campaign validation")

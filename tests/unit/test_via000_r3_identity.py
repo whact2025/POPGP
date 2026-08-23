@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from tests.unit import test_via000_r2_assembler as r2_assembler
 
@@ -23,10 +24,29 @@ GUARD = PROTOCOL_DIR / "VIA-000-DISPATCH-GUARD.py"
 WORKFLOW = ROOT / ".github/workflows/via000-r3-protocol.yml"
 FAKE_COMMIT = "a" * 40
 FAKE_REF = f"refs/tags/popgp-via000-r3-protocol-{FAKE_COMMIT}"
+FAKE_AUTHORIZATION_SHA256 = "b" * 64
+FAKE_AUTHORIZATION_REF = (
+    "refs/tags/popgp-via000-r3-authorization-" + FAKE_AUTHORIZATION_SHA256
+)
+FAKE_AUTHORIZATION = {
+    "protocol_commit": FAKE_COMMIT,
+    "source_ref": FAKE_REF,
+    "authorization_ref": FAKE_AUTHORIZATION_REF,
+    "authorization_tag_oid": "c" * 40,
+    "authorization_commit": "d" * 40,
+    "authorization_record_sha256": FAKE_AUTHORIZATION_SHA256,
+    "campaign_sha256": "e" * 64,
+    "packet_sha256": "f" * 64,
+    "protocol_manifest_sha256": "1" * 64,
+}
 DISPATCH_IDENTITY = {
     "event_name": "workflow_dispatch",
     "source_ref": FAKE_REF,
     "protocol_snapshot_commit": FAKE_COMMIT,
+    "authorization_ref": FAKE_AUTHORIZATION_REF,
+    "authorization_tag_oid": "c" * 40,
+    "authorization_commit": "d" * 40,
+    "authorization_record_sha256": FAKE_AUTHORIZATION_SHA256,
     "producer_run_id": "424242",
     "producer_run_attempt": 1,
 }
@@ -47,6 +67,231 @@ def _git(repo: Path, *args: str) -> str:
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+
+def _git_bytes(repo: Path, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
+def _write_json(path: Path, document: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def _write_yaml(path: Path, document: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump(document, sort_keys=False, allow_unicode=True, width=100),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _overlay(source: Path, destination: Path) -> None:
+    if source.is_dir():
+        destination.mkdir(parents=True, exist_ok=True)
+        for item in source.rglob("*"):
+            if item.is_file():
+                relative = item.relative_to(source)
+                target = destination / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(item.read_bytes().replace(b"\r\n", b"\n"))
+    else:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(source.read_bytes().replace(b"\r\n", b"\n"))
+
+
+def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
+    repo = tmp_path / "authorized-repository"
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--quiet",
+            "--no-hardlinks",
+            "--no-checkout",
+            str(ROOT),
+            str(repo),
+        ],
+        check=True,
+    )
+    _git(repo, "config", "core.longpaths", "true")
+    _git(repo, "sparse-checkout", "init", "--no-cone")
+    _git(
+        repo,
+        "sparse-checkout",
+        "set",
+        "/.gitattributes",
+        "/.github/workflows/via000-r3-protocol.yml",
+        "/protocols/POPGP-VIABILITY-R3-2026-08/**",
+        "/reviews/viability/POPGP-VIABILITY-R3-2026-08/**",
+        "/docs/scientific_hardening/**",
+        "/schemas/viability/**",
+        "/scripts/check_viability_campaign.py",
+        "/scripts/check_validation_artifacts.py",
+        "/scripts/check_reproduction_boundary.py",
+        "/popgp/diagnostics.py",
+        "/tests/unit/test_via000_r3_identity.py",
+    )
+    _git(repo, "checkout", "HEAD")
+    _git(repo, "config", "user.name", "R3 authorization test")
+    _git(repo, "config", "user.email", "r3-authorization@example.invalid")
+    _git(repo, "config", "core.autocrlf", "false")
+    for relative in (
+        Path(".gitattributes"),
+        Path(".github/workflows/via000-r3-protocol.yml"),
+        Path("protocols/POPGP-VIABILITY-R3-2026-08"),
+        Path("reviews/viability/POPGP-VIABILITY-R3-2026-08"),
+        Path("scripts/check_viability_campaign.py"),
+        Path("scripts/check_validation_artifacts.py"),
+        Path("scripts/check_reproduction_boundary.py"),
+        Path("popgp/diagnostics.py"),
+        Path("tests/unit/test_via000_r3_identity.py"),
+    ):
+        _overlay(ROOT / relative, repo / relative)
+
+    key = tmp_path / "authorization-key"
+    subprocess.run(
+        ["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)],
+        check=True,
+    )
+    public_key = key.with_suffix(".pub").read_text(encoding="utf-8").strip()
+    signers_path = (
+        repo
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/"
+        "VIA-000-AUTHORIZED-SIGNERS"
+    )
+    signers_path.write_text(
+        f"popgp-via000-r3-authorizer {public_key}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    primary_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+    primary = json.loads(primary_path.read_text(encoding="utf-8"))
+    parameters = primary["parameters"]
+    for path_field, hash_field in (
+        ("runner_protocol_path", "runner_protocol_sha256"),
+        ("raw_results_schema_path", "raw_results_schema_sha256"),
+        ("assembler_protocol_path", "assembler_protocol_sha256"),
+        ("mutation_runner_protocol_path", "mutation_runner_protocol_sha256"),
+        ("dispatch_guard_protocol_path", "dispatch_guard_protocol_sha256"),
+        ("workflow_protocol_path", "workflow_protocol_sha256"),
+        ("validator_package_init_path", "validator_package_init_sha256"),
+    ):
+        parameters[hash_field] = _sha(repo / parameters[path_field])
+    authorization_contract = parameters["authorization_contract"]
+    authorization_contract["allowed_signers_sha256"] = _sha(
+        repo / authorization_contract["allowed_signers_path"]
+    )
+    for item in authorization_contract["validator_bundle"]:
+        item["sha256"] = _sha(repo / item["source_path"])
+    _write_json(primary_path, primary)
+
+    packet_path = repo / authorization_contract["packet_path"]
+    packet = yaml.safe_load(packet_path.read_text(encoding="utf-8"))
+    for field in (
+        "parameters",
+        "measurement_procedure",
+        "uncertainty_procedure",
+        "statistical_analysis",
+        "resource_budget",
+        "commands",
+        "mutation_plan",
+    ):
+        packet["preregistration"][field] = primary[field]
+    _write_yaml(packet_path, packet)
+
+    manifest_path = repo / authorization_contract["protocol_manifest_path"]
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    required_contracts = {
+        ".gitattributes",
+        "popgp/diagnostics.py",
+        "scripts/check_reproduction_boundary.py",
+        "scripts/check_validation_artifacts.py",
+        "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py",
+        authorization_contract["allowed_signers_path"],
+    }
+    by_path = {item["path"]: item for item in manifest["contract_files"]}
+    for relative in required_contracts:
+        by_path.setdefault(relative, {"path": relative, "sha256": ""})
+    for item in by_path.values():
+        item["sha256"] = _sha(repo / item["path"])
+    manifest["contract_files"] = sorted(by_path.values(), key=lambda item: item["path"])
+    _write_json(manifest_path, manifest)
+
+    campaign_path = repo / authorization_contract["campaign_path"]
+    campaign = yaml.safe_load(campaign_path.read_text(encoding="utf-8"))
+    campaign["protocol_manifest_sha256"] = _sha(manifest_path)
+    _write_yaml(campaign_path, campaign)
+
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "authorized protocol snapshot")
+    snapshot = _git(repo, "rev-parse", "HEAD")
+    protocol_ref = f"refs/tags/popgp-via000-r3-protocol-{snapshot}"
+    _git(repo, "tag", protocol_ref.removeprefix("refs/tags/"), snapshot)
+
+    packet = yaml.safe_load(packet_path.read_text(encoding="utf-8"))
+    packet["protocol_commit"] = snapshot
+    packet["lifecycle_phase"] = "preregistered"
+    _write_yaml(packet_path, packet)
+    campaign = yaml.safe_load(campaign_path.read_text(encoding="utf-8"))
+    campaign["protocol_commit"] = snapshot
+    _write_yaml(campaign_path, campaign)
+    _git(repo, "add", str(packet_path), str(campaign_path))
+    _git(repo, "commit", "-m", "bind authorized campaign packet")
+    authorization_commit = _git(repo, "rev-parse", "HEAD")
+
+    def frozen_sha(relative: str) -> str:
+        return hashlib.sha256(
+            _git_bytes(repo, "cat-file", "blob", f"{authorization_commit}:{relative}")
+        ).hexdigest()
+
+    record = {
+        "schema_version": 1,
+        "campaign_id": "POPGP-VIABILITY-R3-2026-08",
+        "packet_id": "VIA-000",
+        "authorization_commit": authorization_commit,
+        "protocol_commit": snapshot,
+        "campaign_path": authorization_contract["campaign_path"],
+        "campaign_sha256": frozen_sha(authorization_contract["campaign_path"]),
+        "packet_path": authorization_contract["packet_path"],
+        "packet_sha256": frozen_sha(authorization_contract["packet_path"]),
+        "protocol_manifest_path": authorization_contract["protocol_manifest_path"],
+        "protocol_manifest_sha256": frozen_sha(
+            authorization_contract["protocol_manifest_path"]
+        ),
+    }
+    record_bytes = (
+        json.dumps(record, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
+    ).encode()
+    record_path = tmp_path / "authorization-record.json"
+    record_path.write_bytes(record_bytes)
+    authorization_ref = (
+        "refs/tags/popgp-via000-r3-authorization-"
+        + hashlib.sha256(record_bytes).hexdigest()
+    )
+    _git(repo, "config", "gpg.format", "ssh")
+    _git(repo, "config", "user.signingkey", str(key))
+    _git(
+        repo,
+        "tag",
+        "-s",
+        "-F",
+        str(record_path),
+        authorization_ref.removeprefix("refs/tags/"),
+        authorization_commit,
+    )
+    _git(repo, "checkout", "--detach", snapshot)
+    return repo, snapshot, protocol_ref, authorization_ref, authorization_commit
 
 
 def _snapshot_repo(tmp_path: Path, *, protocol_tree: bool = False) -> tuple[Path, str, str]:
@@ -205,7 +450,7 @@ def _run_assembler(
     identity_patch = (
         "(_ for _ in ()).throw(ValueError('protocol identity mismatch'))"
         if identity_error
-        else "None"
+        else repr(FAKE_AUTHORIZATION)
     )
     attestation_patch = (
         "(_ for _ in ()).throw(ValueError('attestation rejected'))"
@@ -220,8 +465,7 @@ def _run_assembler(
         "spec.loader.exec_module(module);"
         f"module._verify_protocol_identity=lambda *args,**kwargs:{identity_patch};"
         f"module._verify_attestation=lambda *args,**kwargs:{attestation_patch};"
-        "import scripts.check_viability_campaign as campaign;"
-        "campaign._github_attestation_errors=lambda *args,**kwargs:[];"
+        "module._run_frozen_precommit_validator=lambda *args,**kwargs:None;"
         "raise SystemExit(module.main())"
     )
     command = [
@@ -238,10 +482,10 @@ def _run_assembler(
         command.extend(["--platform-root", f"{platform}={roots[platform]}"])
     command.extend(
         [
-            "--protocol-source-commit",
-            FAKE_COMMIT,
             "--protocol-source-ref",
             FAKE_REF,
+            "--authorization-ref",
+            FAKE_AUTHORIZATION_REF,
             "--producer-run-id",
             DISPATCH_IDENTITY["producer_run_id"],
             "--producer-run-attempt",
@@ -259,23 +503,25 @@ def _run_assembler(
 
 def test_dispatch_guard_accepts_exact_snapshot_ref(tmp_path: Path) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_happy")
-    repo, commit, ref = _snapshot_repo(tmp_path)
-    guard.verify_workflow_dispatch(
+    repo, commit, ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
+    result = guard.verify_campaign_authorization(
         repo,
         event_name="workflow_dispatch",
         github_ref=ref,
         github_sha=commit,
-        expected_commit=commit,
+        authorization_ref=authorization_ref,
     )
+    assert result["protocol_commit"] == commit
+    assert result["authorization_ref"] == authorization_ref
 
 
 @pytest.mark.negative_control
-@pytest.mark.parametrize("mutation", ["event", "ref", "sha", "head"])
+@pytest.mark.parametrize("mutation", ["event", "ref", "sha", "head", "authorization"])
 def test_dispatch_guard_rejects_wrong_event_ref_sha_or_head(
     tmp_path: Path, mutation: str
 ) -> None:
     guard = _load_module(GUARD, f"r3_dispatch_guard_{mutation}")
-    repo, commit, ref = _snapshot_repo(tmp_path)
+    repo, commit, ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
     event_name = "workflow_dispatch"
     github_ref = ref
     github_sha = commit
@@ -285,18 +531,215 @@ def test_dispatch_guard_rejects_wrong_event_ref_sha_or_head(
         github_ref = "refs/heads/master"
     elif mutation == "sha":
         github_sha = "f" * 40
-    else:
+    elif mutation == "head":
         (repo / "lifecycle.txt").write_text("later lifecycle head\n", encoding="utf-8")
-        _git(repo, "add", ".")
+        _git(repo, "add", "--sparse", "lifecycle.txt")
         _git(repo, "commit", "-m", "lifecycle handoff")
+    else:
+        authorization_ref = "refs/tags/popgp-via000-r3-authorization-" + "0" * 64
     with pytest.raises(ValueError):
-        guard.verify_workflow_dispatch(
+        guard.verify_campaign_authorization(
             repo,
             event_name=event_name,
             github_ref=github_ref,
             github_sha=github_sha,
-            expected_commit=commit,
+            authorization_ref=authorization_ref,
         )
+
+
+@pytest.mark.negative_control
+def test_r3_authorization_rejects_self_consistent_later_lifecycle_and_substitution(
+    tmp_path: Path,
+) -> None:
+    guard = _load_module(GUARD, "r3_dispatch_guard_later_lifecycle")
+    repo, snapshot, _ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
+    lifecycle = repo / "protocols/POPGP-VIABILITY-R3-2026-08/later-lifecycle.txt"
+    lifecycle.write_text("later\n", encoding="utf-8", newline="\n")
+    _git(repo, "add", str(lifecycle))
+    _git(repo, "commit", "-m", "later lifecycle")
+    later = _git(repo, "rev-parse", "HEAD")
+    later_ref = f"refs/tags/popgp-via000-r3-protocol-{later}"
+    _git(repo, "tag", later_ref.removeprefix("refs/tags/"), later)
+    with pytest.raises(ValueError, match="campaign|packet|contract"):
+        guard.verify_campaign_authorization(
+            repo,
+            event_name="workflow_dispatch",
+            github_ref=later_ref,
+            github_sha=later,
+            authorization_ref=authorization_ref,
+        )
+    assert snapshot != later
+    output = tmp_path / "unauthorized-output"
+    command = [
+        sys.executable,
+        str(repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py"),
+        "--repo-root",
+        str(repo),
+        "--protocol",
+        str(repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"),
+        "--schema",
+        str(repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"),
+        "--platform-root",
+        f"ubuntu-latest-x86_64={tmp_path / 'missing-linux'}",
+        "--platform-root",
+        f"windows-x86_64={tmp_path / 'missing-windows'}",
+        "--protocol-source-ref",
+        later_ref,
+        "--authorization-ref",
+        authorization_ref,
+        "--producer-run-id",
+        "42",
+        "--producer-run-attempt",
+        "1",
+        "--output-dir",
+        str(output),
+        "--committed-by",
+        "test",
+        "--committed-at",
+        "2026-08-23T00:00:00Z",
+    ]
+    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert completed.returncode != 0
+    assert not output.exists()
+    assert not list(tmp_path.glob(".unauthorized-output-*"))
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "mutation", ["deleted-authorization", "moved-authorization", "wrong-suffix", "annotated-source"]
+)
+def test_r3_authorization_rejects_moved_deleted_or_wrong_kind_refs(
+    tmp_path: Path, mutation: str
+) -> None:
+    guard = _load_module(GUARD, f"r3_dispatch_guard_ref_{mutation}")
+    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    if mutation == "deleted-authorization":
+        _git(repo, "tag", "-d", authorization_ref.removeprefix("refs/tags/"))
+    elif mutation == "moved-authorization":
+        _git(repo, "update-ref", authorization_ref, snapshot)
+    elif mutation == "wrong-suffix":
+        tag_oid = _git(repo, "rev-parse", authorization_ref)
+        authorization_ref = "refs/tags/popgp-via000-r3-authorization-" + "0" * 64
+        _git(repo, "update-ref", authorization_ref, tag_oid)
+    else:
+        _git(repo, "tag", "-d", protocol_ref.removeprefix("refs/tags/"))
+        _git(
+            repo,
+            "tag",
+            "-a",
+            "-m",
+            "annotated source tags are forbidden",
+            protocol_ref.removeprefix("refs/tags/"),
+            snapshot,
+        )
+    with pytest.raises(ValueError):
+        guard.verify_campaign_authorization(
+            repo,
+            event_name="workflow_dispatch",
+            github_ref=protocol_ref,
+            github_sha=snapshot,
+            authorization_ref=authorization_ref,
+        )
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "dependency",
+    [
+        "scripts/check_viability_campaign.py",
+        "scripts/check_validation_artifacts.py",
+        "scripts/check_reproduction_boundary.py",
+        "popgp/diagnostics.py",
+    ],
+)
+def test_r3_frozen_validator_rejects_worktree_dependency_substitution_without_output(
+    tmp_path: Path, dependency: str
+) -> None:
+    assembler = _load_module(ASSEMBLER, "r3_frozen_validator_source_closure")
+    repo, _snapshot, protocol_ref, authorization_ref, _authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+    schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    args = SimpleNamespace(
+        repo_root=repo,
+        protocol=protocol_path,
+        schema=schema_path,
+        protocol_source_ref=protocol_ref,
+        authorization_ref=authorization_ref,
+    )
+    authorization = assembler._verify_protocol_identity(args, protocol)
+    raw_path = tmp_path / "raw-results.json"
+    raw_path.write_text("{}\n", encoding="utf-8", newline="\n")
+    changed = repo / dependency
+    changed.write_bytes(changed.read_bytes() + b"\n# substituted only in worktree\n")
+    with pytest.raises(ValueError, match="worktree source differs"):
+        assembler._run_frozen_precommit_validator(
+            args, protocol, authorization, raw_path
+        )
+    assert not (tmp_path / "assembled").exists()
+
+
+@pytest.mark.negative_control
+def test_r3_frozen_validator_executes_snapshot_bundle_and_real_packet(tmp_path: Path) -> None:
+    assembler = _load_module(ASSEMBLER, "r3_frozen_validator_bundle_execution")
+    repo, _snapshot, protocol_ref, authorization_ref, _authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+    schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    args = SimpleNamespace(
+        repo_root=repo,
+        protocol=protocol_path,
+        schema=schema_path,
+        protocol_source_ref=protocol_ref,
+        authorization_ref=authorization_ref,
+    )
+    authorization = assembler._verify_protocol_identity(args, protocol)
+    raw_path = tmp_path / "invalid-raw-results.json"
+    raw_path.write_text("{}\n", encoding="utf-8", newline="\n")
+    with pytest.raises(ValueError, match="frozen validation") as raised:
+        assembler._run_frozen_precommit_validator(args, protocol, authorization, raw_path)
+    assert "raw-results" in str(raised.value)
+    assert not (tmp_path / "assembled").exists()
+
+
+@pytest.mark.parametrize("autocrlf", ["true", "false"])
+def test_r3_cross_platform_git_blob_identity_with_autocrlf(
+    tmp_path: Path, autocrlf: str
+) -> None:
+    origin = tmp_path / "blob-origin"
+    origin.mkdir()
+    _git(origin, "init")
+    _git(origin, "config", "user.name", "R3 blob test")
+    _git(origin, "config", "user.email", "r3-blob@example.invalid")
+    _git(origin, "config", "core.autocrlf", "false")
+    _overlay(ROOT / ".gitattributes", origin / ".gitattributes")
+    _overlay(WORKFLOW, origin / ".github/workflows/via000-r3-protocol.yml")
+    _git(origin, "add", ".")
+    _git(origin, "commit", "-m", "blob fixture")
+    clone = tmp_path / f"checkout-{autocrlf}"
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            f"core.autocrlf={autocrlf}",
+            "clone",
+            "--quiet",
+            str(origin),
+            str(clone),
+        ],
+        check=True,
+    )
+    relative = ".github/workflows/via000-r3-protocol.yml"
+    blob = _git_bytes(origin, "cat-file", "blob", f"HEAD:{relative}")
+    assert clone.joinpath(relative).read_bytes() == blob
+    assert b"\r\n" not in blob
+    assert _git(clone, "check-attr", "eol", "--", relative).endswith("eol: lf")
 
 
 @pytest.mark.negative_control
@@ -308,7 +751,7 @@ def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
     for token in (
         "${{ github.ref }}",
         "${{ github.sha }}",
-        "${{ inputs.protocol_snapshot_commit }}",
+        "${{ inputs.authorization_ref }}",
         "${{ github.run_id }}",
         "${{ github.run_attempt }}",
         "VIA-000-DISPATCH-GUARD.py",
@@ -340,17 +783,20 @@ def test_r3_assembler_rejects_identity_attestation_and_cross_run_mismatch(
 
 def test_r3_assembler_exact_snapshot_ref_happy_path(tmp_path: Path) -> None:
     assembler = _load_module(ASSEMBLER, "r3_assembler_identity_happy")
-    repo, commit, ref = _snapshot_repo(tmp_path, protocol_tree=True)
+    repo, commit, ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
     protocol = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
     schema = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
     args = SimpleNamespace(
         repo_root=repo,
         protocol=protocol,
         schema=schema,
-        protocol_source_commit=commit,
         protocol_source_ref=ref,
+        authorization_ref=authorization_ref,
     )
-    assembler._verify_protocol_identity(args, json.loads(protocol.read_text(encoding="utf-8")))
+    authorization = assembler._verify_protocol_identity(
+        args, json.loads(protocol.read_text(encoding="utf-8"))
+    )
+    assert authorization["protocol_commit"] == commit
 
     roots = _r3_platform_roots(tmp_path / "roundtrip")
     output = tmp_path / "assembled"

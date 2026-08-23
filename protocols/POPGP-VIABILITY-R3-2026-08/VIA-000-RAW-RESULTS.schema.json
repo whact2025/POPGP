@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/whact2025/POPGP/schemas/viability/VIA-000-R2-raw-results-v1",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/VIA-000-R3-raw-results-v1",
   "title": "POPGP VIA-000 R3 raw results",
   "type": "object",
   "additionalProperties": false,
@@ -246,6 +246,10 @@
         "event_name",
         "source_ref",
         "protocol_snapshot_commit",
+        "authorization_ref",
+        "authorization_tag_oid",
+        "authorization_commit",
+        "authorization_record_sha256",
         "producer_run_id",
         "producer_run_attempt"
       ],
@@ -256,6 +260,13 @@
           "pattern": "^refs/tags/popgp-via000-r3-protocol-[0-9a-f]{40}$"
         },
         "protocol_snapshot_commit": {"$ref": "#/$defs/sha1"},
+        "authorization_ref": {
+          "type": "string",
+          "pattern": "^refs/tags/popgp-via000-r3-authorization-[0-9a-f]{64}$"
+        },
+        "authorization_tag_oid": {"$ref": "#/$defs/sha1"},
+        "authorization_commit": {"$ref": "#/$defs/sha1"},
+        "authorization_record_sha256": {"$ref": "#/$defs/sha256"},
         "producer_run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
         "producer_run_attempt": {"type": "integer", "minimum": 1}
       }

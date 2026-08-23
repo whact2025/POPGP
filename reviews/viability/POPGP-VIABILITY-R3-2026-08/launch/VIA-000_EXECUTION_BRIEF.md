@@ -12,6 +12,12 @@ Status: design handoff for independent review only. Do not dispatch or start hol
 - R3 protocol snapshot: pending independent review and final freeze
 - R3 content-addressed tag: pending; it must be
   `popgp-via000-r3-protocol-<final-protocol-snapshot-commit>`
+- R3 signed authorization tag: pending; it must be an SSH-signed annotated tag named
+  `popgp-via000-r3-authorization-<sha256-of-canonical-record>`, point to an immutable
+  authorization commit, and bind campaign/packet/manifest bytes that authorize the
+  exact protocol snapshot.
+- Authorization signer: intentionally absent. Activation is blocked until a separate
+  reviewed amendment freezes exactly one Ed25519 public key.
 
 ## Draft surfaces
 
@@ -28,23 +34,30 @@ Status: design handoff for independent review only. Do not dispatch or start hol
 
 ## Required order after independent approval
 
-1. A maintainer creates the final protocol snapshot commit and a tag whose exact name
-   embeds that same commit.
-2. The drafted campaign is activated only after its packet/manifest bindings point to
-   that snapshot and the authoritative campaign validator passes.
-3. A fresh custodian privately verifies all fourteen carried-forward sealed R2
+1. Independent review accepts the remediation and a separate signer-key amendment
+   freezes exactly one Ed25519 authorization public key.
+2. A maintainer creates the final protocol snapshot commit and a lightweight tag whose
+   exact name embeds that same commit.
+3. A distinct authorization commit freezes campaign, packet, and protocol-manifest
+   bytes that all bind that snapshot. The designated signer creates the canonical,
+   content-addressed, signed annotated authorization tag pointing at that commit.
+4. The campaign is activated only after both tag identities and the authoritative
+   campaign validator pass.
+5. A fresh custodian privately verifies all fourteen carried-forward sealed R2
    commitments and records only hash/byte-count/packet-ID outcomes.
-4. A fresh falsifier executes the clean control and all eighteen mutation families.
-5. Only after custody and falsifier gates pass may a maintainer record `attacked` and
+6. A fresh falsifier executes the clean control and all eighteen mutation families.
+7. Only after custody and falsifier gates pass may a maintainer record `attacked` and
    set `holdout_started: true`.
-6. A separate reproduction runner manually dispatches the workflow from the exact
-   content-addressed tag with `protocol_snapshot_commit` equal to the tag suffix.
-7. Both matrix jobs must share `github.run_id` and `github.run_attempt`; all signed
+8. A separate reproduction runner manually dispatches the workflow from the exact
+   content-addressed protocol tag and supplies the exact signed authorization ref.
+9. Both matrix jobs must share `github.run_id` and `github.run_attempt`; all signed
    summaries and manifests must bind that run and the exact source commit.
-8. The runner invokes the frozen assembler with the same tag, commit, run ID, and
-   attempt. Any mismatch must leave no output directory or commitment.
-9. Only the custodian may authorize reveal after a valid immutable commitment.
-10. Fresh statistical, claim, independent-review, and adjudication seats complete the
+10. The runner invokes the frozen assembler with the same protocol and authorization
+    refs, run ID, and attempt. The assembler derives the commit only from authorized
+    immutable bytes and runs a manifest-verified validator bundle extracted from the
+    snapshot. Any mismatch must leave no output directory or commitment.
+11. Only the custodian may authorize reveal after a valid immutable commitment.
+12. Fresh statistical, claim, independent-review, and adjudication seats complete the
     frozen governance sequence.
 
 Never dispatch from a campaign branch, activation/handoff commit, or mutable lifecycle

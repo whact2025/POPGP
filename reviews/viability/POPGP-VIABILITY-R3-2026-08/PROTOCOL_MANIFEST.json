@@ -13,12 +13,28 @@
   },
   "contract_files": [
     {
+      "path": ".gitattributes",
+      "sha256": "ff5ba55e1f657eff8cb81336f1e9af929631dd208784bfa7d329ec93b65a3c41"
+    },
+    {
       "path": "docs/scientific_hardening/CLAIMS_MATRIX.md",
       "sha256": "33d0e656131b6aea52c3a644f59f91c302b777014839ceb13e5f6f93758e8e6d"
     },
     {
       "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
-      "sha256": "d4a2900cabb075346fca264d6b099193ca51b210126968a1ba553dd8c12157a7"
+      "sha256": "e0b6f0f2793fccfff10d6b274a6f7b785d7e0881843effcc3bff091f9607362f"
+    },
+    {
+      "path": "popgp/diagnostics.py",
+      "sha256": "e2d2edd27be70976cd2c7592b5da6543b0eb8e15c68bb179a6019506eade6ba4"
+    },
+    {
+      "path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py",
+      "sha256": "9d8059d7d655894958e03be4eb8a7dd89b45caa639651545bb3950abcd65880c"
+    },
+    {
+      "path": "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/VIA-000-AUTHORIZED-SIGNERS",
+      "sha256": "e011b5f846924080f93e7b9e827a886acc8b01f5620ac2e9aad6e9004d063c7f"
     },
     {
       "path": "schemas/viability/campaign-v2.schema.json",
@@ -49,12 +65,20 @@
       "sha256": "0719e843fced8109e37f522e538be9905b7f43fcb42a06a3eb50239258785a1d"
     },
     {
+      "path": "scripts/check_reproduction_boundary.py",
+      "sha256": "69e56aba44f77d766a6faa27ca6a8adfaba7825c4b8429ab1b0d9b07408b671c"
+    },
+    {
+      "path": "scripts/check_validation_artifacts.py",
+      "sha256": "109c3505480ea3baaecdc1901e0bd78ada3207450141883ed92eeafa263096f7"
+    },
+    {
       "path": "scripts/check_viability_campaign.py",
-      "sha256": "909e915444b5ccfdbb871baa7413fd73648662089260290cd825bf451c257b91"
+      "sha256": "3bbedca4e7f1de1e031dade075a37969cea767bce9c950bb12486ca00e241dc5"
     }
   ],
   "packet_rule_sha256": {
-    "VIA-000": "358781b16038698ebfa262510376d53f12071684b52cdb244f34c4633b419005",
+    "VIA-000": "555142bb0e3e901b9062db30ea14f434249c673ee5e2ab0daa4c7c42fb056067",
     "VIA-010": "5061a90ec7ff5ccf11b875f0e64f7951020f79e4f3b91c691b28e4099ba6533a",
     "VIA-100": "b9b911474688a191dffe03ce14a5372e166465fa024d2430ed020b1a70d941d2",
     "VIA-150": "ec2879e91e12974ae64819d42382d200bb9e15170a6a3fc00ad15f91e51134ff",

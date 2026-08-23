@@ -82,6 +82,10 @@ def run(args: argparse.Namespace) -> None:
         "event_name": "workflow_dispatch",
         "source_ref": args.dispatch_ref,
         "protocol_snapshot_commit": args.protocol_source_commit,
+        "authorization_ref": args.authorization_ref,
+        "authorization_tag_oid": args.authorization_tag_oid,
+        "authorization_commit": args.authorization_commit,
+        "authorization_record_sha256": args.authorization_record_sha256,
         "producer_run_id": args.producer_run_id,
         "producer_run_attempt": args.producer_run_attempt,
     }
@@ -272,11 +276,21 @@ def main() -> int:
     )
     parser.add_argument("--protocol-source-commit", required=True)
     parser.add_argument("--dispatch-ref", required=True)
+    parser.add_argument("--authorization-ref", required=True)
+    parser.add_argument("--authorization-tag-oid", required=True)
+    parser.add_argument("--authorization-commit", required=True)
+    parser.add_argument("--authorization-record-sha256", required=True)
     parser.add_argument("--producer-run-id", required=True)
     parser.add_argument("--producer-run-attempt", type=int, required=True)
     args = parser.parse_args()
     if re.fullmatch(r"[0-9a-f]{40}", args.protocol_source_commit) is None:
         parser.error("--protocol-source-commit must be a full lowercase Git commit")
+    if re.fullmatch(r"[0-9a-f]{40}", args.authorization_tag_oid) is None:
+        parser.error("--authorization-tag-oid must be a full lowercase Git object")
+    if re.fullmatch(r"[0-9a-f]{40}", args.authorization_commit) is None:
+        parser.error("--authorization-commit must be a full lowercase Git commit")
+    if re.fullmatch(r"[0-9a-f]{64}", args.authorization_record_sha256) is None:
+        parser.error("--authorization-record-sha256 must be a lowercase SHA-256")
     if re.fullmatch(r"[1-9][0-9]*", args.producer_run_id) is None:
         parser.error("--producer-run-id must be a positive decimal identifier")
     if args.producer_run_attempt < 1:

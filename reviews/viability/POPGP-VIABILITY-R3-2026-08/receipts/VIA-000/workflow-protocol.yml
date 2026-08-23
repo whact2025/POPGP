@@ -3,8 +3,8 @@ name: VIA-000 R3 frozen protocol
 on:
   workflow_dispatch:
     inputs:
-      protocol_snapshot_commit:
-        description: Exact 40-hex R3 protocol snapshot commit embedded in the dispatch tag
+      authorization_ref:
+        description: Signed content-addressed R3 campaign authorization tag
         required: true
         type: string
 
@@ -15,7 +15,7 @@ permissions:
   artifact-metadata: write
 
 concurrency:
-  group: via000-r3-${{ inputs.protocol_snapshot_commit }}-${{ github.run_id }}
+  group: via000-r3-${{ github.sha }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -38,16 +38,19 @@ jobs:
           fetch-tags: true
 
       - name: Reject non-snapshot lifecycle refs
+        id: authorization
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           python -I -S `
             protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py `
             --repo-root $env:GITHUB_WORKSPACE `
             --event-name "${{ github.event_name }}" `
             --github-ref "${{ github.ref }}" `
             --github-sha "${{ github.sha }}" `
-            --expected-protocol-snapshot "${{ inputs.protocol_snapshot_commit }}"
+            --authorization-ref "${{ inputs.authorization_ref }}" `
+            --output-json $authorizationPath
           if ($LASTEXITCODE -ne 0) { throw "protocol snapshot identity guard failed" }
 
       - name: Set up base Python
@@ -72,12 +75,18 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
+          $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
           pwsh -NoProfile -File `
             protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1 `
             -WorkspaceRoot $workspace `
             -PlatformFamily "${{ matrix.platform }}" `
-            -ProtocolSourceCommit "${{ inputs.protocol_snapshot_commit }}" `
-            -DispatchRef "${{ github.ref }}" `
+            -ProtocolSourceCommit $authorization.protocol_commit `
+            -DispatchRef $authorization.source_ref `
+            -AuthorizationRef $authorization.authorization_ref `
+            -AuthorizationTagOid $authorization.authorization_tag_oid `
+            -AuthorizationCommit $authorization.authorization_commit `
+            -AuthorizationRecordSha256 $authorization.authorization_record_sha256 `
             -ProducerRunId "${{ github.run_id }}" `
             -ProducerRunAttempt ${{ github.run_attempt }}
           if ($LASTEXITCODE -ne 0) { throw "frozen platform runner failed" }
@@ -119,13 +128,19 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
+          $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
           python -I -S `
             protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py `
             --repo-root $env:GITHUB_WORKSPACE `
             --workspace-root $workspace `
             --platform-family "${{ matrix.platform }}" `
-            --protocol-source-commit "${{ inputs.protocol_snapshot_commit }}" `
-            --dispatch-ref "${{ github.ref }}" `
+            --protocol-source-commit $authorization.protocol_commit `
+            --dispatch-ref $authorization.source_ref `
+            --authorization-ref $authorization.authorization_ref `
+            --authorization-tag-oid $authorization.authorization_tag_oid `
+            --authorization-commit $authorization.authorization_commit `
+            --authorization-record-sha256 $authorization.authorization_record_sha256 `
             --producer-run-id "${{ github.run_id }}" `
             --producer-run-attempt ${{ github.run_attempt }}
           if ($LASTEXITCODE -ne 0) { throw "frozen mutation-test matrix failed" }

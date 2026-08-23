@@ -15,6 +15,22 @@ param(
     [string]$DispatchRef,
 
     [Parameter(Mandatory = $true)]
+    [ValidatePattern("^refs/tags/popgp-via000-r3-authorization-[0-9a-f]{64}$")]
+    [string]$AuthorizationRef,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("^[0-9a-f]{40}$")]
+    [string]$AuthorizationTagOid,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("^[0-9a-f]{40}$")]
+    [string]$AuthorizationCommit,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("^[0-9a-f]{64}$")]
+    [string]$AuthorizationRecordSha256,
+
+    [Parameter(Mandatory = $true)]
     [ValidatePattern("^[1-9][0-9]*$")]
     [string]$ProducerRunId,
 
@@ -434,6 +450,10 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
         event_name = "workflow_dispatch"
         source_ref = $DispatchRef
         protocol_snapshot_commit = $ProtocolSourceCommit
+        authorization_ref = $AuthorizationRef
+        authorization_tag_oid = $AuthorizationTagOid
+        authorization_commit = $AuthorizationCommit
+        authorization_record_sha256 = $AuthorizationRecordSha256
         producer_run_id = $ProducerRunId
         producer_run_attempt = $ProducerRunAttempt
     }

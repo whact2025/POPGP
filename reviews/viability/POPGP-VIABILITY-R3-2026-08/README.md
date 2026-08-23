@@ -25,14 +25,22 @@ R3 does not repair, rerun, reveal, or reinterpret either predecessor.
 
 R3 removes automatic push execution. The sole hosted workflow is
 `.github/workflows/via000-r3-protocol.yml`, and it accepts only a manual dispatch from
-the content-addressed tag
-`refs/tags/popgp-via000-r3-protocol-<protocol-snapshot-commit>`.
-The tag suffix, resolved tag commit, explicit dispatch input, `github.sha`, checkout
-HEAD, runner and mutation `protocol_source_commit`, Sigstore source digest, assembler
-argument, raw-results identity, packet `protocol_commit`, and validator expectation
-must all be the same lowercase 40-hex commit. Linux and Windows fragments must also
-carry one shared GitHub Actions run ID and attempt. A branch/lifecycle HEAD, wrong ref,
+the lightweight content-addressed tag
+`refs/tags/popgp-via000-r3-protocol-<protocol-snapshot-commit>`. The caller supplies a
+separate SSH-signed annotated authorization tag whose name embeds the SHA-256 of its
+canonical record. That record points to an immutable authorization commit whose
+campaign, packet, and manifest blobs independently authorize the same snapshot.
+The source-tag suffix and resolution, authorized packet `protocol_commit`,
+`github.sha`, checkout HEAD, runner and mutation `protocol_source_commit`, Sigstore
+source digest, raw-results identity, assembler-derived identity, and validator
+expectation must all be the same lowercase 40-hex commit. Linux and Windows fragments
+must also carry one shared GitHub Actions run ID and attempt. A branch/lifecycle HEAD,
+later self-consistent tag, moved/substituted authorization, mutable validator source,
 wrong-source attestation, or cross-run mixture fails before output commitment.
+
+The checked-in allowed-signers file is deliberately comment-only. Activation is
+blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
+after which an authorized maintainer may create the binding commit and signed tag.
 
 ## Custody carry-forward boundary
 

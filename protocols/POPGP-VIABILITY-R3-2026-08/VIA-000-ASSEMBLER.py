@@ -38,6 +38,25 @@ def _load_json(path: Path) -> Any:
     )
 
 
+def _load_json_bytes(content: bytes, label: str) -> Any:
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key {key!r} in {label}")
+            value[key] = item
+        return value
+
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON constant {value!r} in {label}")
+
+    return json.loads(
+        content.decode("utf-8"),
+        object_pairs_hook=unique_object,
+        parse_constant=reject_constant,
+    )
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -88,17 +107,24 @@ def _git_output(repo_root: Path, *arguments: str) -> bytes:
     return completed.stdout
 
 
-def _verify_protocol_identity(args: argparse.Namespace, protocol: dict[str, Any]) -> None:
+def _verify_protocol_identity(
+    args: argparse.Namespace, protocol: dict[str, Any]
+) -> dict[str, Any]:
     repo_root = args.repo_root.resolve()
-    expected_ref = SNAPSHOT_REF_PREFIX + args.protocol_source_commit
-    if args.protocol_source_ref != expected_ref:
-        raise ValueError(
-            f"protocol source ref must be {expected_ref}, observed {args.protocol_source_ref}"
-        )
-    resolved = _git_output(
-        repo_root, "rev-parse", "--verify", f"{args.protocol_source_ref}^{{commit}}"
-    ).decode("ascii").strip()
-    if resolved != args.protocol_source_commit:
+    if not args.protocol_source_ref.startswith(SNAPSHOT_REF_PREFIX):
+        raise ValueError("protocol source ref is not an R3 snapshot tag")
+    protocol_source_commit = args.protocol_source_ref.removeprefix(SNAPSHOT_REF_PREFIX)
+    if re.fullmatch(r"[0-9a-f]{40}", protocol_source_commit) is None:
+        raise ValueError("protocol source ref does not end in a full Git commit")
+    object_type = _git_output(repo_root, "cat-file", "-t", args.protocol_source_ref).decode(
+        "ascii"
+    ).strip()
+    if object_type != "commit":
+        raise ValueError("protocol source ref must be a lightweight commit tag")
+    resolved = _git_output(repo_root, "rev-parse", "--verify", args.protocol_source_ref).decode(
+        "ascii"
+    ).strip()
+    if resolved != protocol_source_commit:
         raise ValueError("protocol source ref resolves to a different commit")
 
     for path in (args.protocol.resolve(), args.schema.resolve()):
@@ -107,7 +133,7 @@ def _verify_protocol_identity(args: argparse.Namespace, protocol: dict[str, Any]
         except ValueError as exc:
             raise ValueError(f"protocol artifact is outside repository: {path}") from exc
         frozen = _git_output(
-            repo_root, "cat-file", "blob", f"{args.protocol_source_commit}:{relative}"
+            repo_root, "cat-file", "blob", f"{protocol_source_commit}:{relative}"
         )
         if path.read_bytes() != frozen:
             raise ValueError(f"protocol artifact differs from snapshot bytes: {relative}")
@@ -120,22 +146,69 @@ def _verify_protocol_identity(args: argparse.Namespace, protocol: dict[str, Any]
         ("mutation_runner_protocol_path", "mutation_runner_protocol_sha256"),
         ("dispatch_guard_protocol_path", "dispatch_guard_protocol_sha256"),
         ("workflow_protocol_path", "workflow_protocol_sha256"),
+        ("validator_package_init_path", "validator_package_init_sha256"),
     )
     for path_field, hash_field in artifacts:
         relative = parameters[path_field]
         frozen = _git_output(
-            repo_root, "cat-file", "blob", f"{args.protocol_source_commit}:{relative}"
+            repo_root, "cat-file", "blob", f"{protocol_source_commit}:{relative}"
         )
         observed = hashlib.sha256(frozen).hexdigest()
         if observed != parameters[hash_field]:
             raise ValueError(f"frozen protocol artifact hash mismatch: {relative}")
 
+    guard_path = parameters["dispatch_guard_protocol_path"]
+    guard_blob = _git_output(
+        repo_root, "cat-file", "blob", f"{protocol_source_commit}:{guard_path}"
+    )
+    with tempfile.TemporaryDirectory(prefix="via000-r3-guard-") as temporary:
+        frozen_guard = Path(temporary) / "dispatch_guard.py"
+        frozen_guard.write_bytes(guard_blob)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                str(frozen_guard),
+                "--repo-root",
+                str(repo_root),
+                "--event-name",
+                "workflow_dispatch",
+                "--github-ref",
+                args.protocol_source_ref,
+                "--github-sha",
+                protocol_source_commit,
+                "--authorization-ref",
+                args.authorization_ref,
+                "--allow-non-snapshot-worktree",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    if completed.returncode != 0:
+        raise ValueError(f"campaign authorization failed: {completed.stderr.strip()}")
+    try:
+        authorization = json.loads(completed.stdout)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError("campaign authorization guard returned invalid JSON") from exc
+    if authorization.get("protocol_commit") != protocol_source_commit:
+        raise ValueError("campaign authorization selected a different protocol snapshot")
+    return authorization
 
-def _expected_dispatch_identity(args: argparse.Namespace) -> dict[str, Any]:
+
+def _expected_dispatch_identity(
+    args: argparse.Namespace, authorization: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "event_name": "workflow_dispatch",
-        "source_ref": args.protocol_source_ref,
-        "protocol_snapshot_commit": args.protocol_source_commit,
+        "source_ref": authorization["source_ref"],
+        "protocol_snapshot_commit": authorization["protocol_commit"],
+        "authorization_ref": authorization["authorization_ref"],
+        "authorization_tag_oid": authorization["authorization_tag_oid"],
+        "authorization_commit": authorization["authorization_commit"],
+        "authorization_record_sha256": authorization["authorization_record_sha256"],
         "producer_run_id": args.producer_run_id,
         "producer_run_attempt": args.producer_run_attempt,
     }
@@ -327,11 +400,148 @@ def _copy_manifest_evidence(
     return rewritten_summary, rewritten_manifest
 
 
+def _run_frozen_precommit_validator(
+    args: argparse.Namespace,
+    protocol: dict[str, Any],
+    authorization: dict[str, Any],
+    raw_path: Path,
+) -> None:
+    repo_root = args.repo_root.resolve()
+    protocol_commit = authorization["protocol_commit"]
+    authorization_commit = authorization["authorization_commit"]
+    contract = protocol["parameters"]["authorization_contract"]
+    manifest_path = contract["protocol_manifest_path"]
+    manifest_bytes = _git_output(
+        repo_root, "cat-file", "blob", f"{authorization_commit}:{manifest_path}"
+    )
+    if hashlib.sha256(manifest_bytes).hexdigest() != authorization[
+        "protocol_manifest_sha256"
+    ]:
+        raise ValueError("authorized protocol manifest differs before validation")
+    manifest = _load_json_bytes(manifest_bytes, manifest_path)
+    manifest_hashes = {
+        item["path"]: item["sha256"] for item in manifest.get("contract_files", [])
+    }
+    if len(manifest_hashes) != len(manifest.get("contract_files", [])):
+        raise ValueError("authorized protocol manifest has duplicate contract paths")
+
+    bundle_contract = contract["validator_bundle"]
+    if not isinstance(bundle_contract, list) or not bundle_contract:
+        raise ValueError("frozen precommit validator bundle is empty")
+    bundle_paths: set[str] = set()
+    with tempfile.TemporaryDirectory(prefix="via000-r3-validator-") as temporary:
+        bundle_root = Path(temporary)
+        for item in bundle_contract:
+            if not isinstance(item, dict) or set(item) != {
+                "source_path",
+                "bundle_path",
+                "sha256",
+            }:
+                raise ValueError("frozen validator bundle entry is malformed")
+            source_path = item["source_path"]
+            bundle_path = item["bundle_path"]
+            if (
+                not isinstance(source_path, str)
+                or not isinstance(bundle_path, str)
+                or not source_path
+                or not bundle_path
+                or "\\" in source_path
+                or "\\" in bundle_path
+                or Path(source_path).is_absolute()
+                or Path(bundle_path).is_absolute()
+                or ".." in Path(source_path).parts
+                or ".." in Path(bundle_path).parts
+                or bundle_path in bundle_paths
+            ):
+                raise ValueError("unsafe or duplicate frozen validator bundle path")
+            bundle_paths.add(bundle_path)
+            frozen = _git_output(
+                repo_root, "cat-file", "blob", f"{protocol_commit}:{source_path}"
+            )
+            observed = hashlib.sha256(frozen).hexdigest()
+            if observed != item["sha256"] or manifest_hashes.get(source_path) != observed:
+                raise ValueError(f"validator dependency is not manifest-bound: {source_path}")
+            worktree_source = (repo_root / source_path).resolve()
+            try:
+                worktree_source.relative_to(repo_root)
+            except ValueError as exc:
+                raise ValueError("validator dependency escapes repository") from exc
+            if not worktree_source.is_file() or worktree_source.read_bytes() != frozen:
+                raise ValueError(f"validator worktree source differs from snapshot: {source_path}")
+            destination = bundle_root / bundle_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(frozen)
+
+        packet_path = contract["packet_path"]
+        packet_bytes = _git_output(
+            repo_root, "cat-file", "blob", f"{authorization_commit}:{packet_path}"
+        )
+        if hashlib.sha256(packet_bytes).hexdigest() != authorization["packet_sha256"]:
+            raise ValueError("authorized packet differs before precommit validation")
+        protocol_path = protocol["parameters"].get(
+            "primary_protocol_path",
+            "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json",
+        )
+        schema_path = protocol["parameters"]["raw_results_schema_path"]
+        frozen_protocol = _git_output(
+            repo_root, "cat-file", "blob", f"{protocol_commit}:{protocol_path}"
+        )
+        frozen_schema = _git_output(
+            repo_root, "cat-file", "blob", f"{protocol_commit}:{schema_path}"
+        )
+        input_root = bundle_root / "inputs"
+        input_root.mkdir()
+        packet_file = input_root / "packet.yaml"
+        protocol_file = input_root / "protocol.json"
+        schema_file = input_root / "schema.json"
+        packet_file.write_bytes(packet_bytes)
+        protocol_file.write_bytes(frozen_protocol)
+        schema_file.write_bytes(frozen_schema)
+        validator = bundle_root / "check_viability_campaign.py"
+        environment = os.environ.copy()
+        for name in ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "VIRTUAL_ENV"):
+            environment.pop(name, None)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                str(validator),
+                "--via000-raw-results",
+                str(raw_path),
+                "--via000-protocol",
+                str(protocol_file),
+                "--via000-schema",
+                str(schema_file),
+                "--via000-packet",
+                str(packet_file),
+                "--via000-repo-root",
+                str(repo_root),
+            ],
+            capture_output=True,
+            text=True,
+            env=environment,
+            check=False,
+            timeout=600,
+        )
+        try:
+            result = json.loads(completed.stdout)
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise ValueError(
+                "frozen precommit validator returned invalid JSON: "
+                + completed.stderr.strip()
+            ) from exc
+        errors = result.get("errors") if isinstance(result, dict) else None
+        if completed.returncode != 0 or errors != []:
+            detail = errors[0] if isinstance(errors, list) and errors else completed.stderr.strip()
+            raise ValueError(f"assembled raw results fail frozen validation: {detail}")
+
+
 def assemble(args: argparse.Namespace) -> None:
     protocol = _load_json(args.protocol)
     schema = _load_json(args.schema)
-    _verify_protocol_identity(args, protocol)
-    dispatch_identity = _expected_dispatch_identity(args)
+    authorization = _verify_protocol_identity(args, protocol)
+    args.protocol_source_commit = authorization["protocol_commit"]
+    dispatch_identity = _expected_dispatch_identity(args, authorization)
     contract = protocol["parameters"]["raw_results_contract"]
     required_platforms = contract["required_platforms"]
     platform_roots = _parse_bindings(args.platform_root, "platform root")
@@ -434,22 +644,7 @@ def assemble(args: argparse.Namespace) -> None:
             raise ValueError("assembled raw results fail schema: " + schema_errors[0].message)
         raw_path = temporary / "raw-results.json"
         _write_json(raw_path, raw_document)
-        repo_root = args.repo_root.resolve()
-        if str(repo_root) not in sys.path:
-            sys.path.insert(0, str(repo_root))
-        from scripts.check_viability_campaign import validate_via000_raw_results
-
-        semantic_errors = validate_via000_raw_results(
-            args.protocol,
-            args.schema,
-            raw_path,
-            repo_root=repo_root,
-        )
-        if semantic_errors:
-            raise ValueError(
-                "assembled raw results fail authoritative validation: "
-                + semantic_errors[0]
-            )
+        _run_frozen_precommit_validator(args, protocol, authorization, raw_path)
         commitment = {
             "packet_id": raw_document["packet_id"],
             "committed_by": args.committed_by,
@@ -471,16 +666,14 @@ def main() -> int:
     parser.add_argument("--schema", type=Path, default=here / "VIA-000-RAW-RESULTS.schema.json")
     parser.add_argument("--repo-root", type=Path, default=here.parents[1])
     parser.add_argument("--platform-root", action="append", default=[], required=True)
-    parser.add_argument("--protocol-source-commit", required=True)
     parser.add_argument("--protocol-source-ref", required=True)
+    parser.add_argument("--authorization-ref", required=True)
     parser.add_argument("--producer-run-id", required=True)
     parser.add_argument("--producer-run-attempt", type=int, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--committed-by", required=True)
     parser.add_argument("--committed-at", required=True)
     args = parser.parse_args()
-    if re.fullmatch(r"[0-9a-f]{40}", args.protocol_source_commit) is None:
-        parser.error("--protocol-source-commit must be a full lowercase Git commit")
     if re.fullmatch(r"[1-9][0-9]*", args.producer_run_id) is None:
         parser.error("--producer-run-id must be a positive decimal identifier")
     if args.producer_run_attempt < 1:
