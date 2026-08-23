@@ -7,7 +7,7 @@ repository: https://github.com/whact2025/POPGP
 candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
-protocol_commit: 6e0e0c8ebaecef6d129c68666f113fbd47af4ce7
+protocol_commit: 8aa548ab4b24373634e114606f055b42da570bcd
 requirements_path: schemas/viability/requirements-v2.json
 requirements_sha256: 632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20
 protocol_manifest_path: reviews/viability/POPGP-VIABILITY-R3-2026-08/PROTOCOL_MANIFEST.json
