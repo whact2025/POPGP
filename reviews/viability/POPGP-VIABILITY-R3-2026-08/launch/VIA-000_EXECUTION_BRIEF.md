@@ -50,12 +50,16 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    set `holdout_started: true`.
 8. A separate reproduction runner manually dispatches the workflow from the exact
    content-addressed protocol tag and supplies the exact signed authorization ref.
+   The workflow captures that ref as one tag object ID and uses only that object for
+   parsing, peeling, signature verification, and retained identity; a changed ref
+   aborts before platform execution.
 9. Both matrix jobs must share `github.run_id` and `github.run_attempt`; all signed
    summaries and manifests must bind that run and the exact source commit.
 10. The runner invokes the frozen assembler with the same protocol and authorization
     refs, run ID, and attempt. The assembler derives the commit only from authorized
-    immutable bytes and runs a manifest-verified validator bundle extracted from the
-    snapshot. Any mismatch must leave no output directory or commitment.
+    immutable bytes, independently pins the authorization tag object, and runs a
+    manifest-verified validator bundle extracted from the snapshot. Any mismatch must
+    leave no output directory or commitment.
 11. Only the custodian may authorize reveal after a valid immutable commitment.
 12. Fresh statistical, claim, independent-review, and adjudication seats complete the
     frozen governance sequence.

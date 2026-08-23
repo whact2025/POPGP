@@ -98,6 +98,7 @@ def _authorization_contract(repo_root: Path, protocol_commit: str) -> dict[str, 
     required = {
         "schema_version",
         "authorization_ref_prefix",
+        "tag_object_binding",
         "signature_format",
         "required_signer_principal",
         "allowed_signers_path",
@@ -113,6 +114,7 @@ def _authorization_contract(repo_root: Path, protocol_commit: str) -> dict[str, 
     if (
         contract["schema_version"] != 1
         or contract["authorization_ref_prefix"] != AUTHORIZATION_REF_PREFIX
+        or contract["tag_object_binding"] != "captured-oid-with-final-ref-check-v1"
         or contract["signature_format"] != "ssh"
         or contract["required_packet_lifecycle"] != "preregistered"
     ):
@@ -140,15 +142,19 @@ def _allowed_signers(
     return content
 
 
-def _tag_record(repo_root: Path, authorization_ref: str) -> tuple[dict[str, Any], str]:
+def _tag_record(
+    repo_root: Path, authorization_ref: str, expected_tag_oid: str
+) -> tuple[dict[str, Any], str, str]:
     if not authorization_ref.startswith(AUTHORIZATION_REF_PREFIX):
         raise ValueError("authorization ref is not an R3 authorization tag")
     expected_record_sha = authorization_ref.removeprefix(AUTHORIZATION_REF_PREFIX)
     if SHA256_RE.fullmatch(expected_record_sha) is None:
         raise ValueError("authorization ref must end in a full lowercase SHA-256")
-    if _git(repo_root, "cat-file", "-t", authorization_ref).decode("ascii").strip() != "tag":
-        raise ValueError("authorization ref must name a signed annotated tag object")
     tag_oid = _git(repo_root, "rev-parse", "--verify", authorization_ref).decode("ascii").strip()
+    if SHA1_RE.fullmatch(tag_oid) is None or tag_oid != expected_tag_oid:
+        raise ValueError("authorization ref differs from the captured tag object")
+    if _git(repo_root, "cat-file", "-t", tag_oid).decode("ascii").strip() != "tag":
+        raise ValueError("authorization object must be a signed annotated tag")
     raw = _git(repo_root, "cat-file", "tag", tag_oid)
     try:
         headers, message = raw.split(b"\n\n", 1)
@@ -176,7 +182,7 @@ def _tag_record(repo_root: Path, authorization_ref: str) -> tuple[dict[str, Any]
     record = _strict_json(record_bytes, "authorization tag record")
     if _canonical_json(record) != record_bytes:
         raise ValueError("authorization record is not canonical JSON")
-    return record, tag_oid
+    return record, tag_oid, header_values["object"]
 
 
 def verify_campaign_authorization(
@@ -186,6 +192,7 @@ def verify_campaign_authorization(
     github_ref: str,
     github_sha: str,
     authorization_ref: str,
+    expected_authorization_tag_oid: str,
     require_checkout_head: bool = True,
 ) -> dict[str, Any]:
     """Return the unique signed campaign authorization or fail closed."""
@@ -203,7 +210,11 @@ def verify_campaign_authorization(
 
     contract = _authorization_contract(repo_root, protocol_commit)
     signers = _allowed_signers(repo_root, protocol_commit, contract)
-    record, tag_oid = _tag_record(repo_root, authorization_ref)
+    if SHA1_RE.fullmatch(expected_authorization_tag_oid) is None:
+        raise ValueError("captured authorization tag object must be full lowercase 40-hex")
+    record, tag_oid, parsed_target = _tag_record(
+        repo_root, authorization_ref, expected_authorization_tag_oid
+    )
     required_record_fields = {
         "schema_version",
         "campaign_id",
@@ -232,10 +243,10 @@ def verify_campaign_authorization(
     authorization_commit = record["authorization_commit"]
     if SHA1_RE.fullmatch(authorization_commit) is None:
         raise ValueError("authorization commit must be full lowercase 40-hex")
-    target = _git(repo_root, "rev-parse", "--verify", f"{authorization_ref}^{{commit}}").decode(
+    target = _git(repo_root, "rev-parse", "--verify", f"{tag_oid}^{{commit}}").decode(
         "ascii"
     ).strip()
-    if target != authorization_commit:
+    if parsed_target != authorization_commit or target != authorization_commit:
         raise ValueError("authorization tag target differs from its signed record")
 
     with tempfile.TemporaryDirectory(prefix="via000-r3-signers-") as temporary:
@@ -252,7 +263,7 @@ def verify_campaign_authorization(
                 f"gpg.ssh.allowedSignersFile={signers_path}",
                 "verify-tag",
                 "--raw",
-                authorization_ref,
+                tag_oid,
             ],
             capture_output=True,
             check=False,
@@ -293,6 +304,12 @@ def verify_campaign_authorization(
     ):
         raise ValueError("authorized campaign manifest binding mismatch")
 
+    final_tag_oid = _git(repo_root, "rev-parse", "--verify", authorization_ref).decode(
+        "ascii"
+    ).strip()
+    if final_tag_oid != tag_oid:
+        raise ValueError("authorization ref changed during immutable-object verification")
+
     return {
         "protocol_commit": protocol_commit,
         "source_ref": github_ref,
@@ -315,6 +332,7 @@ def main() -> int:
     parser.add_argument("--github-ref", required=True)
     parser.add_argument("--github-sha", required=True)
     parser.add_argument("--authorization-ref", required=True)
+    parser.add_argument("--expected-authorization-tag-oid", required=True)
     parser.add_argument("--allow-non-snapshot-worktree", action="store_true")
     parser.add_argument("--output-json", type=Path)
     args = parser.parse_args()
@@ -324,6 +342,7 @@ def main() -> int:
         github_ref=args.github_ref,
         github_sha=args.github_sha,
         authorization_ref=args.authorization_ref,
+        expected_authorization_tag_oid=args.expected_authorization_tag_oid,
         require_checkout_head=not args.allow_non_snapshot_worktree,
     )
     content = json.dumps(result, allow_nan=False, sort_keys=True)

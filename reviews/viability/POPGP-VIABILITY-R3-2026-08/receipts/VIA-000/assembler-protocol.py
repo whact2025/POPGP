@@ -161,6 +161,11 @@ def _verify_protocol_identity(
     guard_blob = _git_output(
         repo_root, "cat-file", "blob", f"{protocol_source_commit}:{guard_path}"
     )
+    captured_authorization_tag_oid = _git_output(
+        repo_root, "rev-parse", "--verify", args.authorization_ref
+    ).decode("ascii").strip()
+    if re.fullmatch(r"[0-9a-f]{40}", captured_authorization_tag_oid) is None:
+        raise ValueError("authorization ref did not resolve to a full Git object")
     with tempfile.TemporaryDirectory(prefix="via000-r3-guard-") as temporary:
         frozen_guard = Path(temporary) / "dispatch_guard.py"
         frozen_guard.write_bytes(guard_blob)
@@ -180,6 +185,8 @@ def _verify_protocol_identity(
                 protocol_source_commit,
                 "--authorization-ref",
                 args.authorization_ref,
+                "--expected-authorization-tag-oid",
+                captured_authorization_tag_oid,
                 "--allow-non-snapshot-worktree",
             ],
             capture_output=True,
@@ -195,6 +202,8 @@ def _verify_protocol_identity(
         raise ValueError("campaign authorization guard returned invalid JSON") from exc
     if authorization.get("protocol_commit") != protocol_source_commit:
         raise ValueError("campaign authorization selected a different protocol snapshot")
+    if authorization.get("authorization_tag_oid") != captured_authorization_tag_oid:
+        raise ValueError("campaign authorization returned a different tag object")
     return authorization
 
 

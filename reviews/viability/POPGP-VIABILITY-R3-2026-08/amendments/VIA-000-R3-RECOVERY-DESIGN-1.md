@@ -35,8 +35,10 @@ scientific command, the frozen dispatch guard requires:
 2. exact content-addressed tag ref;
 3. the resolved source tag equal to its suffix;
 4. `github.sha` and checkout HEAD equal to the source snapshot;
-5. a canonical content-addressed authorization record with an immutable target;
-6. a valid SSH signature from the public key frozen in the source snapshot; and
+5. one captured authorization tag object for record parsing, target peeling, and
+   returned identity, with a final check that its ref did not change;
+6. a valid SSH signature over that same captured object from the public key frozen in
+   the source snapshot; and
 7. exact hashes and protocol bindings in the authorized campaign, packet, and
    manifest blobs.
 
@@ -68,6 +70,7 @@ authorized packet commit = source-tag suffix = resolved source tag
 The registered R3 identity gate rejects push events, branch refs, wrong tag suffixes,
 wrong ref resolution, wrong `github.sha`, later lifecycle HEADs, a later
 self-consistent exact-tagged commit, unsigned/moved/deleted/substituted authorization,
+an authorization-ref swap between parsing, peeling, and signature verification,
 protocol files or validator dependencies that differ from snapshot Git blobs,
 wrong-source attestations, and Ubuntu/Windows fragments from different workflow runs.
 Every rejection is required before an output commitment can exist. Disposable test

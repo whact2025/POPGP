@@ -77,6 +77,15 @@ def _git_bytes(repo: Path, *args: str) -> bytes:
     ).stdout
 
 
+def _git_bytes_input(repo: Path, content: bytes, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args],
+        input=content,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
 def _write_json(path: Path, document: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8", newline="\n")
@@ -294,6 +303,43 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
     return repo, snapshot, protocol_ref, authorization_ref, authorization_commit
 
 
+def _authorization_race_objects(
+    repo: Path, authorization_ref: str, authorization_commit: str
+) -> tuple[str, str, str]:
+    """Return original-valid, invalid-record, and unrelated-valid tag object IDs."""
+
+    original_oid = _git(repo, "rev-parse", authorization_ref)
+    original = _git_bytes(repo, "cat-file", "tag", original_oid)
+    marker = b"-----BEGIN SSH SIGNATURE-----\n"
+    prefix, signature = original.split(marker, 1)
+    signature_lines = signature.splitlines(keepends=True)
+    for index, line in enumerate(signature_lines):
+        if line.strip() and not line.startswith(b"-----END"):
+            replacement = b"A" if line[:1] != b"A" else b"B"
+            signature_lines[index] = replacement + line[1:]
+            break
+    invalid = prefix + marker + b"".join(signature_lines)
+    invalid_oid = _git_bytes_input(
+        repo, invalid, "hash-object", "-w", "-t", "tag", "--stdin"
+    ).decode("ascii").strip()
+
+    tag_name = authorization_ref.removeprefix("refs/tags/")
+    _git(
+        repo,
+        "tag",
+        "-f",
+        "-s",
+        "-m",
+        "signed unrelated message",
+        tag_name,
+        authorization_commit,
+    )
+    unrelated_valid_oid = _git(repo, "rev-parse", authorization_ref)
+    assert unrelated_valid_oid not in {original_oid, invalid_oid}
+    _git(repo, "update-ref", authorization_ref, invalid_oid, unrelated_valid_oid)
+    return original_oid, invalid_oid, unrelated_valid_oid
+
+
 def _snapshot_repo(tmp_path: Path, *, protocol_tree: bool = False) -> tuple[Path, str, str]:
     repo = tmp_path / "repository"
     repo.mkdir()
@@ -504,12 +550,14 @@ def _run_assembler(
 def test_dispatch_guard_accepts_exact_snapshot_ref(tmp_path: Path) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_happy")
     repo, commit, ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
+    authorization_tag_oid = _git(repo, "rev-parse", authorization_ref)
     result = guard.verify_campaign_authorization(
         repo,
         event_name="workflow_dispatch",
         github_ref=ref,
         github_sha=commit,
         authorization_ref=authorization_ref,
+        expected_authorization_tag_oid=authorization_tag_oid,
     )
     assert result["protocol_commit"] == commit
     assert result["authorization_ref"] == authorization_ref
@@ -522,6 +570,7 @@ def test_dispatch_guard_rejects_wrong_event_ref_sha_or_head(
 ) -> None:
     guard = _load_module(GUARD, f"r3_dispatch_guard_{mutation}")
     repo, commit, ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
+    authorization_tag_oid = _git(repo, "rev-parse", authorization_ref)
     event_name = "workflow_dispatch"
     github_ref = ref
     github_sha = commit
@@ -544,6 +593,7 @@ def test_dispatch_guard_rejects_wrong_event_ref_sha_or_head(
             github_ref=github_ref,
             github_sha=github_sha,
             authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=authorization_tag_oid,
         )
 
 
@@ -553,6 +603,7 @@ def test_r3_authorization_rejects_self_consistent_later_lifecycle_and_substituti
 ) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_later_lifecycle")
     repo, snapshot, _ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
+    authorization_tag_oid = _git(repo, "rev-parse", authorization_ref)
     lifecycle = repo / "protocols/POPGP-VIABILITY-R3-2026-08/later-lifecycle.txt"
     lifecycle.write_text("later\n", encoding="utf-8", newline="\n")
     _git(repo, "add", str(lifecycle))
@@ -567,6 +618,7 @@ def test_r3_authorization_rejects_self_consistent_later_lifecycle_and_substituti
             github_ref=later_ref,
             github_sha=later,
             authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=authorization_tag_oid,
         )
     assert snapshot != later
     output = tmp_path / "unauthorized-output"
@@ -615,6 +667,7 @@ def test_r3_authorization_rejects_moved_deleted_or_wrong_kind_refs(
     repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
         _authorized_repo(tmp_path)
     )
+    authorization_tag_oid = _git(repo, "rev-parse", authorization_ref)
     if mutation == "deleted-authorization":
         _git(repo, "tag", "-d", authorization_ref.removeprefix("refs/tags/"))
     elif mutation == "moved-authorization":
@@ -641,7 +694,174 @@ def test_r3_authorization_rejects_moved_deleted_or_wrong_kind_refs(
             github_ref=protocol_ref,
             github_sha=snapshot,
             authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=authorization_tag_oid,
         )
+
+
+@pytest.mark.negative_control
+def test_r3_authorization_rejects_invalid_captured_object_after_valid_ref_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guard = _load_module(GUARD, "r3_dispatch_guard_captured_invalid_swap")
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    _original_oid, invalid_oid, unrelated_valid_oid = _authorization_race_objects(
+        repo, authorization_ref, authorization_commit
+    )
+    original_git = guard._git
+    swapped = False
+
+    def swap_after_parse(repo_root: Path, *arguments: str) -> bytes:
+        nonlocal swapped
+        result = original_git(repo_root, *arguments)
+        if arguments == ("cat-file", "tag", invalid_oid) and not swapped:
+            _git(
+                repo,
+                "update-ref",
+                authorization_ref,
+                unrelated_valid_oid,
+                invalid_oid,
+            )
+            swapped = True
+        return result
+
+    monkeypatch.setattr(guard, "_git", swap_after_parse)
+    output_json = tmp_path / "authorization.json"
+    with pytest.raises(ValueError, match="signature|changed|captured"):
+        guard.verify_campaign_authorization(
+            repo,
+            event_name="workflow_dispatch",
+            github_ref=protocol_ref,
+            github_sha=snapshot,
+            authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=invalid_oid,
+        )
+    assert swapped
+    assert _git(repo, "rev-parse", authorization_ref) == unrelated_valid_oid
+    assert not output_json.exists()
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    ("stage", "mutation"),
+    [("parse", "delete"), ("peel", "move"), ("verify", "swap")],
+)
+def test_r3_authorization_rejects_ref_change_during_exact_object_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage: str,
+    mutation: str,
+) -> None:
+    guard = _load_module(GUARD, f"r3_dispatch_guard_race_{stage}")
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    original_oid, _invalid_oid, unrelated_valid_oid = _authorization_race_objects(
+        repo, authorization_ref, authorization_commit
+    )
+    _git(repo, "update-ref", authorization_ref, original_oid)
+    original_git = guard._git
+    original_run = guard.subprocess.run
+    changed = False
+
+    def mutate_ref() -> None:
+        nonlocal changed
+        if changed:
+            return
+        if mutation == "delete":
+            command = ["update-ref", "-d", authorization_ref, original_oid]
+        elif mutation == "move":
+            command = ["update-ref", authorization_ref, authorization_commit, original_oid]
+        else:
+            command = ["update-ref", authorization_ref, unrelated_valid_oid, original_oid]
+        original_run(
+            ["git", "-C", str(repo), *command], check=True, capture_output=True
+        )
+        changed = True
+
+    def git_with_race(repo_root: Path, *arguments: str) -> bytes:
+        result = original_git(repo_root, *arguments)
+        if stage == "parse" and arguments == ("cat-file", "tag", original_oid):
+            mutate_ref()
+        elif stage == "peel" and arguments == (
+            "rev-parse",
+            "--verify",
+            f"{original_oid}^{{commit}}",
+        ):
+            mutate_ref()
+        return result
+
+    def run_with_race(*args: object, **kwargs: object):
+        command = args[0] if args else kwargs.get("args")
+        if (
+            stage == "verify"
+            and isinstance(command, list)
+            and "verify-tag" in command
+        ):
+            mutate_ref()
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setattr(guard, "_git", git_with_race)
+    monkeypatch.setattr(guard.subprocess, "run", run_with_race)
+    with pytest.raises(ValueError, match="changed|Git authorization query failed"):
+        guard.verify_campaign_authorization(
+            repo,
+            event_name="workflow_dispatch",
+            github_ref=protocol_ref,
+            github_sha=snapshot,
+            authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=original_oid,
+        )
+    assert changed
+    assert not (tmp_path / "authorization.json").exists()
+
+
+@pytest.mark.negative_control
+def test_r3_assembler_extracted_guard_rejects_ref_swap_after_oid_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assembler = _load_module(ASSEMBLER, "r3_assembler_extracted_guard_ref_swap")
+    repo, _snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    _original_oid, invalid_oid, unrelated_valid_oid = _authorization_race_objects(
+        repo, authorization_ref, authorization_commit
+    )
+    protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+    schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    args = SimpleNamespace(
+        repo_root=repo,
+        protocol=protocol_path,
+        schema=schema_path,
+        protocol_source_ref=protocol_ref,
+        authorization_ref=authorization_ref,
+    )
+    original_git_output = assembler._git_output
+    swapped = False
+
+    def capture_then_swap(repo_root: Path, *arguments: str) -> bytes:
+        nonlocal swapped
+        result = original_git_output(repo_root, *arguments)
+        if arguments == ("rev-parse", "--verify", authorization_ref) and not swapped:
+            assert result.decode("ascii").strip() == invalid_oid
+            _git(
+                repo,
+                "update-ref",
+                authorization_ref,
+                unrelated_valid_oid,
+                invalid_oid,
+            )
+            swapped = True
+        return result
+
+    monkeypatch.setattr(assembler, "_git_output", capture_then_swap)
+    with pytest.raises(ValueError, match="authorization failed"):
+        assembler._verify_protocol_identity(args, protocol)
+    assert swapped
+    assert not (tmp_path / "assembled").exists()
+    assert not list(tmp_path.glob(".assembled-*"))
 
 
 @pytest.mark.negative_control
@@ -752,6 +972,8 @@ def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
         "${{ github.ref }}",
         "${{ github.sha }}",
         "${{ inputs.authorization_ref }}",
+        "--expected-authorization-tag-oid",
+        "authorization ref changed before platform execution",
         "${{ github.run_id }}",
         "${{ github.run_attempt }}",
         "VIA-000-DISPATCH-GUARD.py",

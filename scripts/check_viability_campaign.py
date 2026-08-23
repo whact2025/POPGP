@@ -1589,6 +1589,7 @@ def _validate_raw_evidence_contract(
         "authorization_ref_prefix": "refs/tags/popgp-via000-r3-authorization-",
         "authorization_ref_suffix": "authorization-record-sha256",
         "require_signed_campaign_packet": True,
+        "require_single_authorization_object": True,
         "require_workflow_sha_match": True,
         "require_checkout_head_match": True,
         "require_single_producer_run": True,
