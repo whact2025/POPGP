@@ -13,7 +13,13 @@ candidate `9a29e05f803666bf0e3a28417ea399e3e26769fc`.
 ## Current state
 
 - Campaign decision: pending.
-- `VIA-000`: attacked and holdout-started, but still unrevealed and not run. The
+- `VIA-000`: attacked and holdout-started, still unrevealed, and pending after one
+  invalid reproduction attempt. Both hosted platforms completed, but the full
+  campaign validator rejected the unattached package because the workflow attested
+  the lifecycle handoff rather than the frozen protocol snapshot. No reveal or rerun
+  occurred; the audit record is
+  [`attempts/VIA-000-R2-INVALID-ATTEMPT-1.md`](attempts/VIA-000-R2-INVALID-ATTEMPT-1.md).
+  Before that attempt, the
   post-refreeze falsifier passed the exact clean control and rejected all eighteen
   frozen mutation families across 145 executed test nodes, as recorded in
   [`attacks/VIA-000-R2-ATTACK-PLAN-2.md`](attacks/VIA-000-R2-ATTACK-PLAN-2.md).
