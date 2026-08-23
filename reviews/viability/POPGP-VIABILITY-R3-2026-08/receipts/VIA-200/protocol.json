@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-200",
+  "parameters": {
+    "geometric_precision_min": 0.9,
+    "geometric_recall_min": 0.9,
+    "distance_distortion_max": 0.2,
+    "family_false_geometric_rate_max": 0.05,
+    "family_abstention_rate_max": 0.25,
+    "permutation_absolute_tolerance": 1e-10,
+    "perturbation_stability_min": 0.95
+  },
+  "measurement_procedure": "Evaluate held-out chain, square, triangular, 3D, long-range, expander, random-regular, shuffled, uniform, Bell, and feasible topological controls; keep truth evaluator-only and report family-balanced recovery, distortion, status, dimension, stress, calibration, and abstention.",
+  "uncertainty_procedure": "Use family-level bootstrap intervals and exact permutation checks; no family can be rescued by averaging with easier families.",
+  "statistical_analysis": "Pass only if every geometric family clears recovery/distortion bounds, every control stays below false geometry, abstention stays bounded, and equivariance/stability pass.",
+  "resource_budget": {
+    "wall_time_seconds": 14400,
+    "memory_bytes": 17179869184,
+    "accelerator_seconds": 0
+  },
+  "commands": [
+    "uv run pytest -q tests/scientific/test_topology_recovery.py tests/unit/test_geometry.py",
+    "uv run python -m examples.physics_qg.chain_1d",
+    "uv run python -m examples.physics_qg.grid_2d"
+  ],
+  "mutation_plan": [
+    "Perturb Bell controls.",
+    "Sweep the dimension penalty.",
+    "Permute labels.",
+    "Inject symmetric noise.",
+    "Construct an adversarial shuffled correlation matrix."
+  ]
+}

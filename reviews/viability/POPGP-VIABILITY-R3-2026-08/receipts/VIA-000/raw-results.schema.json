@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/schemas/viability/VIA-000-R2-raw-results-v1",
+  "title": "POPGP VIA-000 R3 raw results",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "packet_id",
+    "candidate_commit",
+    "candidate_tree",
+    "protocol_source_commit",
+    "dispatch_identity",
+    "platforms",
+    "evidence_manifest",
+    "capabilities",
+    "failed",
+    "blocked"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "campaign_id": {"const": "POPGP-VIABILITY-R3-2026-08"},
+    "packet_id": {"const": "VIA-000"},
+    "candidate_commit": {"const": "5be3c38a0822d49953d0933f14ccab32ca12c896"},
+    "candidate_tree": {"const": "6ad387f9f4e0bab7f97df1bb54a03177887f0707"},
+    "protocol_source_commit": {"$ref": "#/$defs/sha1"},
+    "dispatch_identity": {"$ref": "#/$defs/dispatch_identity"},
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ubuntu-latest-x86_64", "windows-x86_64"],
+      "properties": {
+        "ubuntu-latest-x86_64": {"$ref": "#/$defs/platform"},
+        "windows-x86_64": {"$ref": "#/$defs/platform"}
+      }
+    },
+    "evidence_manifest": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/evidence_entry"}
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence-contract",
+        "cross-platform-reproduction",
+        "mutation-rejection"
+      ],
+      "properties": {
+        "evidence-contract": {"type": "boolean"},
+        "cross-platform-reproduction": {"type": "boolean"},
+        "mutation-rejection": {"type": "boolean"}
+      }
+    },
+    "failed": {"type": "boolean"},
+    "blocked": {"const": false}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safe_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "command_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "contract_id",
+        "exit_code",
+        "duration_seconds",
+        "result_path",
+        "result_sha256",
+        "stdout_path",
+        "stdout_sha256",
+        "stderr_path",
+        "stderr_sha256"
+      ],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "contract_id": {"type": "string", "minLength": 1},
+        "exit_code": {"type": "integer"},
+        "duration_seconds": {"type": "number", "minimum": 0},
+        "result_path": {"$ref": "#/$defs/safe_path"},
+        "result_sha256": {"$ref": "#/$defs/sha256"},
+        "stdout_path": {"$ref": "#/$defs/safe_path"},
+        "stdout_sha256": {"$ref": "#/$defs/sha256"},
+        "stderr_path": {"$ref": "#/$defs/safe_path"},
+        "stderr_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform_family",
+        "schema_version",
+        "campaign_id",
+        "packet_id",
+        "candidate_commit",
+        "candidate_tree",
+        "protocol_source_commit",
+        "dispatch_identity",
+        "producer_attestation",
+        "uv_version",
+        "pdf_engine",
+        "command_results",
+        "artifact_results",
+        "mutation_results",
+        "test_count",
+        "example_count",
+        "visual_count",
+        "mutation_count",
+        "commands_passed",
+        "semantic_contract_passed",
+        "visual_contract_passed",
+        "source_boundary_passed",
+        "environment_boundary_passed",
+        "pdf_passed",
+        "mutations_rejected",
+        "overall_passed",
+        "evidence_paths",
+        "environment_manifest_sha256",
+        "source_manifest_sha256",
+        "pdf_sha256",
+        "pdf_page_count",
+        "completed_at"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "campaign_id": {"const": "POPGP-VIABILITY-R3-2026-08"},
+        "packet_id": {"const": "VIA-000"},
+        "platform_family": {
+          "enum": ["ubuntu-latest-x86_64", "windows-x86_64"]
+        },
+        "candidate_commit": {"$ref": "#/$defs/sha1"},
+        "candidate_tree": {"$ref": "#/$defs/sha1"},
+        "protocol_source_commit": {"$ref": "#/$defs/sha1"},
+        "dispatch_identity": {"$ref": "#/$defs/dispatch_identity"},
+        "producer_attestation": {"$ref": "#/$defs/producer_attestation"},
+        "uv_version": {"type": "string", "minLength": 2},
+        "pdf_engine": {"type": "string", "minLength": 2},
+        "command_results": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/command_result"}
+        },
+        "artifact_results": {
+          "type": "object",
+          "minProperties": 18,
+          "maxProperties": 18,
+          "additionalProperties": {"$ref": "#/$defs/artifact_result"}
+        },
+        "mutation_results": {
+          "type": "array",
+          "maxItems": 18,
+          "items": {"$ref": "#/$defs/mutation_result"}
+        },
+        "test_count": {"type": "integer", "minimum": 0},
+        "example_count": {"type": "integer", "minimum": 0},
+        "visual_count": {"type": "integer", "minimum": 0},
+        "mutation_count": {"type": "integer", "minimum": 0},
+        "commands_passed": {"type": "boolean"},
+        "semantic_contract_passed": {"type": "boolean"},
+        "visual_contract_passed": {"type": "boolean"},
+        "source_boundary_passed": {"type": "boolean"},
+        "environment_boundary_passed": {"type": "boolean"},
+        "pdf_passed": {"type": "boolean"},
+        "mutations_rejected": {"type": "boolean"},
+        "overall_passed": {"type": "boolean"},
+        "evidence_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safe_path"}
+        },
+        "environment_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "pdf_sha256": {"$ref": "#/$defs/sha256"},
+        "pdf_page_count": {"type": "integer", "minimum": 1},
+        "completed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "artifact_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "evidence_path", "sha256", "media_type"],
+      "properties": {
+        "source_path": {"$ref": "#/$defs/safe_path"},
+        "evidence_path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "media_type": {"enum": ["application/json", "image/gif", "image/png"]}
+      }
+    },
+    "mutation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutation_id", "rejected", "evidence_paths"],
+      "properties": {
+        "mutation_id": {"type": "string", "pattern": "^family-(?:0[1-9]|1[0-8])$"},
+        "rejected": {"type": "boolean"},
+        "evidence_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safe_path"}
+        }
+      }
+    },
+    "producer_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "signer_workflow",
+        "source_commit",
+        "bundle_path",
+        "subject_paths"
+      ],
+      "properties": {
+        "repository": {"const": "whact2025/POPGP"},
+        "signer_workflow": {
+          "const": "whact2025/POPGP/.github/workflows/via000-r3-protocol.yml"
+        },
+        "source_commit": {"$ref": "#/$defs/sha1"},
+        "bundle_path": {"$ref": "#/$defs/safe_path"},
+        "subject_paths": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/safe_path"}
+        }
+      }
+    },
+    "dispatch_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_name",
+        "source_ref",
+        "protocol_snapshot_commit",
+        "producer_run_id",
+        "producer_run_attempt"
+      ],
+      "properties": {
+        "event_name": {"const": "workflow_dispatch"},
+        "source_ref": {
+          "type": "string",
+          "pattern": "^refs/tags/popgp-via000-r3-protocol-[0-9a-f]{40}$"
+        },
+        "protocol_snapshot_commit": {"$ref": "#/$defs/sha1"},
+        "producer_run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "producer_run_attempt": {"type": "integer", "minimum": 1}
+      }
+    },
+    "evidence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform_family", "path", "sha256", "byte_count", "media_type", "role"],
+      "properties": {
+        "platform_family": {
+          "enum": ["ubuntu-latest-x86_64", "windows-x86_64"]
+        },
+        "path": {"$ref": "#/$defs/safe_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "media_type": {"type": "string", "minLength": 1},
+        "role": {
+          "enum": [
+            "command-result",
+            "command-stderr",
+            "command-stdout",
+            "environment-manifest",
+            "mutation-result",
+            "mutation-suite-result",
+            "mutation-suite-stderr",
+            "mutation-suite-stdout",
+            "pdf",
+            "pdf-build",
+            "pdf-engine",
+            "repository-status",
+            "producer-attestation",
+            "producer-manifest",
+            "producer-summary",
+            "source-manifest",
+            "supporting",
+            "validation-json",
+            "visual"
+          ]
+        },
+        "source_path": {"$ref": "#/$defs/safe_path"}
+      }
+    },
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

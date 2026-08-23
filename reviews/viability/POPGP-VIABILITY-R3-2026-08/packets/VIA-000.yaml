@@ -1,0 +1,732 @@
+schema_version: 2
+contract_version: popgp-viability-contract-v2
+campaign_id: POPGP-VIABILITY-R3-2026-08
+packet_id: VIA-000
+candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
+baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
+protocol_commit: 6e0e0c8ebaecef6d129c68666f113fbd47af4ce7
+protocol_rule_sha256: 358781b16038698ebfa262510376d53f12071684b52cdb244f34c4633b419005
+lifecycle_phase: drafted
+claims:
+- C03
+- C04
+- C06
+- C08
+- C09
+- C10
+- C11
+- C12
+- C13
+existing_gates:
+- GATE-SOURCE-KMS-RESPONSE
+- GATE-ENTROPY-CONFOUND
+- GATE-MODULAR-LOCALIZATION
+- GATE-BLIND-TOPOLOGY
+- GATE-NONGEOMETRIC-CONTROLS
+- GATE-PARAMETER-ROBUSTNESS
+- GATE-RTHREE-SNAPSHOT-IDENTITY
+declared_evidence_requirement: E3-adversarial-suite
+capabilities:
+- evidence-contract
+- cross-platform-reproduction
+- mutation-rejection
+capability_rules:
+  evidence-contract:
+    compare:
+      left:
+        binding: evidence-contract
+      op: eq
+      right:
+        value: true
+  cross-platform-reproduction:
+    compare:
+      left:
+        binding: cross-platform-reproduction
+      op: eq
+      right:
+        value: true
+  mutation-rejection:
+    compare:
+      left:
+        binding: mutation-rejection
+      op: eq
+      right:
+        value: true
+hypothesis: The independently reviewed candidate can be rebuilt on Linux and Windows from a literal Git/object
+  and complete locked-environment boundary, reproduce every retained decision from raw operands and declared
+  provenance, build the manuscript, and reject every preregistered evidence, startup, source-boundary,
+  visual, and correlated semantic corruption.
+null_or_competitors:
+- The apparent passes depend on undeclared builder state, one operating system, or mutable environment/source
+  bytes.
+- The semantic or visual oracle accepts a decision-changing corruption within its portability tolerance.
+- Correlated graph, source, or solver-configuration changes preserve a residual while contradicting upstream
+  retained provenance.
+- The manuscript or committed structured artifacts cannot be reproduced from the exact candidate.
+known_failure_to_retain: Retain the valid failed R1 VIA-000 outcome, Linux regeneration/startup-boundary
+  failures, CA failed headline, perturbed-Bell false geometry, raw-relative-entropy source failure, entropy
+  confound, and reduced-modular localization failure. R2 may not overwrite or reinterpret R1. Retain the
+  R2 invalid reproduction attempt as protocol-identity evidence; R3 may not reinterpret or rerun R2.
+threat_model:
+- undeclared local, environment, startup, cache, index, filter, symlink, or platform state
+- regeneration without semantic or calibrated visual equivalence
+- stale, duplicated, weakened, mistyped, non-finite, or summary-only decision evidence
+- correlated graph, source, mass, gauge, policy, and diagnostic mutations that preserve a downstream residual
+- repository-local PDF output, dirty regeneration, missing raw logs, or evidence available only in prose
+- post-output replacement, premature reveal, or broken custody/receipt chronology
+preregistration:
+  parameters:
+    candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
+    candidate_tree: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
+    comparison_baseline: 9a29e05f803666bf0e3a28417ea399e3e26769fc
+    dependency_lock: uv.lock
+    python_minor: '3.11'
+    uv_version: 0.11.11
+    platform_families:
+    - ubuntu-latest-x86_64
+    - windows-x86_64
+    required_test_count: 366
+    required_example_count: 6
+    required_visual_count: 12
+    required_mutation_count: 18
+    required_command_count: 16
+    maximum_cross_platform_channel_delta: 4
+    pdf_engine: pdfTeX-1.40.29-TeX-Live-2026
+    pdf_engine_banner: pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
+    pdf_pass_count: 2
+    runner_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1
+    runner_protocol_sha256: 94ee667ad1527a0090b11be407fe67f3c0e97a16161ef55d0cc759daa244528f
+    raw_results_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json
+    raw_results_schema_sha256: 274a1b1e79300bf5cf37835e416f793c4a9da1e4efd4a8ffdb070f960897bab2
+    assembler_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py
+    assembler_protocol_sha256: f1340fa189bc788f04f1c0441a4cc1ef76bf8ec2b372cf1f7dc0785fc6fa5a99
+    mutation_runner_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py
+    mutation_runner_protocol_sha256: 3ed3564e92f7b327d1352deaf51c7f233bbd2705a1a08a4bb267e67f1eacf480
+    dispatch_guard_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py
+    dispatch_guard_protocol_sha256: 27e9316eaee7f505b0bd18f7dfca8a0f57a511b7b97eae5a29f1e55c48b08bc2
+    workflow_protocol_path: .github/workflows/via000-r3-protocol.yml
+    workflow_protocol_sha256: 70d1065721025bb2951b8f55be437e9c61e8911d6171a9b0b3e30dc8dd046c9a
+    raw_results_contract:
+      schema_receipt_id: raw-results-schema
+      raw_results_receipt_id: raw-results
+      evidence_manifest_pointer: /evidence_manifest
+      required_platforms:
+      - ubuntu-latest-x86_64
+      - windows-x86_64
+      required_command_contracts:
+        001-clone: git-clone
+        002-checkout: git-checkout
+        003-sync: uv-sync-frozen-no-editable
+        004-ruff: trusted-python-ruff
+        005-check-tex: trusted-python-check-tex
+        006-pytest: trusted-python-pytest
+        007-chain: trusted-python-chain-generator
+        008-grid: trusted-python-grid-generator
+        009-gravity: trusted-python-gravity-generator
+        010-source-law: trusted-python-source-law-generator
+        011-many-body: trusted-python-many-body-generator
+        012-ca: trusted-python-ca-generator
+        013-artifact-boundary: trusted-python-artifact-boundary
+        014-pdflatex-1: pdflatex-pass-1
+        015-pdflatex-2: pdflatex-pass-2
+        016-environment-verify: trusted-python-environment-verify
+      required_artifact_paths:
+      - examples/physics_qg/chain_1d/results/clock_potential.png
+      - examples/physics_qg/chain_1d/results/embedding.png
+      - examples/physics_qg/chain_1d/results/entropy_growth.png
+      - examples/physics_qg/chain_1d/results/validation.json
+      - examples/physics_qg/grid_2d/results/clock_potential.png
+      - examples/physics_qg/grid_2d/results/embedding.png
+      - examples/physics_qg/grid_2d/results/validation.json
+      - examples/physics_qg/gravity_well/results/gravity_embedding.png
+      - examples/physics_qg/gravity_well/results/gravity_well.png
+      - examples/physics_qg/gravity_well/results/source_comparison.png
+      - examples/physics_qg/gravity_well/results/validation.json
+      - examples/physics_qg/source_law/results/source_scaling.png
+      - examples/physics_qg/source_law/results/validation.json
+      - examples/physics_qg/source_law_many_body/results/many_body_source.png
+      - examples/physics_qg/source_law_many_body/results/validation.json
+      - examples/physics_qg/ca_model/results/dynamics_cooling.png
+      - examples/physics_qg/ca_model/results/evolution_cooling.gif
+      - examples/physics_qg/ca_model/results/validation.json
+      required_mutation_ids:
+      - family-01
+      - family-02
+      - family-03
+      - family-04
+      - family-05
+      - family-06
+      - family-07
+      - family-08
+      - family-09
+      - family-10
+      - family-11
+      - family-12
+      - family-13
+      - family-14
+      - family-15
+      - family-16
+      - family-17
+      - family-18
+      required_mutation_oracles:
+        family-01: semantic-check-identity
+        family-02: semantic-type-shape-finiteness
+        family-03: semantic-config-threshold
+        family-04: visual-locality
+        family-05: grid-raw-phi
+        family-06: simple-source-raw
+        family-07: many-body-raw
+        family-08: clock-graph-weight
+        family-09: clock-mutual-information
+        family-10: clock-source-provenance
+        family-11: clock-config-source
+        family-12: startup-root-environment
+        family-13: startup-environment-hooks
+        family-14: environment-dependency-bytecode
+        family-15: repository-index-byte-boundary
+        family-16: transient-source-boundary
+        family-17: platform-evidence-pdf-boundary
+        family-18: receipt-commitment-chronology
+      required_mutation_tests:
+        family-01:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_changed_gate_outcome_is_rejected
+          expected_passed_count: 1
+        family-02:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_changed_array_shape_is_rejected
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_non_finite_diagnostic_is_rejected
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_clock_solver_raw_operands_are_fail_closed
+          expected_passed_count: 5
+        family-03:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_meaningful_stable_config_change_is_rejected
+          expected_passed_count: 1
+        family-04:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_localized_structured_corruption
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_thin_and_annotation_mutations
+          expected_passed_count: 3
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_small_meaningful_features
+          expected_passed_count: 4
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_visual_contract_rejects_actual_plot_annotation_removal
+          expected_passed_count: 1
+        family-05:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_threshold_crossing_operand_recomputes_failed_gate
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_grid_raw_potential_transformations_cannot_leave_stale_summaries
+          expected_passed_count: 5
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_grid_correlated_uniform_potential_shift_fails_absolute_gate
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_grid_correlated_potential_scale_recomputes_solver_residual
+          expected_passed_count: 1
+        family-06:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_source_law_raw_fit_and_identity_operands_recompute
+          expected_passed_count: 5
+        family-07:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_many_body_raw_fit_identity_and_control_operands_recompute
+          expected_passed_count: 12
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_every_many_body_decision_bearing_raw_array_element_recomputes
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_many_body_correlated_global_energy_shift_recomputes_local_identity
+          expected_passed_count: 1
+        family-08:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_clock_weight_matrix_is_bound_to_upstream_mi_graph
+          expected_passed_count: 24
+        family-09:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_clock_graph_provenance_is_fail_closed
+          expected_passed_count: 16
+        family-10:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_clock_source_and_solver_policy_are_bound_to_configuration
+          expected_passed_count: 28
+        family-11:
+        - test_prefix: tests/unit/test_validation_artifact_contract.py::test_gravity_diagnostic_source_is_bound_to_center_and_strength
+          expected_passed_count: 3
+        family-12:
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_snapshot_creation_requires_base_interpreter_and_clean_environment
+          expected_passed_count: 1
+        family-13:
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_checked_command_rejects_transient_startup_carriers_before_execution
+          expected_passed_count: 9
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_site_disabled_bootstrap_does_not_evaluate_measured_hooks
+          expected_passed_count: 1
+        family-14:
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_checked_command_rejects_modified_installed_package_before_execution
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_repository_boundary_rejects_ignored_executable_bytecode
+          expected_passed_count: 1
+        family-15:
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_repository_boundary_ignores_no_mutable_index_flags
+          expected_passed_count: 2
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_repository_boundary_ignores_no_git_clean_filter
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_repository_boundary_rejects_ignored_staged_deleted_and_renamed_state
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_repository_boundary_rejects_symlink_substitution_when_supported
+          expected_passed_count: 1
+        family-16:
+        - test_prefix: tests/unit/test_reproduction_boundary.py::test_checked_command_rejects_byte_restoring_tracked_source_before_execution
+          expected_passed_count: 1
+        family-17:
+        - test_prefix: tests/unit/test_viability_raw_evidence_contract.py::test_raw_evidence_contract_requires_verified_producer_attestation
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_viability_raw_evidence_contract.py::test_environment_manifest_accepts_typed_linux_symlinks
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_viability_raw_evidence_contract.py::test_environment_manifest_uses_calibrated_expanded_node_limit
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_viability_raw_evidence_contract.py::test_runner_disables_checkout_line_ending_conversion
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_viability_raw_evidence_contract.py::test_raw_evidence_contract_parses_pdf_and_compares_platform_rasters
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r2_assembler.py::test_assembler_rejects_partial_or_failed_fragments_without_commitment
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r2_assembler.py::test_assembler_semantic_gate
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_dispatch_guard_accepts_exact_snapshot_ref
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_dispatch_guard_rejects_wrong_event_ref_sha_or_head
+          expected_passed_count: 4
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_workflow_is_manual_only_and_binds_exact_identity
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_assembler_rejects_identity_attestation_and_cross_run_mismatch
+          expected_passed_count: 3
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_assembler_exact_snapshot_ref_happy_path
+          expected_passed_count: 1
+        family-18:
+        - test_prefix: tests/unit/test_via000_r2_assembler.py::test_assembler_commitment_roundtrips_through_custody_reveal
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_viability_campaign_contract.py::test_structured_receipts_and_governance_provenance_fail_closed
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_viability_campaign_contract.py::test_blind_custody_rejects_leaks_role_reuse_and_manifest_mutations
+          expected_passed_count: 1
+      dispatch_identity:
+        event_name: workflow_dispatch
+        source_ref_prefix: refs/tags/popgp-via000-r3-protocol-
+        source_ref_suffix: protocol-snapshot-commit
+        require_workflow_sha_match: true
+        require_checkout_head_match: true
+        require_single_producer_run: true
+      producer_attestation:
+        repository: whact2025/POPGP
+        signer_workflow: whact2025/POPGP/.github/workflows/via000-r3-protocol.yml
+        predicate_type: https://slsa.dev/provenance/v1
+        action_commit: 1e69f48acb82d1966a394da916b4c1698aa569d6
+        minimum_gh_version: 2.97.0
+        bundle_path: evidence/producer-attestation.sigstore.json
+        subject_paths:
+        - evidence/platform-summary.json
+        - evidence/evidence-manifest.json
+      required_pdf_page_count: 11
+    execution_trust_model:
+      trusted_principals:
+      - assigned-reproduction-runner-seat
+      - github-actions-control-plane
+      - independent-reviewer-seat
+      untrusted_surfaces:
+      - retained-evidence-bytes
+      - platform-fragment-transport
+      - assembler-inputs
+      - declared-summary-booleans
+      excluded_threat: A malicious or colluding assigned runner/control-plane principal that fabricates
+        a complete internally consistent execution transcript is outside the R3 claim.
+      validator_claim: The dispatch guard and validator bind a manual content-addressed tag, its resolved
+        commit, github.sha, checkout HEAD, runner and mutation protocol-source identity, one shared producer
+        run ID/attempt, GitHub-OIDC/Sigstore source digest, assembler input, and packet protocol commit.
+        The validator also proves typed byte closure, candidate identity, and recomputed scientific/boundary
+        predicates. It derives all eighteen mutation outcomes from attested verbose execution and rejects
+        cross-run fragment mixing. It does not claim to defeat a malicious or colluding trusted GitHub
+        control-plane principal.
+    native_or_scalable_claim_in_scope: false
+    seed_policy: Use only committed public seeds or the custodian-supplied secret seed; never inspect,
+      reselect, rerun, or replace output after commitment.
+  measurement_procedure: Manually dispatch the pinned GitHub Actions workflow from the content-addressed
+    tag refs/tags/popgp-via000-r3-protocol-<protocol-snapshot-commit>. Before execution, the dispatch
+    guard requires the tag suffix, resolved ref, github.sha, checkout HEAD, and explicit snapshot input
+    to be the same 40-hex commit. On both declared platforms, the assigned reproduction-runner seat executes
+    the supporting runner with that commit/ref and one shared GitHub run ID/attempt. The runner creates
+    a fresh exact-candidate clone, a fresh locked non-editable Python environment, external caches and
+    evidence directories, and extracts the trusted reproduction-boundary checker from the candidate Git
+    object database with a base Python interpreter under -I -S. Retain literal source and complete environment
+    manifests, per-command stdout, stderr, timing, exit status and hashes; run Ruff, TeX source validation,
+    the complete test suite, all six generators, semantic/visual/change-boundary validation, two pinned
+    pdfTeX passes to an external directory, and the frozen mutation-test matrix. The workflow signs the
+    exact platform summary and evidence manifest with GitHub OIDC/Sigstore provenance. The assembler and
+    public validator verify the exact repository, signer workflow, source commit, snapshot ref, shared
+    run identity, packet protocol commit, and transported bytes before any commitment. The runner must
+    produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.
+  uncertainty_procedure: Candidate commit/tree, Git object and mode bindings, command exits, test/example/mutation
+    counts, environment/source manifests, startup-hook isolation, tracked/untracked/ignored cleanliness,
+    PDF engine/output, raw semantic identities, structure, types, shapes, pass Booleans, and receipt hashes
+    are exact. Numeric comparison uses only the frozen checker tolerances; after canonicalized near-zero
+    plot annotations, every cross-platform raster channel must differ by at most 4. Stored summaries cannot
+    substitute for recomputation from the lowest-level retained operands.
+  statistical_analysis: Pass only if the manual dispatch ref, resolved commit, github.sha, checkout HEAD,
+    runner and mutation identities, Sigstore source digest, assembler argument, and packet protocol commit
+    are identical; both platform fragments carry one shared GitHub run ID/attempt; both GitHub-attested
+    platform executions complete the protocol at the exact candidate and frozen protocol source; all 366
+    candidate tests and six generators pass; the attested mutation suite proves every frozen family through
+    the exact preregistered test prefixes and case counts; every semantic and visual decision is recomputed
+    and valid; all twelve corresponding Ubuntu/Windows rasters satisfy the calibrated channel bound; the
+    fresh two-pass PDF parses as exactly eleven pages; source and environment boundaries remain valid;
+    and every required result is signed and hash retained. A wrong lifecycle HEAD/ref, movable branch
+    dispatch, ref-resolution mismatch, wrong-source attestation, cross-run fragment, missing command/platform,
+    substituted state, stale decision, corrupt visual, repository-local residue, missing mutation, post-output
+    replacement, or prose-only evidence fails closed before commitment. R3 raw results cannot self-declare
+    blockage; an incomplete or unavailable execution is an invalid attempt that must not be assembled
+    or committed, while malformed protocol, custody, evidence, provenance, or rule state invalidates the
+    round rather than producing a scientific outcome.
+  resource_budget:
+    wall_time_seconds: 5400
+    memory_bytes: 12884901888
+    accelerator_seconds: 0
+  commands:
+  - python -I -S protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py --repo-root $env:GITHUB_WORKSPACE
+    --event-name workflow_dispatch --github-ref $env:GITHUB_REF --github-sha $env:GITHUB_SHA --expected-protocol-snapshot
+    $env:POPGP_PROTOCOL_SOURCE_COMMIT
+  - pwsh -NoProfile -File protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot C:/src/POPGP-VIABILITY-R3-2026-08-WINDOWS
+    -PlatformFamily windows-x86_64 -ProtocolSourceCommit $env:POPGP_PROTOCOL_SOURCE_COMMIT -DispatchRef
+    $env:GITHUB_REF -ProducerRunId $env:GITHUB_RUN_ID -ProducerRunAttempt $env:GITHUB_RUN_ATTEMPT
+  - python -I -S protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py --workspace-root C:/src/POPGP-VIABILITY-R3-2026-08-WINDOWS
+    --platform-family windows-x86_64 --protocol-source-commit $env:POPGP_PROTOCOL_SOURCE_COMMIT --dispatch-ref
+    $env:GITHUB_REF --producer-run-id $env:GITHUB_RUN_ID --producer-run-attempt $env:GITHUB_RUN_ATTEMPT
+  - pwsh -NoProfile -File protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1 -WorkspaceRoot /tmp/POPGP-VIABILITY-R3-2026-08-UBUNTU
+    -PlatformFamily ubuntu-latest-x86_64 -ProtocolSourceCommit $env:POPGP_PROTOCOL_SOURCE_COMMIT -DispatchRef
+    $env:GITHUB_REF -ProducerRunId $env:GITHUB_RUN_ID -ProducerRunAttempt $env:GITHUB_RUN_ATTEMPT
+  - python -I -S protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py --workspace-root /tmp/POPGP-VIABILITY-R3-2026-08-UBUNTU
+    --platform-family ubuntu-latest-x86_64 --protocol-source-commit $env:POPGP_PROTOCOL_SOURCE_COMMIT
+    --dispatch-ref $env:GITHUB_REF --producer-run-id $env:GITHUB_RUN_ID --producer-run-attempt $env:GITHUB_RUN_ATTEMPT
+  mutation_plan:
+  - Add an unregistered check identity, remove a required check, or flip a required pass Boolean; require
+    semantic rejection.
+  - Change a required measurement array type or shape, introduce a non-finite value, or add a stale summary;
+    require fail-closed rejection.
+  - Change stable configuration or a declared decision threshold while retaining the prior Boolean; require
+    rejection.
+  - Remove or overwrite a compact feature, one-pixel or dashed curve, rendered label, or real annotation
+    in a required visual; require rejection under the calibrated visual contract.
+  - Move a raw grid clock-potential operand across the placeholder criterion while retaining range, extrema,
+    mean, and pass summaries; require recomputation and rejection.
+  - Mutate a simple-source entropy, modular-energy, or relative-entropy operand within portability tolerance
+    while retaining fitted slopes, affine identities, solver ratios, and Booleans; require recomputation
+    and rejection.
+  - Mutate many-body local/global energy operands, KMS or first-law operands, endpoint/control data, or
+    order-sensitivity aliases while retaining derived identities and Booleans; require recomputation and
+    rejection.
+  - Alter a clock weight-matrix diagonal, sign, symmetry, inferred-edge support, or non-edge entry, including
+    a correlated source update that preserves the solver residual; require graph-provenance rejection.
+  - Alter the retained mutual-information matrix or inferred-edge list coherently with the clock weight
+    matrix; require independent MI structure, kernel, and edge-support rejection.
+  - Alter a raw source, removed background, zero-mode policy, effective source, or zero-sum condition,
+    including correlated transformations that preserve the finite-graph equation; require source-provenance
+    rejection.
+  - Alter configured mass, gauge, normalization, source model, diagnostic center, or point strength together
+    with correlated downstream fields; require configuration/source-model rejection.
+  - Activate root sitecustomize.py through PYTHONPATH or another blocked environment variable, including
+    a self-cleaning hook; require base-interpreter/process-boundary rejection.
+  - Preplant or inject ignored environment sitecustomize.py, usercustomize.py, executable .pth, or editable
+    self-cleaning startup state; require isolated -I -S execution and complete environment-manifest rejection.
+  - Modify an installed dependency, add executable bytecode or another importable cache, or substitute
+    the locked environment after snapshot; require environment-manifest rejection.
+  - Use assume-unchanged, staged/index flags, ignored source, symlink substitution, or repository-local
+    clean filters to conceal changed source bytes or modes; require literal Git-object boundary rejection.
+  - Execute a transient tracked-source mutation that restores itself before final status, including a
+    self-deleting or self-restoring startup carrier; require per-command pre/post source-boundary rejection.
+  - Create a platform-only regeneration, dirty generated artifact, repository-local PDF output, pre-existing
+    external evidence directory, or missing Linux/Windows result; require rejection.
+  - Supply a result only in an agent summary, replace raw results after output commitment, reveal before
+    commitment, or break a receipt/hash/chronology binding; require contract rejection.
+  protocol_artifacts:
+  - receipt_id: protocol
+    content_role: primary-protocol
+    campaign_path: ../receipts/VIA-000/protocol.json
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
+    sha256: 757f4d016be27a123b012c04f21196314f1dea09ac77f850f5b4fe6d02c94022
+    media_type: application/json
+  - receipt_id: runner-protocol
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/runner-protocol.ps1
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1
+    sha256: 94ee667ad1527a0090b11be407fe67f3c0e97a16161ef55d0cc759daa244528f
+    media_type: text/plain
+  - receipt_id: raw-results-schema
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/raw-results.schema.json
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json
+    sha256: 274a1b1e79300bf5cf37835e416f793c4a9da1e4efd4a8ffdb070f960897bab2
+    media_type: application/schema+json
+  - receipt_id: assembler-protocol
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/assembler-protocol.py
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py
+    sha256: f1340fa189bc788f04f1c0441a4cc1ef76bf8ec2b372cf1f7dc0785fc6fa5a99
+    media_type: text/plain
+  - receipt_id: mutation-runner
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/mutation-runner.py
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py
+    sha256: 3ed3564e92f7b327d1352deaf51c7f233bbd2705a1a08a4bb267e67f1eacf480
+    media_type: text/plain
+  - receipt_id: dispatch-guard
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/dispatch-guard.py
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py
+    sha256: 27e9316eaee7f505b0bd18f7dfca8a0f57a511b7b97eae5a29f1e55c48b08bc2
+    media_type: text/plain
+  - receipt_id: workflow-protocol
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/workflow-protocol.yml
+    protocol_path: .github/workflows/via000-r3-protocol.yml
+    sha256: 70d1065721025bb2951b8f55be437e9c61e8911d6171a9b0b3e30dc8dd046c9a
+    media_type: text/plain
+holdout_started: false
+seats:
+  protocol_designer:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-protocol
+    session_id: popgp-viability-r3-2026-08-via000-protocol-session
+  builder:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-builder
+    session_id: popgp-viability-r3-2026-08-via000-builder-session
+  falsifier:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-falsifier
+    session_id: popgp-viability-r3-2026-08-via000-falsifier-session
+  statistical_auditor:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-statistics
+    session_id: popgp-viability-r3-2026-08-via000-statistics-session
+  reproduction_runner:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-runner
+    session_id: popgp-viability-r3-2026-08-via000-runner-session
+  claim_auditor:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-claims
+    session_id: popgp-viability-r3-2026-08-via000-claims-session
+  adjudicator:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: public-calibration-only
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-adjudicator
+    session_id: popgp-viability-r3-2026-08-via000-adjudicator-session
+  evaluator_custodian:
+    model_identity: unknown
+    model_version: unknown
+    operator: fuocor
+    orchestrator_id: codex-desktop
+    organization: popgp-internal
+    access_level: hidden-manifest-custody
+    exposure:
+      final_labels_seen: false
+      secret_seed_seen: false
+      private_evaluator_seen: false
+    agent_identity: codex-via000-r3-custodian
+    session_id: popgp-viability-r3-2026-08-via000-custodian-session
+blind_custody:
+  hash_algorithm: sha256
+  canonicalization: raw-bytes-v1
+  custodian_seat: evaluator_custodian
+  hidden_holdout_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R2-2026-08/VIA-000-hidden-holdout.json
+    sha256: 54363a171f866bb99008f2d854f7ac55505b24c1c0a306560bb39ab1c6b371c7
+  secret_seed_manifest:
+    immutable_uri: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R2-2026-08/VIA-000-secret-seed.json
+    sha256: 32cb4d567ba894e3d736507477fdfb34fb9396f581581dce8b6580f3e4be8eb1
+  output_commitment: null
+  reveal:
+    status: unrevealed
+    authorized_by: null
+    revealed_at: null
+    post_reveal_holdout_sha256: null
+    post_reveal_seed_sha256: null
+    post_reveal_holdout_receipt_id: null
+    post_reveal_seed_receipt_id: null
+    reveal_receipt_id: null
+    retention_policy: Carry forward only the public R2 commitment URI/hash pairs. A fresh R3 custodian
+      must verify all sealed bytes before preregistration or holdout; retain the sealed manifests, commitments,
+      raw outputs, and reveal records for the campaign lifetime.
+    immutable_location: file:///C:/src/POPGP-custody/POPGP-VIABILITY-R3-2026-08/archive/VIA-000
+external_replication: null
+outcome_rules:
+  language: popgp-bool-v2
+  bindings:
+    evidence-contract:
+      receipt_id: raw-results
+      json_pointer: /capabilities/evidence-contract
+      expected_type: boolean
+    cross-platform-reproduction:
+      receipt_id: raw-results
+      json_pointer: /capabilities/cross-platform-reproduction
+      expected_type: boolean
+    mutation-rejection:
+      receipt_id: raw-results
+      json_pointer: /capabilities/mutation-rejection
+      expected_type: boolean
+    result_failed:
+      receipt_id: raw-results
+      json_pointer: /failed
+      expected_type: boolean
+    result_blocked:
+      receipt_id: raw-results
+      json_pointer: /blocked
+      expected_type: boolean
+  pass:
+    all:
+    - compare:
+        left:
+          binding: evidence-contract
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: cross-platform-reproduction
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: mutation-rejection
+        op: eq
+        right:
+          value: true
+    - compare:
+        left:
+          binding: result_failed
+        op: eq
+        right:
+          value: false
+    - compare:
+        left:
+          binding: result_blocked
+        op: eq
+        right:
+          value: false
+  fail:
+    compare:
+      left:
+        binding: result_failed
+      op: eq
+      right:
+        value: true
+  blocked:
+    compare:
+      left:
+        binding: result_blocked
+      op: eq
+      right:
+        value: true
+receipts:
+- id: protocol
+  kind: protocol
+  path: ../receipts/VIA-000/protocol.json
+  sha256: 757f4d016be27a123b012c04f21196314f1dea09ac77f850f5b4fe6d02c94022
+  media_type: application/json
+- id: runner-protocol
+  kind: protocol
+  path: ../receipts/VIA-000/runner-protocol.ps1
+  sha256: 94ee667ad1527a0090b11be407fe67f3c0e97a16161ef55d0cc759daa244528f
+  media_type: text/plain
+- id: raw-results-schema
+  kind: protocol
+  path: ../receipts/VIA-000/raw-results.schema.json
+  sha256: 274a1b1e79300bf5cf37835e416f793c4a9da1e4efd4a8ffdb070f960897bab2
+  media_type: application/schema+json
+- id: assembler-protocol
+  kind: protocol
+  path: ../receipts/VIA-000/assembler-protocol.py
+  sha256: f1340fa189bc788f04f1c0441a4cc1ef76bf8ec2b372cf1f7dc0785fc6fa5a99
+  media_type: text/plain
+- id: mutation-runner
+  kind: protocol
+  path: ../receipts/VIA-000/mutation-runner.py
+  sha256: 3ed3564e92f7b327d1352deaf51c7f233bbd2705a1a08a4bb267e67f1eacf480
+  media_type: text/plain
+- id: dispatch-guard
+  kind: protocol
+  path: ../receipts/VIA-000/dispatch-guard.py
+  sha256: 27e9316eaee7f505b0bd18f7dfca8a0f57a511b7b97eae5a29f1e55c48b08bc2
+  media_type: text/plain
+- id: workflow-protocol
+  kind: protocol
+  path: ../receipts/VIA-000/workflow-protocol.yml
+  sha256: 70d1065721025bb2951b8f55be437e9c61e8911d6171a9b0b3e30dc8dd046c9a
+  media_type: text/plain
+review_chain:
+  initial_review_receipt: null
+  initial_review_ref: null
+  response_receipts: []
+  response_refs: []
+  rereview_receipts: []
+  rereview_refs: []
+  findings: []
+  requested_tests: []
+adjudication:
+  round_status: not-run
+  packet_outcome: pending
+  cause_codes:
+  - not-run
+  decisive_receipts: []
+  achieved_evidence: E0-proposal

@@ -1547,10 +1547,13 @@ def _validate_raw_evidence_contract(
         "producer_attestation",
         "required_pdf_page_count",
     }
-    if not isinstance(contract, Mapping) or set(contract) != required_fields:
+    if not isinstance(contract, Mapping) or set(contract) not in (
+        required_fields,
+        required_fields | {"dispatch_identity"},
+    ):
         return [
             f"packet {packet_id}: raw_results_contract must contain exactly "
-            f"{sorted(required_fields)}"
+            f"{sorted(required_fields)} with only the optional dispatch_identity extension"
         ]
     required_platforms = contract["required_platforms"]
     command_contracts = contract["required_command_contracts"]
@@ -1559,6 +1562,20 @@ def _validate_raw_evidence_contract(
     mutation_oracles = contract["required_mutation_oracles"]
     mutation_tests = contract["required_mutation_tests"]
     producer_contract = contract["producer_attestation"]
+    dispatch_contract = contract.get("dispatch_identity")
+    expected_signer_workflow = (
+        "whact2025/POPGP/.github/workflows/via000-r3-protocol.yml"
+        if dispatch_contract is not None
+        else "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml"
+    )
+    expected_dispatch_contract = {
+        "event_name": "workflow_dispatch",
+        "source_ref_prefix": "refs/tags/popgp-via000-r3-protocol-",
+        "source_ref_suffix": "protocol-snapshot-commit",
+        "require_workflow_sha_match": True,
+        "require_checkout_head_match": True,
+        "require_single_producer_run": True,
+    }
     if (
         not isinstance(required_platforms, list)
         or not required_platforms
@@ -1609,8 +1626,7 @@ def _validate_raw_evidence_contract(
             "subject_paths",
         }
         or producer_contract["repository"] != "whact2025/POPGP"
-        or producer_contract["signer_workflow"]
-        != "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml"
+        or producer_contract["signer_workflow"] != expected_signer_workflow
         or producer_contract["predicate_type"] != "https://slsa.dev/provenance/v1"
         or re.fullmatch(r"[0-9a-f]{40}", producer_contract["action_commit"]) is None
         or re.fullmatch(r"\d+\.\d+\.\d+", producer_contract["minimum_gh_version"])
@@ -1621,6 +1637,10 @@ def _validate_raw_evidence_contract(
         or parameters.get("required_mutation_count") != len(mutation_ids)
         or type(contract["required_pdf_page_count"]) is not int
         or contract["required_pdf_page_count"] < 1
+        or (
+            dispatch_contract is not None
+            and dispatch_contract != expected_dispatch_contract
+        )
     ):
         return [f"packet {packet_id}: raw_results_contract has malformed or contradictory values"]
 
@@ -1684,7 +1704,22 @@ def _validate_raw_evidence_contract(
     if raw_document["protocol_source_commit"] != protocol_commit:
         errors.append(f"packet {packet_id}: raw-results protocol source differs from packet")
     if raw_document["blocked"] is not False:
-        errors.append(f"packet {packet_id}: R2 raw results cannot self-declare blockage")
+        errors.append(f"packet {packet_id}: VIA-000 raw results cannot self-declare blockage")
+    expected_dispatch: Mapping[str, Any] | None = None
+    if dispatch_contract is not None:
+        expected_ref = dispatch_contract["source_ref_prefix"] + protocol_commit
+        dispatch = raw_document.get("dispatch_identity")
+        if (
+            not isinstance(dispatch, Mapping)
+            or dispatch.get("event_name") != dispatch_contract["event_name"]
+            or dispatch.get("source_ref") != expected_ref
+            or dispatch.get("protocol_snapshot_commit") != protocol_commit
+        ):
+            errors.append(
+                f"packet {packet_id}: raw dispatch identity differs from protocol snapshot"
+            )
+        else:
+            expected_dispatch = dispatch
 
     try:
         evidence_manifest = _json_pointer(raw_document, contract["evidence_manifest_pointer"])
@@ -1745,6 +1780,8 @@ def _validate_raw_evidence_contract(
             errors.append(f"{label} candidate tree differs from packet")
         if platform["protocol_source_commit"] != protocol_commit:
             errors.append(f"{label} protocol source commit differs from packet")
+        if dispatch_contract is not None and platform.get("dispatch_identity") != expected_dispatch:
+            errors.append(f"{label} dispatch/run identity differs from assembled raw results")
 
         provenance_root = f"evidence/{platform_name}/provenance"
         expected_producer = {
@@ -2189,27 +2226,33 @@ def _validate_raw_evidence_contract(
                     for requirement in requirements
                 }
                 command = suite_result["command"]
+                expected_suite_fields = {
+                    "schema_version",
+                    "candidate_commit",
+                    "candidate_tree",
+                    "platform_family",
+                    "protocol_source_commit",
+                    "command",
+                    "started_at",
+                    "finished_at",
+                    "exit_code",
+                    "stdout_sha256",
+                    "stderr_sha256",
+                }
+                if dispatch_contract is not None:
+                    expected_suite_fields.add("dispatch_identity")
                 mutation_ok = mutation_ok and (
                     isinstance(suite_result, Mapping)
-                    and set(suite_result)
-                    == {
-                        "schema_version",
-                        "candidate_commit",
-                        "candidate_tree",
-                        "platform_family",
-                        "protocol_source_commit",
-                        "command",
-                        "started_at",
-                        "finished_at",
-                        "exit_code",
-                        "stdout_sha256",
-                        "stderr_sha256",
-                    }
+                    and set(suite_result) == expected_suite_fields
                     and suite_result["schema_version"] == 1
                     and suite_result["candidate_commit"] == packet["candidate_commit"]
                     and suite_result["candidate_tree"] == packet["tree_hash"]
                     and suite_result["platform_family"] == platform_name
                     and suite_result["protocol_source_commit"] == protocol_commit
+                    and (
+                        dispatch_contract is None
+                        or suite_result.get("dispatch_identity") == expected_dispatch
+                    )
                     and isinstance(command, list)
                     and command[:10]
                     == [

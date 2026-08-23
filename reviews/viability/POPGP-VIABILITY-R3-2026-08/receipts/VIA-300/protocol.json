@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "packet_id": "VIA-300",
+  "parameters": {
+    "minimum_refinement_levels": 4,
+    "observable_relative_error_max": 0.05,
+    "gate_outcome_agreement": 1.0,
+    "dimension_status_exact": true,
+    "strictly_decreasing_error": true,
+    "minimum_independent_implementations": 2
+  },
+  "measurement_procedure": "Compare reduced states, MI/QCMI, edges, source, current, geometry, clock, and gate outcomes on exact-overlap sizes while refining bond dimension, truncation, timestep, precision, and hardware; record four-level runtime and memory.",
+  "uncertainty_procedure": "Propagate truncation/timestep estimates with a monotone empirical envelope; report independent-library and CPU/native discrepancies separately.",
+  "statistical_analysis": "Pass only if all observables clear budgets, gate and categorical outputs agree, errors decrease, determinism/race attacks pass, and four levels complete in budget.",
+  "resource_budget": {
+    "wall_time_seconds": 28800,
+    "memory_bytes": 25769803776,
+    "accelerator_seconds": 14400
+  },
+  "commands": [
+    "uv run pytest -q tests/unit/test_backends.py tests/scientific/test_topology_recovery.py tests/scientific/test_many_body_source_law.py"
+  ],
+  "mutation_plan": [
+    "Replace MI with product magnetization.",
+    "Increase truncation while claiming lower error.",
+    "Reverse CUDA update ordering.",
+    "Change one gate outcome.",
+    "Remove the largest level."
+  ]
+}
