@@ -178,7 +178,7 @@ jobs:
 
       - name: Upload non-scientific Ubuntu cell proof
         if: matrix.platform_family == 'ubuntu-latest-x86_64'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
           path: |
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload non-scientific Windows cell proof
         if: matrix.platform_family == 'windows-x86_64'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
           path: |
@@ -242,7 +242,7 @@ jobs:
           cache: ""
 
       - name: Download six non-scientific proof fragments
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: via000-r3-containment-proof-*
           path: ${{ runner.temp }}/via000-r3-containment-fragments
@@ -285,7 +285,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "hosted containment proof aggregate failed" }
 
       - name: Upload non-scientific exact-matrix proof
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: via000-r3-containment-proof-aggregate
           path: ${{ runner.temp }}/via000-r3-containment-proof-aggregate

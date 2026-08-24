@@ -2021,8 +2021,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     for action in (
         "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
         "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
-        "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
-        "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     ):
         assert action in workflow_text
     assert (
@@ -2045,7 +2045,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
     fixture_text = CONTAINMENT_PROOF_FIXTURE.read_text(encoding="utf-8")
     assert "Invoke-Via000ContainedCommand" in runner_text
-    assert "synthetic containment diagnostic" in runner_text
+    assert "mutable hostile fixture copy differs from the frozen Git bytes" in runner_text
+    assert "synthetic containment diagnostic" not in runner_text
     assert "Assert-FrozenProofBundle" in runner_text
     assert "child-of-child-ready" in runner_text
     assert "delayed-descendant-survived" in runner_text

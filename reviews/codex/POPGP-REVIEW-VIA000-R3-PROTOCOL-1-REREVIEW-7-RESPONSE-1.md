@@ -159,6 +159,18 @@ summary: |-
   static directory. The next narrow correction supplies four exact forward-slash
   file subjects to each OS upload step and emits stdout/stderr diagnostics only for
   this fixed non-scientific fixture before preserving fail-closed cleanup.
+  The twelfth branch-push attempt, run 32703757252 at handoff
+  df489bed8ea8f7bf4da52c1f764074ae5acc8fdc, established that the explicit Ubuntu
+  service identity could not read the fixture from checkout; the sole diagnostic
+  contained only the public source path and PowerShell usage text, with no credential
+  or control-plane value. That temporary diagnostic path is now removed entirely.
+  The runner instead copies the already hash-verified frozen fixture into the mutable
+  closure, rechecks the copy before execution, and invokes only that accessible copy.
+  The same run confirmed that the old Node-20 upload action remained unable to resolve
+  the exact Windows subjects under the hosted Node-24 runtime. Upload and download are
+  now pinned to the current immutable Node-24 releases, upload-artifact v7.0.1 commit
+  043fb46d1a93c77aae656e7c1c64a875d1fc6a0a and download-artifact v8.0.1 commit
+  3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
@@ -214,7 +226,7 @@ finding_responses:
       - "ae82e7d060eea722c7cce3f7c799b59df3e37fa7"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
-        result: "1 passed in 2.88 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
+        result: "1 passed in 3.20 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
       - command: "full R3 identity test file"
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"

@@ -138,6 +138,13 @@ try {
     }
     $evidenceSubject = Join-Path $evidence "protected-evidence.txt"
     $toolSubject = Join-Path $toolClosure "protected-tool.txt"
+    $mutableFixture = Join-Path $mutable "hostile.ps1"
+    Copy-Item -LiteralPath ([string]$bundle.containment_proof_fixture_path) `
+        -Destination $mutableFixture -ErrorAction Stop
+    if ((Get-ProofSha256 -Path $mutableFixture) -cne
+        [string]$parameters.containment_proof_fixture_sha256) {
+        throw "mutable hostile fixture copy differs from the frozen Git bytes"
+    }
     [IO.File]::WriteAllText(
         $evidenceSubject,
         "non-scientific-evidence/$SourceSha/$PlatformFamily/$StageId",
@@ -166,27 +173,16 @@ try {
     }
     foreach ($path in $bundle.Values) { $closure[[string]$path] = Get-ProofSha256 -Path $path }
     foreach ($path in $systemTools.Values) { $closure[[string]$path] = Get-ProofSha256 -Path $path }
-    try {
-        Invoke-Via000ContainedCommand -Label "proof-$StageId" `
-            -ContractId "rr7-hosted-containment-proof" -PlatformFamily $PlatformFamily `
-            -FilePath $trustedPowerShell -Arguments @(
-                "-NoLogo", "-NoProfile", "-NonInteractive", "-File",
-                [string]$bundle.containment_proof_fixture_path,
-                "-Mode", "attack", "-PowerShellPath", $trustedPowerShell,
-                "-MutableRoot", $mutable, "-TrustedEvidencePath", $evidenceSubject,
-                "-TrustedToolPath", $toolSubject, "-StageId", $StageId
-            ) -WorkingDirectory $mutable -MutableRoot $mutable -TrustedRoot $evidence `
-            -StdoutPath $stdout -StderrPath $stderr -ResultPath $containedResult `
-            -Environment @{} -Closure $closure -SystemTools $systemTools -TimeoutSeconds 45
-    } catch {
-        foreach ($diagnosticPath in @($stdout, $stderr)) {
-            if (Test-Path -LiteralPath $diagnosticPath -PathType Leaf) {
-                Write-Host "synthetic containment diagnostic ($([IO.Path]::GetFileName($diagnosticPath))):"
-                Write-Host (Get-Content -LiteralPath $diagnosticPath -Raw)
-            }
-        }
-        throw
-    }
+    Invoke-Via000ContainedCommand -Label "proof-$StageId" `
+        -ContractId "rr7-hosted-containment-proof" -PlatformFamily $PlatformFamily `
+        -FilePath $trustedPowerShell -Arguments @(
+            "-NoLogo", "-NoProfile", "-NonInteractive", "-File", $mutableFixture,
+            "-Mode", "attack", "-PowerShellPath", $trustedPowerShell,
+            "-MutableRoot", $mutable, "-TrustedEvidencePath", $evidenceSubject,
+            "-TrustedToolPath", $toolSubject, "-StageId", $StageId
+        ) -WorkingDirectory $mutable -MutableRoot $mutable -TrustedRoot $evidence `
+        -StdoutPath $stdout -StderrPath $stderr -ResultPath $containedResult `
+        -Environment @{} -Closure $closure -SystemTools $systemTools -TimeoutSeconds 45
 
     $result = Get-Content -LiteralPath $containedResult -Raw | ConvertFrom-Json -AsHashtable
     $expectedPrimitive = if ($PlatformFamily -eq "windows-x86_64") {
