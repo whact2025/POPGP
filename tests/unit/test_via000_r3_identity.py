@@ -340,6 +340,16 @@ def _authorization_race_objects(
     return original_oid, invalid_oid, unrelated_valid_oid
 
 
+def _replace_object(repo: Path, original_oid: str, replacement_oid: str) -> None:
+    _git(repo, "update-ref", f"refs/replace/{original_oid}", replacement_oid)
+
+
+def _hash_blob(repo: Path, content: bytes) -> str:
+    return _git_bytes_input(repo, content, "hash-object", "-w", "--stdin").decode(
+        "ascii"
+    ).strip()
+
+
 def _snapshot_repo(tmp_path: Path, *, protocol_tree: bool = False) -> tuple[Path, str, str]:
     repo = tmp_path / "repository"
     repo.mkdir()
@@ -865,6 +875,218 @@ def test_r3_assembler_extracted_guard_rejects_ref_swap_after_oid_capture(
 
 
 @pytest.mark.negative_control
+def test_r3_guard_rejects_invalid_tag_hidden_by_default_replacement(
+    tmp_path: Path,
+) -> None:
+    guard = _load_module(GUARD, "r3_dispatch_guard_default_replace")
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    original_oid, invalid_oid, _unrelated_oid = _authorization_race_objects(
+        repo, authorization_ref, authorization_commit
+    )
+    _replace_object(repo, invalid_oid, original_oid)
+    assert _git_bytes(repo, "cat-file", "tag", invalid_oid) == _git_bytes(
+        repo, "--no-replace-objects", "cat-file", "tag", original_oid
+    )
+    assert _git_bytes(
+        repo, "--no-replace-objects", "cat-file", "tag", invalid_oid
+    ) != _git_bytes(repo, "cat-file", "tag", invalid_oid)
+
+    with pytest.raises(ValueError, match="signature"):
+        guard.verify_campaign_authorization(
+            repo,
+            event_name="workflow_dispatch",
+            github_ref=protocol_ref,
+            github_sha=snapshot,
+            authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=invalid_oid,
+        )
+    assert not (tmp_path / "authorization.json").exists()
+
+
+@pytest.mark.negative_control
+def test_r3_unmodified_assembler_rejects_invalid_tag_hidden_by_replacement(
+    tmp_path: Path,
+) -> None:
+    repo, _snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    original_oid, invalid_oid, _unrelated_oid = _authorization_race_objects(
+        repo, authorization_ref, authorization_commit
+    )
+    _replace_object(repo, invalid_oid, original_oid)
+    output = tmp_path / "replacement-output"
+    command = [
+        sys.executable,
+        str(repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py"),
+        "--repo-root",
+        str(repo),
+        "--protocol",
+        str(repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"),
+        "--schema",
+        str(repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"),
+        "--platform-root",
+        f"ubuntu-latest-x86_64={tmp_path / 'missing-linux'}",
+        "--platform-root",
+        f"windows-x86_64={tmp_path / 'missing-windows'}",
+        "--protocol-source-ref",
+        protocol_ref,
+        "--authorization-ref",
+        authorization_ref,
+        "--producer-run-id",
+        "42",
+        "--producer-run-attempt",
+        "1",
+        "--output-dir",
+        str(output),
+        "--committed-by",
+        "test",
+        "--committed-at",
+        "2026-08-23T00:00:00Z",
+    ]
+    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert completed.returncode != 0
+    assert "signature" in completed.stderr
+    assert not output.exists()
+    assert not list(tmp_path.glob(".replacement-output-*"))
+
+
+@pytest.mark.negative_control
+def test_r3_guard_scrubs_custom_replace_object_repository_and_config_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guard = _load_module(GUARD, "r3_dispatch_guard_git_environment")
+    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    authorization_oid = _git(repo, "rev-parse", authorization_ref)
+    missing = tmp_path / "caller-controlled-missing"
+    _git(repo, "config", "gpg.ssh.program", str(missing / "local-ssh-keygen"))
+    injected = {
+        "GIT_REPLACE_REF_BASE": "refs/caller-replacements/",
+        "GIT_OBJECT_DIRECTORY": str(missing / "objects"),
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES": str(missing / "alternates"),
+        "GIT_DIR": str(missing / "repository.git"),
+        "GIT_WORK_TREE": str(missing / "worktree"),
+        "GIT_INDEX_FILE": str(missing / "index"),
+        "GIT_COMMON_DIR": str(missing / "common"),
+        "GIT_NAMESPACE": "caller-controlled",
+        "GIT_CEILING_DIRECTORIES": str(repo.parent),
+        "GIT_DISCOVERY_ACROSS_FILESYSTEM": "0",
+        "GIT_EXEC_PATH": str(missing / "exec"),
+        "GIT_SSH": str(missing / "ssh"),
+        "GIT_SSH_COMMAND": str(missing / "ssh-command"),
+        "GIT_CONFIG_COUNT": "2",
+        "GIT_CONFIG_KEY_0": "gpg.ssh.program",
+        "GIT_CONFIG_VALUE_0": str(missing / "ssh-keygen"),
+        "GIT_CONFIG_KEY_1": "core.useReplaceRefs",
+        "GIT_CONFIG_VALUE_1": "true",
+    }
+    for name, value in injected.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("PATH", str(missing / "programs"))
+
+    result = guard.verify_campaign_authorization(
+        repo,
+        event_name="workflow_dispatch",
+        github_ref=protocol_ref,
+        github_sha=snapshot,
+        authorization_ref=authorization_ref,
+        expected_authorization_tag_oid=authorization_oid,
+    )
+    assert result["authorization_tag_oid"] == authorization_oid
+    clean_environment = guard._git_environment()
+    assert all(name not in clean_environment for name in injected)
+    assert clean_environment["GIT_NO_REPLACE_OBJECTS"] == "1"
+    assert Path(guard.GIT_EXECUTABLE).is_file()
+
+
+@pytest.mark.negative_control
+def test_r3_custom_replace_namespace_cannot_authenticate_invalid_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guard = _load_module(GUARD, "r3_dispatch_guard_custom_replace")
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    original_oid, invalid_oid, _unrelated_oid = _authorization_race_objects(
+        repo, authorization_ref, authorization_commit
+    )
+    replacement_base = "refs/caller-replacements/"
+    _git(repo, "update-ref", replacement_base + invalid_oid, original_oid)
+    monkeypatch.setenv("GIT_REPLACE_REF_BASE", replacement_base)
+    assert _git_bytes(repo, "cat-file", "tag", invalid_oid) == _git_bytes(
+        repo, "--no-replace-objects", "cat-file", "tag", original_oid
+    )
+
+    with pytest.raises(ValueError, match="signature"):
+        guard.verify_campaign_authorization(
+            repo,
+            event_name="workflow_dispatch",
+            github_ref=protocol_ref,
+            github_sha=snapshot,
+            authorization_ref=authorization_ref,
+            expected_authorization_tag_oid=invalid_oid,
+        )
+
+
+@pytest.mark.negative_control
+def test_r3_source_campaign_packet_manifest_and_validator_reads_ignore_replacements(
+    tmp_path: Path,
+) -> None:
+    assembler = _load_module(ASSEMBLER, "r3_assembler_source_replacements")
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+    schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    contract = protocol["parameters"]["authorization_contract"]
+
+    original_primary = protocol_path.read_bytes()
+    protocol_path.write_bytes(original_primary + b"\n")
+    _git(repo, "add", str(protocol_path))
+    _git(repo, "commit", "-m", "caller-controlled replacement snapshot")
+    replacement_commit = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "--detach", snapshot)
+    _replace_object(repo, snapshot, replacement_commit)
+
+    substituted_blob = _hash_blob(repo, b"caller-controlled replacement bytes\n")
+    for commit, relative in (
+        (authorization_commit, contract["campaign_path"]),
+        (authorization_commit, contract["packet_path"]),
+        (authorization_commit, contract["protocol_manifest_path"]),
+        (snapshot, "scripts/check_viability_campaign.py"),
+    ):
+        original_blob = _git(repo, "--no-replace-objects", "rev-parse", f"{commit}:{relative}")
+        _replace_object(repo, original_blob, substituted_blob)
+        assert _git_bytes(repo, "cat-file", "blob", original_blob) == (
+            b"caller-controlled replacement bytes\n"
+        )
+
+    assert _git_bytes(
+        repo,
+        "show",
+        f"{snapshot}:protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json",
+    ) != original_primary
+    args = SimpleNamespace(
+        repo_root=repo,
+        protocol=protocol_path,
+        schema=schema_path,
+        protocol_source_ref=protocol_ref,
+        authorization_ref=authorization_ref,
+    )
+    authorization = assembler._verify_protocol_identity(args, protocol)
+    assert authorization["protocol_commit"] == snapshot
+    raw_path = tmp_path / "invalid-raw-results.json"
+    raw_path.write_text("{}\n", encoding="utf-8", newline="\n")
+    with pytest.raises(ValueError, match="frozen validation"):
+        assembler._run_frozen_precommit_validator(args, protocol, authorization, raw_path)
+    assert not (tmp_path / "assembled").exists()
+
+
+@pytest.mark.negative_control
 @pytest.mark.parametrize(
     "dependency",
     [
@@ -973,6 +1195,10 @@ def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
         "${{ github.sha }}",
         "${{ inputs.authorization_ref }}",
         "--expected-authorization-tag-oid",
+        "--no-replace-objects",
+        'Where-Object Name -Like "GIT_*"',
+        'GIT_NO_REPLACE_OBJECTS = "1"',
+        'GIT_CONFIG_NOSYSTEM = "1"',
         "authorization ref changed before platform execution",
         "${{ github.run_id }}",
         "${{ github.run_attempt }}",

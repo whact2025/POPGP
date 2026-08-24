@@ -19,6 +19,50 @@ from jsonschema import Draft202012Validator, FormatChecker
 SNAPSHOT_REF_PREFIX = "refs/tags/popgp-via000-r3-protocol-"
 
 
+def _trusted_program(name: str) -> str:
+    if name != "git":
+        raise ValueError(f"program is not authorized by the R3 assembler: {name}")
+    if os.name == "nt":
+        candidates = [Path(Path(sys.executable).anchor) / "Program Files/Git/cmd/git.exe"]
+    else:
+        candidates = [Path("/usr/bin/git"), Path("/bin/git")]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate.resolve())
+    raise ValueError(f"required trusted system program is unavailable: {name}")
+
+
+GIT_EXECUTABLE = _trusted_program("git")
+
+
+def _git_environment() -> dict[str, str]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.upper().startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_OPTIONAL_LOCKS": "0",
+        }
+    )
+    return environment
+
+
+def _git_command(repo_root: Path, *arguments: str) -> list[str]:
+    return [
+        GIT_EXECUTABLE,
+        "--no-replace-objects",
+        "-C",
+        str(repo_root.resolve()),
+        *arguments,
+    ]
+
+
 def _load_json(path: Path) -> Any:
     def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         value: dict[str, Any] = {}
@@ -97,9 +141,10 @@ def _prefixed(platform: str, relative: str) -> str:
 
 def _git_output(repo_root: Path, *arguments: str) -> bytes:
     completed = subprocess.run(
-        ["git", "-C", str(repo_root), *arguments],
+        _git_command(repo_root, *arguments),
         capture_output=True,
         check=False,
+        env=_git_environment(),
         timeout=20,
     )
     if completed.returncode != 0:
@@ -191,6 +236,7 @@ def _verify_protocol_identity(
             ],
             capture_output=True,
             text=True,
+            env=_git_environment(),
             check=False,
             timeout=30,
         )
@@ -507,7 +553,7 @@ def _run_frozen_precommit_validator(
         protocol_file.write_bytes(frozen_protocol)
         schema_file.write_bytes(frozen_schema)
         validator = bundle_root / "check_viability_campaign.py"
-        environment = os.environ.copy()
+        environment = _git_environment()
         for name in ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "VIRTUAL_ENV"):
             environment.pop(name, None)
         completed = subprocess.run(

@@ -43,6 +43,50 @@ PROCESS_TREE_CLEANUP_SECONDS = 5
 GIT_BUNDLE_TOTAL_TIMEOUT_SECONDS = GIT_BUNDLE_TIMEOUT_SECONDS + PROCESS_TREE_CLEANUP_SECONDS
 KNOWN_REQUIREMENTS_SHA256 = "632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20"
 
+
+def _trusted_program(name: str) -> str:
+    if name != "git":
+        raise ValueError(f"program is not authorized by the campaign validator: {name}")
+    if os.name == "nt":
+        candidates = [Path(Path(sys.executable).anchor) / "Program Files/Git/cmd/git.exe"]
+    else:
+        candidates = [Path("/usr/bin/git"), Path("/bin/git")]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate.resolve())
+    raise ValueError(f"required trusted system program is unavailable: {name}")
+
+
+GIT_EXECUTABLE = _trusted_program("git")
+
+
+def _git_environment() -> dict[str, str]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.upper().startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_OPTIONAL_LOCKS": "0",
+        }
+    )
+    return environment
+
+
+def _git_command(root: Path, *args: str) -> list[str]:
+    return [
+        GIT_EXECUTABLE,
+        "--no-replace-objects",
+        "-C",
+        str(root.resolve()),
+        *args,
+    ]
+
 CONTRACT_FILE_PATHS = {
     "docs/scientific_hardening/CLAIMS_MATRIX.md",
     "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
@@ -440,9 +484,10 @@ def packet_rule_sha256(packet: Mapping[str, Any]) -> str:
 
 def _git_output(root: Path, *args: str) -> bytes:
     result = subprocess.run(
-        ["git", "-C", str(root), *args],
+        _git_command(root, *args),
         check=False,
         capture_output=True,
+        env=_git_environment(),
         timeout=15,
     )
     if result.returncode != 0:
@@ -482,9 +527,10 @@ def _git_tree(root: Path, commit: str) -> str:
 
 def _git_is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     result = subprocess.run(
-        ["git", "-C", str(root), "merge-base", "--is-ancestor", ancestor, descendant],
+        _git_command(root, "merge-base", "--is-ancestor", ancestor, descendant),
         check=False,
         capture_output=True,
+        env=_git_environment(),
         timeout=15,
     )
     return result.returncode == 0
@@ -1590,6 +1636,9 @@ def _validate_raw_evidence_contract(
         "authorization_ref_suffix": "authorization-record-sha256",
         "require_signed_campaign_packet": True,
         "require_single_authorization_object": True,
+        "require_git_no_replace_objects": True,
+        "require_sanitized_git_environment": True,
+        "require_pinned_signature_program": True,
         "require_workflow_sha_match": True,
         "require_checkout_head_match": True,
         "require_single_producer_run": True,
@@ -2795,10 +2844,13 @@ def _terminate_process_tree(process: subprocess.Popen[Any]) -> None:
             pass
 
 
-def _run_bounded_process(command: list[str], *, timeout: int | float) -> int:
+def _run_bounded_process(
+    command: list[str], *, timeout: int | float, environment: dict[str, str] | None = None
+) -> int:
     """Run without captured pipes and enforce one deadline over the process tree."""
     process = subprocess.Popen(
         command,
+        env=environment,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=os.name != "nt",
@@ -2837,7 +2889,8 @@ def _external_git_bundle_errors(
             checkout = Path(temporary) / "repository"
             returncode = _run_bounded_process(
                 [
-                    "git",
+                    GIT_EXECUTABLE,
+                    "--no-replace-objects",
                     "clone",
                     "--quiet",
                     "--no-checkout",
@@ -2845,6 +2898,7 @@ def _external_git_bundle_errors(
                     str(checkout),
                 ],
                 timeout=GIT_BUNDLE_TIMEOUT_SECONDS,
+                environment=_git_environment(),
             )
             if returncode != 0:
                 errors.append(

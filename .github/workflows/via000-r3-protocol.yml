@@ -42,8 +42,19 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $trustedGit = (Get-Command git -CommandType Application).Source
+          Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
+            Remove-Item -LiteralPath "Env:$($_.Name)"
+          }
+          $emptyGitConfig = Join-Path $env:RUNNER_TEMP "via000-r3-empty-gitconfig"
+          New-Item -ItemType File -Path $emptyGitConfig -Force | Out-Null
+          $env:GIT_NO_REPLACE_OBJECTS = "1"
+          $env:GIT_CONFIG_NOSYSTEM = "1"
+          $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
+          $env:GIT_TERMINAL_PROMPT = "0"
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
-          $capturedAuthorizationTagOid = git rev-parse --verify "${{ inputs.authorization_ref }}"
+          $capturedAuthorizationTagOid = & $trustedGit --no-replace-objects `
+            -C $env:GITHUB_WORKSPACE rev-parse --verify "${{ inputs.authorization_ref }}"
           if ($LASTEXITCODE -ne 0 -or $capturedAuthorizationTagOid -notmatch '^[0-9a-f]{40}$') {
             throw "authorization ref did not resolve to one immutable tag object"
           }
@@ -79,10 +90,21 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $trustedGit = (Get-Command git -CommandType Application).Source
+          Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
+            Remove-Item -LiteralPath "Env:$($_.Name)"
+          }
+          $emptyGitConfig = Join-Path $env:RUNNER_TEMP "via000-r3-empty-gitconfig"
+          New-Item -ItemType File -Path $emptyGitConfig -Force | Out-Null
+          $env:GIT_NO_REPLACE_OBJECTS = "1"
+          $env:GIT_CONFIG_NOSYSTEM = "1"
+          $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
+          $env:GIT_TERMINAL_PROMPT = "0"
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
-          $currentAuthorizationTagOid = git rev-parse --verify $authorization.authorization_ref
+          $currentAuthorizationTagOid = & $trustedGit --no-replace-objects `
+            -C $env:GITHUB_WORKSPACE rev-parse --verify $authorization.authorization_ref
           if ($LASTEXITCODE -ne 0 -or $currentAuthorizationTagOid -ne $authorization.authorization_tag_oid) {
             throw "authorization ref changed before platform execution"
           }
@@ -136,10 +158,21 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $trustedGit = (Get-Command git -CommandType Application).Source
+          Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
+            Remove-Item -LiteralPath "Env:$($_.Name)"
+          }
+          $emptyGitConfig = Join-Path $env:RUNNER_TEMP "via000-r3-empty-gitconfig"
+          New-Item -ItemType File -Path $emptyGitConfig -Force | Out-Null
+          $env:GIT_NO_REPLACE_OBJECTS = "1"
+          $env:GIT_CONFIG_NOSYSTEM = "1"
+          $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
+          $env:GIT_TERMINAL_PROMPT = "0"
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
-          $currentAuthorizationTagOid = git rev-parse --verify $authorization.authorization_ref
+          $currentAuthorizationTagOid = & $trustedGit --no-replace-objects `
+            -C $env:GITHUB_WORKSPACE rev-parse --verify $authorization.authorization_ref
           if ($LASTEXITCODE -ne 0 -or $currentAuthorizationTagOid -ne $authorization.authorization_tag_oid) {
             throw "authorization ref changed before mutation execution"
           }

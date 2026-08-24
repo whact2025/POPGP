@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -19,11 +21,63 @@ PRIMARY_PATH = "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
 SIGNATURE_MARKER = b"-----BEGIN SSH SIGNATURE-----"
 
 
+def _trusted_program(name: str) -> str:
+    if name not in {"git", "ssh-keygen"}:
+        raise ValueError(f"program is not authorized by the R3 guard: {name}")
+    if os.name == "nt":
+        drive = Path(sys.executable).anchor
+        candidates = {
+            "git": [Path(drive) / "Program Files/Git/cmd/git.exe"],
+            "ssh-keygen": [Path(drive) / "Windows/System32/OpenSSH/ssh-keygen.exe"],
+        }
+    else:
+        candidates = {
+            "git": [Path("/usr/bin/git"), Path("/bin/git")],
+            "ssh-keygen": [Path("/usr/bin/ssh-keygen"), Path("/bin/ssh-keygen")],
+        }
+    for candidate in candidates[name]:
+        if candidate.is_file():
+            return str(candidate.resolve())
+    raise ValueError(f"required trusted system program is unavailable: {name}")
+
+
+GIT_EXECUTABLE = _trusted_program("git")
+
+
+def _git_environment() -> dict[str, str]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.upper().startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_OPTIONAL_LOCKS": "0",
+        }
+    )
+    return environment
+
+
+def _git_command(repo_root: Path, *arguments: str) -> list[str]:
+    return [
+        GIT_EXECUTABLE,
+        "--no-replace-objects",
+        "-C",
+        str(repo_root.resolve()),
+        *arguments,
+    ]
+
+
 def _git(repo_root: Path, *arguments: str) -> bytes:
     completed = subprocess.run(
-        ["git", "-C", str(repo_root), *arguments],
+        _git_command(repo_root, *arguments),
         capture_output=True,
         check=False,
+        env=_git_environment(),
         timeout=20,
     )
     if completed.returncode != 0:
@@ -114,7 +168,8 @@ def _authorization_contract(repo_root: Path, protocol_commit: str) -> dict[str, 
     if (
         contract["schema_version"] != 1
         or contract["authorization_ref_prefix"] != AUTHORIZATION_REF_PREFIX
-        or contract["tag_object_binding"] != "captured-oid-with-final-ref-check-v1"
+        or contract["tag_object_binding"]
+        != "captured-oid-no-replace-with-final-ref-check-v2"
         or contract["signature_format"] != "ssh"
         or contract["required_packet_lifecycle"] != "preregistered"
     ):
@@ -254,19 +309,20 @@ def verify_campaign_authorization(
         signers_path.write_bytes(signers)
         verified = subprocess.run(
             [
-                "git",
-                "-C",
-                str(repo_root),
+                *_git_command(repo_root),
                 "-c",
                 "gpg.format=ssh",
                 "-c",
                 f"gpg.ssh.allowedSignersFile={signers_path}",
+                "-c",
+                f"gpg.ssh.program={_trusted_program('ssh-keygen')}",
                 "verify-tag",
                 "--raw",
                 tag_oid,
             ],
             capture_output=True,
             check=False,
+            env=_git_environment(),
             timeout=20,
         )
     if verified.returncode != 0:

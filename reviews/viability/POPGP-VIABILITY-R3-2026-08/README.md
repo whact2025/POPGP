@@ -32,15 +32,19 @@ canonical record. That record points to an immutable authorization commit whose
 campaign, packet, and manifest blobs independently authorize the same snapshot.
 The workflow and assembler each capture the authorization ref once as a full tag
 object ID; record parsing, target peeling, signature verification, returned identity,
-and the final ref-stability check must all use that exact immutable object.
+and the final ref-stability check must all use that exact immutable object. Every Git
+read in that chain disables replacement objects, uses an absolute system Git program,
+and runs with caller-supplied Git repository, object-store, replacement, namespace,
+config, SSH, and discovery variables removed. Signature verification additionally
+pins the absolute system `ssh-keygen` program and an isolated allowed-signers file.
 The source-tag suffix and resolution, authorized packet `protocol_commit`,
 `github.sha`, checkout HEAD, runner and mutation `protocol_source_commit`, Sigstore
 source digest, raw-results identity, assembler-derived identity, and validator
 expectation must all be the same lowercase 40-hex commit. Linux and Windows fragments
 must also carry one shared GitHub Actions run ID and attempt. A branch/lifecycle HEAD,
-later self-consistent tag, static or mid-verification authorization replacement,
-mutable validator source, wrong-source attestation, or cross-run mixture fails before
-output commitment.
+later self-consistent tag, static or mid-verification authorization replacement, Git
+replacement object or injected Git environment/config, mutable validator source,
+wrong-source attestation, or cross-run mixture fails before output commitment.
 
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,

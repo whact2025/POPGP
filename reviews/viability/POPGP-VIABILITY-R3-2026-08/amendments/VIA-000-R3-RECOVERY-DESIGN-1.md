@@ -36,7 +36,8 @@ scientific command, the frozen dispatch guard requires:
 3. the resolved source tag equal to its suffix;
 4. `github.sha` and checkout HEAD equal to the source snapshot;
 5. one captured authorization tag object for record parsing, target peeling, and
-   returned identity, with a final check that its ref did not change;
+   returned identity, with replacement objects disabled and a final check that its
+   ref did not change;
 6. a valid SSH signature over that same captured object from the public key frozen in
    the source snapshot; and
 7. exact hashes and protocol bindings in the authorized campaign, packet, and
@@ -54,7 +55,11 @@ dependency from the authorized source snapshot, checks them against both the pri
 contract and authorized manifest, supplies the real authorized packet blob, and
 executes the isolated bundle under Python `-I`. The public validator repeats the
 packet-commit, source, attestation, dispatch-ref, authorization, and cross-platform
-run checks.
+run checks. Guard, assembler, extracted validator, and workflow identity queries use
+an absolute system Git program with `--no-replace-objects`, scrub all inherited
+`GIT_*` repository/object/config/namespace/discovery controls, and disable system and
+global Git config. SSH verification also pins the absolute system `ssh-keygen`
+program, so local or environment-injected signature programs cannot run.
 
 Thus the following identity is single-valued:
 
@@ -71,11 +76,14 @@ The registered R3 identity gate rejects push events, branch refs, wrong tag suff
 wrong ref resolution, wrong `github.sha`, later lifecycle HEADs, a later
 self-consistent exact-tagged commit, unsigned/moved/deleted/substituted authorization,
 an authorization-ref swap between parsing, peeling, and signature verification,
-protocol files or validator dependencies that differ from snapshot Git blobs,
+default or custom-namespace Git object replacement, caller-controlled Git object
+directories/alternates/config/programs, protocol files or validator dependencies that
+differ from no-replacement snapshot Git blobs,
 wrong-source attestations, and Ubuntu/Windows fragments from different workflow runs.
 Every rejection is required before an output commitment can exist. Disposable test
-repositories exercise the exact signed authorization path and Git-normalized LF blobs
-under both `core.autocrlf=true` and `false`.
+repositories exercise the exact signed authorization path, invalid-tag replacement,
+source/campaign/packet/manifest/validator replacement, environment/config injection,
+and Git-normalized LF blobs under both `core.autocrlf=true` and `false`.
 
 ## Custody and authorization boundary
 
