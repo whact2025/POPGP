@@ -22,7 +22,7 @@
     },
     {
       "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
-      "sha256": "175e741e2dc8802cc753060cdc98ae19504bf40fa738ff68a0d86a8663e0640e"
+      "sha256": "834154c7254160c8710cfa5af9175306ef646cc8684f4fae212031b8d653a1f5"
     },
     {
       "path": "popgp/diagnostics.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "scripts/check_viability_campaign.py",
-      "sha256": "bf3b6253c9ebc936e507be42e22575e1f90378ed6db61c908dffde5c7dc3fa94"
+      "sha256": "46b6d37e4ca948f2cc5fd4e3a92b3aff3e7eb10863bd7d43351df43c31fa4af3"
     }
   ],
   "packet_rule_sha256": {
