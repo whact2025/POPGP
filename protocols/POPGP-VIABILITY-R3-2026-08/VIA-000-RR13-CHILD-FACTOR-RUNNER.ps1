@@ -324,7 +324,7 @@ $beforeOutput = (Get-Item -LiteralPath $GithubOutput -Force -ErrorAction Stop).L
 if ((Get-Item -LiteralPath $GithubOutput -Force -ErrorAction Stop).Length -le $beforeOutput) {
     throw "RR13 output facts were not appended"
 }
-Write-Host (
+Write-Host ((
     "RR13 factor={0} phase={1} exit_signed={2} exit_unsigned={3} exit_hex={4} " +
     "sentinel_present={5} stdout_nonempty={6} stderr_nonempty={7} " +
     "token_flags={8} environment={9} active_after=0"
@@ -332,4 +332,4 @@ Write-Host (
     $sentinelPresent.ToString().ToLowerInvariant(),
     ($stdoutLength -gt 0).ToString().ToLowerInvariant(),
     ($stderrLength -gt 0).ToString().ToLowerInvariant(),
-    $tokenFlags, $environmentConstruction
+    $tokenFlags, $environmentConstruction)

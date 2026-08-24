@@ -98,6 +98,7 @@ namespace Via000Rr13 {
     }
     [StructLayout(LayoutKind.Sequential)] struct SID_AND_ATTRIBUTES { public IntPtr Sid; public UInt32 Attributes; }
     [StructLayout(LayoutKind.Sequential)] struct TOKEN_MANDATORY_LABEL { public SID_AND_ATTRIBUTES Label; }
+    [StructLayout(LayoutKind.Sequential)] struct LUID { public UInt32 LowPart; public Int32 HighPart; }
 
     [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr GetCurrentProcess();
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool OpenProcessToken(IntPtr p, UInt32 access, out IntPtr token);
@@ -106,6 +107,7 @@ namespace Via000Rr13 {
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int len, out int required);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSidToSid(string value, out IntPtr sid);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertSidToStringSid(IntPtr sid, out IntPtr value);
+    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool LookupPrivilegeName(string system, ref LUID luid, StringBuilder name, ref int length);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool CreateProcessAsUser(IntPtr token, string app, StringBuilder command, IntPtr pa, IntPtr ta, bool inherit, UInt32 flags, IntPtr env, string cwd, ref STARTUPINFO si, out PROCESS_INFORMATION pi);
     [DllImport("userenv.dll", SetLastError=true)] static extern bool CreateEnvironmentBlock(out IntPtr environment, IntPtr token, bool inherit);
     [DllImport("userenv.dll", SetLastError=true)] static extern bool DestroyEnvironmentBlock(IntPtr environment);
@@ -239,10 +241,25 @@ namespace Via000Rr13 {
         Win32(GetTokenInformation(token, TokenPrivileges, buffer, required, out required), "GetTokenInformation privileges");
         UInt32 count = unchecked((UInt32)Marshal.ReadInt32(buffer));
         if (4L + 12L * count > required) throw new InvalidOperationException("restricted privilege buffer is malformed");
+        int enabledCount = 0;
         for (int index = 0; index < count; index++) {
+          var luid = new LUID {
+            LowPart = unchecked((UInt32)Marshal.ReadInt32(buffer, checked(4 + index * 12))),
+            HighPart = Marshal.ReadInt32(buffer, checked(4 + index * 12 + 4))
+          };
           UInt32 attributes = unchecked((UInt32)Marshal.ReadInt32(buffer, checked(4 + index * 12 + 8)));
-          if ((attributes & SE_PRIVILEGE_ENABLED) != 0) throw new InvalidOperationException("restricted token retained an enabled privilege");
+          if ((attributes & SE_PRIVILEGE_ENABLED) != 0) {
+            int nameLength = 0;
+            LookupPrivilegeName(null, ref luid, null, ref nameLength);
+            if (nameLength <= 0) throw new Win32Exception(Marshal.GetLastWin32Error(), "LookupPrivilegeName size");
+            var name = new StringBuilder(nameLength + 1);
+            Win32(LookupPrivilegeName(null, ref luid, name, ref nameLength), "LookupPrivilegeName");
+            if (name.ToString() != "SeChangeNotifyPrivilege")
+              throw new InvalidOperationException("restricted token retained an unexpected enabled privilege");
+            enabledCount++;
+          }
         }
+        if (enabledCount > 1) throw new InvalidOperationException("restricted token privilege state is noncanonical");
         return true;
       } finally { Marshal.FreeHGlobal(buffer); }
     }
