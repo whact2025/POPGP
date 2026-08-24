@@ -78,8 +78,41 @@ jobs:
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-aggregator.py
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-workflow.yml
 
-      - name: Exercise production containment boundary
-        shell: ${{ matrix.platform_family == 'windows-x86_64' && '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File {0}' || '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}' }}
+      - name: Exercise production containment boundary on Ubuntu
+        if: matrix.platform_family == 'ubuntu-latest-x86_64'
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_PLATFORM_FAMILY: ${{ matrix.platform_family }}
+          VIA000_STAGE_ID: ${{ matrix.stage_id }}
+          VIA000_TRUSTED_POWERSHELL: ${{ matrix.trusted_powershell }}
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $root = [string]$env:GITHUB_WORKSPACE
+          $protocol = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+          $runner = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
+          $cell = "via000-r3-containment-proof-$($env:VIA000_PLATFORM_FAMILY)-$($env:VIA000_STAGE_ID)"
+          $workspace = Join-Path ([string]$env:RUNNER_TEMP) "$cell-workspace"
+          $output = Join-Path ([string]$env:RUNNER_TEMP) $cell
+          & ([string]$env:VIA000_TRUSTED_POWERSHELL) -NoLogo -NoProfile -NonInteractive -File $runner `
+            -PlatformFamily ([string]$env:VIA000_PLATFORM_FAMILY) `
+            -StageId ([string]$env:VIA000_STAGE_ID) -RepoRoot $root `
+            -ProtocolPath $protocol -WorkspaceRoot $workspace -OutputRoot $output `
+            -PowerShellPath ([string]$env:VIA000_TRUSTED_POWERSHELL) `
+            -Repository ([string]$env:VIA000_REPOSITORY) `
+            -EventName ([string]$env:VIA000_EVENT_NAME) -SourceRef ([string]$env:VIA000_SOURCE_REF) `
+            -SourceSha ([string]$env:VIA000_SOURCE_SHA) -WorkflowRef ([string]$env:VIA000_WORKFLOW_REF) `
+            -RunId ([string]$env:VIA000_RUN_ID) -RunAttempt ([string]$env:VIA000_RUN_ATTEMPT)
+          if ($LASTEXITCODE -ne 0) { throw "containment proof cell failed" }
+
+      - name: Exercise production containment boundary on Windows
+        if: matrix.platform_family == 'windows-x86_64'
+        shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File {0}'
         env:
           VIA000_PLATFORM_FAMILY: ${{ matrix.platform_family }}
           VIA000_STAGE_ID: ${{ matrix.stage_id }}

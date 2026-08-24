@@ -59,6 +59,14 @@ summary: |-
   necessarily recorded after the handoff branch push and remain evidence for fresh
   independent rereview, never approval or campaign evidence.
 
+  The first branch-push attempt, run 32696509331 at handoff 6cb7d25a0ccec067aa1813a3cce0905f737e7974,
+  was rejected by GitHub before job creation because the workflow used the matrix
+  context in a step shell expression, where that context is unavailable. The
+  correction replaces it with two conditionally selected steps whose shell values
+  are literal reviewed absolute paths. Official actionlint 1.7.12 accepts the
+  corrected workflow with zero parse or expression errors. This failed zero-job run
+  is not containment evidence and is retained as transparent negative evidence.
+
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
     blocking_as_reported: true
@@ -107,6 +115,8 @@ finding_responses:
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"
         result: "Changed Python sources passed Ruff; all three proof/containment PowerShell files and the proof JSON/YAML parsed successfully."
+      - command: "official actionlint 1.7.12"
+        result: "Corrected hosted workflow passed with zero parse or expression errors after replacing the unsupported matrix-derived shell field with literal OS-specific shell steps."
       - command: "review guidance and TeX validation"
         result: "9 review-guidance tests passed in 10.83 seconds with the 431-test ledger reconciled; TeX source validation passed."
       - command: "campaign validator"
