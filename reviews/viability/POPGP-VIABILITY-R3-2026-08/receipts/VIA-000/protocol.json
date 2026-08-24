@@ -51,7 +51,7 @@
         {
           "source_path": "scripts/check_viability_campaign.py",
           "bundle_path": "check_viability_campaign.py",
-          "sha256": "ca277b2a1b215fa2d57a3a5be520ddc1d10dca68250349964ffef19a0db64169"
+          "sha256": "9520a5f467e9f6555b8a21324d1d5e064871666c1c135702ab857250f1b0f732"
         },
         {
           "source_path": "scripts/check_validation_artifacts.py",

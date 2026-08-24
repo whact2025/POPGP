@@ -7,11 +7,11 @@ repository: https://github.com/whact2025/POPGP
 candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
-protocol_commit: aab992457139f22fd0c1279f54cb5139e0bad915
+protocol_commit: 5e2c05b7c6200f8e4b7e6ec9e00a0ddbab5413a6
 requirements_path: schemas/viability/requirements-v2.json
 requirements_sha256: 632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20
 protocol_manifest_path: reviews/viability/POPGP-VIABILITY-R3-2026-08/PROTOCOL_MANIFEST.json
-protocol_manifest_sha256: 5a9f8eccd398c23dafecaa6e4f4b742ef89f4df0802788996f7707bf2a821d58
+protocol_manifest_sha256: 18155554e119c9c45fdf88c4db7a7ea672070fa59d3c34a6e8357d25a61f12b1
 packet_files:
   VIA-000: packets/VIA-000.yaml
   VIA-010: packets/VIA-010.yaml
