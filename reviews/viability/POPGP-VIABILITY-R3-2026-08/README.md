@@ -87,6 +87,14 @@ aborts without upload or commitment. The Windows primitive is exercised locally;
 Ubuntu primitive is enforced by the hosted workflow and remains pending independent
 rereview. This is still a draft, not an activated or frozen protocol.
 
+The hosted Ubuntu image rejected the mount-namespace properties during the safe RR7
+proof bootstrap. Consequently the reviewed helper explicitly uses `PrivateTmp=no`,
+`ProtectSystem=no`, and `ProtectHome=no`; it does not claim mount namespace isolation.
+The Ubuntu boundary depends on the fresh `DynamicUser`, runner-owned mode-0700
+protected roots, a dedicated mutable root, no-new-privileges/SUID controls, retained
+closure hashes, and empty-cgroup teardown proof. This premise is deliberately visible
+for independent reviewer scrutiny.
+
 A separate `.github/workflows/via000-r3-containment-proof.yml` is a non-scientific
 review gate. A tightly scoped push to `campaign/via000-r3-protocol-*` or
 `review/via000-r3-protocol-*` runs the exact frozen production containment helper on

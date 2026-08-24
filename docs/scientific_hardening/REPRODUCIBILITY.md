@@ -202,3 +202,9 @@ tree is terminated and zero descendants are proven. A production-hostile gate on
 hosted platforms launches a detached delayed writer against the live evidence and tool
 paths and requires containment plus byte identity; the Windows primitive also has a
 local executable regression.
+
+The hosted Ubuntu proof explicitly disables `PrivateTmp`, `ProtectSystem`, and
+`ProtectHome` because that runner rejects the corresponding mount namespace. It makes
+no namespace-isolation claim: the enforced boundary is `DynamicUser` plus runner-owned
+mode-0700 protected roots, a dedicated mutable root, no-new-privileges/SUID controls,
+closure hashes, and control-group teardown with an empty-cgroup proof.

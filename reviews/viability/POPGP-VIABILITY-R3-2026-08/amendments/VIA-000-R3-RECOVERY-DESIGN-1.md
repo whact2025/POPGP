@@ -109,6 +109,15 @@ tree. On Ubuntu it uses a systemd transient service with `DynamicUser=yes`,
 `KillMode=control-group`, and explicit post-stop control-group inspection. The
 workflow fails closed when the required primitive is unavailable.
 
+The hosted Ubuntu service manager rejected the mount-namespace properties during
+RR7 proof-path bootstrap. The frozen hosted path therefore declares
+`PrivateTmp=no`, `ProtectSystem=no`, and `ProtectHome=no` and does not claim mount
+namespace isolation. Its security boundary is instead the fresh `DynamicUser`
+identity, runner-owned mode-0700 protected roots, a dedicated world-writable mutable
+root, `NoNewPrivileges`/SUID restrictions, unchanged closure hashes, and complete
+control-group teardown with empty-cgroup proof. Independent review must treat those
+permission and cgroup premises—not an unavailable namespace—as the Ubuntu claim.
+
 The untrusted identity can write only a fresh mutable staging root. Tool,
 configuration, and trusted-evidence roots are non-writable to it; on Windows the
 trusted evidence SACL also applies no-read-up/no-write-up so an untrusted process
