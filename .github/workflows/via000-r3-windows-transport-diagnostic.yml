@@ -39,9 +39,14 @@ jobs:
         shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
         env:
           VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-r3-windows-transport-control
         run: |
           $ErrorActionPreference = 'Stop'
-          $controlRoot = Join-Path ([string]$env:RUNNER_TEMP) 'via000-r3-windows-transport-control'
+          $controlRoot = [string]$env:VIA000_CONTROL_ROOT
+          if ($controlRoot -cnotmatch '^[A-Za-z]:\\' -or
+              [IO.Path]::GetFullPath($controlRoot) -cne $controlRoot) {
+            throw 'diagnostic control root is not fully qualified'
+          }
           if (Test-Path -LiteralPath $controlRoot) { throw 'diagnostic control root is not fresh' }
           [void](New-Item -ItemType Directory -Path $controlRoot)
           $source = Join-Path $controlRoot 'synthetic.json'
@@ -59,10 +64,12 @@ jobs:
       - name: Emit digest through native cmd control path
         id: native-output
         shell: cmd
+        env:
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-r3-windows-transport-control
         run: |
           @echo off
           setlocal DisableDelayedExpansion
-          set "VIA000_DIGEST_FILE=%RUNNER_TEMP%\via000-r3-windows-transport-control\digest.txt"
+          set "VIA000_DIGEST_FILE=%VIA000_CONTROL_ROOT%\digest.txt"
           if not exist "%VIA000_DIGEST_FILE%" exit /b 91
           set /p "VIA000_DIAGNOSTIC_DIGEST="<"%VIA000_DIGEST_FILE%"
           if not defined VIA000_DIAGNOSTIC_DIGEST exit /b 92
