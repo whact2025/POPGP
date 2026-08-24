@@ -40,6 +40,96 @@ function Get-Via000Sha256 {
     return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
+function Write-Via000CanonicalJsonObject {
+    param(
+        [Parameter(Mandatory = $true)][Collections.IDictionary]$Document,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$ReplaceExisting
+    )
+    if ($null -eq $Document -or -not [IO.Path]::IsPathFullyQualified($Path)) {
+        throw "canonical JSON requires one object and an absolute path"
+    }
+    $exists = Test-Path -LiteralPath $Path
+    if ($ReplaceExisting) {
+        if (-not $exists) { throw "canonical JSON replacement target is absent" }
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        if (-not ($item -is [IO.FileInfo]) -or
+            ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "canonical JSON replacement target is not one regular file"
+        }
+    } elseif ($exists) {
+        throw "canonical JSON create target already exists"
+    }
+
+    $options = [Text.Json.JsonSerializerOptions]::new()
+    $options.WriteIndented = $false
+    $payload = [Text.Json.JsonSerializer]::SerializeToUtf8Bytes([object]$Document, $options)
+    if ($payload.Length -lt 2 -or $payload[0] -ne 0x7b -or
+        $payload[$payload.Length - 1] -ne 0x7d) {
+        throw "canonical JSON serialization is not one object"
+    }
+    foreach ($value in $payload) {
+        if ($value -lt 0x20 -or $value -eq 0xef) {
+            throw "canonical JSON serialization contains a forbidden raw control or BOM byte"
+        }
+    }
+    $strictUtf8 = [Text.UTF8Encoding]::new($false, $true)
+    $text = $strictUtf8.GetString($payload)
+    $parsed = [Text.Json.JsonDocument]::Parse($text)
+    try {
+        if ($parsed.RootElement.ValueKind -ne [Text.Json.JsonValueKind]::Object) {
+            throw "canonical JSON serialization is not an object"
+        }
+        $canonical = [Text.Json.JsonSerializer]::SerializeToUtf8Bytes(
+            $parsed.RootElement, $options
+        )
+    } finally {
+        $parsed.Dispose()
+    }
+    if ($canonical.Length -ne $payload.Length) {
+        throw "canonical JSON serialization is not stable"
+    }
+    for ($index = 0; $index -lt $payload.Length; $index++) {
+        if ($canonical[$index] -ne $payload[$index]) {
+            throw "canonical JSON serialization is not stable"
+        }
+    }
+
+    $bytes = [byte[]]::new($payload.Length + 1)
+    [Array]::Copy($payload, $bytes, $payload.Length)
+    $bytes[$bytes.Length - 1] = 0x0a
+    $mode = if ($ReplaceExisting) { [IO.FileMode]::Open } else { [IO.FileMode]::CreateNew }
+    $stream = [IO.FileStream]::new(
+        $Path, $mode, [IO.FileAccess]::Write, [IO.FileShare]::None, 4096,
+        [IO.FileOptions]::WriteThrough
+    )
+    try {
+        if ($ReplaceExisting) { $stream.SetLength(0) }
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush($true)
+    } finally {
+        $stream.Dispose()
+    }
+    $readBack = [IO.File]::ReadAllBytes($Path)
+    if ($readBack.Length -ne $bytes.Length) {
+        throw "canonical JSON read-back length differs"
+    }
+    for ($index = 0; $index -lt $bytes.Length; $index++) {
+        if ($readBack[$index] -ne $bytes[$index]) {
+            throw "canonical JSON read-back bytes differ"
+        }
+    }
+    $expectedHash = [Convert]::ToHexString(
+        [Security.Cryptography.SHA256]::HashData($bytes)
+    ).ToLowerInvariant()
+    $observedHash = [Convert]::ToHexString(
+        [Security.Cryptography.SHA256]::HashData($readBack)
+    ).ToLowerInvariant()
+    if ($observedHash -cne $expectedHash) {
+        throw "canonical JSON read-back hash differs"
+    }
+}
+
 function Assert-Via000Closure {
     param(
         [Parameter(Mandatory = $true)][hashtable]$Closure,
@@ -955,15 +1045,15 @@ function Invoke-Via000ContainedCommand {
             $record["ephemeral_identity_processes_empty"] = $true
             $record["ephemeral_identity_removed"] = $false
         }
-        $record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ResultPath -Encoding utf8NoBOM
+        Write-Via000CanonicalJsonObject -Document $record -Path $ResultPath
         if ($PlatformFamily -eq "ubuntu-latest-x86_64") {
             Assert-Via000UidQuiescent -Uid $serviceUid
             & ([string]$SystemTools.sudo) -n ([string]$SystemTools.userdel) $serviceUser
             if ($LASTEXITCODE -ne 0) { throw "could not remove fresh untrusted service identity" }
             $serviceUserCreated = $false
             $record["ephemeral_identity_removed"] = $true
-            $record | ConvertTo-Json -Depth 8 |
-                Set-Content -LiteralPath $ResultPath -Encoding utf8NoBOM
+            Write-Via000CanonicalJsonObject -Document $record -Path $ResultPath `
+                -ReplaceExisting
         }
     } finally {
         if ($serviceUserCreated) {

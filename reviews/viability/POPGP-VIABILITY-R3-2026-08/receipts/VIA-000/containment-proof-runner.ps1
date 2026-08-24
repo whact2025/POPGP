@@ -494,7 +494,7 @@ try {
         no_commitment_or_reveal = $true
     }
     $proofPath = Join-Path $evidence "proof.json"
-    $proof | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $proofPath -Encoding utf8NoBOM
+    Write-Via000CanonicalJsonObject -Document $proof -Path $proofPath
 
     $subjectPaths = @{
         "containment-result.json" = $containedResult

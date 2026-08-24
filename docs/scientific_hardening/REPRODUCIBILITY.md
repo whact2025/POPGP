@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 446 passed |
+| `pytest -q` | about 1200 s | 447 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -245,3 +245,11 @@ or non-1.5.7 zstd identities, captures its SHA-256, and repeats the complete ide
 and hash check immediately before and after the pinned cache-save action. The failed
 RR18 replay `32763190366` produced no retained aggregate or artifact and is superseded
 only by a fresh exact six-cell RR19 replay.
+
+RR20 replaces the platform-text proof/result JSON pipelines with one hash-bound
+PowerShell byte writer shared by the production proof runner and containment helper.
+It serializes one compact object, emits strict UTF-8 without BOM or raw control bytes,
+appends exactly one `0x0A`, uses exclusive create or explicit replacement with
+write-through flush, and verifies identical read-back bytes and SHA-256. The aggregate
+continues to reject CR/BOM and now also rejects missing, embedded, or doubled LF in
+decoded inner JSON. Run `32767703776` remains a failed, artifact-free predecessor.

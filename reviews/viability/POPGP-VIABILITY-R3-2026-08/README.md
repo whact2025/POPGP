@@ -186,6 +186,14 @@ ancestors/file, one data stream, one hard link, unique `Get-Command` resolution,
 version, and SHA-256 are checked under the sanitized PATH before and after cache save.
 No output artifact from the failed run is accepted.
 
+RR20 supersedes the artifact-free RR19 proof run `32767703776`. That run proved all
+six containment cells, the exact Windows zstd boundary, cache saves, restores, hits,
+and matched keys, then rejected the first decoded Windows proof.json because its
+PowerShell text pipeline emitted CRLF. One frozen canonical byte writer now emits both
+proof.json and every final containment-result.json as compact strict UTF-8/no-BOM
+objects with exactly one final LF and verified read-back bytes/hash. The outer envelope
+writer and every containment, descriptor, zstd, key, and cache predicate are unchanged.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

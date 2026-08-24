@@ -396,6 +396,18 @@ hard-link, reparse, version, resolution, and hash predicates immediately before 
 after cache save. Containment, export descriptors, envelope bytes, cache keys, and the
 six-job topology are unchanged. A fresh retained 2x3 replay remains mandatory.
 
+## RR20 canonical inner JSON amendment
+
+RR19's hosted replay passed every producer, zstd, cache-save, exact-restore, hit, and
+matched-key boundary. It then failed before output because Windows ConvertTo-Json plus
+Set-Content produced CRLF inside decoded proof.json; the same latent pipeline wrote
+containment-result.json. RR20 replaces all three call sites with one frozen helper that
+serializes a compact object to strict UTF-8 without BOM, appends one LF byte, writes
+through an exclusive create or explicit replacement stream, flushes to disk, and
+requires identical read-back bytes and hash. Inner aggregation now requires precisely
+that terminal-LF shape. Outer envelopes and all earlier security predicates are
+unchanged; a fresh retained 2x3 replay remains mandatory.
+
 ## RR16 hosted export-boundary amendment
 
 RR15's hosted run proved that all six frozen runners parse and both containment

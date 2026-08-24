@@ -134,6 +134,10 @@ must clean the cell and leave no digest/cache/artifact.
     non-reparse `C:\tools\zstd\zstd.exe` version 1.5.7 under the sanitized PATH,
     bind its SHA-256, and repeat exact identity/hash checks immediately before and
     after cache save. Do not accept the failed RR18 run `32763190366` as evidence.
+    Require proof.json and both containment-result.json write paths to use the one
+    frozen canonical byte writer: compact strict UTF-8, no BOM/CR, exactly one final
+    LF, exclusive create/replace, write-through flush, and byte/hash read-back. Do not
+    accept artifact-free run `32767703776` or normalize inner bytes after hashing.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

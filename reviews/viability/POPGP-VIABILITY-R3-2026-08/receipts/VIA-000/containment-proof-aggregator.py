@@ -178,6 +178,12 @@ def _parse_json(content: bytes, description: str) -> dict[str, Any]:
     return document
 
 
+def _parse_canonical_inner_json(content: bytes, description: str) -> dict[str, Any]:
+    if not content.endswith(b"\n") or b"\n" in content[:-1]:
+        raise ValueError(f"{description} is not compact JSON with exactly one final LF")
+    return _parse_json(content, description)
+
+
 def canonical_envelope_bytes(document: dict[str, Any]) -> bytes:
     return (
         json.dumps(
@@ -317,7 +323,7 @@ def _validate_cell(
     ):
         raise ValueError(f"envelope cell/artifact identity differs: {path}")
 
-    document = _parse_json(subjects["proof.json"], f"inner proof {path}")
+    document = _parse_canonical_inner_json(subjects["proof.json"], f"inner proof {path}")
     if set(document) != CELL_FIELDS:
         raise ValueError(f"proof fields differ from frozen cell schema: {path}")
     if document["schema_version"] != 1 or document["proof_kind"] != (
@@ -398,7 +404,9 @@ def _validate_cell(
     contained_bytes = subjects["containment-result.json"]
     if _sha256_bytes(contained_bytes) != document["containment_result_sha256"]:
         raise ValueError(f"containment result hash differs: {path}")
-    contained = _parse_json(contained_bytes, f"inner containment result {path}")
+    contained = _parse_canonical_inner_json(
+        contained_bytes, f"inner containment result {path}"
+    )
     if (
         contained.get("schema_version") != 1
         or contained.get("label") != f"proof-{stage}"

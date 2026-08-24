@@ -2158,7 +2158,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "could not create fresh untrusted service identity" in containment_text
     assert "fresh untrusted service identity retained a process" in containment_text
     assert "could not remove fresh untrusted service identity" in containment_text
-    evidence_write = containment_text.index("$record | ConvertTo-Json -Depth 8")
+    evidence_write = containment_text.index(
+        "Write-Via000CanonicalJsonObject -Document $record -Path $ResultPath"
+    )
     final_uid_check = containment_text.index(
         "Assert-Via000UidQuiescent -Uid $serviceUid", evidence_write
     )
@@ -2251,7 +2253,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                     }
                 )
             subjects["containment-result.json"] = (
-                json.dumps(contained, indent=2).encode("utf-8") + b"\n"
+                json.dumps(contained, separators=(",", ":")).encode("utf-8") + b"\n"
             )
             proof = {
                 "schema_version": 1,
@@ -2280,7 +2282,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 **{field: "b" * 64 for field in hash_fields},
             }
             validator.validate(proof)
-            subjects["proof.json"] = json.dumps(proof, indent=2).encode("utf-8") + b"\n"
+            subjects["proof.json"] = (
+                json.dumps(proof, separators=(",", ":")).encode("utf-8") + b"\n"
+            )
             identity = {
                 field: proof[field]
                 for field in (
@@ -2375,7 +2379,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     proof_bytes = base64.b64decode(document["members"]["proof.json"]["base64"])
     inner_proof = json.loads(proof_bytes)
     inner_proof["containment_result_sha256"] = "0" * 64
-    bad_proof = json.dumps(inner_proof, indent=2).encode() + b"\n"
+    bad_proof = json.dumps(inner_proof, separators=(",", ":")).encode() + b"\n"
     document["members"]["proof.json"] = {
         "base64": base64.b64encode(bad_proof).decode(),
         "sha256": hashlib.sha256(bad_proof).hexdigest(),
@@ -2431,7 +2435,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         proof_bytes = base64.b64decode(document["members"]["proof.json"]["base64"])
         proof = json.loads(proof_bytes)
         proof[field] = value
-        replacement = json.dumps(proof, indent=2).encode() + b"\n"
+        replacement = json.dumps(proof, separators=(",", ":")).encode() + b"\n"
         document["members"]["proof.json"] = {
             "base64": base64.b64encode(replacement).decode(),
             "sha256": hashlib.sha256(replacement).hexdigest(),
@@ -2566,7 +2570,9 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
             "ephemeral_identity_removed",
         ):
             contained.pop(field, None)
-    subjects["containment-result.json"] = json.dumps(contained, indent=2).encode() + b"\n"
+    subjects["containment-result.json"] = (
+        json.dumps(contained, separators=(",", ":")).encode() + b"\n"
+    )
     proof = json.loads(subjects["proof.json"])
     artifact = f"via000-r3-containment-proof-{platform}-{stage}"
     proof.update(
@@ -2584,7 +2590,9 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
             ).hexdigest(),
         }
     )
-    subjects["proof.json"] = json.dumps(proof, indent=2).encode() + b"\n"
+    subjects["proof.json"] = (
+        json.dumps(proof, separators=(",", ":")).encode() + b"\n"
+    )
     identity = {
         field: proof[field]
         for field in (
@@ -3817,6 +3825,290 @@ def test_r3_rr19_windows_cache_zstd_identity_is_exact_and_rechecked() -> None:
     for mutation in mutations.values():
         with pytest.raises((AssertionError, KeyError, StopIteration, yaml.YAMLError)):
             assert_contract(mutation)
+
+
+@pytest.mark.negative_control
+def test_r3_rr20_canonical_inner_json_bytes(tmp_path: Path) -> None:
+    """TST-VIA000-R3-RR20-CANONICAL-INNER-JSON-BYTES-001."""
+    containment_text = CONTAINMENT.read_text(encoding="utf-8")
+    runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
+    containment_receipt = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-protocol.ps1"
+    )
+    runner_receipt = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-runner.ps1"
+    )
+    aggregator_receipt = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-aggregator.py"
+    )
+    assert containment_receipt.read_bytes() == CONTAINMENT.read_bytes()
+    assert runner_receipt.read_bytes() == CONTAINMENT_PROOF_RUNNER.read_bytes()
+    assert aggregator_receipt.read_bytes() == CONTAINMENT_PROOF_AGGREGATOR.read_bytes()
+    assert "function Write-Via000CanonicalJsonObject" in containment_text
+    assert "[Collections.IDictionary]$Document" in containment_text
+    assert "[IO.FileMode]::CreateNew" in containment_text
+    assert "[IO.FileMode]::Open" in containment_text
+    assert "[IO.FileShare]::None" in containment_text
+    assert "[IO.FileOptions]::WriteThrough" in containment_text
+    assert "$stream.Flush($true)" in containment_text
+    assert "[Text.UTF8Encoding]::new($false, $true)" in containment_text
+    assert "[Security.Cryptography.SHA256]::HashData($readBack)" in containment_text
+    assert containment_text.count("Write-Via000CanonicalJsonObject -Document $record") == 2
+    assert "Write-Via000CanonicalJsonObject -Document $proof" in runner_text
+    assert "ConvertTo-Json -Depth 8 | Set-Content" not in containment_text
+    assert "ConvertTo-Json -Depth 8 | Set-Content" not in runner_text
+
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    module = _load_module(CONTAINMENT_PROOF_AGGREGATOR, "r3_rr20_aggregator")
+    source_sha = "a" * 40
+    source_ref = "refs/heads/campaign/via000-r3-protocol-proof-test"
+    workflow_ref = (
+        "whact2025/POPGP/.github/workflows/via000-r3-containment-proof.yml@"
+        + source_ref
+    )
+    subject_root = tmp_path / "production-subjects"
+    subject_root.mkdir()
+    writer_script = tmp_path / "rr20-writer.ps1"
+    writer_script.write_text(
+        "param([string]$Helper,[string]$DocumentPath,[string]$Root,[switch]$ReplaceOne)\n"
+        "$ErrorActionPreference='Stop'; . $Helper\n"
+        "$documents=Get-Content -LiteralPath $DocumentPath -Raw | "
+        "ConvertFrom-Json -AsHashtable\n"
+        "$first=$true\n"
+        "foreach($entry in $documents.GetEnumerator()){\n"
+        " if([string]$entry.Key -cnotmatch '^[a-z0-9._-]+$'){throw 'bad name'}\n"
+        " $path=Join-Path $Root ([string]$entry.Key)\n"
+        " Write-Via000CanonicalJsonObject -Document $entry.Value -Path $path\n"
+        " if($ReplaceOne -and $first){\n"
+        "  $before=(Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash\n"
+        "  Write-Via000CanonicalJsonObject -Document $entry.Value -Path $path "
+        "-ReplaceExisting\n"
+        "  $after=(Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash\n"
+        "  if($before -cne $after){throw 'replacement bytes changed'}\n"
+        "  $first=$false\n"
+        " }\n"
+        "}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    def write_documents(documents: dict[str, object], label: str, replace: bool) -> None:
+        source = tmp_path / f"{label}.json"
+        source.write_text(
+            json.dumps(documents, separators=(",", ":")),
+            encoding="utf-8",
+            newline="\n",
+        )
+        command = [
+            pwsh,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(writer_script),
+            str(CONTAINMENT),
+            str(source),
+            str(subject_root),
+        ]
+        if replace:
+            command.append("-ReplaceOne")
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+        assert completed.returncode == 0, completed.stderr
+
+    result_documents: dict[str, object] = {}
+    cell_metadata: dict[tuple[str, str], tuple[str, str, str]] = {}
+    for platform in module.PLATFORMS:
+        primitive = (
+            "windows-low-integrity-restricted-token-job-object"
+            if platform == "windows-x86_64"
+            else "ubuntu-systemd-ephemeral-user-control-group"
+        )
+        privilege = (
+            "low-integrity-restricted-token"
+            if platform == "windows-x86_64"
+            else "systemd-ephemeral-user"
+        )
+        for stage in module.STAGES:
+            stem = f"{platform}-{stage}"
+            result_name = f"{stem}-containment-result.json"
+            proof_name = f"{stem}-proof.json"
+            artifact = f"via000-r3-containment-proof-{platform}-{stage}"
+            contained: dict[str, object] = {
+                "schema_version": 1,
+                "label": f"proof-{stage}",
+                "contract_id": "rr7-hosted-containment-proof",
+                "primitive": primitive,
+                "privilege_separation": privilege,
+                "descendants_quiescent": True,
+                "active_processes_after_teardown": 0,
+                "exit_code": 0,
+                "timed_out": False,
+                **_token_evidence(platform),
+                "stdout_sha256": hashlib.sha256(b"").hexdigest(),
+                "stderr_sha256": hashlib.sha256(b"").hexdigest(),
+                "writer_control": "escaped\ncontrol",
+            }
+            if platform == "ubuntu-latest-x86_64":
+                contained.update(
+                    {
+                        "ephemeral_identity_uid": "999",
+                        "ephemeral_identity_processes_empty": True,
+                        "ephemeral_identity_removed": True,
+                    }
+                )
+            result_documents[result_name] = contained
+            cell_metadata[(platform, stage)] = (result_name, proof_name, artifact)
+    write_documents(result_documents, "results", True)
+
+    proof_documents: dict[str, object] = {}
+    for (platform, stage), (result_name, proof_name, artifact) in cell_metadata.items():
+        result_bytes = (subject_root / result_name).read_bytes()
+        primitive = result_documents[result_name]["primitive"]
+        privilege = result_documents[result_name]["privilege_separation"]
+        proof_documents[proof_name] = {
+            "schema_version": 1,
+            "proof_kind": "via000-r3-hosted-containment-cell",
+            "repository": "whact2025/POPGP",
+            "workflow": ".github/workflows/via000-r3-containment-proof.yml",
+            "workflow_ref": workflow_ref,
+            "event_name": "push",
+            "source_ref": source_ref,
+            "source_sha": source_sha,
+            "run_id": "424242",
+            "run_attempt": "1",
+            "platform_family": platform,
+            "stage_id": stage,
+            "cell": f"{platform}/{stage}",
+            "artifact_name": artifact,
+            "primitive": primitive,
+            "privilege_separation": privilege,
+            **_token_evidence(platform),
+            **_export_evidence(platform),
+            "active_processes_after_teardown": 0,
+            **{field: True for field in module.TRUE_FIELDS},
+            **{field: "b" * 64 for field in module.HASH_FIELDS},
+            "containment_result_sha256": hashlib.sha256(result_bytes).hexdigest(),
+        }
+    write_documents(proof_documents, "proofs", False)
+
+    for path in subject_root.iterdir():
+        content = path.read_bytes()
+        assert content.startswith(b"{") and content.endswith(b"}\n")
+        assert not content.startswith(b"\xef\xbb\xbf")
+        assert b"\r" not in content
+        assert content.count(b"\n") == 1
+        assert not content.endswith(b"\n\n")
+        assert isinstance(json.loads(content.decode("utf-8", errors="strict")), dict)
+
+    fragments = tmp_path / "fragments"
+    for (platform, stage), (result_name, proof_name, artifact) in cell_metadata.items():
+        subjects = {
+            "containment-result.json": (subject_root / result_name).read_bytes(),
+            "proof.json": (subject_root / proof_name).read_bytes(),
+            "stderr.txt": b"",
+            "stdout.txt": b"",
+        }
+        proof = proof_documents[proof_name]
+        identity = {field: proof[field] for field in module.IDENTITY_FIELDS}
+        artifact_root = fragments / artifact
+        artifact_root.mkdir(parents=True)
+        (artifact_root / "envelope.json").write_bytes(
+            module.build_envelope(identity, subjects)
+        )
+
+    output = tmp_path / "aggregate.json"
+    command = [
+        sys.executable,
+        "-I",
+        "-S",
+        str(CONTAINMENT_PROOF_AGGREGATOR),
+        "--input-root",
+        str(fragments),
+        "--output",
+        str(output),
+        "--source-sha",
+        source_sha,
+        "--source-ref",
+        source_ref,
+        "--workflow-ref",
+        workflow_ref,
+        "--run-id",
+        "424242",
+        "--run-attempt",
+        "1",
+    ]
+    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(output.read_bytes())["cell_count"] == 6
+
+    target = fragments / (
+        "via000-r3-containment-proof-windows-x86_64-candidate/envelope.json"
+    )
+    original = target.read_bytes()
+    original_document = json.loads(original)
+    proof_bytes = base64.b64decode(
+        original_document["members"]["proof.json"]["base64"]
+    )
+    mutations = {
+        "bom": b"\xef\xbb\xbf" + proof_bytes,
+        "crlf": proof_bytes[:-1] + b"\r\n",
+        "missing-final-lf": proof_bytes[:-1],
+        "double-final-lf": proof_bytes + b"\n",
+    }
+    for label, replacement in mutations.items():
+        document = json.loads(original)
+        previous_size = document["members"]["proof.json"]["size"]
+        document["members"]["proof.json"] = {
+            "base64": base64.b64encode(replacement).decode("ascii"),
+            "sha256": hashlib.sha256(replacement).hexdigest(),
+            "size": len(replacement),
+        }
+        document["total_decoded_bytes"] += len(replacement) - previous_size
+        target.write_bytes(module.canonical_envelope_bytes(document))
+        output.unlink(missing_ok=True)
+        rejected = subprocess.run(command, check=False, capture_output=True, text=True)
+        assert rejected.returncode != 0, label
+        assert not output.exists()
+    target.write_bytes(original)
+
+    nonobject_input = tmp_path / "nonobject.json"
+    nonobject_input.write_text('[1,2]', encoding="utf-8", newline="\n")
+    rejected_path = subject_root / "nonobject.json"
+    nonobject_script = tmp_path / "rr20-nonobject.ps1"
+    nonobject_script.write_text(
+        "param($Helper,$DocumentPath,$OutputPath)\n"
+        "$ErrorActionPreference='Stop'; . $Helper\n"
+        "$value=Get-Content -LiteralPath $DocumentPath -Raw | "
+        "ConvertFrom-Json -AsHashtable\n"
+        "Write-Via000CanonicalJsonObject -Document $value -Path $OutputPath\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    nonobject = subprocess.run(
+        [
+            pwsh,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(nonobject_script),
+            str(CONTAINMENT),
+            str(nonobject_input),
+            str(rejected_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert nonobject.returncode != 0
+    assert not rejected_path.exists()
 
 
 @pytest.mark.negative_control
