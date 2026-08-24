@@ -2015,6 +2015,13 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
     ):
         assert action in workflow_text
+    assert (
+        r"shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        in workflow_text
+    )
+    assert "if ((Test-Path -LiteralPath $WorkspaceRoot) -or" in (
+        CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
+    )
     runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
     fixture_text = CONTAINMENT_PROOF_FIXTURE.read_text(encoding="utf-8")
     assert "Invoke-Via000ContainedCommand" in runner_text

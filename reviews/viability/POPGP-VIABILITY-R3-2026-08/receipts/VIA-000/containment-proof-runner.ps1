@@ -95,7 +95,7 @@ if ($WorkflowRef -cne $expectedWorkflowRef) { throw "containment proof workflow 
 foreach ($path in @($RepoRoot, $ProtocolPath, $WorkspaceRoot, $OutputRoot, $PowerShellPath)) {
     if (-not [IO.Path]::IsPathFullyQualified($path)) { throw "proof path is not absolute: $path" }
 }
-if (Test-Path -LiteralPath $WorkspaceRoot -or Test-Path -LiteralPath $OutputRoot) {
+if ((Test-Path -LiteralPath $WorkspaceRoot) -or (Test-Path -LiteralPath $OutputRoot)) {
     throw "containment proof workspace or output already exists"
 }
 

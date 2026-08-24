@@ -72,6 +72,14 @@ summary: |-
   upload-artifact revision did not exist upstream. The pin is corrected to the
   verified immutable v4.6.2 commit ea165f8d65b6e75b540449e92b4886f43607fa02;
   this second run likewise contains no containment result or campaign evidence.
+  The third branch-push attempt, run 32697512012 at handoff
+  357bc823265ebaf6837553175873a3f98b99f3f6, reached the exact six checked-out
+  cells and exposed two bootstrap defects before hostile execution: PowerShell
+  parsed an unparenthesized two-path preflight as duplicate LiteralPath parameters,
+  and the GitHub Windows shell resolver could not accept a quoted executable path
+  containing spaces. The preflight is parenthesized and the Windows step now uses
+  the absolute built-in Windows PowerShell host solely to launch the separately
+  verified absolute PowerShell 7 executable. This run is not containment evidence.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
