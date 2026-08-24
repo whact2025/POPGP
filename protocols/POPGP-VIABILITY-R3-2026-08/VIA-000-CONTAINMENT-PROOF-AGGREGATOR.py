@@ -20,6 +20,8 @@ TRUE_FIELDS = {
     "receipt_bindings_verified",
     "descendants_quiescent",
     "os_process_tree_empty",
+    "untrusted_identity_processes_empty",
+    "untrusted_identity_retired",
     "child_of_child_observed_before_direct_exit",
     "protected_evidence_read_denied",
     "protected_evidence_write_denied",
@@ -124,12 +126,12 @@ def _validate_cell(document: dict[str, Any], path: Path, identity: dict[str, str
     expected_primitive = (
         "windows-low-integrity-restricted-token-job-object"
         if platform == "windows-x86_64"
-        else "ubuntu-systemd-dynamic-user-control-group"
+        else "ubuntu-systemd-ephemeral-user-control-group"
     )
     expected_privilege = (
         "low-integrity-restricted-token"
         if platform == "windows-x86_64"
-        else "systemd-dynamic-user"
+        else "systemd-ephemeral-user"
     )
     if (
         document["primitive"] != expected_primitive
@@ -158,6 +160,12 @@ def _validate_cell(document: dict[str, Any], path: Path, identity: dict[str, str
         or contained.get("timed_out") is not False
     ):
         raise ValueError(f"containment result predicates differ: {path}")
+    if platform == "ubuntu-latest-x86_64" and (
+        re.fullmatch(r"[1-9][0-9]*", contained.get("ephemeral_identity_uid", "")) is None
+        or contained.get("ephemeral_identity_processes_empty") is not True
+        or contained.get("ephemeral_identity_removed") is not True
+    ):
+        raise ValueError(f"ephemeral Ubuntu identity proof differs: {path}")
     if contained.get("stdout_sha256") != _sha256(path.parent / "stdout.txt") or contained.get(
         "stderr_sha256"
     ) != _sha256(path.parent / "stderr.txt"):

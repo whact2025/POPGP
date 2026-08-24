@@ -75,8 +75,10 @@ merges only their stage-authorized scientific contributions.
 
 Inside every candidate- or mutation-controlled stage, the runner establishes a
 second boundary before the first adversarial instruction. Windows uses a restricted
-low-integrity token atomically assigned to a kill-on-close Job Object; Ubuntu uses a
-systemd `DynamicUser` transient service with control-group teardown. Untrusted code
+low-integrity token atomically assigned to a kill-on-close Job Object; Ubuntu creates
+a fresh unprivileged system account for a systemd transient service, proves empty
+control group and UID process set, creates evidence while retaining the UID allocation,
+rechecks the UID process set, and only then deletes the account. Untrusted code
 can write only mutable staging paths and cannot write the protected tool/configuration
 or trusted-evidence roots. The trusted runner creates evidence and captures/rechecks
 attestation subjects only after terminating the complete descendant tree and proving
@@ -90,10 +92,10 @@ rereview. This is still a draft, not an activated or frozen protocol.
 The hosted Ubuntu image rejected the mount-namespace properties during the safe RR7
 proof bootstrap. Consequently the reviewed helper explicitly uses `PrivateTmp=no`,
 `ProtectSystem=no`, and `ProtectHome=no`; it does not claim mount namespace isolation.
-The Ubuntu boundary depends on the fresh `DynamicUser`, runner-owned mode-0700
-protected roots, a dedicated mutable root, no-new-privileges/SUID controls, retained
-closure hashes, and empty-cgroup teardown proof. This premise is deliberately visible
-for independent reviewer scrutiny.
+The Ubuntu boundary depends on that per-command unprivileged identity, runner-owned
+mode-0700 protected roots, a dedicated mutable root, no-new-privileges/SUID controls,
+retained closure hashes, empty-cgroup and empty-UID-process proof, and account removal.
+This premise is deliberately visible for independent reviewer scrutiny.
 
 A separate `.github/workflows/via000-r3-containment-proof.yml` is a non-scientific
 review gate. A tightly scoped push to `campaign/via000-r3-protocol-*` or

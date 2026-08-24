@@ -97,8 +97,8 @@ jobs:
           $protocol = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
           $runner = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
           $cell = "via000-r3-containment-proof-$($env:VIA000_PLATFORM_FAMILY)-$($env:VIA000_STAGE_ID)"
-          $workspace = Join-Path $root "via000-proof-workspace-$cell-$($env:VIA000_RUN_ID)"
-          $output = Join-Path ([string]$env:RUNNER_TEMP) $cell
+          $workspace = Join-Path $root "via000-proof-workspace"
+          $output = Join-Path $root "via000-proof-output"
           & ([string]$env:VIA000_TRUSTED_POWERSHELL) -NoLogo -NoProfile -NonInteractive -File $runner `
             -PlatformFamily ([string]$env:VIA000_PLATFORM_FAMILY) `
             -StageId ([string]$env:VIA000_STAGE_ID) -RepoRoot $root `
@@ -146,8 +146,8 @@ jobs:
           $protocol = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
           $runner = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
           $cell = "via000-r3-containment-proof-$($env:VIA000_PLATFORM_FAMILY)-$($env:VIA000_STAGE_ID)"
-          $workspace = Join-Path ([string]$env:RUNNER_TEMP) "$cell-workspace"
-          $output = Join-Path $root "via000-proof-output-$cell"
+          $workspace = Join-Path $root "via000-proof-workspace"
+          $output = Join-Path $root "via000-proof-output"
           & ([string]$env:VIA000_TRUSTED_POWERSHELL) -NoLogo -NoProfile -NonInteractive -File $runner `
             -PlatformFamily ([string]$env:VIA000_PLATFORM_FAMILY) `
             -StageId ([string]$env:VIA000_STAGE_ID) -RepoRoot $root `
@@ -176,25 +176,11 @@ jobs:
             throw "containment proof pre-upload hashes differ"
           }
 
-      - name: Upload non-scientific Ubuntu cell proof
-        if: matrix.platform_family == 'ubuntu-latest-x86_64'
+      - name: Upload non-scientific cell proof
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
-          path: ${{ runner.temp }}/via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload non-scientific Windows cell proof
-        if: matrix.platform_family == 'windows-x86_64'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
-          path: |
-            ${{ github.workspace }}/via000-proof-output-via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}/containment-result.json
-            ${{ github.workspace }}/via000-proof-output-via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}/proof.json
-            ${{ github.workspace }}/via000-proof-output-via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}/stderr.txt
-            ${{ github.workspace }}/via000-proof-output-via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}/stdout.txt
+          path: via000-proof-output/*
           if-no-files-found: error
           retention-days: 7
 

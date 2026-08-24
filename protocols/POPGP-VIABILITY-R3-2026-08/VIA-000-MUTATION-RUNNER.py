@@ -178,7 +178,7 @@ def finalize(args: argparse.Namespace) -> None:
         or contained.get("descendants_quiescent") is not True
         or contained.get("active_processes_after_teardown") != 0
         or contained.get("privilege_separation")
-        not in {"low-integrity-restricted-token", "systemd-dynamic-user"}
+        not in {"low-integrity-restricted-token", "systemd-ephemeral-user"}
     ):
         raise ValueError("mutation containment proof is absent or unsuccessful")
     stdout_path = args.stdout.resolve(strict=True)

@@ -190,6 +190,9 @@ $systemTools = if ($PlatformFamily -eq "windows-x86_64") {
         sudo = "/usr/bin/sudo"
         systemd_run = "/usr/bin/systemd-run"
         systemctl = "/usr/bin/systemctl"
+        useradd = "/usr/sbin/useradd"
+        userdel = "/usr/sbin/userdel"
+        id = "/usr/bin/id"
     }
 }
 Test-Via000ContainmentAvailability -PlatformFamily $PlatformFamily -SystemTools $systemTools
@@ -737,12 +740,19 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
         stderr_sha256 = [string]$record.stderr_sha256
     }
     if ($record.PSObject.Properties.Name -contains "primitive" -and [string]$record.primitive -in @(
-        "ubuntu-systemd-dynamic-user-control-group",
+        "ubuntu-systemd-ephemeral-user-control-group",
         "windows-low-integrity-restricted-token-job-object"
     )) {
         if ($record.descendants_quiescent -ne $true -or
             [int]$record.active_processes_after_teardown -ne 0) {
             throw "contained command retained an untrusted descendant"
+        }
+        if ($PlatformFamily -eq "ubuntu-latest-x86_64" -and (
+            [string]$record.ephemeral_identity_uid -cnotmatch '^[1-9][0-9]*$' -or
+            $record.ephemeral_identity_processes_empty -ne $true -or
+            $record.ephemeral_identity_removed -ne $true
+        )) {
+            throw "contained command did not retire the ephemeral identity"
         }
         $containmentRecords += $record
     }
@@ -784,13 +794,15 @@ if ($containmentRecords.Count -lt 2) {
     execution_boundary = [ordered]@{
         primitive = $(if ($PlatformFamily -eq "windows-x86_64") {
             "windows-low-integrity-restricted-token-job-object"
-        } else { "ubuntu-systemd-dynamic-user-control-group" })
+        } else { "ubuntu-systemd-ephemeral-user-control-group" })
         privilege_separation = $(if ($PlatformFamily -eq "windows-x86_64") {
             "low-integrity-restricted-token"
-        } else { "systemd-dynamic-user" })
+        } else { "systemd-ephemeral-user" })
         all_commands_contained = $true
         descendants_quiescent = $true
         active_processes_after_teardown = 0
+        untrusted_identity_processes_empty = $true
+        untrusted_identity_retired = $true
         trusted_evidence_unreadable_unwritable = $true
         mutable_root_separate = $true
         attestation_subjects_captured_after_quiescence = $true

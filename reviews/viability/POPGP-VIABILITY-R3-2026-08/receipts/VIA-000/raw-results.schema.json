@@ -276,22 +276,25 @@
       "required": [
         "primitive", "privilege_separation", "all_commands_contained",
         "descendants_quiescent", "active_processes_after_teardown",
+        "untrusted_identity_processes_empty", "untrusted_identity_retired",
         "trusted_evidence_unreadable_unwritable", "mutable_root_separate",
         "attestation_subjects_captured_after_quiescence", "contained_command_count"
       ],
       "properties": {
         "primitive": {
           "enum": [
-            "ubuntu-systemd-dynamic-user-control-group",
+            "ubuntu-systemd-ephemeral-user-control-group",
             "windows-low-integrity-restricted-token-job-object"
           ]
         },
         "privilege_separation": {
-          "enum": ["systemd-dynamic-user", "low-integrity-restricted-token"]
+          "enum": ["systemd-ephemeral-user", "low-integrity-restricted-token"]
         },
         "all_commands_contained": {"const": true},
         "descendants_quiescent": {"const": true},
         "active_processes_after_teardown": {"const": 0},
+        "untrusted_identity_processes_empty": {"const": true},
+        "untrusted_identity_retired": {"const": true},
         "trusted_evidence_unreadable_unwritable": {"const": true},
         "mutable_root_separate": {"const": true},
         "attestation_subjects_captured_after_quiescence": {"const": true},

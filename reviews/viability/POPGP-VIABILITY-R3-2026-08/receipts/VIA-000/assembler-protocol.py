@@ -364,12 +364,12 @@ def _copy_manifest_evidence(
     expected_primitive = (
         "windows-low-integrity-restricted-token-job-object"
         if platform == "windows-x86_64"
-        else "ubuntu-systemd-dynamic-user-control-group"
+        else "ubuntu-systemd-ephemeral-user-control-group"
     )
     expected_separation = (
         "low-integrity-restricted-token"
         if platform == "windows-x86_64"
-        else "systemd-dynamic-user"
+        else "systemd-ephemeral-user"
     )
     if (
         not isinstance(boundary, dict)
@@ -378,6 +378,8 @@ def _copy_manifest_evidence(
         or boundary.get("all_commands_contained") is not True
         or boundary.get("descendants_quiescent") is not True
         or boundary.get("active_processes_after_teardown") != 0
+        or boundary.get("untrusted_identity_processes_empty") is not True
+        or boundary.get("untrusted_identity_retired") is not True
         or boundary.get("trusted_evidence_unreadable_unwritable") is not True
         or boundary.get("mutable_root_separate") is not True
         or boundary.get("attestation_subjects_captured_after_quiescence") is not True

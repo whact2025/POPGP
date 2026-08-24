@@ -328,7 +328,7 @@ function Test-Via000ContainmentAvailability {
         return
     }
     if (-not $IsLinux) { throw "Ubuntu containment requires a Linux host" }
-    foreach ($name in @("sudo", "systemd_run", "systemctl")) {
+    foreach ($name in @("sudo", "systemd_run", "systemctl", "useradd", "userdel", "id")) {
         if (-not $SystemTools.ContainsKey($name)) { throw "missing Ubuntu containment tool $name" }
         [void](Test-Via000RegularFile -Path ([string]$SystemTools[$name]) -Description $name)
     }
@@ -434,6 +434,20 @@ function Enable-Via000MutableClosure {
     }
 }
 
+function Assert-Via000UidQuiescent {
+    param([Parameter(Mandatory = $true)][string]$Uid)
+    $uidPattern = '^Uid:\s+{0}(?:\s|$)' -f [regex]::Escape($Uid)
+    foreach ($statusPath in @(Get-ChildItem -LiteralPath /proc -Directory -ErrorAction Stop |
+            Where-Object { $_.Name -match '^[0-9]+$' } |
+            ForEach-Object { Join-Path $_.FullName "status" })) {
+        if ((Test-Path -LiteralPath $statusPath -PathType Leaf) -and
+            (Get-Content -LiteralPath $statusPath -ErrorAction SilentlyContinue) -match
+                $uidPattern) {
+            throw "fresh untrusted service identity retained a process after teardown"
+        }
+    }
+}
+
 function Invoke-Via000ContainedCommand {
     param(
         [Parameter(Mandatory = $true)][string]$Label,
@@ -477,6 +491,9 @@ function Invoke-Via000ContainedCommand {
     $exitCode = 125
     $timeout = $false
     $unit = ""
+    $serviceUser = ""
+    $serviceUserCreated = $false
+    $serviceUid = ""
     try {
         if ($PlatformFamily -eq "windows-x86_64") {
             Initialize-Via000WindowsNative
@@ -492,10 +509,21 @@ function Invoke-Via000ContainedCommand {
             $primitive = [string]$result.Primitive
         } else {
             $unit = "via000-r3-$($Label.ToLowerInvariant().Replace('_','-'))-$([Guid]::NewGuid().ToString('N'))"
+            $serviceUser = "via000r3$([Guid]::NewGuid().ToString('N').Substring(0,12))"
+            & ([string]$SystemTools.sudo) -n ([string]$SystemTools.useradd) `
+                --system --no-create-home --home-dir /nonexistent `
+                --shell /usr/sbin/nologin --gid nogroup $serviceUser
+            if ($LASTEXITCODE -ne 0) { throw "could not create fresh untrusted service identity" }
+            $serviceUserCreated = $true
+            $serviceUid = (& ([string]$SystemTools.id) -u $serviceUser 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $serviceUid -cnotmatch '^[1-9][0-9]*$') {
+                throw "fresh untrusted service identity has no canonical UID"
+            }
             $systemdArguments = @(
                 "-n", [string]$SystemTools.systemd_run,
                 "--quiet", "--wait", "--pipe", "--service-type=exec", "--unit=$unit",
-                "--property=DynamicUser=yes", "--property=KillMode=control-group",
+                "--property=User=$serviceUser", "--property=Group=nogroup",
+                "--property=KillMode=control-group",
                 "--property=SendSIGKILL=yes", "--property=TimeoutStopSec=15s",
                 "--property=PrivateTmp=no",
                 "--property=ProtectSystem=no", "--property=ProtectHome=no",
@@ -535,7 +563,8 @@ function Invoke-Via000ContainedCommand {
             }
             $quiescent = ($active -in @("inactive", "failed") -and
                 $sub -in @("dead", "failed") -and $remaining.Count -eq 0)
-            $primitive = "ubuntu-systemd-dynamic-user-control-group"
+            if ($quiescent) { Assert-Via000UidQuiescent -Uid $serviceUid }
+            $primitive = "ubuntu-systemd-ephemeral-user-control-group"
             & ([string]$SystemTools.sudo) -n ([string]$SystemTools.systemctl) reset-failed $unit 2>$null | Out-Null
         }
         if (-not $quiescent) { throw "contained descendant tree is not proven quiescent" }
@@ -547,7 +576,7 @@ function Invoke-Via000ContainedCommand {
             Copy-Item -LiteralPath $pair[0] -Destination $pair[1]
         }
         $finished = [DateTimeOffset]::UtcNow
-        [ordered]@{
+        $record = [ordered]@{
             schema_version = 1
             label = $Label
             contract_id = $ContractId
@@ -568,12 +597,42 @@ function Invoke-Via000ContainedCommand {
             mutable_root = $mutable
             trusted_root = $trusted
             environment_leaks_scrubbed = $true
-            privilege_separation = $(if ($IsWindows) { "low-integrity-restricted-token" } else { "systemd-dynamic-user" })
+            privilege_separation = $(if ($IsWindows) {
+                "low-integrity-restricted-token"
+            } else {
+                "systemd-ephemeral-user"
+            })
             unit = $unit
             stdout_sha256 = Get-Via000Sha256 -Path $StdoutPath
             stderr_sha256 = Get-Via000Sha256 -Path $StderrPath
-        } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ResultPath -Encoding utf8NoBOM
+        }
+        if ($PlatformFamily -eq "ubuntu-latest-x86_64") {
+            $record["ephemeral_identity_uid"] = $serviceUid
+            $record["ephemeral_identity_processes_empty"] = $true
+            $record["ephemeral_identity_removed"] = $false
+        }
+        $record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ResultPath -Encoding utf8NoBOM
+        if ($PlatformFamily -eq "ubuntu-latest-x86_64") {
+            Assert-Via000UidQuiescent -Uid $serviceUid
+            & ([string]$SystemTools.sudo) -n ([string]$SystemTools.userdel) $serviceUser
+            if ($LASTEXITCODE -ne 0) { throw "could not remove fresh untrusted service identity" }
+            $serviceUserCreated = $false
+            $record["ephemeral_identity_removed"] = $true
+            $record | ConvertTo-Json -Depth 8 |
+                Set-Content -LiteralPath $ResultPath -Encoding utf8NoBOM
+        }
     } finally {
+        if ($serviceUserCreated) {
+            if ($unit) {
+                & ([string]$SystemTools.sudo) -n ([string]$SystemTools.systemctl) kill `
+                    --kill-whom=all --signal=KILL $unit 2>$null | Out-Null
+                & ([string]$SystemTools.sudo) -n ([string]$SystemTools.systemctl) reset-failed `
+                    $unit 2>$null | Out-Null
+            }
+            & ([string]$SystemTools.sudo) -n ([string]$SystemTools.userdel) $serviceUser `
+                2>$null | Out-Null
+            $serviceUserCreated = $false
+        }
         if (Test-Path -LiteralPath $staging) {
             Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
         }

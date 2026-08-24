@@ -57,7 +57,8 @@
             "proof_aggregator_sha256", "proof_workflow_sha256",
             "receipt_bindings_verified", "primitive", "privilege_separation",
             "descendants_quiescent", "active_processes_after_teardown",
-            "os_process_tree_empty", "child_of_child_observed_before_direct_exit",
+            "os_process_tree_empty", "untrusted_identity_processes_empty",
+            "untrusted_identity_retired", "child_of_child_observed_before_direct_exit",
             "protected_evidence_read_denied", "protected_evidence_write_denied",
             "protected_tool_write_denied", "replace_restore_denied",
             "hardlink_substitution_denied", "control_plane_environment_scrubbed",
@@ -98,15 +99,17 @@
             "primitive": {
               "enum": [
                 "windows-low-integrity-restricted-token-job-object",
-                "ubuntu-systemd-dynamic-user-control-group"
+                "ubuntu-systemd-ephemeral-user-control-group"
               ]
             },
             "privilege_separation": {
-              "enum": ["low-integrity-restricted-token", "systemd-dynamic-user"]
+              "enum": ["low-integrity-restricted-token", "systemd-ephemeral-user"]
             },
             "descendants_quiescent": {"const": true},
             "active_processes_after_teardown": {"const": 0},
             "os_process_tree_empty": {"const": true},
+            "untrusted_identity_processes_empty": {"const": true},
+            "untrusted_identity_retired": {"const": true},
             "child_of_child_observed_before_direct_exit": {"const": true},
             "protected_evidence_read_denied": {"const": true},
             "protected_evidence_write_denied": {"const": true},

@@ -126,6 +126,20 @@ summary: |-
   traversable workspace directory and world-writable mutable child are explicitly
   set by the trusted runner; the untrusted identity still cannot create the sibling
   proof-output directory, which is created only after verified teardown.
+  The ninth branch-push attempt, run 32700513305 at handoff
+  ee7407f048aa3b3537ff9cb68e3790afc3fa552d, again passed all three Windows
+  production containment and exact-file/hash checks, but upload-artifact did not
+  discover even the four explicit absolute subjects. It also proved that the hosted
+  systemd `DynamicUser` could not enter either `/tmp` or the traversable checkout
+  workspace (status 200/CHDIR), so that identity mechanism is not viable on this
+  hosted image. The final narrow correction uses one static per-job checkout-root
+  `via000-proof-output` directory and relative upload glob after exact pre-upload
+  verification. Ubuntu now creates a randomly named unprivileged system account for
+  each contained command, runs the existing transient service/control group under
+  that identity, proves both an empty cgroup and empty UID process set, creates the
+  trusted evidence while retaining the UID allocation, rechecks the UID process set,
+  and only then deletes the account. This ordering prevents UID reuse from invalidating
+  quiescence and fails closed on any account, service, teardown, or deletion error.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
@@ -134,7 +148,7 @@ finding_responses:
     implementation_status: implemented
     rationale: |-
       Reviewers can now exercise the required production Windows Job Object and
-      Ubuntu systemd DynamicUser/control-group primitives on an unmerged reviewed
+      Ubuntu systemd ephemeral-user/control-group primitives on an unmerged reviewed
       source without creating campaign authorization or weakening the production
       workflow's signer/lifecycle guard. Runtime unavailability or any failed cell
       fails the synthetic workflow and prevents its aggregate artifact.
@@ -213,7 +227,7 @@ requested_test_responses:
 
 new_or_changed_risks:
   - "The proof workflow intentionally runs on qualifying feature/review branch pushes; its path filter, read-only permissions, synthetic-only closure, and no-secrets design bound that exposure."
-  - "Hosted Windows nested Job Object behavior and Ubuntu passwordless systemd DynamicUser policy must still pass in the recorded run."
+  - "Hosted Windows nested Job Object behavior and Ubuntu passwordless ephemeral-account/systemd policy must still pass in the recorded run."
   - "Artifact retention is seven days, so the independent reviewer should inspect or download the small proof set promptly."
   - "The full 431-test suite and the slow 22-case compatibility suite were deferred because the focused 52-case R3 aggregate and guidance/schema checks were green; fresh rereview should run them if feasible."
 

@@ -105,18 +105,23 @@ this draft by moving every candidate- or mutation-controlled command behind an
 OS-enforced privilege boundary. On Windows the trusted runner creates a restricted
 low-integrity token, creates the child suspended, assigns it to a kill-on-close Job
 Object before its first instruction, and terminates and queries that complete job
-tree. On Ubuntu it uses a systemd transient service with `DynamicUser=yes`,
-`KillMode=control-group`, and explicit post-stop control-group inspection. The
-workflow fails closed when the required primitive is unavailable.
+tree. On Ubuntu it creates a randomly named unprivileged system account per command,
+runs it in a systemd transient service with `KillMode=control-group`, proves both an
+empty control group and empty UID process set, creates trusted evidence while the UID
+remains allocated, rechecks the UID process set, and only then deletes the account.
+Keeping the account allocated through evidence creation prevents UID reuse from
+invalidating the quiescence proof. The workflow fails closed when any account or
+containment operation is unavailable.
 
 The hosted Ubuntu service manager rejected the mount-namespace properties during
 RR7 proof-path bootstrap. The frozen hosted path therefore declares
 `PrivateTmp=no`, `ProtectSystem=no`, and `ProtectHome=no` and does not claim mount
-namespace isolation. Its security boundary is instead the fresh `DynamicUser`
-identity, runner-owned mode-0700 protected roots, a dedicated world-writable mutable
-root, `NoNewPrivileges`/SUID restrictions, unchanged closure hashes, and complete
-control-group teardown with empty-cgroup proof. Independent review must treat those
-permission and cgroup premises—not an unavailable namespace—as the Ubuntu claim.
+namespace isolation. Its security boundary is instead the fresh per-command account,
+runner-owned mode-0700 protected roots, a dedicated world-writable mutable root,
+`NoNewPrivileges`/SUID restrictions, unchanged closure hashes, complete control-group
+teardown, empty UID process proof, and account removal. Independent review must treat
+those permission, identity, and cgroup premises—not an unavailable namespace—as the
+Ubuntu claim.
 
 The untrusted identity can write only a fresh mutable staging root. Tool,
 configuration, and trusted-evidence roots are non-writable to it; on Windows the

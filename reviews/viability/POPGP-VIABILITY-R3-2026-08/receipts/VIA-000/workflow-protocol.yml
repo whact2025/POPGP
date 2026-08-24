@@ -362,13 +362,16 @@ jobs:
           $tools.containment_protocol = [ordered]@{
             path = $containmentProtocolPath
             sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $containmentProtocolPath).Hash.ToLowerInvariant()
-            version = "VIA-000 R3 restricted-token/job-object plus systemd DynamicUser/control-group"
+            version = "VIA-000 R3 restricted-token/job-object plus systemd ephemeral-user/control-group"
           }
           if ($platform -eq "ubuntu-latest-x86_64") {
             foreach ($item in @(
               @("sudo", "/usr/bin/sudo"),
               @("systemd_run", "/usr/bin/systemd-run"),
-              @("systemctl", "/usr/bin/systemctl")
+              @("systemctl", "/usr/bin/systemctl"),
+              @("useradd", "/usr/sbin/useradd"),
+              @("userdel", "/usr/sbin/userdel"),
+              @("id", "/usr/bin/id")
             )) {
               $tools[$item[0]] = [ordered]@{
                 path = $item[1]
@@ -423,7 +426,11 @@ jobs:
           $systemTools = if ($platform -eq "windows-x86_64") {
             @{}
           } else {
-            @{ sudo = "/usr/bin/sudo"; systemd_run = "/usr/bin/systemd-run"; systemctl = "/usr/bin/systemctl" }
+            @{
+              sudo = "/usr/bin/sudo"; systemd_run = "/usr/bin/systemd-run"
+              systemctl = "/usr/bin/systemctl"; useradd = "/usr/sbin/useradd"
+              userdel = "/usr/sbin/userdel"; id = "/usr/bin/id"
+            }
           }
           Test-Via000ContainmentAvailability -PlatformFamily $platform -SystemTools $systemTools
           $caseRoot = Join-Path $env:RUNNER_TEMP ("via000-r3-containment-self-test-" + [Guid]::NewGuid().ToString("N"))
@@ -737,7 +744,11 @@ jobs:
           $systemTools = if ($platform -eq "windows-x86_64") {
             @{}
           } else {
-            @{ sudo = "/usr/bin/sudo"; systemd_run = "/usr/bin/systemd-run"; systemctl = "/usr/bin/systemctl" }
+            @{
+              sudo = "/usr/bin/sudo"; systemd_run = "/usr/bin/systemd-run"
+              systemctl = "/usr/bin/systemctl"; useradd = "/usr/sbin/useradd"
+              userdel = "/usr/sbin/userdel"; id = "/usr/bin/id"
+            }
           }
           Test-Via000ContainmentAvailability -PlatformFamily $platform -SystemTools $systemTools
           $closure = @{

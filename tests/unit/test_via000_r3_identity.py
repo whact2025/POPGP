@@ -472,7 +472,7 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                     "sha256": "7" * 64,
                     "version": (
                         "VIA-000 R3 restricted-token/job-object plus systemd "
-                        "DynamicUser/control-group"
+                        "ephemeral-user/control-group"
                     ),
                 },
             }
@@ -526,7 +526,7 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                     "sha256": "7" * 64,
                     "version": (
                         "VIA-000 R3 restricted-token/job-object plus systemd "
-                        "DynamicUser/control-group"
+                        "ephemeral-user/control-group"
                     ),
                 },
                 "sudo": {
@@ -615,12 +615,12 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
         primitive = (
             "windows-low-integrity-restricted-token-job-object"
             if platform_name == "windows-x86_64"
-            else "ubuntu-systemd-dynamic-user-control-group"
+            else "ubuntu-systemd-ephemeral-user-control-group"
         )
         separation = (
             "low-integrity-restricted-token"
             if platform_name == "windows-x86_64"
-            else "systemd-dynamic-user"
+            else "systemd-ephemeral-user"
         )
         suite.update(
             {
@@ -689,6 +689,14 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                     "active_processes_after_teardown": 0,
                 }
             )
+            if platform_name == "ubuntu-latest-x86_64":
+                result.update(
+                    {
+                        "ephemeral_identity_uid": "999",
+                        "ephemeral_identity_processes_empty": True,
+                        "ephemeral_identity_removed": True,
+                    }
+                )
             result_path.write_text(json.dumps(result), encoding="utf-8")
             entry["sha256"] = _sha(result_path)
             entry["byte_count"] = result_path.stat().st_size
@@ -716,6 +724,8 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
             "all_commands_contained": True,
             "descendants_quiescent": True,
             "active_processes_after_teardown": 0,
+            "untrusted_identity_processes_empty": True,
+            "untrusted_identity_retired": True,
             "trusted_evidence_unreadable_unwritable": True,
             "mutable_root_separate": True,
             "attestation_subjects_captured_after_quiescence": True,
@@ -1952,7 +1962,7 @@ def test_r3_workflow_requires_production_containment_and_atomic_subject_capture(
         "AssignProcessToJobObject(job, pi.hProcess)",
         "TerminateJobObject",
         "ActiveProcessesAfterTermination",
-        "DynamicUser=yes",
+        "User=$serviceUser",
         "KillMode=control-group",
         "InaccessiblePaths=$trusted",
         "cgroup.procs",
@@ -2020,17 +2030,10 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         in workflow_text
     )
     assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
-    assert (
-        'Join-Path $root "via000-proof-workspace-$cell-$($env:VIA000_RUN_ID)"'
-        in workflow_text
-    )
+    assert workflow_text.count('$workspace = Join-Path $root "via000-proof-workspace"') == 2
+    assert workflow_text.count('$output = Join-Path $root "via000-proof-output"') == 2
     assert "containment proof output is absent after successful runner exit" in workflow_text
-    windows_upload_root = (
-        "${{ github.workspace }}/via000-proof-output-via000-r3-containment-proof-"
-    )
-    assert workflow_text.count(windows_upload_root) == 4
-    for name in ("containment-result.json", "proof.json", "stderr.txt", "stdout.txt"):
-        assert f"${{{{ matrix.stage_id }}}}/{name}" in workflow_text
+    assert "path: via000-proof-output/*" in workflow_text
     assert "containment proof output is not the exact four-file set" in workflow_text
     assert "containment-result.json,proof.json,stderr.txt,stdout.txt" in workflow_text
     assert "containment proof pre-upload hashes differ" in workflow_text
@@ -2049,9 +2052,21 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert '$active -in @("inactive", "failed")' in CONTAINMENT.read_text(
         encoding="utf-8"
     )
-    assert '"--property=PrivateTmp=no"' in CONTAINMENT.read_text(encoding="utf-8")
-    assert '"--property=ProtectSystem=no"' in CONTAINMENT.read_text(encoding="utf-8")
-    assert '"--property=ProtectHome=no"' in CONTAINMENT.read_text(encoding="utf-8")
+    containment_text = CONTAINMENT.read_text(encoding="utf-8")
+    assert '"--property=PrivateTmp=no"' in containment_text
+    assert '"--property=ProtectSystem=no"' in containment_text
+    assert '"--property=ProtectHome=no"' in containment_text
+    assert "could not create fresh untrusted service identity" in containment_text
+    assert "fresh untrusted service identity retained a process" in containment_text
+    assert "could not remove fresh untrusted service identity" in containment_text
+    evidence_write = containment_text.index("$record | ConvertTo-Json -Depth 8")
+    final_uid_check = containment_text.index(
+        "Assert-Via000UidQuiescent -Uid $serviceUid", evidence_write
+    )
+    identity_delete = containment_text.index(
+        "([string]$SystemTools.userdel) $serviceUser", final_uid_check
+    )
+    assert evidence_write < final_uid_check < identity_delete
     assert "Start-Descendant -ChildMode \"relay\"" in fixture_text
     assert "Start-Descendant -ChildMode \"writer\"" in fixture_text
 
@@ -2066,6 +2081,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "receipt_bindings_verified",
         "descendants_quiescent",
         "os_process_tree_empty",
+        "untrusted_identity_processes_empty",
+        "untrusted_identity_retired",
         "child_of_child_observed_before_direct_exit",
         "protected_evidence_read_denied",
         "protected_evidence_write_denied",
@@ -2093,12 +2110,12 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     }
     for platform in ("ubuntu-latest-x86_64", "windows-x86_64"):
         primitive = (
-            "ubuntu-systemd-dynamic-user-control-group"
+            "ubuntu-systemd-ephemeral-user-control-group"
             if platform.startswith("ubuntu")
             else "windows-low-integrity-restricted-token-job-object"
         )
         privilege = (
-            "systemd-dynamic-user"
+            "systemd-ephemeral-user"
             if platform.startswith("ubuntu")
             else "low-integrity-restricted-token"
         )
@@ -2121,6 +2138,14 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 "stdout_sha256": _sha(artifact / "stdout.txt"),
                 "stderr_sha256": _sha(artifact / "stderr.txt"),
             }
+            if platform.startswith("ubuntu"):
+                contained.update(
+                    {
+                        "ephemeral_identity_uid": "999",
+                        "ephemeral_identity_processes_empty": True,
+                        "ephemeral_identity_removed": True,
+                    }
+                )
             _write_json(artifact / "containment-result.json", contained)
             proof = {
                 "schema_version": 1,
@@ -2175,9 +2200,26 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert aggregate["cell_count"] == 6
     assert len(aggregate["fragment_sha256"]) == 6
 
+    ubuntu_artifact = fragments / "via000-r3-containment-proof-ubuntu-latest-x86_64-candidate"
+    ubuntu_result_path = ubuntu_artifact / "containment-result.json"
+    ubuntu_proof_path = ubuntu_artifact / "proof.json"
+    ubuntu_result = json.loads(ubuntu_result_path.read_text(encoding="utf-8"))
+    ubuntu_result["ephemeral_identity_removed"] = False
+    _write_json(ubuntu_result_path, ubuntu_result)
+    ubuntu_proof = json.loads(ubuntu_proof_path.read_text(encoding="utf-8"))
+    ubuntu_proof["containment_result_sha256"] = _sha(ubuntu_result_path)
+    _write_json(ubuntu_proof_path, ubuntu_proof)
+    output.unlink()
+    stale_identity = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert stale_identity.returncode != 0
+    assert not output.exists()
+    ubuntu_result["ephemeral_identity_removed"] = True
+    _write_json(ubuntu_result_path, ubuntu_result)
+    ubuntu_proof["containment_result_sha256"] = _sha(ubuntu_result_path)
+    _write_json(ubuntu_proof_path, ubuntu_proof)
+
     removed = next(fragments.glob("*/proof.json"))
     removed.unlink()
-    output.unlink()
     rejected = subprocess.run(command, check=False, capture_output=True, text=True)
     assert rejected.returncode != 0
     assert not output.exists()

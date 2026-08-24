@@ -194,8 +194,11 @@ requires the complete, same-run three-stage set before emitting any commitment.
 Each R3 stage additionally treats candidate and frozen-mutation execution as an
 untrusted process tree. The Windows path starts a restricted low-integrity process
 suspended, assigns it to a kill-on-close Job Object, and resumes it only after
-assignment. The Ubuntu path runs it as a systemd `DynamicUser` transient service with
-control-group teardown. Mutable staging is isolated from non-writable tool/config and
+assignment. The Ubuntu path creates a fresh unprivileged system account per command,
+runs it in a systemd transient service, proves empty control group and UID process set,
+creates evidence while the UID remains allocated, rechecks the UID process set, then
+deletes the account. Retaining the allocation across both checks prevents UID reuse
+from invalidating quiescence. Mutable staging is isolated from non-writable tool/config and
 trusted-evidence roots, and child temp/home/cache/loader variables cannot name trusted
 paths. Evidence creation and attestation-subject capture occur only after the complete
 tree is terminated and zero descendants are proven. A production-hostile gate on both
@@ -205,6 +208,7 @@ local executable regression.
 
 The hosted Ubuntu proof explicitly disables `PrivateTmp`, `ProtectSystem`, and
 `ProtectHome` because that runner rejects the corresponding mount namespace. It makes
-no namespace-isolation claim: the enforced boundary is `DynamicUser` plus runner-owned
-mode-0700 protected roots, a dedicated mutable root, no-new-privileges/SUID controls,
-closure hashes, and control-group teardown with an empty-cgroup proof.
+no namespace-isolation claim: the enforced boundary is the ephemeral unprivileged
+account plus runner-owned mode-0700 protected roots, a dedicated mutable root,
+no-new-privileges/SUID controls, closure hashes, empty-cgroup and empty-UID-process
+proof, and account removal.

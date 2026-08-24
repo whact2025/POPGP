@@ -120,6 +120,9 @@ $systemTools = if ($PlatformFamily -eq "windows-x86_64") {
         sudo = "/usr/bin/sudo"
         systemd_run = "/usr/bin/systemd-run"
         systemctl = "/usr/bin/systemctl"
+        useradd = "/usr/sbin/useradd"
+        userdel = "/usr/sbin/userdel"
+        id = "/usr/bin/id"
     }
 }
 Test-Via000ContainmentAvailability -PlatformFamily $PlatformFamily -SystemTools $systemTools
@@ -179,12 +182,12 @@ try {
     $expectedPrimitive = if ($PlatformFamily -eq "windows-x86_64") {
         "windows-low-integrity-restricted-token-job-object"
     } else {
-        "ubuntu-systemd-dynamic-user-control-group"
+        "ubuntu-systemd-ephemeral-user-control-group"
     }
     $expectedPrivilege = if ($PlatformFamily -eq "windows-x86_64") {
         "low-integrity-restricted-token"
     } else {
-        "systemd-dynamic-user"
+        "systemd-ephemeral-user"
     }
     if ($result.primitive -cne $expectedPrimitive -or
         $result.privilege_separation -cne $expectedPrivilege -or
@@ -192,6 +195,13 @@ try {
         $result.active_processes_after_teardown -ne 0 -or
         $result.exit_code -ne 0 -or $result.timed_out -ne $false) {
         throw "production containment result is incomplete or uses the wrong primitive"
+    }
+    if ($PlatformFamily -eq "ubuntu-latest-x86_64" -and (
+        [string]$result.ephemeral_identity_uid -cnotmatch '^[1-9][0-9]*$' -or
+        $result.ephemeral_identity_processes_empty -ne $true -or
+        $result.ephemeral_identity_removed -ne $true
+    )) {
+        throw "production containment result did not retire the ephemeral identity"
     }
     foreach ($required in @("descendant-running", "child-of-child-ready")) {
         if (-not (Test-Path -LiteralPath (Join-Path $mutable $required) -PathType Leaf)) {
@@ -245,6 +255,8 @@ try {
         descendants_quiescent = $true
         active_processes_after_teardown = 0
         os_process_tree_empty = $true
+        untrusted_identity_processes_empty = $true
+        untrusted_identity_retired = $true
         child_of_child_observed_before_direct_exit = $true
         protected_evidence_read_denied = $true
         protected_evidence_write_denied = $true
