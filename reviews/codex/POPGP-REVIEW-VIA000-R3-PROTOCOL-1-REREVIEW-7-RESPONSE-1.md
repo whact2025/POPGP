@@ -132,14 +132,25 @@ summary: |-
   discover even the four explicit absolute subjects. It also proved that the hosted
   systemd `DynamicUser` could not enter either `/tmp` or the traversable checkout
   workspace (status 200/CHDIR), so that identity mechanism is not viable on this
-  hosted image. The final narrow correction uses one static per-job checkout-root
-  `via000-proof-output` directory and relative upload glob after exact pre-upload
-  verification. Ubuntu now creates a randomly named unprivileged system account for
+  hosted image. The next narrow correction used one static per-job checkout-root
+  `via000-proof-output` directory after exact pre-upload verification. Ubuntu created
+  a randomly named unprivileged system account for
   each contained command, runs the existing transient service/control group under
   that identity, proves both an empty cgroup and empty UID process set, creates the
   trusted evidence while retaining the UID allocation, rechecks the UID process set,
   and only then deletes the account. This ordering prevents UID reuse from invalidating
   quiescence and fails closed on any account, service, teardown, or deletion error.
+  The tenth branch-push attempt, run 32702645772 at handoff
+  a8220f9c5cb0a7014aec404b83b5c453187bb95d, again passed production containment and
+  exact four-file/hash checks in all three Windows cells, but upload-artifact did not
+  resolve the relative output glob. All three Ubuntu cells created the explicit
+  service identity and reached systemd, but that identity could not traverse the
+  hosted checkout ancestry (status 200/CHDIR). The final hosted-only correction uses
+  the fresh VM's fixed `/tmp/via000-proof-workspace` for Ubuntu mutable execution,
+  retains the trusted checkout-root output created only after teardown, and gives the
+  two upload steps reviewed OS-specific absolute forward-slash output roots. The
+  Windows low-integrity child and Ubuntu service identity still cannot create or
+  write the checkout-root proof-output directory before trusted evidence emission.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
@@ -193,7 +204,7 @@ finding_responses:
       - "d872f09aa91acd35c37d5b266b35bdc0fad19a46"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
-        result: "1 passed in 2.74 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
+        result: "1 passed in 3.39 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
       - command: "full R3 identity test file"
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"
