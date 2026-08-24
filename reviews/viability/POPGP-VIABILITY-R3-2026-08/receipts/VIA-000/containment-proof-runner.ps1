@@ -285,7 +285,9 @@ try {
     $proof | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $proofPath -Encoding utf8NoBOM
     New-Item -ItemType Directory -Path $OutputRoot -ErrorAction Stop | Out-Null
     foreach ($path in @($proofPath, $containedResult, $stdout, $stderr)) {
-        Copy-Item -LiteralPath $path -Destination (Join-Path $OutputRoot ([IO.Path]::GetFileName($path)))
+        $destination = Join-Path $OutputRoot ([IO.Path]::GetFileName($path))
+        [IO.File]::WriteAllBytes($destination, [IO.File]::ReadAllBytes($path))
+        [IO.File]::SetAttributes($destination, [IO.FileAttributes]::Normal)
     }
     Protect-Via000ReadOnlyClosure -Path $OutputRoot -SystemTools $systemTools
     $success = $true

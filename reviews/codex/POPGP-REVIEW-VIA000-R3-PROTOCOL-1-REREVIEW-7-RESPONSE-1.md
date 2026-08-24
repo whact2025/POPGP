@@ -181,6 +181,13 @@ summary: |-
   correction normalizes only the four post-teardown output copies to the reviewed
   medium-integrity, no-write-up/readable closure. The untrusted Job Object is already
   empty before those copies exist and cannot write or read the live evidence closure.
+  The fourteenth branch-push attempt, run 32704618667 at handoff
+  aecf48a4e013d21fd01ff97fcd73d6c9bb9a67f6, repeated all three Ubuntu end-to-end
+  successes and all three Windows containment/check successes, while Windows artifact
+  discovery alone remained red. The final bounded correction stops metadata-preserving
+  copies: it creates four new post-teardown byte-for-byte subjects with normal file
+  attributes, applies the reviewed medium/no-write-up closure, and enables hidden-file
+  discovery for those exact four names. No live protected evidence permission changes.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
@@ -238,7 +245,7 @@ finding_responses:
       - "7d5627435b328ce51d57996e7272881c499e0c76"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
-        result: "1 passed in 3.17 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
+        result: "1 passed in 2.82 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
       - command: "full R3 identity test file"
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"

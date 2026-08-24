@@ -199,6 +199,7 @@ jobs:
             D:/a/POPGP/POPGP/via000-proof-output/proof.json
             D:/a/POPGP/POPGP/via000-proof-output/stderr.txt
             D:/a/POPGP/POPGP/via000-proof-output/stdout.txt
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
 
