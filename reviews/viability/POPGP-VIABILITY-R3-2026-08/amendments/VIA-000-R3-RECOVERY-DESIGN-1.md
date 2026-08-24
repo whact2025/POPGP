@@ -241,6 +241,18 @@ producer provenance and requires a separately reviewed reservation-identity prot
 Fresh hosted completion and independent rereview remain required before RR4, RR6, RR7,
 RR8, RR9, or RR10 may be considered closed.
 
+Hosted run 32718921969 then proved the six containment/staging cells but exposed two
+outer-preflight portability defects before any cache save: GitHub rejected the custom
+Windows shell string whose executable path contained spaces, and the shared archive
+banner check observed only one delayed process exit after two version pipelines. The
+bounded correction uses the supported absolute system Windows PowerShell shell for the
+trusted digest, archive, and cache-preflight snippets; keeps the digest writer in that
+outer process; and limits those snippets to Windows PowerShell 5 APIs. GNU tar and
+Zstandard output and exit codes are now captured immediately and validated independently
+against nonempty version-bearing banners. No cache key, action, containment, transport,
+stage topology, or threat-boundary semantics changed. A fresh hosted completion and
+independent rereview are still required.
+
 Thus the following identity is single-valued:
 
 ```text

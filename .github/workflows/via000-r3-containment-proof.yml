@@ -111,7 +111,7 @@ jobs:
             throw "cell cache root is not one ordinary envelope file"
           }
           $envelope = $files[0].FullName
-          if ($IsWindows) {
+          if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
             $streams = @(Get-Item -LiteralPath $envelope -Stream * -ErrorAction Stop)
             $fsutil = 'C:\Windows\System32\fsutil.exe'
             if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA' -or
@@ -129,7 +129,7 @@ jobs:
               $bytes[$bytes.Length - 1] -ne 10 -or [Array]::IndexOf($bytes, [byte]13) -ge 0) {
             throw "canonical envelope byte bounds differ"
           }
-          $document = [Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json -AsHashtable
+          $document = [Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json
           if ([string]$document.identity.platform_family -cne [string]$env:VIA000_PLATFORM_FAMILY -or
               [string]$document.identity.stage_id -cne [string]$env:VIA000_STAGE_ID -or
               [string]$document.identity.source_sha -cne [string]$env:VIA000_SOURCE_SHA -or
@@ -137,7 +137,13 @@ jobs:
               [string]$document.identity.run_attempt -cne [string]$env:VIA000_RUN_ATTEMPT) {
             throw "canonical envelope identity differs before cache save"
           }
-          $digest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+          $sha256 = [Security.Cryptography.SHA256]::Create()
+          try {
+            $digestBytes = $sha256.ComputeHash($bytes)
+          } finally {
+            $sha256.Dispose()
+          }
+          $digest = ([BitConverter]::ToString($digestBytes)).Replace('-', '').ToLowerInvariant()
           if ($digest -cnotmatch '^[0-9a-f]{64}$' -or
               [string]$env:VIA000_DIGEST_OUTPUT_NAME -cnotmatch '^(ubuntu|windows)_(candidate|pdf|mutation)_digest$') {
             throw "canonical envelope digest output differs"
@@ -149,13 +155,16 @@ jobs:
           )
       - name: Assert exact cross-OS archive tools
         shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env: {VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64}
         run: &cache-tools |
-          if ($IsWindows) {
+          if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
             $tar = 'C:\Program Files\Git\usr\bin\tar.exe'
             $zstd = 'C:\Program Files\Git\mingw64\bin\zstd.exe'
-          } else {
+          } elseif ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'ubuntu-latest-x86_64') {
             $tar = '/usr/bin/tar'
             $zstd = '/usr/bin/zstd'
+          } else {
+            throw "cross-OS archive platform identity differs"
           }
           foreach ($tool in @($tar, $zstd)) {
             $item = Get-Item -LiteralPath $tool -Force -ErrorAction Stop
@@ -164,11 +173,19 @@ jobs:
               throw "cross-OS archive tool identity differs"
             }
           }
-          $tarBanner = (& $tar --version 2>&1 | Select-Object -First 1)
-          $zstdBanner = (& $zstd --version 2>&1 | Select-Object -First 1)
-          if ($LASTEXITCODE -ne 0 -or [string]$tarBanner -cnotmatch '^tar \(GNU tar\) [0-9]+\.[0-9]+' -or
-              [string]$zstdBanner -cnotmatch '\bv?[0-9]+\.[0-9]+\.[0-9]+\b') {
-            throw "cross-OS archive tool banner differs"
+          $tarOutput = @(& $tar --version 2>&1)
+          $tarExit = $LASTEXITCODE
+          $zstdOutput = @(& $zstd --version 2>&1)
+          $zstdExit = $LASTEXITCODE
+          $tarBanner = [string]($tarOutput | Select-Object -First 1)
+          $zstdBanner = [string]($zstdOutput | Select-Object -First 1)
+          if ($tarExit -ne 0 -or [string]::IsNullOrWhiteSpace($tarBanner) -or
+              $tarBanner -cnotmatch '^tar \(GNU tar\) [0-9]+\.[0-9]+(?:\.[0-9]+)?') {
+            throw "cross-OS GNU tar exit or banner differs"
+          }
+          if ($zstdExit -ne 0 -or [string]::IsNullOrWhiteSpace($zstdBanner) -or
+              $zstdBanner -cnotmatch 'Zstandard.*\bv?[0-9]+\.[0-9]+\.[0-9]+\b') {
+            throw "cross-OS Zstandard exit or banner differs"
           }
       - name: Reject pre-existing exact cache key
         id: preflight
@@ -226,7 +243,7 @@ jobs:
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
         run: *ubuntu-proof-run
       - {name: Validate staged envelope and emit digest only, id: digest, shell: '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}', env: *ubuntu-pdf-env, run: *digest-run}
-      - {name: Assert exact cross-OS archive tools, shell: '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}', run: *cache-tools}
+      - {name: Assert exact cross-OS archive tools, shell: '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}', env: {VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -265,7 +282,7 @@ jobs:
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
         run: *ubuntu-proof-run
       - {name: Validate staged envelope and emit digest only, id: digest, shell: '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}', env: *ubuntu-mutation-env, run: *digest-run}
-      - {name: Assert exact cross-OS archive tools, shell: '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}', run: *cache-tools}
+      - {name: Assert exact cross-OS archive tools, shell: '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}', env: {VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -323,16 +340,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "containment proof cell failed" }
       - name: Validate staged envelope and emit digest only
         id: digest
-        shell: C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
         env: *windows-candidate-env
         run: *digest-run
-      - {name: Assert exact cross-OS archive tools, shell: 'C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}', run: *cache-tools}
+      - {name: Assert exact cross-OS archive tools, shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". ''{0}''"', env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/candidate, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}', enableCrossOsArchive: true, lookup-only: true, fail-on-cache-miss: false}
       - name: Require fresh exact cache key
-        shell: C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
         env: {VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}'}
         run: *preflight-check
       - name: Save one exact digest-bound envelope cache
@@ -364,14 +381,14 @@ jobs:
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
         run: *windows-proof-run
-      - {name: Validate staged envelope and emit digest only, id: digest, shell: 'C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}', env: *windows-pdf-env, run: *digest-run}
-      - {name: Assert exact cross-OS archive tools, shell: 'C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}', run: *cache-tools}
+      - {name: Validate staged envelope and emit digest only, id: digest, shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". ''{0}''"', env: *windows-pdf-env, run: *digest-run}
+      - {name: Assert exact cross-OS archive tools, shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". ''{0}''"', env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/pdf, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}', enableCrossOsArchive: true, lookup-only: true, fail-on-cache-miss: false}
       - name: Require fresh exact cache key
-        shell: C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
         env: {VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}'}
         run: *preflight-check
       - name: Save one exact digest-bound envelope cache
@@ -403,14 +420,14 @@ jobs:
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
         run: *windows-proof-run
-      - {name: Validate staged envelope and emit digest only, id: digest, shell: 'C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}', env: *windows-mutation-env, run: *digest-run}
-      - {name: Assert exact cross-OS archive tools, shell: 'C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}', run: *cache-tools}
+      - {name: Validate staged envelope and emit digest only, id: digest, shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". ''{0}''"', env: *windows-mutation-env, run: *digest-run}
+      - {name: Assert exact cross-OS archive tools, shell: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". ''{0}''"', env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/mutation, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}', enableCrossOsArchive: true, lookup-only: true, fail-on-cache-miss: false}
       - name: Require fresh exact cache key
-        shell: C:\Program Files\PowerShell\7\pwsh.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
         env: {VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}'}
         run: *preflight-check
       - name: Save one exact digest-bound envelope cache
@@ -454,6 +471,7 @@ jobs:
       - *proof-checkout
       - name: Assert exact Ubuntu cross-OS archive tools
         shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env: {VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64}
         run: *cache-tools
       - &aggregate-python
         name: Install exact aggregate Python

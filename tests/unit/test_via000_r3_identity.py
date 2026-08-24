@@ -2664,6 +2664,38 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
     assert "cache-matched-key" in workflow_text
     assert "exact digest-bound cache key already exists" in workflow_text
     assert "six-cache proof consolidation failed" in workflow_text
+    assert r"shell: C:\Program Files\PowerShell" not in workflow_text
+    trusted_windows_shell = (
+        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe "
+        "-NoLogo -NoProfile -NonInteractive -Command \". '{0}'\""
+    )
+    workflow_document = yaml.safe_load(workflow_text)
+    for job_name in ("windows-candidate", "windows-pdf", "windows-mutation"):
+        outer_steps = [
+            step
+            for step in workflow_document["jobs"][job_name]["steps"]
+            if step.get("id") == "digest"
+            or step.get("name")
+            in {
+                "Assert exact cross-OS archive tools",
+                "Require fresh exact cache key",
+            }
+        ]
+        assert len(outer_steps) == 3
+        assert all(step["shell"] == trusted_windows_shell for step in outer_steps)
+    assert "ConvertFrom-Json -AsHashtable" not in workflow_text
+    assert "[Security.Cryptography.SHA256]::HashData" not in workflow_text
+    assert workflow_text.index("$tarExit = $LASTEXITCODE") < workflow_text.index(
+        "$zstdOutput = @(& $zstd --version 2>&1)"
+    )
+    assert workflow_text.index("$zstdOutput = @(& $zstd --version 2>&1)") < (
+        workflow_text.index("$zstdExit = $LASTEXITCODE")
+    )
+    tar_banner = re.compile(r"^tar \(GNU tar\) [0-9]+\.[0-9]+(?:\.[0-9]+)?")
+    zstd_banner = re.compile(r"Zstandard.*\bv?[0-9]+\.[0-9]+\.[0-9]+\b")
+    assert tar_banner.search("tar (GNU tar) 1.35")
+    assert zstd_banner.search("*** Zstandard CLI (64-bit) v1.5.7, by Yann Collet ***")
+    assert zstd_banner.search("*** Zstandard CLI (64-bit) v1.5.6, by Yann Collet ***")
     assert "${{ github.workflow_sha }}" in workflow_text
     assert "${{ github.repository_id }}" in workflow_text
     assert ".via000-r3-proof-cache/windows-x86_64/candidate" in workflow_text
@@ -2676,6 +2708,49 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
     assert '"GITHUB_*", "ACTIONS_*", "RUNNER_*"' in CONTAINMENT.read_text(
         encoding="utf-8"
     )
+
+    if os.name == "nt":
+        digest_step = next(
+            step
+            for step in workflow_document["jobs"]["windows-candidate"]["steps"]
+            if step.get("id") == "digest"
+        )
+        digest_script = tmp_path / "rr10-outer-digest.ps1"
+        digest_script.write_text(digest_step["run"], encoding="utf-8", newline="\n")
+        github_output = tmp_path / "rr10-github-output.txt"
+        github_output.write_bytes(b"")
+        live_environment = os.environ.copy()
+        live_environment.update(
+            {
+                "GITHUB_WORKSPACE": str(tmp_path),
+                "GITHUB_OUTPUT": str(github_output),
+                "VIA000_PLATFORM_FAMILY": "windows-x86_64",
+                "VIA000_STAGE_ID": "candidate",
+                "VIA000_DIGEST_OUTPUT_NAME": "windows_candidate_digest",
+                "VIA000_SOURCE_SHA": "a" * 40,
+                "VIA000_RUN_ID": "424242",
+                "VIA000_RUN_ATTEMPT": "1",
+            }
+        )
+        completed = subprocess.run(
+            [
+                r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                str(digest_script),
+            ],
+            cwd=tmp_path,
+            env=live_environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        assert github_output.read_bytes() == (
+            f"windows_candidate_digest={environment['VIA000_DIGEST_WINDOWS_CANDIDATE']}\n"
+        ).encode("ascii")
 
 
 @pytest.mark.negative_control
