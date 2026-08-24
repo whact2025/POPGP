@@ -1,0 +1,260 @@
+name: VIA-000 R3 Ubuntu pwsh compound diagnostic only
+
+on:
+  push:
+    branches:
+      - experiment/via000-r3-ubuntu-pwsh-compound-*
+
+permissions: {}
+
+jobs:
+  observe:
+    name: observe Ubuntu literal-pwsh predicates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PATH: /usr/bin:/bin
+    steps:
+      - name: Observe every current normalizer predicate independently
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+          $expectedPsHome = '/opt/microsoft/powershell/7'
+          $expectedVersion = '7.6.5'
+          $expectedInitialPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+          $expectedSanitizedPath = '/usr/bin:/bin'
+          $observations = [Collections.Generic.List[object]]::new()
+          $predicatePass = [ordered]@{}
+
+          function Add-Observation {
+            param(
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][bool]$Pass,
+              [AllowNull()][object]$Value,
+              [AllowNull()][string]$ErrorText = $null
+            )
+            $record = [ordered]@{
+              name = $Name
+              pass = $Pass
+              value = $Value
+              error = $ErrorText
+            }
+            $observations.Add([pscustomobject]$record)
+            Write-Host ('VIA000_RR25_OBSERVATION_JSON=' + ($record | ConvertTo-Json -Compress -Depth 8))
+          }
+
+          $processModule = $null
+          $observedShell = $null
+          $shellError = $null
+          try {
+            $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+            if ($null -ne $processModule) {
+              $observedShell = [IO.Path]::GetFullPath([string]$processModule.FileName)
+            }
+          } catch {
+            $shellError = $_.Exception.Message
+          }
+          $predicatePass.main_module = ($observedShell -is [string] -and $observedShell -ceq $expectedShell)
+          Add-Observation 'main_module_full_path' $predicatePass.main_module $observedShell $shellError
+
+          $observedPsHome = [string]$PSHOME
+          $predicatePass.pshome = ($observedPsHome -ceq $expectedPsHome)
+          Add-Observation 'pshome' $predicatePass.pshome $observedPsHome
+
+          $observedVersion = $PSVersionTable.PSVersion.ToString()
+          $predicatePass.psversion = ($observedVersion -ceq $expectedVersion)
+          Add-Observation 'psversion_full' $predicatePass.psversion $observedVersion
+
+          $observedInitialPath = [string]$env:PATH
+          $predicatePass.initial_path = ($observedInitialPath -ceq $expectedInitialPath)
+          Add-Observation 'initial_live_path' $predicatePass.initial_path $observedInitialPath
+
+          $argv = @()
+          $argvError = $null
+          try {
+            $cmdlineBytes = [IO.File]::ReadAllBytes('/proc/self/cmdline')
+            $argv = @(
+              [Text.Encoding]::UTF8.GetString($cmdlineBytes).Split([char]0) |
+                Where-Object { $_.Length -gt 0 }
+            )
+          } catch {
+            $argvError = $_.Exception.Message
+          }
+          $predicatePass.argc = ($argv.Count -eq 6)
+          Add-Observation 'argc' $predicatePass.argc $argv.Count $argvError
+
+          $expectedArgv = @(
+            $expectedShell,
+            '-NoLogo',
+            '-NoProfile',
+            '-NonInteractive',
+            '-File'
+          )
+          for ($index = 0; $index -lt 6; $index++) {
+            $available = $index -lt $argv.Count
+            $value = if ($available) { [string]$argv[$index] } else { $null }
+            $pass = if ($index -lt 5) {
+              $available -and $value -ceq $expectedArgv[$index]
+            } else {
+              $available -and -not [string]::IsNullOrEmpty($value)
+            }
+            $predicatePass["argv_$index"] = $pass
+            Add-Observation "argv[$index]" $pass $value
+          }
+
+          $argument5Raw = if ($argv.Count -gt 5) { [string]$argv[5] } else { $null }
+          $argument5Full = $null
+          $argument5FullError = $null
+          try {
+            if ([string]::IsNullOrEmpty($argument5Raw)) {
+              throw 'argv[5] is absent or empty'
+            }
+            $argument5Full = [IO.Path]::GetFullPath($argument5Raw)
+          } catch {
+            $argument5FullError = $_.Exception.Message
+          }
+          $predicatePass.argv5_fullpath = ($argument5Full -is [string] -and [IO.Path]::IsPathFullyQualified($argument5Full))
+          Add-Observation 'argv5_getfullpath' $predicatePass.argv5_fullpath ([ordered]@{ raw = $argument5Raw; full = $argument5Full }) $argument5FullError
+
+          $runnerTempRaw = [string]$env:RUNNER_TEMP
+          $runnerTempFull = $null
+          $runnerTempError = $null
+          try {
+            if ([string]::IsNullOrEmpty($runnerTempRaw)) {
+              throw 'RUNNER_TEMP is absent or empty'
+            }
+            $runnerTempFull = [IO.Path]::GetFullPath($runnerTempRaw)
+            if ($runnerTempFull.EndsWith('/')) {
+              $runnerTempFull = $runnerTempFull.Substring(0, $runnerTempFull.Length - 1)
+            }
+          } catch {
+            $runnerTempError = $_.Exception.Message
+          }
+          $predicatePass.runner_temp_fullpath = ($runnerTempFull -is [string] -and [IO.Path]::IsPathFullyQualified($runnerTempFull))
+          Add-Observation 'runner_temp_raw_full' $predicatePass.runner_temp_fullpath ([ordered]@{ raw = $runnerTempRaw; full = $runnerTempFull }) $runnerTempError
+
+          $argument5Parent = $null
+          $argument5BaseName = $null
+          $pathPartsError = $null
+          try {
+            if ($null -eq $argument5Full) {
+              throw 'argv[5] full path is unavailable'
+            }
+            $argument5Parent = [IO.Path]::GetDirectoryName($argument5Full)
+            $argument5BaseName = [IO.Path]::GetFileName($argument5Full)
+          } catch {
+            $pathPartsError = $_.Exception.Message
+          }
+          $predicatePass.argv5_parent = (
+            $argument5Parent -is [string] -and
+            $runnerTempFull -is [string] -and
+            $argument5Parent -ceq $runnerTempFull
+          )
+          Add-Observation 'argv5_parent_equals_runner_temp' $predicatePass.argv5_parent ([ordered]@{ parent = $argument5Parent; runner_temp = $runnerTempFull }) $pathPartsError
+          Add-Observation 'argv5_basename' ($argument5BaseName -is [string] -and $argument5BaseName.Length -gt 0) $argument5BaseName $pathPartsError
+
+          $predicatePass.argv5_lowercase_uuid_ps1 = (
+            $argument5BaseName -is [string] -and
+            $argument5BaseName -cmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.ps1$'
+          )
+          Add-Observation 'argv5_lowercase_uuid_ps1_regex' $predicatePass.argv5_lowercase_uuid_ps1 $argument5BaseName
+
+          $fileMetadata = [ordered]@{
+            exists = $false
+            item_type = $null
+            reparse = $null
+            stat_type = $null
+            link_count = $null
+            owner_uid = $null
+            owner_gid = $null
+            runner_uid = $null
+            runner_gid = $null
+            mode_octal = $null
+          }
+          $metadataError = $null
+          try {
+            if ($null -eq $argument5Full) {
+              throw 'argv[5] full path is unavailable'
+            }
+            $item = Get-Item -LiteralPath $argument5Full -Force -ErrorAction Stop
+            $fileMetadata.exists = $true
+            $fileMetadata.item_type = $item.GetType().FullName
+            $fileMetadata.reparse = [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
+
+            $statValues = & /usr/bin/stat --printf='%F|%h|%u|%g|%a' -- $argument5Full
+            $statExit = $LASTEXITCODE
+            if ($statExit -ne 0) { throw "stat failed with exit $statExit" }
+            $statParts = ([string]$statValues).Split('|')
+            if ($statParts.Count -ne 5) { throw 'stat metadata field count differs' }
+            $fileMetadata.stat_type = $statParts[0]
+            $fileMetadata.link_count = $statParts[1]
+            $fileMetadata.owner_uid = $statParts[2]
+            $fileMetadata.owner_gid = $statParts[3]
+            $fileMetadata.mode_octal = $statParts[4]
+
+            $runnerUid = & /usr/bin/id -u
+            $runnerUidExit = $LASTEXITCODE
+            $runnerGid = & /usr/bin/id -g
+            $runnerGidExit = $LASTEXITCODE
+            if ($runnerUidExit -ne 0 -or $runnerGidExit -ne 0) {
+              throw 'runner uid/gid observation failed'
+            }
+            $fileMetadata.runner_uid = [string]$runnerUid
+            $fileMetadata.runner_gid = [string]$runnerGid
+          } catch {
+            $metadataError = $_.Exception.Message
+          }
+          $metadataPass = (
+            $fileMetadata.exists -eq $true -and
+            $fileMetadata.item_type -ceq 'System.IO.FileInfo' -and
+            $fileMetadata.reparse -eq $false -and
+            $fileMetadata.stat_type -ceq 'regular file' -and
+            [string]$fileMetadata.link_count -ceq '1' -and
+            [string]$fileMetadata.owner_uid -ceq [string]$fileMetadata.runner_uid
+          )
+          Add-Observation 'argv5_file_metadata' $metadataPass $fileMetadata $metadataError
+
+          $runnerIdentity = [ordered]@{
+            runner_os = [string]$env:RUNNER_OS
+            runner_arch = [string]$env:RUNNER_ARCH
+            image_os = [string]$env:ImageOS
+            image_version = [string]$env:ImageVersion
+          }
+          Add-Observation 'hosted_runner_identity' (
+            $runnerIdentity.runner_os -ceq 'Linux' -and
+            $runnerIdentity.runner_arch -ceq 'X64' -and
+            $runnerIdentity.image_os -ceq 'ubuntu24'
+          ) $runnerIdentity
+
+          $env:PATH = $expectedSanitizedPath
+          $sanitizedPathPass = ([string]$env:PATH -ceq $expectedSanitizedPath)
+          Add-Observation 'ordered_path_sanitization' $sanitizedPathPass ([string]$env:PATH)
+
+          $currentPredicateNames = @(
+            'main_module', 'pshome', 'psversion', 'initial_path', 'argc',
+            'argv_0', 'argv_1', 'argv_2', 'argv_3', 'argv_4', 'argv_5',
+            'argv5_fullpath', 'runner_temp_fullpath', 'argv5_parent',
+            'argv5_lowercase_uuid_ps1'
+          )
+          $failedPredicates = @(
+            $currentPredicateNames | Where-Object { $predicatePass[$_] -ne $true }
+          )
+          $overall = [ordered]@{
+            current_compound_pass = ($failedPredicates.Count -eq 0)
+            failed_current_predicates = $failedPredicates
+            file_metadata_pass = $metadataPass
+            path_sanitization_pass = $sanitizedPathPass
+            observation_count = $observations.Count
+          }
+          Add-Observation 'overall_result' (
+            $overall.current_compound_pass -and
+            $overall.file_metadata_pass -and
+            $overall.path_sanitization_pass
+          ) $overall
+
+          if (-not $overall.current_compound_pass -or
+              -not $overall.file_metadata_pass -or
+              -not $overall.path_sanitization_pass) {
+            throw 'RR25 diagnostic observed one or more independently identified mismatches'
+          }
