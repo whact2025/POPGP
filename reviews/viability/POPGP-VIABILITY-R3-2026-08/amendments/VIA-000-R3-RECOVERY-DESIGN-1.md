@@ -96,9 +96,37 @@ assembler accepts no cross-stage executable/configuration state, link/reparse po
 or undeclared file. It requires all three stage attestations per platform and derives
 the final platform record only from the candidate results, PDF proof, and mutation
 proof assigned to those stages. Failure cleans the temporary assembly and cannot emit
-an output commitment. This amendment does not claim to close RR4's distinct same-path
-replacement finding inside a single stage; that finding remains for independent
-rereview unless separately proven resolved.
+an output commitment.
+
+## RR6 descendant and same-path execution-boundary amendment
+
+The RR4 same-path replacement gap and RR6 descendant-attestation race are closed in
+this draft by moving every candidate- or mutation-controlled command behind an
+OS-enforced privilege boundary. On Windows the trusted runner creates a restricted
+low-integrity token, creates the child suspended, assigns it to a kill-on-close Job
+Object before its first instruction, and terminates and queries that complete job
+tree. On Ubuntu it uses a systemd transient service with `DynamicUser=yes`,
+`KillMode=control-group`, and explicit post-stop control-group inspection. The
+workflow fails closed when the required primitive is unavailable.
+
+The untrusted identity can write only a fresh mutable staging root. Tool,
+configuration, and trusted-evidence roots are non-writable to it; on Windows the
+trusted evidence SACL also applies no-read-up/no-write-up so an untrusted process
+cannot target evidence bytes by content. `TEMP`, `TMP`, `RUNNER_TEMP`, home/cache,
+loader, Git, Python, uv, and TeX selectors exposed to the child all resolve inside
+mutable staging or are scrubbed. Trusted code copies result bytes, creates manifests,
+and captures attestation subjects only after termination and a zero-descendant proof.
+The assembler recomputes every retained containment-result hash and requires the
+platform-specific primitive, privilege separation, teardown, protected-tool and
+protected-evidence flags, and zero active descendants for every contained command.
+
+The production workflow runs a hostile self-test on both hosted OS families. Its real
+child detaches a delayed grandchild and attempts direct and replace-then-restore writes
+to live tool/evidence paths; the gate requires the process tree to be killed and both
+subjects to remain byte-identical. The exact Windows mechanism is also executed by a
+local regression. Ubuntu enforcement remains a hosted-runner gate and requires fresh
+independent rereview before activation. These changes are a drafted remediation, not
+an approval, refreeze, or campaign run.
 
 Thus the following identity is single-valued:
 

@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 425 passed |
+| `pytest -q` | about 1200 s | 430 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -190,3 +190,15 @@ disables shell escape, and retains identical before/after manifests of the compl
 pinned TeX tree. Every stage attests its own identity-bound summary and evidence
 manifest. The assembler accepts only declared non-executable evidence bytes and
 requires the complete, same-run three-stage set before emitting any commitment.
+
+Each R3 stage additionally treats candidate and frozen-mutation execution as an
+untrusted process tree. The Windows path starts a restricted low-integrity process
+suspended, assigns it to a kill-on-close Job Object, and resumes it only after
+assignment. The Ubuntu path runs it as a systemd `DynamicUser` transient service with
+control-group teardown. Mutable staging is isolated from non-writable tool/config and
+trusted-evidence roots, and child temp/home/cache/loader variables cannot name trusted
+paths. Evidence creation and attestation-subject capture occur only after the complete
+tree is terminated and zero descendants are proven. A production-hostile gate on both
+hosted platforms launches a detached delayed writer against the live evidence and tool
+paths and requires containment plus byte identity; the Windows primitive also has a
+local executable regression.

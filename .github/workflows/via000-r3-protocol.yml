@@ -261,6 +261,8 @@ jobs:
           } else {
             throw "workflow platform and hosted operating system disagree"
           }
+          $containmentProtocolPath = Join-Path $env:GITHUB_WORKSPACE `
+            "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1"
           $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
           if (-not ([IO.Path]::GetFullPath([string]$env:VIA000_BASE_PYTHON_OUTPUT)).Equals([IO.Path]::GetFullPath($pythonOutput), $comparison)) {
             throw "setup-python output is not the single frozen tool-cache location"
@@ -286,6 +288,9 @@ jobs:
           }
           $stageTools = @($gitPath, $sshKeygenPath, $basePythonPath, $powerShellPath)
           if ($stage -eq "pdf") { $stageTools += $pdfLatexPath }
+          if ($platform -eq "ubuntu-latest-x86_64") {
+            $stageTools += @("/usr/bin/sudo", "/usr/bin/systemd-run", "/usr/bin/systemctl")
+          }
           foreach ($tool in $stageTools) {
             Assert-RegularExecutable $tool "trusted hosted tool"
           }
@@ -349,6 +354,29 @@ jobs:
               version = $item[2]
             }
           }
+          $containmentItem = Get-Item -LiteralPath $containmentProtocolPath -Force -ErrorAction Stop
+          if (-not ($containmentItem -is [IO.FileInfo]) -or
+              ($containmentItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "containment protocol is not one regular non-reparse file"
+          }
+          $tools.containment_protocol = [ordered]@{
+            path = $containmentProtocolPath
+            sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $containmentProtocolPath).Hash.ToLowerInvariant()
+            version = "VIA-000 R3 restricted-token/job-object plus systemd DynamicUser/control-group"
+          }
+          if ($platform -eq "ubuntu-latest-x86_64") {
+            foreach ($item in @(
+              @("sudo", "/usr/bin/sudo"),
+              @("systemd_run", "/usr/bin/systemd-run"),
+              @("systemctl", "/usr/bin/systemctl")
+            )) {
+              $tools[$item[0]] = [ordered]@{
+                path = $item[1]
+                sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $item[1]).Hash.ToLowerInvariant()
+                version = "Ubuntu 24.04 hosted system containment primitive"
+              }
+            }
+          }
           if ($stage -in @("candidate", "mutation")) {
             $tools.uv = [ordered]@{ path = $uvPath; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $uvPath).Hash.ToLowerInvariant(); version = $uvVersion }
           }
@@ -378,6 +406,106 @@ jobs:
           foreach ($entry in $outputs.GetEnumerator()) {
             [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false))
           }
+
+      - name: Prove production containment against detached replacement payload
+        shell: ${{ matrix.shell }}
+        env:
+          VIA000_PLATFORM: ${{ matrix.platform }}
+          VIA000_BASE_PYTHON: ${{ steps.tools.outputs.base_python_path }}
+          VIA000_BASE_PYTHON_SHA256: ${{ steps.tools.outputs.base_python_sha256 }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $platform = [string]$env:VIA000_PLATFORM
+          $basePython = [string]$env:VIA000_BASE_PYTHON
+          $containment = Join-Path $env:GITHUB_WORKSPACE `
+            "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1"
+          . $containment
+          $systemTools = if ($platform -eq "windows-x86_64") {
+            @{}
+          } else {
+            @{ sudo = "/usr/bin/sudo"; systemd_run = "/usr/bin/systemd-run"; systemctl = "/usr/bin/systemctl" }
+          }
+          Test-Via000ContainmentAvailability -PlatformFamily $platform -SystemTools $systemTools
+          $caseRoot = Join-Path $env:RUNNER_TEMP ("via000-r3-containment-self-test-" + [Guid]::NewGuid().ToString("N"))
+          $mutable = Join-Path $caseRoot "mutable"
+          $trusted = Join-Path $caseRoot "trusted"
+          New-Item -ItemType Directory -Path $mutable, $trusted | Out-Null
+          Set-Via000RootIntegrity -Path $mutable -Kind mutable -SystemTools $systemTools
+          Set-Via000RootIntegrity -Path $trusted -Kind protected -SystemTools $systemTools
+          $payload = Join-Path $mutable "hostile.py"
+          @'
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          mode, tool, trusted, mutable = sys.argv[1:]
+          trusted = Path(trusted)
+          mutable = Path(mutable)
+          if mode == "writer":
+              import time
+              time.sleep(2)
+              for target in (trusted / "delayed-marker", Path(tool)):
+                  try:
+                      original = target.read_bytes() if target.exists() else b""
+                      target.write_bytes(b"hostile replacement")
+                      target.write_bytes(original)
+                  except OSError:
+                      pass
+              raise SystemExit(0)
+          if mode == "relay":
+              flags = 0
+              kwargs = {"close_fds": True}
+              if os.name == "nt":
+                  flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                  kwargs["creationflags"] = flags
+              else:
+                  kwargs["start_new_session"] = True
+              subprocess.Popen([sys.executable, "-I", "-S", __file__, "writer", tool, str(trusted), str(mutable)], **kwargs)
+              (mutable / "relay-ready").write_text("child-of-child running", encoding="utf-8")
+              raise SystemExit(0)
+          for target in (trusted / "direct-marker", Path(tool)):
+              try:
+                  original = target.read_bytes() if target.exists() else b""
+                  target.write_bytes(b"replace-then-restore")
+                  target.write_bytes(original)
+              except OSError:
+                  pass
+          try:
+              link = mutable / "tool-hardlink"
+              os.link(tool, link)
+              os.replace(link, tool)
+          except OSError:
+              pass
+          subprocess.Popen([sys.executable, "-I", "-S", __file__, "relay", tool, str(trusted), str(mutable)], close_fds=True)
+          import time
+          deadline = time.monotonic() + 2
+          while not (mutable / "relay-ready").exists() and time.monotonic() < deadline:
+              time.sleep(0.01)
+          if not (mutable / "relay-ready").exists():
+              raise SystemExit(76)
+          '@ | Set-Content -LiteralPath $payload -Encoding utf8NoBOM
+          $closure = @{
+            $basePython = [string]$env:VIA000_BASE_PYTHON_SHA256
+            $containment = (Get-FileHash -Algorithm SHA256 -LiteralPath $containment).Hash.ToLowerInvariant()
+          }
+          foreach ($path in $systemTools.Values) {
+            $closure[[string]$path] = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+          }
+          Invoke-Via000ContainedCommand -Label "hostile-self-test" -ContractId "production-containment-self-test" `
+            -PlatformFamily $platform -FilePath $basePython `
+            -Arguments @("-I", "-S", $payload, "attack", $basePython, $trusted, $mutable) `
+            -WorkingDirectory $mutable -MutableRoot $mutable -TrustedRoot $trusted `
+            -StdoutPath (Join-Path $trusted "stdout.txt") -StderrPath (Join-Path $trusted "stderr.txt") `
+            -ResultPath (Join-Path $trusted "result.json") -Environment @{} `
+            -Closure $closure -SystemTools $systemTools -TimeoutSeconds 60
+          Start-Sleep -Seconds 3
+          if (Test-Path -LiteralPath (Join-Path $trusted "direct-marker") -or
+              Test-Path -LiteralPath (Join-Path $trusted "delayed-marker") -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $basePython).Hash.ToLowerInvariant() -cne [string]$env:VIA000_BASE_PYTHON_SHA256) {
+            throw "hostile replacement or detached descendant escaped containment"
+          }
+          Remove-Item -LiteralPath $caseRoot -Recurse -Force
 
       - name: Execute frozen clean platform protocol
         id: execution
@@ -471,9 +599,9 @@ jobs:
 
           if ($stage -in @("candidate", "mutation")) {
           $candidatePython = if ($IsWindows) {
-            Join-Path $workspace "python-environment/Scripts/python.exe"
+            Join-Path $workspace "tool-closure/python-environment/Scripts/python.exe"
           } else {
-            Join-Path $workspace "python-environment/bin/python"
+            Join-Path $workspace "tool-closure/python-environment/bin/python"
           }
           $candidatePythonItem = Get-Item -LiteralPath $candidatePython -Force -ErrorAction Stop
           if (-not ($candidatePythonItem -is [IO.FileInfo]) -or ($candidatePythonItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -484,33 +612,35 @@ jobs:
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "environment_python_sha256=$candidatePythonSha256`n", [Text.UTF8Encoding]::new($false))
           }
 
-          if ($stage -in @("candidate", "mutation")) {
           @'
+          import hashlib
           import json
           import os
           from pathlib import Path
-          from jsonschema import Draft202012Validator, FormatChecker
 
           workspace = Path(os.environ["RUNNER_TEMP"]) / f"via000-r3-{os.environ['VIA000_STAGE']}-stage"
-          schema = json.loads(Path(
-              "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
-          ).read_text(encoding="utf-8"))
           summary = json.loads(
               (workspace / "evidence/stage-summary.json").read_text(encoding="utf-8")
           )
-          fragment_schema = {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "$defs": schema["$defs"],
-              "$ref": "#/$defs/stage_fragment",
-          }
-          errors = list(Draft202012Validator(
-              fragment_schema, format_checker=FormatChecker()
-          ).iter_errors(summary))
-          if errors:
-              raise SystemExit(errors[0].message)
-          '@ | & $candidatePython -I -
-          if ($LASTEXITCODE -ne 0) { throw "platform fragment schema validation failed" }
-          }
+          manifest = json.loads(
+              (workspace / "evidence/evidence-manifest.json").read_text(encoding="utf-8")
+          )
+          if summary["stage_id"] != os.environ["VIA000_STAGE"]:
+              raise SystemExit("stage identity mismatch")
+          if summary["evidence_paths"] != [item["path"] for item in manifest]:
+              raise SystemExit("summary/manifest path mismatch")
+          for item in manifest:
+              path = workspace / item["path"]
+              if hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+                  raise SystemExit(f"manifest hash mismatch: {item['path']}")
+          for proof in (workspace / "evidence/commands").glob("*.result.json"):
+              value = json.loads(proof.read_text(encoding="utf-8"))
+              if value.get("descendants_quiescent") is not True:
+                  raise SystemExit(f"missing quiescence proof: {proof.name}")
+              if value.get("active_processes_after_teardown") != 0:
+                  raise SystemExit(f"active descendant retained: {proof.name}")
+          '@ | & ([string]$env:VIA000_BASE_PYTHON_PATH) -I -S -
+          if ($LASTEXITCODE -ne 0) { throw "trusted fragment integrity validation failed" }
           } catch {
             if (Test-Path -LiteralPath $workspace) {
               Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
@@ -569,12 +699,24 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $currentAuthorizationTagOid -ne $authorization.authorization_tag_oid) {
             throw "authorization ref changed before mutation execution"
           }
-          $mutationArguments = @(
-            "-I", "-S", "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py",
-            "--repo-root", $env:GITHUB_WORKSPACE,
+          $protocolRoot = Join-Path $env:GITHUB_WORKSPACE "protocols/POPGP-VIABILITY-R3-2026-08"
+          $mutationRunner = Join-Path $protocolRoot "VIA-000-MUTATION-RUNNER.py"
+          $containment = Join-Path $protocolRoot "VIA-000-CONTAINMENT.ps1"
+          $protocol = Join-Path $protocolRoot "VIA-000.json"
+          $repo = Join-Path $workspace "mutable/candidate"
+          $evidence = Join-Path $workspace "evidence"
+          $mutable = Join-Path $workspace "mutable"
+          $plan = Join-Path $evidence "mutation-plan.json"
+          $stdout = Join-Path $evidence "mutation-contained.stdout.txt"
+          $stderr = Join-Path $evidence "mutation-contained.stderr.txt"
+          $containedResult = Join-Path $evidence "mutation-contained.result.json"
+          $identityArguments = @(
+            "--repo-root", $repo,
+            "--protocol", $protocol,
             "--workspace-root", $workspace,
             "--environment-python", [string]$env:VIA000_ENVIRONMENT_PYTHON,
             "--environment-python-sha256", [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256,
+            "--plan", $plan,
             "--platform-family", $platform,
             "--protocol-source-commit", $authorization.protocol_commit,
             "--dispatch-ref", $authorization.source_ref,
@@ -585,43 +727,79 @@ jobs:
             "--producer-run-id", $producerRunId,
             "--producer-run-attempt", $producerRunAttempt
           )
-          & $env:VIA000_BASE_PYTHON @mutationArguments
-          if ($LASTEXITCODE -ne 0) { throw "frozen mutation-test matrix failed" }
-
+          & $env:VIA000_BASE_PYTHON -I -S $mutationRunner prepare @identityArguments
+          if ($LASTEXITCODE -ne 0) { throw "mutation plan preparation failed" }
           $candidatePython = [string]$env:VIA000_ENVIRONMENT_PYTHON
           if ((Get-FileHash -Algorithm SHA256 -LiteralPath $candidatePython).Hash.ToLowerInvariant() -cne [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256) {
-            throw "locked environment Python changed after mutation execution"
+            throw "locked environment Python changed before contained mutation execution"
           }
-          @'
-          import json
-          import os
-          from pathlib import Path
-          from jsonschema import Draft202012Validator, FormatChecker
-
-          workspace = Path(os.environ["RUNNER_TEMP"]) / "via000-r3-mutation-stage"
-          schema = json.loads(Path(
-              "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
-          ).read_text(encoding="utf-8"))
-          summary = json.loads(
-              (workspace / "evidence/stage-summary.json").read_text(encoding="utf-8")
-          )
-          fragment_schema = {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "$defs": schema["$defs"],
-              "$ref": "#/$defs/stage_fragment",
+          . $containment
+          $systemTools = if ($platform -eq "windows-x86_64") {
+            @{}
+          } else {
+            @{ sudo = "/usr/bin/sudo"; systemd_run = "/usr/bin/systemd-run"; systemctl = "/usr/bin/systemctl" }
           }
-          errors = list(Draft202012Validator(
-              fragment_schema, format_checker=FormatChecker()
-          ).iter_errors(summary))
-          if errors:
-              raise SystemExit(errors[0].message)
-          '@ | & $candidatePython -I -
-          if ($LASTEXITCODE -ne 0) { throw "mutated platform fragment schema validation failed" }
+          Test-Via000ContainmentAvailability -PlatformFamily $platform -SystemTools $systemTools
+          $closure = @{
+            $candidatePython = [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256
+            ([string]$env:VIA000_BASE_PYTHON) = (Get-FileHash -Algorithm SHA256 -LiteralPath $env:VIA000_BASE_PYTHON).Hash.ToLowerInvariant()
+            $trustedGit = [string]$env:VIA000_GIT_SHA256
+            $containment = (Get-FileHash -Algorithm SHA256 -LiteralPath $containment).Hash.ToLowerInvariant()
+            $mutationRunner = (Get-FileHash -Algorithm SHA256 -LiteralPath $mutationRunner).Hash.ToLowerInvariant()
+            $protocol = (Get-FileHash -Algorithm SHA256 -LiteralPath $protocol).Hash.ToLowerInvariant()
+          }
+          foreach ($path in $systemTools.Values) {
+            $closure[[string]$path] = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+          }
+          $prepared = Get-Content -LiteralPath $plan -Raw | ConvertFrom-Json
+          Invoke-Via000ContainedCommand -Label "mutation-suite" -ContractId "contained-frozen-mutation-suite" `
+            -PlatformFamily $platform -FilePath $candidatePython `
+            -Arguments @($prepared.arguments | ForEach-Object { [string]$_ }) `
+            -WorkingDirectory ([string]$prepared.working_directory) `
+            -MutableRoot $mutable -TrustedRoot $evidence `
+            -StdoutPath $stdout -StderrPath $stderr -ResultPath $containedResult `
+            -Environment @{
+              UV_CACHE_DIR = (Join-Path $mutable "mutation-uv-cache")
+              PYTHONPYCACHEPREFIX = (Join-Path $mutable "mutation-python-cache")
+              PYTHONDONTWRITEBYTECODE = "1"
+              RUFF_CACHE_DIR = (Join-Path $mutable "mutation-ruff-cache")
+              MPLCONFIGDIR = (Join-Path $mutable "mutation-matplotlib-cache")
+              XDG_CACHE_HOME = (Join-Path $mutable "mutation-general-cache")
+            } -Closure $closure -SystemTools $systemTools
+          & $env:VIA000_BASE_PYTHON -I -S $mutationRunner finalize @identityArguments `
+            --stdout $stdout --stderr $stderr --contained-result $containedResult
+          if ($LASTEXITCODE -ne 0) { throw "trusted mutation finalization failed" }
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $candidatePython).Hash.ToLowerInvariant() -cne [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256) {
+            throw "locked environment Python changed after mutation containment"
+          }
           } catch {
             if (Test-Path -LiteralPath $workspace) {
               Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
             }
             throw
+          }
+
+      - name: Capture exact attestation subjects after containment teardown
+        id: subjects
+        shell: ${{ matrix.shell }}
+        env:
+          VIA000_STAGE: ${{ matrix.stage }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $evidence = Join-Path $env:RUNNER_TEMP "via000-r3-$([string]$env:VIA000_STAGE)-stage/evidence"
+          $summary = Join-Path $evidence "stage-summary.json"
+          $manifest = Join-Path $evidence "evidence-manifest.json"
+          foreach ($item in @(
+            @("summary_sha256", $summary),
+            @("manifest_sha256", $manifest)
+          )) {
+            $path = [string]$item[1]
+            $file = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+            if (-not ($file -is [IO.FileInfo]) -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+              throw "attestation subject is not one regular non-reparse file"
+            }
+            $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+            [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$([string]$item[0])=$digest`n", [Text.UTF8Encoding]::new($false))
           }
 
       - name: Attest exact platform subjects
@@ -637,14 +815,26 @@ jobs:
         env:
           VIA000_ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
           VIA000_STAGE: ${{ matrix.stage }}
+          VIA000_SUMMARY_SHA256: ${{ steps.subjects.outputs.summary_sha256 }}
+          VIA000_MANIFEST_SHA256: ${{ steps.subjects.outputs.manifest_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
-          $destination = Join-Path $env:RUNNER_TEMP `
-            "via000-r3-$([string]$env:VIA000_STAGE)-stage/evidence/producer-attestation.sigstore.json"
+          $evidence = Join-Path $env:RUNNER_TEMP "via000-r3-$([string]$env:VIA000_STAGE)-stage/evidence"
+          $summary = Join-Path $evidence "stage-summary.json"
+          $manifest = Join-Path $evidence "evidence-manifest.json"
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $summary).Hash.ToLowerInvariant() -cne [string]$env:VIA000_SUMMARY_SHA256 -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $manifest).Hash.ToLowerInvariant() -cne [string]$env:VIA000_MANIFEST_SHA256) {
+            throw "attestation subjects changed after trusted capture"
+          }
+          $destination = Join-Path $evidence "producer-attestation.sigstore.json"
           Copy-Item -LiteralPath $env:VIA000_ATTESTATION_BUNDLE `
             -Destination $destination
           if (-not (Test-Path -LiteralPath $destination -PathType Leaf)) {
             throw "producer attestation bundle was not retained"
+          }
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $summary).Hash.ToLowerInvariant() -cne [string]$env:VIA000_SUMMARY_SHA256 -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $manifest).Hash.ToLowerInvariant() -cne [string]$env:VIA000_MANIFEST_SHA256) {
+            throw "attestation subjects changed while retaining the signed bundle"
           }
 
       - name: Remove rejected platform workspace

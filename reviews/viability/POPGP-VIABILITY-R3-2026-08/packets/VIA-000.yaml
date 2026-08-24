@@ -6,7 +6,7 @@ candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
 protocol_commit: 3a7d55e4797627765cd01801310a39fe58c655eb
-protocol_rule_sha256: 6110e1c1c33a2509551cbd5c340837059defa0ceda8591b3e074314d1ddbc294
+protocol_rule_sha256: b05eb6c5cd1ec2a3b381078357fa2a80cb057f0d7455ddf3415d978dd2a3881e
 lifecycle_phase: drafted
 claims:
 - C03
@@ -96,17 +96,19 @@ preregistration:
     pdf_engine_banner: pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
     pdf_pass_count: 2
     runner_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1
-    runner_protocol_sha256: 74839816bd58cb1fb7a6db6bd6c50b91ab5469c0c78b531498eba580b88b5f58
+    runner_protocol_sha256: 58be203d91fb140f81ce8c24394d617c05a5e029a73e50b3c04e304d4fd9db72
+    containment_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+    containment_protocol_sha256: 0c399a13f841e92f2853b010518ae8aed99b19babec10b68920652acd940e3e3
     raw_results_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json
-    raw_results_schema_sha256: eed30d1adc9d0510b8c5d9da3de6306e36695db022e92331e7e92c2d71cf36a7
+    raw_results_schema_sha256: c87331225df75076fc34efb09b595ff71316015ccd6b95002ea5ef9758a36122
     assembler_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py
-    assembler_protocol_sha256: e62a949fc922c7311902506ef50ee820e06e10658fb3c953e7937efeb36a2c23
+    assembler_protocol_sha256: 0b51d16b5562b0c3077e020a57a0ed15438c8c8032f80bcab48ea52418049d14
     mutation_runner_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py
-    mutation_runner_protocol_sha256: 2915ba2fd907b4d51ec85362d2f481e730f520185845153d1eb9178fc6b60a22
+    mutation_runner_protocol_sha256: 831e10f49b8fb011bdebe98563acd70eed9b0e9ce6a124c09458c5c586933cd1
     dispatch_guard_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py
     dispatch_guard_protocol_sha256: 4bc8e1046d044999fc774447e1823952f9557938f19aa147923bef76809da6c1
     workflow_protocol_path: .github/workflows/via000-r3-protocol.yml
-    workflow_protocol_sha256: 6af3ea5e5c38538c2d406422ffa0a44b778725e5ccaa87997832788a8de39aa6
+    workflow_protocol_sha256: d770a94ae45444164138639aaa0c017929f936fb9a71b571c32e30366c149ff2
     validator_package_init_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py
     validator_package_init_sha256: 9d8059d7d655894958e03be4eb8a7dd89b45caa639651545bb3950abcd65880c
     authorization_contract:
@@ -124,7 +126,7 @@ preregistration:
       validator_bundle:
       - source_path: scripts/check_viability_campaign.py
         bundle_path: check_viability_campaign.py
-        sha256: c4871d9fb22156ff2135fe500b8a8c8348b52d845ff81eef2f649fc912e13d15
+        sha256: 8b1c2b3f81bb81c335e6703114b9a800eb48af8c3627ef35974344e539f0351c
       - source_path: scripts/check_validation_artifacts.py
         bundle_path: scripts/check_validation_artifacts.py
         sha256: 109c3505480ea3baaecdc1901e0bd78ada3207450141883ed92eeafa263096f7
@@ -373,6 +375,10 @@ preregistration:
           expected_passed_count: 1
         - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_stage_isolation_rejects_cross_stage_state_injection
           expected_passed_count: 5
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_workflow_requires_production_containment_and_atomic_subject_capture
+          expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_assembler_rejects_forged_execution_boundary
+          expected_passed_count: 3
         family-18:
         - test_prefix: tests/unit/test_via000_r2_assembler.py::test_assembler_commitment_roundtrips_through_custody_reveal
           expected_passed_count: 1
@@ -409,6 +415,11 @@ preregistration:
         require_fresh_stage_jobs: true
         require_evidence_only_stage_transport: true
         require_texlive_closure_manifest: true
+        require_os_enforced_descendant_containment: true
+        require_privilege_separated_evidence: true
+        require_post_teardown_subject_capture: true
+        require_zero_active_descendants: true
+        require_production_hostile_containment_gate: true
       producer_attestation:
         repository: whact2025/POPGP
         signer_workflow: whact2025/POPGP/.github/workflows/via000-r3-protocol.yml
@@ -431,33 +442,35 @@ preregistration:
       - assembler-inputs
       - declared-summary-booleans
       - caller-path-pathext-and-tool-output-substitution
+      - candidate-and-mutation-descendant-process-trees
+      - replace-then-restore-tool-and-evidence-attacks
       excluded_threat: A malicious or colluding assigned runner/GitHub control-plane principal, including
         the pinned action principals, that fabricates a complete internally consistent execution transcript
         is outside the R3 claim.
-      validator_claim: The GitHub control plane and exact pinned action revisions are the declared bootstrap
+      validator_claim: >-
+        The GitHub control plane and exact pinned action revisions are the declared bootstrap
         trust principal. Before authorization reads or experiment workspace creation, the workflow validates
         fixed hosted-runner labels, single exact setup-python 3.11.15 output/root, canonical non-reparse
         executable paths, exact uv 0.11.11 and TeX Live 2026 banners, and retained SHA-256 identities
-        for Git, ssh-keygen, base/environment Python, uv, pdfTeX, and PowerShell. PATH/PATHEXT and caller-controlled
-        child-process environment are scrubbed; all execution uses explicit absolute paths and argument
-        arrays. The retained tool-identity manifest is hash-bound into each platform summary. The dispatch
-        guard and validator bind a manual lightweight content-addressed source tag to a separately SSH-signed,
-        content-addressed authorization tag. The authorization ref is captured once as a full tag object
-        ID; parsing, target peeling, signature verification, returned identity, and the final ref-stability
-        check all bind that same immutable object. Immutable authorized campaign, packet, and manifest
-        blobs independently select the exact source commit; the guard also binds github.sha, checkout
-        HEAD, runner and mutation protocol-source identity, one shared producer run ID/attempt, GitHub-OIDC/Sigstore
-        source digest, assembler-derived identity, and packet protocol commit. Before output, the assembler
-        executes the manifest-verified validator and its complete local dependency closure from source-snapshot
-        Git blobs under Python isolation with the real authorized packet. The validator also proves typed
-        byte closure, tool identity, candidate identity, and recomputed scientific/boundary predicates.
-        It derives all eighteen mutation outcomes from attested verbose execution and rejects cross-run
-        fragment mixing. It does not claim to defeat a malicious or colluding trusted GitHub control-plane
+        for Git, ssh-keygen, base/environment Python, uv, pdfTeX, PowerShell, and the containment protocol.
+        Every candidate- or mutation-controlled command runs under an OS-enforced security boundary: a
+        low-integrity restricted token atomically assigned to a kill-on-close Windows Job Object before
+        its first instruction, or a systemd DynamicUser transient service with control-group kill semantics
+        on Ubuntu. Mutable roots are separated from protected tool/evidence roots, complete descendant
+        teardown is proven before trusted evidence creation, and attestation subject hashes are captured
+        and rechecked only after quiescence. PATH/PATHEXT, TEMP/TMP/RUNNER_TEMP, loader, Git, Python, uv,
+        and TeX caller surfaces are scrubbed; all execution uses explicit absolute paths and argument arrays.
+        The dispatch guard and validator bind a manual content-addressed source tag to a separately SSH-signed
+        authorization tag and immutable campaign/packet/manifest bytes. Before output, the assembler executes
+        the manifest-verified validator closure from source-snapshot Git blobs, verifies every retained
+        containment proof and all six stage attestations, derives the eighteen mutation outcomes, and rejects
+        cross-run mixing. It does not claim to defeat a malicious or colluding trusted GitHub control-plane
         or pinned-action principal.
     native_or_scalable_claim_in_scope: false
     seed_policy: Use only committed public seeds or the custodian-supplied secret seed; never inspect,
       reselect, rerun, or replace output after commitment.
-  measurement_procedure: Manually dispatch the pinned GitHub Actions workflow from the lightweight content-addressed
+  measurement_procedure: >-
+    Manually dispatch the pinned GitHub Actions workflow from the lightweight content-addressed
     tag refs/tags/popgp-via000-r3-protocol-<protocol-snapshot-commit> and supply the separately SSH-signed
     authorization tag refs/tags/popgp-via000-r3-authorization-<authorization-record-sha256>. The workflow
     transports every GitHub value into PowerShell only through step environment data, validates the exact
@@ -474,18 +487,24 @@ preregistration:
     also verifies the frozen signer, canonical authorization record, exact campaign/packet/manifest blob
     hashes, authorized packet protocol_commit, source-tag suffix and resolution, github.sha, and checkout
     HEAD. On both declared platforms, the assigned reproduction-runner seat executes the supporting runner
-    with the derived commit/ref and one shared GitHub run ID/attempt. The runner creates a fresh exact-candidate
+    with the derived commit/ref and one shared GitHub run ID/attempt. Each candidate- or mutation-controlled
+    command executes in a fresh OS-enforced boundary: a restricted low-integrity process tree in a kill-on-close
+    Windows Job Object, or a systemd DynamicUser transient service and control group on Ubuntu. The runner
+    gives that identity only mutable staging roots, keeps tool/configuration and evidence roots non-writable,
+    tears down the complete descendant tree, proves zero active descendants, and only then creates trusted
+    evidence and captures attestation subject hashes. The runner creates a fresh exact-candidate
     clone, a fresh locked non-editable copied Python environment, external caches and evidence directories,
     and extracts the trusted reproduction-boundary checker from the candidate Git object database with
     the explicit base Python interpreter under -I -S. Retain the tool-identity manifest, literal source
-    and complete environment manifests, per-command stdout, stderr, timing, exit status and hashes; run
+    and complete environment manifests, per-command stdout, stderr, timing, exit status, containment result
+    and hashes; run
     Ruff, TeX source validation, the complete test suite, all six generators, semantic/visual/change-boundary
     validation, two pinned canonical pdfTeX passes to an external directory, and the frozen mutation-test
-    matrix. The workflow signs the exact platform summary and evidence manifest with GitHub OIDC/Sigstore
+    matrix. The workflow signs the exact post-quiescence platform summary and evidence manifest with GitHub OIDC/Sigstore
     provenance. Before output, the assembler independently captures the authorization object and re-runs
     the same immutable-object guard, derives identity only from authorized immutable bytes, verifies the
     exact repository, signer workflow, source commit, refs, shared run identity, packet protocol commit,
-    transported bytes, and tool-identity evidence, then extracts and executes the manifest-verified semantic
+    transported bytes, tool-identity and containment evidence, then extracts and executes the manifest-verified semantic
     validator and all local dependencies from the source snapshot with the real authorized packet. The
     runner must produce separate Linux and Windows raw evidence and a single pre-reveal output commitment.
   uncertainty_procedure: Candidate commit/tree, Git object and mode bindings, command exits, test/example/mutation
@@ -602,31 +621,37 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-    sha256: 69b4a0d1d0d595e0daf9efd8482ccc2de83889b078e9cd41d63f25a928fb86a5
+    sha256: e4fe07932733a0326b0a7bc07fc71204ab13b5c9dc3cb1a93bce69d3a22e8e7c
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
     campaign_path: ../receipts/VIA-000/runner-protocol.ps1
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1
-    sha256: 74839816bd58cb1fb7a6db6bd6c50b91ab5469c0c78b531498eba580b88b5f58
+    sha256: 58be203d91fb140f81ce8c24394d617c05a5e029a73e50b3c04e304d4fd9db72
+    media_type: text/plain
+  - receipt_id: containment-protocol
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/containment-protocol.ps1
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+    sha256: 0c399a13f841e92f2853b010518ae8aed99b19babec10b68920652acd940e3e3
     media_type: text/plain
   - receipt_id: raw-results-schema
     content_role: supporting
     campaign_path: ../receipts/VIA-000/raw-results.schema.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json
-    sha256: eed30d1adc9d0510b8c5d9da3de6306e36695db022e92331e7e92c2d71cf36a7
+    sha256: c87331225df75076fc34efb09b595ff71316015ccd6b95002ea5ef9758a36122
     media_type: application/schema+json
   - receipt_id: assembler-protocol
     content_role: supporting
     campaign_path: ../receipts/VIA-000/assembler-protocol.py
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py
-    sha256: e62a949fc922c7311902506ef50ee820e06e10658fb3c953e7937efeb36a2c23
+    sha256: 0b51d16b5562b0c3077e020a57a0ed15438c8c8032f80bcab48ea52418049d14
     media_type: text/plain
   - receipt_id: mutation-runner
     content_role: supporting
     campaign_path: ../receipts/VIA-000/mutation-runner.py
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py
-    sha256: 2915ba2fd907b4d51ec85362d2f481e730f520185845153d1eb9178fc6b60a22
+    sha256: 831e10f49b8fb011bdebe98563acd70eed9b0e9ce6a124c09458c5c586933cd1
     media_type: text/plain
   - receipt_id: dispatch-guard
     content_role: supporting
@@ -638,7 +663,7 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/workflow-protocol.yml
     protocol_path: .github/workflows/via000-r3-protocol.yml
-    sha256: 6af3ea5e5c38538c2d406422ffa0a44b778725e5ccaa87997832788a8de39aa6
+    sha256: d770a94ae45444164138639aaa0c017929f936fb9a71b571c32e30366c149ff2
     media_type: text/plain
   - receipt_id: validator-package-init
     content_role: supporting
@@ -856,27 +881,32 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 69b4a0d1d0d595e0daf9efd8482ccc2de83889b078e9cd41d63f25a928fb86a5
+  sha256: e4fe07932733a0326b0a7bc07fc71204ab13b5c9dc3cb1a93bce69d3a22e8e7c
   media_type: application/json
 - id: runner-protocol
   kind: protocol
   path: ../receipts/VIA-000/runner-protocol.ps1
-  sha256: 74839816bd58cb1fb7a6db6bd6c50b91ab5469c0c78b531498eba580b88b5f58
+  sha256: 58be203d91fb140f81ce8c24394d617c05a5e029a73e50b3c04e304d4fd9db72
+  media_type: text/plain
+- id: containment-protocol
+  kind: protocol
+  path: ../receipts/VIA-000/containment-protocol.ps1
+  sha256: 0c399a13f841e92f2853b010518ae8aed99b19babec10b68920652acd940e3e3
   media_type: text/plain
 - id: raw-results-schema
   kind: protocol
   path: ../receipts/VIA-000/raw-results.schema.json
-  sha256: eed30d1adc9d0510b8c5d9da3de6306e36695db022e92331e7e92c2d71cf36a7
+  sha256: c87331225df75076fc34efb09b595ff71316015ccd6b95002ea5ef9758a36122
   media_type: application/schema+json
 - id: assembler-protocol
   kind: protocol
   path: ../receipts/VIA-000/assembler-protocol.py
-  sha256: e62a949fc922c7311902506ef50ee820e06e10658fb3c953e7937efeb36a2c23
+  sha256: 0b51d16b5562b0c3077e020a57a0ed15438c8c8032f80bcab48ea52418049d14
   media_type: text/plain
 - id: mutation-runner
   kind: protocol
   path: ../receipts/VIA-000/mutation-runner.py
-  sha256: 2915ba2fd907b4d51ec85362d2f481e730f520185845153d1eb9178fc6b60a22
+  sha256: 831e10f49b8fb011bdebe98563acd70eed9b0e9ce6a124c09458c5c586933cd1
   media_type: text/plain
 - id: dispatch-guard
   kind: protocol
@@ -886,7 +916,7 @@ receipts:
 - id: workflow-protocol
   kind: protocol
   path: ../receipts/VIA-000/workflow-protocol.yml
-  sha256: 6af3ea5e5c38538c2d406422ffa0a44b778725e5ccaa87997832788a8de39aa6
+  sha256: d770a94ae45444164138639aaa0c017929f936fb9a71b571c32e30366c149ff2
   media_type: text/plain
 - id: validator-package-init
   kind: protocol

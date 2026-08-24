@@ -23,6 +23,7 @@ SCHEMA = PROTOCOL_DIR / "VIA-000-RAW-RESULTS.schema.json"
 ASSEMBLER = PROTOCOL_DIR / "VIA-000-ASSEMBLER.py"
 GUARD = PROTOCOL_DIR / "VIA-000-DISPATCH-GUARD.py"
 RUNNER = PROTOCOL_DIR / "VIA-000-RUNNER.ps1"
+CONTAINMENT = PROTOCOL_DIR / "VIA-000-CONTAINMENT.ps1"
 MUTATION_RUNNER = PROTOCOL_DIR / "VIA-000-MUTATION-RUNNER.py"
 CAMPAIGN_CHECKER = ROOT / "scripts/check_viability_campaign.py"
 WORKFLOW = ROOT / ".github/workflows/via000-r3-protocol.yml"
@@ -190,6 +191,7 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
     parameters = primary["parameters"]
     for path_field, hash_field in (
         ("runner_protocol_path", "runner_protocol_sha256"),
+        ("containment_protocol_path", "containment_protocol_sha256"),
         ("raw_results_schema_path", "raw_results_schema_sha256"),
         ("assembler_protocol_path", "assembler_protocol_sha256"),
         ("mutation_runner_protocol_path", "mutation_runner_protocol_sha256"),
@@ -444,10 +446,21 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                 },
                 "environment_python": {
                     "path": (
-                        "C:/runner/_temp/via000-r3-platform/python-environment/Scripts/python.exe"
+                        "C:/runner/_temp/via000-r3-platform/tool-closure/python-environment/Scripts/python.exe"
                     ),
                     "sha256": "3" * 64,
                     "version": "3.11.15",
+                },
+                "containment_protocol": {
+                    "path": (
+                        "C:/runner/work/POPGP/protocols/"
+                        "POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1"
+                    ),
+                    "sha256": "7" * 64,
+                    "version": (
+                        "VIA-000 R3 restricted-token/job-object plus systemd "
+                        "DynamicUser/control-group"
+                    ),
                 },
             }
             runner_label, image_os = "windows-2025", "win25"
@@ -487,10 +500,36 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                 },
                 "environment_python": {
                     "path": (
-                        "/home/runner/work/_temp/via000-r3-platform/python-environment/bin/python"
+                        "/home/runner/work/_temp/via000-r3-platform/tool-closure/python-environment/bin/python"
                     ),
                     "sha256": "3" * 64,
                     "version": "3.11.15",
+                },
+                "containment_protocol": {
+                    "path": (
+                        "/home/runner/work/POPGP/protocols/"
+                        "POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1"
+                    ),
+                    "sha256": "7" * 64,
+                    "version": (
+                        "VIA-000 R3 restricted-token/job-object plus systemd "
+                        "DynamicUser/control-group"
+                    ),
+                },
+                "sudo": {
+                    "path": "/usr/bin/sudo",
+                    "sha256": "8" * 64,
+                    "version": "Ubuntu 24.04 hosted system containment primitive",
+                },
+                "systemd_run": {
+                    "path": "/usr/bin/systemd-run",
+                    "sha256": "9" * 64,
+                    "version": "Ubuntu 24.04 hosted system containment primitive",
+                },
+                "systemctl": {
+                    "path": "/usr/bin/systemctl",
+                    "sha256": "a" * 64,
+                    "version": "Ubuntu 24.04 hosted system containment primitive",
                 },
             }
             runner_label, image_os = "ubuntu-24.04", "ubuntu24"
@@ -560,6 +599,24 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
         suite["dispatch_identity"] = DISPATCH_IDENTITY
         suite["command"] = command
         suite["stdout_sha256"] = stdout_digest
+        primitive = (
+            "windows-low-integrity-restricted-token-job-object"
+            if platform_name == "windows-x86_64"
+            else "ubuntu-systemd-dynamic-user-control-group"
+        )
+        separation = (
+            "low-integrity-restricted-token"
+            if platform_name == "windows-x86_64"
+            else "systemd-dynamic-user"
+        )
+        suite.update(
+            {
+                "primitive": primitive,
+                "privilege_separation": separation,
+                "descendants_quiescent": True,
+                "active_processes_after_teardown": 0,
+            }
+        )
         suite_path.write_text(json.dumps(suite), encoding="utf-8")
         suite_entry["sha256"] = hashlib.sha256(suite_path.read_bytes()).hexdigest()
         suite_entry["byte_count"] = suite_path.stat().st_size
@@ -605,6 +662,26 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
             entry["byte_count"] = receipt_path.stat().st_size
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
+        containment_count = 1
+        for entry in manifest:
+            if entry["role"] != "command-result":
+                continue
+            result_path = workspace / entry["path"]
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+            result.update(
+                {
+                    "primitive": primitive,
+                    "privilege_separation": separation,
+                    "descendants_quiescent": True,
+                    "active_processes_after_teardown": 0,
+                }
+            )
+            result_path.write_text(json.dumps(result), encoding="utf-8")
+            entry["sha256"] = _sha(result_path)
+            entry["byte_count"] = result_path.stat().st_size
+            containment_count += 1
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
         summary_path = workspace / "evidence/platform-summary.json"
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
         summary["campaign_id"] = "POPGP-VIABILITY-R3-2026-08"
@@ -620,6 +697,17 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
         summary["tool_identity_manifest_sha256"] = hashlib.sha256(
             tool_identity_path.read_bytes()
         ).hexdigest()
+        summary["execution_boundary"] = {
+            "primitive": primitive,
+            "privilege_separation": separation,
+            "all_commands_contained": True,
+            "descendants_quiescent": True,
+            "active_processes_after_teardown": 0,
+            "trusted_evidence_unreadable_unwritable": True,
+            "mutable_root_separate": True,
+            "attestation_subjects_captured_after_quiescence": True,
+            "contained_command_count": containment_count,
+        }
         summary["evidence_paths"] = sorted(
             [*summary["evidence_paths"], "evidence/tool-identity-manifest.json"]
         )
@@ -1545,8 +1633,12 @@ def test_r3_complete_execution_toolchain_has_no_path_resolved_commands() -> None
     )
     assert '"uv",\n        "run"' not in mutation_runner
     assert '"python",\n        "-m"' not in mutation_runner
-    assert "str(environment_python)" in mutation_runner
-    assert "environment.pop(name, None)" in mutation_runner
+    assert "subprocess" not in mutation_runner
+    assert "never executes candidate Python" in mutation_runner
+    assert "Invoke-Via000ContainedCommand" in workflow
+    assert "AssignProcessToJobObject before resume" in runner + (
+        PROTOCOL_DIR / "VIA-000-CONTAINMENT.ps1"
+    ).read_text(encoding="utf-8")
 
 
 @pytest.mark.negative_control
@@ -1835,6 +1927,162 @@ def test_r3_workflow_separates_candidate_pdf_and_mutation_execution_contexts() -
     assert '"-no-shell-escape"' in runner
     for token in ("TEXMF*", "KPATHSEA*", "FONTCONFIG*", "LD_*", "DYLD_*"):
         assert token in runner
+
+
+@pytest.mark.negative_control
+def test_r3_workflow_requires_production_containment_and_atomic_subject_capture() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    containment = CONTAINMENT.read_text(encoding="utf-8")
+    for token in (
+        "CreateProcessAsUser",
+        "CREATE_SUSPENDED",
+        "AssignProcessToJobObject(job, pi.hProcess)",
+        "TerminateJobObject",
+        "ActiveProcessesAfterTermination",
+        "DynamicUser=yes",
+        "KillMode=control-group",
+        "InaccessiblePaths=$trusted",
+        "cgroup.procs",
+    ):
+        assert token in containment
+    assert "Prove production containment against detached replacement payload" in workflow
+    assert "child-of-child running" in workflow
+    assert "replace-then-restore" in workflow
+    assert "Capture exact attestation subjects after containment teardown" in workflow
+    assert workflow.count("attestation subjects changed") == 2
+    assert workflow.index("Capture exact attestation subjects after containment teardown") < (
+        workflow.index("Attest exact platform subjects")
+    )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="exact Windows Job Object control")
+@pytest.mark.negative_control
+def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
+    tmp_path: Path,
+) -> None:
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    mutable = tmp_path / "mutable"
+    trusted = tmp_path / "trusted"
+    mutable.mkdir()
+    trusted.mkdir()
+    payload = mutable / "hostile.py"
+    payload.write_text(
+        "import os, subprocess, sys, time\n"
+        "mode, tool, trusted, mutable = sys.argv[1:]\n"
+        "if mode == 'writer':\n"
+        "    time.sleep(1.5)\n"
+        "    for target in (os.path.join(trusted, 'delayed-marker'), tool):\n"
+        "        try:\n"
+        "            old = open(target, 'rb').read() if os.path.exists(target) else b''\n"
+        "            open(target, 'wb').write(b'replaced')\n"
+        "            open(target, 'wb').write(old)\n"
+        "        except OSError:\n"
+        "            pass\n"
+        "    raise SystemExit(0)\n"
+        "if mode == 'relay':\n"
+        "    subprocess.Popen([sys.executable, '-I', '-S', __file__, 'writer', "
+        "tool, trusted, mutable], creationflags=subprocess.DETACHED_PROCESS | "
+        "subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True)\n"
+        "    open(os.path.join(mutable, 'ready'), 'w').write('ready')\n"
+        "    raise SystemExit(0)\n"
+        "for target in (os.path.join(trusted, 'direct-marker'), tool):\n"
+        "    try:\n"
+        "        old = open(target, 'rb').read() if os.path.exists(target) else b''\n"
+        "        open(target, 'wb').write(b'replace-then-restore')\n"
+        "        open(target, 'wb').write(old)\n"
+        "    except OSError:\n"
+        "        pass\n"
+        "try:\n"
+        "    link = os.path.join(mutable, 'tool-hardlink')\n"
+        "    os.link(tool, link)\n"
+        "    os.replace(link, tool)\n"
+        "except OSError:\n"
+        "    pass\n"
+        "subprocess.Popen([sys.executable, '-I', '-S', __file__, 'relay', tool, "
+        "trusted, mutable], close_fds=True)\n"
+        "deadline = time.monotonic() + 2\n"
+        "while not os.path.exists(os.path.join(mutable, 'ready')) and "
+        "time.monotonic() < deadline:\n"
+        "    time.sleep(.01)\n"
+        "raise SystemExit(0 if os.path.exists(os.path.join(mutable, 'ready')) else 76)\n",
+        encoding="utf-8",
+    )
+    harness = tmp_path / "invoke.ps1"
+    result_path = trusted / "result.json"
+    harness.write_text(
+        "param([string]$Boundary,[string]$Python,[string]$Payload,[string]$Mutable,[string]$Trusted)\n"
+        "$ErrorActionPreference='Stop'\n"
+        ". $Boundary\n"
+        "$tools=@{}\n"
+        "Test-Via000ContainmentAvailability -PlatformFamily windows-x86_64 -SystemTools $tools\n"
+        "Set-Via000RootIntegrity -Path $Mutable -Kind mutable -SystemTools $tools\n"
+        "Set-Via000RootIntegrity -Path $Trusted -Kind protected -SystemTools $tools\n"
+        "$closure=@{}; $closure[$Python]=(Get-FileHash -Algorithm SHA256 "
+        "-LiteralPath $Python).Hash.ToLowerInvariant(); "
+        "$closure[$Boundary]=(Get-FileHash -Algorithm SHA256 -LiteralPath "
+        "$Boundary).Hash.ToLowerInvariant()\n"
+        "Invoke-Via000ContainedCommand -Label hostile -ContractId "
+        "rr6-production-hostile -PlatformFamily windows-x86_64 -FilePath $Python "
+        "-Arguments @('-I','-S',$Payload,'attack',$Python,$Trusted,$Mutable) "
+        "-WorkingDirectory $Mutable -MutableRoot $Mutable -TrustedRoot $Trusted "
+        "-StdoutPath (Join-Path $Trusted 'stdout.txt') -StderrPath (Join-Path "
+        "$Trusted 'stderr.txt') -ResultPath (Join-Path $Trusted 'result.json') "
+        "-Environment @{} -Closure $closure -SystemTools $tools -TimeoutSeconds 30\n",
+        encoding="utf-8",
+    )
+    python_sha = _sha(Path(sys.executable))
+    completed = subprocess.run(
+        [
+            pwsh,
+            "-NoProfile",
+            "-File",
+            str(harness),
+            str(CONTAINMENT),
+            sys.executable,
+            str(payload),
+            str(mutable),
+            str(trusted),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    assert result["primitive"] == "windows-low-integrity-restricted-token-job-object"
+    assert result["descendants_quiescent"] is True
+    assert result["active_processes_after_teardown"] == 0
+    import time
+
+    time.sleep(2)
+    assert not (trusted / "direct-marker").exists()
+    assert not (trusted / "delayed-marker").exists()
+    assert _sha(Path(sys.executable)) == python_sha
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("descendants_quiescent", False),
+        ("active_processes_after_teardown", 1),
+        ("trusted_evidence_unreadable_unwritable", False),
+    ],
+)
+def test_r3_assembler_rejects_forged_execution_boundary(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    roots = _r3_platform_roots(tmp_path)
+    summary_path = roots["windows-x86_64"] / "candidate/evidence/stage-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["execution_boundary"][field] = value
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+    output = tmp_path / "boundary-output"
+    result = _run_assembler(roots, output)
+    assert result.returncode != 0
+    assert not output.exists()
 
 
 @pytest.mark.negative_control

@@ -1502,7 +1502,10 @@ def _tool_identity_manifest_errors(
         "ssh_keygen",
         "base_python",
         "powershell",
+        "containment_protocol",
     }
+    if platform == "ubuntu-latest-x86_64":
+        common_tools |= {"sudo", "systemd_run", "systemctl"}
     expected_tools = (
         common_tools | {"uv", "environment_python"}
         if stage in {"candidate", "mutation"}
@@ -1529,7 +1532,10 @@ def _tool_identity_manifest_errors(
         )
         if (
             not absolute
-            or str(path).lower().endswith((".cmd", ".bat", ".ps1"))
+            or (
+                name != "containment_protocol"
+                and str(path).lower().endswith((".cmd", ".bat", ".ps1"))
+            )
             or not isinstance(entry["version"], str)
             or not entry["version"]
             or re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is None
@@ -1552,9 +1558,9 @@ def _tool_identity_manifest_errors(
         }
         pdf_suffix = "/via000-r3-texlive/2026/bin/windows/pdftex.exe"
         environment_suffix = (
-            f"/via000-r3-{stage}-stage/python-environment/scripts/python.exe"
+            f"/via000-r3-{stage}-stage/tool-closure/python-environment/scripts/python.exe"
             if stage is not None
-            else "/via000-r3-platform/python-environment/scripts/python.exe"
+            else "/via000-r3-platform/tool-closure/python-environment/scripts/python.exe"
         )
     else:
         exact_paths = {
@@ -1563,16 +1569,23 @@ def _tool_identity_manifest_errors(
             "base_python": "/opt/hostedtoolcache/python/3.11.15/x64/bin/python3.11",
             "uv": "/opt/hostedtoolcache/python/3.11.15/x64/bin/uv",
             "powershell": "/opt/microsoft/powershell/7/pwsh",
+            "sudo": "/usr/bin/sudo",
+            "systemd_run": "/usr/bin/systemd-run",
+            "systemctl": "/usr/bin/systemctl",
         }
         pdf_suffix = "/via000-r3-texlive/2026/bin/x86_64-linux/pdftex"
         environment_suffix = (
-            f"/via000-r3-{stage}-stage/python-environment/bin/python"
+            f"/via000-r3-{stage}-stage/tool-closure/python-environment/bin/python"
             if stage is not None
-            else "/via000-r3-platform/python-environment/bin/python"
+            else "/via000-r3-platform/tool-closure/python-environment/bin/python"
         )
     for name, expected in exact_paths.items():
-        if tools[name]["path"].replace("\\", "/").lower() != expected:
+        if name in tools and tools[name]["path"].replace("\\", "/").lower() != expected:
             errors.append(f"{label} tool-identity path differs for {name!r}")
+    if not tools["containment_protocol"]["path"].replace("\\", "/").lower().endswith(
+        "/protocols/popgp-viability-r3-2026-08/via-000-containment.ps1"
+    ):
+        errors.append(f"{label} containment protocol path differs from frozen helper")
     if "pdflatex" in tools and not tools["pdflatex"]["path"].replace("\\", "/").lower().endswith(
         pdf_suffix
     ):
@@ -1804,6 +1817,11 @@ def _validate_raw_evidence_contract(
         "require_fresh_stage_jobs": True,
         "require_evidence_only_stage_transport": True,
         "require_texlive_closure_manifest": True,
+        "require_os_enforced_descendant_containment": True,
+        "require_privilege_separated_evidence": True,
+        "require_post_teardown_subject_capture": True,
+        "require_zero_active_descendants": True,
+        "require_production_hostile_containment_gate": True,
     }
     if (
         not isinstance(required_platforms, list)

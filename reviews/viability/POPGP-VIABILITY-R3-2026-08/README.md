@@ -73,6 +73,20 @@ declared evidence bytes; executables, configuration state, links/reparse points,
 undeclared files are rejected. The assembler requires all six stage attestations and
 merges only their stage-authorized scientific contributions.
 
+Inside every candidate- or mutation-controlled stage, the runner establishes a
+second boundary before the first adversarial instruction. Windows uses a restricted
+low-integrity token atomically assigned to a kill-on-close Job Object; Ubuntu uses a
+systemd `DynamicUser` transient service with control-group teardown. Untrusted code
+can write only mutable staging paths and cannot write the protected tool/configuration
+or trusted-evidence roots. The trusted runner creates evidence and captures/rechecks
+attestation subjects only after terminating the complete descendant tree and proving
+zero active descendants. A production-path hostile self-test on each hosted platform
+spawns a delayed detached writer and attempts live evidence/tool replace-and-restore;
+any surviving write, unavailable containment primitive, or incomplete quiescence
+aborts without upload or commitment. The Windows primitive is exercised locally; the
+Ubuntu primitive is enforced by the hosted workflow and remains pending independent
+rereview. This is still a draft, not an activated or frozen protocol.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

@@ -1,15 +1,17 @@
-"""Execute and retain the frozen VIA-000 R3 mutation-test matrix."""
+"""Prepare and finalize the contained VIA-000 R3 mutation-test matrix.
+
+This trusted helper never executes candidate Python. The workflow prepares an
+immutable plan, executes it through VIA-000-CONTAINMENT.ps1, proves complete
+descendant quiescence, and only then invokes ``finalize`` to create evidence.
+"""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import re
 import stat
-import subprocess
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,10 +45,6 @@ def _write_json(path: Path, document: Any) -> None:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _utc_now() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _regular_explicit_file(path: Path, expected_root: Path, expected_sha256: str) -> Path:
@@ -86,10 +84,9 @@ def _passed_nodes(stdout: str) -> list[str]:
 
 
 def _entry(workspace: Path, path: Path, platform: str, role: str) -> dict[str, Any]:
-    relative = path.relative_to(workspace).as_posix()
     return {
         "platform_family": platform,
-        "path": relative,
+        "path": path.relative_to(workspace).as_posix(),
         "sha256": _sha256(path),
         "byte_count": path.stat().st_size,
         "media_type": "application/json" if path.suffix == ".json" else "text/plain",
@@ -97,25 +94,18 @@ def _entry(workspace: Path, path: Path, platform: str, role: str) -> dict[str, A
     }
 
 
-def run(args: argparse.Namespace) -> None:
-    repo_root = args.repo_root.resolve()
-    workspace = args.workspace_root.resolve()
-    evidence = workspace / "evidence"
-    if not workspace.is_dir() or workspace.is_symlink() or not evidence.is_dir():
-        raise ValueError("runner workspace and evidence must already exist")
-    environment = workspace / "python-environment"
-    environment_python = _regular_explicit_file(
-        args.environment_python, environment, args.environment_python_sha256
-    )
-    bootstrap = (repo_root / "scripts/run_without_startup_hooks.py").resolve(strict=True)
-    if not bootstrap.is_file() or bootstrap.is_symlink():
-        raise ValueError("mutation bootstrap is not one regular source file")
-    protocol = _load_json(args.protocol.resolve())
+def _identity(
+    args: argparse.Namespace, protocol: dict[str, Any]
+) -> tuple[dict[str, Any], list[str]]:
     contract = protocol["parameters"]["raw_results_contract"]
-    test_contracts = contract["required_mutation_tests"]
+    tests = contract["required_mutation_tests"]
     mutation_ids = contract["required_mutation_ids"]
-    mutation_oracles = contract["required_mutation_oracles"]
-    expected_dispatch = {
+    if set(tests) != set(mutation_ids):
+        raise ValueError("mutation-test mapping differs from frozen mutation IDs")
+    expected_ref = "refs/tags/popgp-via000-r3-protocol-" + args.protocol_source_commit
+    if args.dispatch_ref != expected_ref:
+        raise ValueError("dispatch ref differs from the content-addressed snapshot tag")
+    dispatch = {
         "event_name": "workflow_dispatch",
         "source_ref": args.dispatch_ref,
         "protocol_snapshot_commit": args.protocol_source_commit,
@@ -126,115 +116,108 @@ def run(args: argparse.Namespace) -> None:
         "producer_run_id": args.producer_run_id,
         "producer_run_attempt": args.producer_run_attempt,
     }
-    expected_ref = "refs/tags/popgp-via000-r3-protocol-" + args.protocol_source_commit
-    if args.dispatch_ref != expected_ref:
-        raise ValueError("dispatch ref differs from the content-addressed snapshot tag")
-    if set(test_contracts) != set(mutation_ids):
-        raise ValueError("mutation-test mapping differs from frozen mutation IDs")
-
     selectors: list[str] = []
     for mutation_id in mutation_ids:
-        for item in test_contracts[mutation_id]:
-            selector = item["test_prefix"]
-            if selector not in selectors:
-                selectors.append(selector)
+        for item in tests[mutation_id]:
+            if item["test_prefix"] not in selectors:
+                selectors.append(item["test_prefix"])
+    return dispatch, selectors
+
+
+def prepare(args: argparse.Namespace) -> None:
+    workspace = args.workspace_root.resolve(strict=True)
+    evidence = workspace / "evidence"
+    environment_root = (workspace / "tool-closure/python-environment").resolve(strict=True)
+    environment_python = _regular_explicit_file(
+        args.environment_python, environment_root, args.environment_python_sha256
+    )
+    repo_root = args.repo_root.resolve(strict=True)
+    bootstrap = (repo_root / "scripts/run_without_startup_hooks.py").resolve(strict=True)
+    if not bootstrap.is_file() or bootstrap.is_symlink():
+        raise ValueError("mutation bootstrap is not one regular source file")
+    protocol = _load_json(args.protocol.resolve(strict=True))
+    dispatch, selectors = _identity(args, protocol)
+    if args.plan.parent.resolve() != evidence.resolve():
+        raise ValueError("mutation plan must be written directly in trusted evidence")
+    _write_json(
+        args.plan,
+        {
+            "schema_version": 1,
+            "platform_family": args.platform_family,
+            "candidate_commit": protocol["parameters"]["candidate_commit"],
+            "candidate_tree": protocol["parameters"]["candidate_tree"],
+            "protocol_source_commit": args.protocol_source_commit,
+            "dispatch_identity": dispatch,
+            "environment_python": str(environment_python),
+            "environment_python_sha256": args.environment_python_sha256,
+            "working_directory": str(repo_root),
+            "arguments": [
+                "-I", "-S", "-X",
+                f"pycache_prefix={workspace / 'mutable/mutation-python-cache'}",
+                str(bootstrap), "--repo-root", str(repo_root),
+                "--module", "pytest", "--", "-vv", "-p", "no:cacheprovider",
+                *selectors,
+            ],
+            "selectors": selectors,
+        },
+    )
+
+
+def finalize(args: argparse.Namespace) -> None:
+    workspace = args.workspace_root.resolve(strict=True)
+    evidence = workspace / "evidence"
+    plan = _load_json(args.plan.resolve(strict=True))
+    contained = _load_json(args.contained_result.resolve(strict=True))
+    protocol = _load_json(args.protocol.resolve(strict=True))
+    dispatch, selectors = _identity(args, protocol)
+    if plan.get("selectors") != selectors or plan.get("dispatch_identity") != dispatch:
+        raise ValueError("mutation plan identity differs from the frozen protocol")
+    if (
+        contained.get("exit_code") != 0
+        or contained.get("timed_out") is not False
+        or contained.get("descendants_quiescent") is not True
+        or contained.get("active_processes_after_teardown") != 0
+        or contained.get("privilege_separation")
+        not in {"low-integrity-restricted-token", "systemd-dynamic-user"}
+    ):
+        raise ValueError("mutation containment proof is absent or unsuccessful")
+    stdout_path = args.stdout.resolve(strict=True)
+    stderr_path = args.stderr.resolve(strict=True)
+    if contained.get("stdout_sha256") != _sha256(stdout_path):
+        raise ValueError("contained mutation stdout differs from trusted capture")
+    if contained.get("stderr_sha256") != _sha256(stderr_path):
+        raise ValueError("contained mutation stderr differs from trusted capture")
+
+    contract = protocol["parameters"]["raw_results_contract"]
+    tests = contract["required_mutation_tests"]
+    mutation_ids = contract["required_mutation_ids"]
+    oracles = contract["required_mutation_oracles"]
+    passed_nodes = _passed_nodes(stdout_path.read_text(encoding="utf-8", errors="replace"))
+    if not passed_nodes:
+        raise ValueError("frozen mutation suite retained no passed test nodes")
 
     mutation_root = evidence / "mutations"
     mutation_root.mkdir(parents=True, exist_ok=False)
-    stdout_path = mutation_root / "mutation-suite.stdout.txt"
-    stderr_path = mutation_root / "mutation-suite.stderr.txt"
-    result_path = mutation_root / "mutation-suite.result.json"
-    python_cache = workspace / "mutation-python-cache"
-    python_cache.mkdir(parents=True, exist_ok=False)
-    command = [
-        str(environment_python),
-        "-I",
-        "-S",
-        "-X",
-        f"pycache_prefix={python_cache}",
-        str(bootstrap),
-        "--repo-root",
-        str(repo_root),
-        "--module",
-        "pytest",
-        "--",
-        "-vv",
-        "-p",
-        "no:cacheprovider",
-        *selectors,
-    ]
-    environment = os.environ.copy()
-    for name in list(environment):
-        if name.startswith("GIT_") or name in {
-            "PATH",
-            "PATHEXT",
-            "PYTHONPATH",
-            "PYTHONHOME",
-            "VIRTUAL_ENV",
-            "UV_PROJECT_ENVIRONMENT",
-            "GITHUB_ENV",
-            "BASH_ENV",
-            "ENV",
-        }:
-            environment.pop(name, None)
-    environment.update(
-        {
-            "UV_CACHE_DIR": str(workspace / "mutation-uv-cache"),
-            "PYTHONPYCACHEPREFIX": str(python_cache),
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "RUFF_CACHE_DIR": str(workspace / "mutation-ruff-cache"),
-            "MPLCONFIGDIR": str(workspace / "mutation-matplotlib-cache"),
-            "XDG_CACHE_HOME": str(workspace / "mutation-general-cache"),
-        }
-    )
-    started_at = _utc_now()
-    completed = subprocess.run(
-        command,
-        cwd=repo_root,
-        env=environment,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    finished_at = _utc_now()
-    stdout_path.write_text(completed.stdout, encoding="utf-8", newline="\n")
-    stderr_path.write_text(completed.stderr, encoding="utf-8", newline="\n")
-    _write_json(
-        result_path,
-        {
-            "schema_version": 1,
-            "candidate_commit": protocol["parameters"]["candidate_commit"],
-            "candidate_tree": protocol["parameters"]["candidate_tree"],
-            "platform_family": args.platform_family,
-            "protocol_source_commit": args.protocol_source_commit,
-            "dispatch_identity": expected_dispatch,
-            "command": command,
-            "started_at": started_at,
-            "finished_at": finished_at,
-            "exit_code": completed.returncode,
-            "stdout_sha256": _sha256(stdout_path),
-            "stderr_sha256": _sha256(stderr_path),
-        },
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(f"frozen mutation suite failed with exit code {completed.returncode}")
-
-    passed_nodes = _passed_nodes(completed.stdout)
-    if not passed_nodes:
-        raise ValueError("frozen mutation suite retained no passed test nodes")
+    retained_stdout = mutation_root / "mutation-suite.stdout.txt"
+    retained_stderr = mutation_root / "mutation-suite.stderr.txt"
+    retained_result = mutation_root / "mutation-suite.result.json"
+    retained_stdout.write_bytes(stdout_path.read_bytes())
+    retained_stderr.write_bytes(stderr_path.read_bytes())
+    retained_result.write_bytes(args.contained_result.read_bytes())
+    stdout_path.unlink()
+    stderr_path.unlink()
+    args.contained_result.unlink()
     mutation_results: list[dict[str, Any]] = []
     new_entries = [
-        _entry(workspace, stdout_path, args.platform_family, "mutation-suite-stdout"),
-        _entry(workspace, stderr_path, args.platform_family, "mutation-suite-stderr"),
-        _entry(workspace, result_path, args.platform_family, "mutation-suite-result"),
+        _entry(workspace, retained_stdout, args.platform_family, "mutation-suite-stdout"),
+        _entry(workspace, retained_stderr, args.platform_family, "mutation-suite-stderr"),
+        _entry(workspace, retained_result, args.platform_family, "mutation-suite-result"),
+        _entry(workspace, args.plan, args.platform_family, "mutation-plan"),
     ]
     for mutation_id in mutation_ids:
-        requirements = test_contracts[mutation_id]
         matched_nodes: list[str] = []
         oracle_errors: list[dict[str, str]] = []
-        for requirement in requirements:
+        for requirement in tests[mutation_id]:
             prefix = requirement["test_prefix"]
             matches = [node for node in passed_nodes if node.startswith(prefix)]
             if len(matches) != requirement["expected_passed_count"]:
@@ -245,10 +228,10 @@ def run(args: argparse.Namespace) -> None:
             matched_nodes.extend(matches)
             oracle_errors.append(
                 {
-                    "error_id": mutation_oracles[mutation_id],
+                    "error_id": oracles[mutation_id],
                     "message": (
-                        f"trusted workflow executed {len(matches)} frozen rejection test(s) "
-                        f"under {prefix}"
+                        f"contained workflow executed {len(matches)} frozen rejection "
+                        f"test(s) under {prefix}"
                     ),
                 }
             )
@@ -263,17 +246,17 @@ def run(args: argparse.Namespace) -> None:
                 "candidate_tree": protocol["parameters"]["candidate_tree"],
                 "rejected": True,
                 "attack": f"frozen {mutation_id} adversarial mutation-test family",
-                "oracle_id": mutation_oracles[mutation_id],
+                "oracle_id": oracles[mutation_id],
                 "oracle_errors": oracle_errors,
                 "execution": {
-                    "command": " ".join(command),
-                    "exit_code": completed.returncode,
-                    "started_at": started_at,
-                    "finished_at": finished_at,
+                    "command": " ".join([plan["environment_python"], *plan["arguments"]]),
+                    "exit_code": 0,
                     "test_ids": sorted(matched_nodes),
                     "passed_test_count": len(matched_nodes),
-                    "stdout_sha256": _sha256(stdout_path),
-                    "stderr_sha256": _sha256(stderr_path),
+                    "stdout_sha256": _sha256(retained_stdout),
+                    "stderr_sha256": _sha256(retained_stderr),
+                    "containment_primitive": contained["primitive"],
+                    "descendants_quiescent": True,
                 },
             },
         )
@@ -289,10 +272,8 @@ def run(args: argparse.Namespace) -> None:
     summary = _load_json(summary_path)
     if not isinstance(manifest, list) or not isinstance(summary, dict):
         raise ValueError("runner evidence manifest or summary is malformed")
-    if summary.get("stage_id") != "mutation":
-        raise ValueError("mutation runner requires a fresh mutation-stage workspace")
-    if summary.get("dispatch_identity") != expected_dispatch:
-        raise ValueError("runner summary dispatch identity differs from mutation execution")
+    if summary.get("stage_id") != "mutation" or summary.get("dispatch_identity") != dispatch:
+        raise ValueError("runner mutation-stage identity differs from finalization")
     observed = {entry["path"] for entry in manifest}
     if any(entry["path"] in observed for entry in new_entries):
         raise ValueError("mutation evidence collides with runner evidence")
@@ -301,15 +282,17 @@ def run(args: argparse.Namespace) -> None:
     summary["mutation_results"] = mutation_results
     summary["mutation_count"] = len(mutation_results)
     summary["mutations_rejected"] = True
+    boundary = summary.get("execution_boundary")
+    if not isinstance(boundary, dict) or not isinstance(
+        boundary.get("contained_command_count"), int
+    ):
+        raise ValueError("mutation summary lacks the runner containment proof")
+    boundary["contained_command_count"] += 1
     summary["overall_passed"] = all(
         summary[field]
         for field in (
-            "commands_passed",
-            "semantic_contract_passed",
-            "visual_contract_passed",
-            "source_boundary_passed",
-            "environment_boundary_passed",
-            "pdf_passed",
+            "commands_passed", "semantic_contract_passed", "visual_contract_passed",
+            "source_boundary_passed", "environment_boundary_passed", "pdf_passed",
             "mutations_rejected",
         )
     )
@@ -321,11 +304,16 @@ def run(args: argparse.Namespace) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     here = Path(__file__).resolve().parent
-    parser.add_argument("--repo-root", type=Path, default=here.parents[1])
+    parser.add_argument("operation", choices=("prepare", "finalize"))
+    parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--protocol", type=Path, default=here / "VIA-000.json")
     parser.add_argument("--workspace-root", type=Path, required=True)
     parser.add_argument("--environment-python", type=Path, required=True)
     parser.add_argument("--environment-python-sha256", required=True)
+    parser.add_argument("--plan", type=Path, required=True)
+    parser.add_argument("--stdout", type=Path)
+    parser.add_argument("--stderr", type=Path)
+    parser.add_argument("--contained-result", type=Path)
     parser.add_argument(
         "--platform-family",
         choices=("ubuntu-latest-x86_64", "windows-x86_64"),
@@ -340,21 +328,21 @@ def main() -> int:
     parser.add_argument("--producer-run-id", required=True)
     parser.add_argument("--producer-run-attempt", type=int, required=True)
     args = parser.parse_args()
-    if re.fullmatch(r"[0-9a-f]{40}", args.protocol_source_commit) is None:
-        parser.error("--protocol-source-commit must be a full lowercase Git commit")
-    if re.fullmatch(r"[0-9a-f]{40}", args.authorization_tag_oid) is None:
-        parser.error("--authorization-tag-oid must be a full lowercase Git object")
-    if re.fullmatch(r"[0-9a-f]{40}", args.authorization_commit) is None:
-        parser.error("--authorization-commit must be a full lowercase Git commit")
+    for name in ("protocol_source_commit", "authorization_tag_oid", "authorization_commit"):
+        if re.fullmatch(r"[0-9a-f]{40}", getattr(args, name)) is None:
+            parser.error(f"--{name.replace('_', '-')} must be one lowercase Git object")
     if re.fullmatch(r"[0-9a-f]{64}", args.authorization_record_sha256) is None:
         parser.error("--authorization-record-sha256 must be a lowercase SHA-256")
-    if re.fullmatch(r"[1-9][0-9]*", args.producer_run_id) is None:
-        parser.error("--producer-run-id must be a positive decimal identifier")
-    if args.producer_run_attempt < 1:
-        parser.error("--producer-run-attempt must be positive")
     if re.fullmatch(r"[0-9a-f]{64}", args.environment_python_sha256) is None:
         parser.error("--environment-python-sha256 must be a lowercase SHA-256")
-    run(args)
+    if re.fullmatch(r"[1-9][0-9]*", args.producer_run_id) is None or args.producer_run_attempt < 1:
+        parser.error("producer run identity must be positive")
+    if args.operation == "prepare":
+        prepare(args)
+    else:
+        if None in (args.stdout, args.stderr, args.contained_result):
+            parser.error("finalize requires stdout, stderr, and contained result paths")
+        finalize(args)
     return 0
 
 

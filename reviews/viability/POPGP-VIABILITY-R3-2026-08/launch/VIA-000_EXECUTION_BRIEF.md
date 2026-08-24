@@ -78,6 +78,14 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    stages independently clone and build the frozen test environment. Each stage signs
    its own summary and manifest; all uploaded bytes must be declared evidence, never
    executable/configuration state.
+   Within each job, every candidate- or mutation-controlled command must run through
+   the frozen containment protocol. Windows requires a restricted low-integrity token
+   assigned to a kill-on-close Job Object before resume; Ubuntu requires a systemd
+   `DynamicUser` transient service with control-group kill and empty-cgroup proof.
+   Only mutable staging is writable to the untrusted identity. Tool/configuration and
+   trusted-evidence roots remain protected, and trusted evidence/attestation subjects
+   are created only after whole-tree teardown and zero-descendant verification. The
+   production hostile self-test must pass before candidate execution.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

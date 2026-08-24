@@ -360,6 +360,31 @@ def _copy_manifest_evidence(
         or producer != expected_producer
     ):
         raise ValueError(f"{platform}/{stage}: producer-attestation identity differs from contract")
+    boundary = summary.get("execution_boundary")
+    expected_primitive = (
+        "windows-low-integrity-restricted-token-job-object"
+        if platform == "windows-x86_64"
+        else "ubuntu-systemd-dynamic-user-control-group"
+    )
+    expected_separation = (
+        "low-integrity-restricted-token"
+        if platform == "windows-x86_64"
+        else "systemd-dynamic-user"
+    )
+    if (
+        not isinstance(boundary, dict)
+        or boundary.get("primitive") != expected_primitive
+        or boundary.get("privilege_separation") != expected_separation
+        or boundary.get("all_commands_contained") is not True
+        or boundary.get("descendants_quiescent") is not True
+        or boundary.get("active_processes_after_teardown") != 0
+        or boundary.get("trusted_evidence_unreadable_unwritable") is not True
+        or boundary.get("mutable_root_separate") is not True
+        or boundary.get("attestation_subjects_captured_after_quiescence") is not True
+        or not isinstance(boundary.get("contained_command_count"), int)
+        or boundary["contained_command_count"] < 1
+    ):
+        raise ValueError(f"{platform}/{stage}: execution containment proof is incomplete")
     bundle_path = _safe_source(workspace, producer["bundle_path"])
     _verify_attestation(
         summary_path,
@@ -381,6 +406,7 @@ def _copy_manifest_evidence(
     )
 
     observed_paths: set[str] = set()
+    observed_containment_proofs = 0
     rewritten_manifest: list[dict[str, Any]] = []
     for entry in manifest:
         if not isinstance(entry, dict):
@@ -396,6 +422,23 @@ def _copy_manifest_evidence(
             raise ValueError(
                 f"{platform}/{stage}: evidence bytes disagree with manifest: {relative}"
             )
+        if entry.get("role") in {"command-result", "mutation-suite-result"}:
+            command = _load_json(source)
+            primitive = command.get("primitive") if isinstance(command, dict) else None
+            if primitive == expected_primitive:
+                if (
+                    command.get("descendants_quiescent") is not True
+                    or command.get("active_processes_after_teardown") != 0
+                    or command.get("privilege_separation") != expected_separation
+                ):
+                    raise ValueError(
+                        f"{platform}/{stage}: retained command has no quiescence proof"
+                    )
+                observed_containment_proofs += 1
+            elif command.get("contract_id") != "trusted-python-environment-verify-after-quiescence":
+                raise ValueError(
+                    f"{platform}/{stage}: retained command bypassed production containment"
+                )
         if Path(relative).suffix.lower() in {
             ".exe",
             ".dll",
@@ -434,6 +477,8 @@ def _copy_manifest_evidence(
 
     if set(summary.get("evidence_paths", [])) != observed_paths:
         raise ValueError(f"{platform}/{stage}: summary paths differ from evidence manifest")
+    if observed_containment_proofs != boundary["contained_command_count"]:
+        raise ValueError(f"{platform}/{stage}: containment proof count differs from evidence")
 
     rewritten_summary = dict(summary)
     rewritten_summary["evidence_paths"] = sorted(
@@ -706,9 +751,13 @@ def assemble(args: argparse.Namespace) -> None:
             summary = dict(candidate)
             summary.pop("stage_id", None)
             summary.pop("producer_attestation", None)
+            summary.pop("execution_boundary", None)
             summary.pop("tool_identity_manifest_sha256", None)
             summary["stage_attestations"] = {
                 stage: stages[stage]["producer_attestation"] for stage in required_stages
+            }
+            summary["stage_execution_boundaries"] = {
+                stage: stages[stage]["execution_boundary"] for stage in required_stages
             }
             summary["stage_tool_identity_manifest_sha256"] = {
                 stage: stages[stage]["tool_identity_manifest_sha256"] for stage in required_stages
