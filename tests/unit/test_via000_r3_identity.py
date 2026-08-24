@@ -2020,6 +2020,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         in workflow_text
     )
     assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
+    assert 'Join-Path "/tmp" "$cell-$($env:VIA000_RUN_ID)-workspace"' in workflow_text
+    assert "containment proof output is absent after successful runner exit" in workflow_text
+    assert "${{ runner.temp }}\\via000-r3-containment-proof-" in workflow_text
     assert "if ((Test-Path -LiteralPath $WorkspaceRoot) -or" in (
         CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
     )

@@ -89,6 +89,15 @@ summary: |-
   cells exposed that Windows PowerShell -File rejects GitHub's extensionless runner
   temp file; the absolute host now dot-sources that fixed control-plane file with
   -Command before launching verified PowerShell 7. No cell uploaded proof evidence.
+  The fifth branch-push attempt, run 32698261612 at handoff
+  b964a646ce1c172b0b9487b10e440d414c68285f, proved the Windows containment step
+  itself green in all three cells but found no upload subject afterward; an explicit
+  post-run output-directory assertion and OS-specific upload paths now make that
+  boundary observable and fail closed. Ubuntu reached a quiescent terminal unit but
+  the hostile service exited with systemd status 200/CHDIR because DynamicUser could
+  not traverse the hosted runner's private temporary ancestry. Its synthetic mutable
+  workspace now uses the standard traversable /tmp root while evidence output remains
+  in runner.temp and outside the untrusted identity. No proof artifact was uploaded.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
