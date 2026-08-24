@@ -49,6 +49,17 @@ summary: |-
   envelopes plus one aggregate manifest. One retained artifact is uploaded and a
   dependent job redownloads and revalidates it. Cache save success alone is not evidence.
 
+  Hosted run 32718921969 proved all six containment/staging cells and then stopped
+  before cache save. GitHub rejected the custom Windows shell expression containing
+  the spaced PowerShell 7 path, while all three Ubuntu archive preflights exposed the
+  shared delayed exit-code check after two version pipelines. Correction content
+  4c8fbeee32e45848e307d4c2b54c058c9072ff22
+  (tree 9d30e9629db8c4965ccce7823b22da6b1c898237) uses the supported absolute
+  system Windows PowerShell shell for only the outer digest/archive/cache checks,
+  replaces PowerShell 7-only JSON/hash APIs in those snippets, and captures and
+  validates GNU tar and Zstandard output and exit codes independently. Cache keys,
+  pinned actions, topology, containment, transport, and the threat boundary are unchanged.
+
 finding_responses:
   - finding_id: "VIA000-R3-RR10-JOB-OUTPUT-CACHE-TRANSPORT-001"
     blocking_as_reported: true
@@ -82,6 +93,8 @@ finding_responses:
       - "reviews/viability/POPGP-VIABILITY-R3-2026-08/CAMPAIGN.yaml"
     fix_commits:
       - "281f3e31c0087080bf906af60578a5c00da22720"
+      - "c1ff66a7e96d821aa7c7958d9fc93da9cbead422"
+      - "4c8fbeee32e45848e307d4c2b54c058c9072ff22"
     verification:
       - command: "complete R3 identity test file"
         result: "55 passed in 589.54 seconds, including the stable digest/cache transport test."
@@ -89,6 +102,13 @@ finding_responses:
         result: "3 passed in 18.49 seconds; the new case alone passed in 6.99 seconds."
       - command: "Ruff, parsers, JSON/YAML, and official actionlint 1.7.12"
         result: "Changed Python, PowerShell, structured files, and workflow expressions passed."
+      - command: "focused hosted-preflight correction regression"
+        result: |-
+          2 passed in 14.89 seconds. The stable cache transport test executes the exact
+          outer digest source locally under Windows PowerShell 5, verifies the direct
+          GITHUB_OUTPUT line, rejects every spaced custom Windows shell path in the
+          three outer steps per cell, and accepts hosted GNU tar 1.35 and Zstandard
+          1.5.6/1.5.7 banner shapes with separately captured zero exit codes.
       - command: "frozen source, receipt, packet-rule, manifest, and campaign checks"
         result: "All source/receipt pairs and declared SHA-256 bindings matched; final campaign validation is recorded on the handoff."
     residual_risk: |-
@@ -118,7 +138,11 @@ requested_test_responses:
           Workflow checks freeze preflight miss, no prefixes, exact hit/primary/matched
           key equality, cross-OS mode, the pinned action commit, and retained revalidation.
       - command: "safe hosted feature-branch replay"
-        result: "Pending the handoff push; run/job/cache/artifact identities will be recorded from GitHub for independent rereview."
+        result: |-
+          Run 32718921969 proved six green containment/staging cells, then failed closed
+          before cache save on the Windows spaced-shell expression and archive exit/banner
+          preflight. A fresh corrected handoff run remains pending; run/job/cache/artifact
+          identities will be recorded from GitHub for independent rereview.
     rationale: "The local suite invokes the frozen cache aggregator and the hosted workflow invokes the same bound source/receipt bytes on both supported operating systems."
     disagreement_ref: ""
 
@@ -131,7 +155,7 @@ external_actions:
   - action: "Inspect or independently replay the hosted proof; require six successful explicit cells, six exact digest-bound cache restores, green retained verification, and one seven-file artifact with recorded ID/digest."
     owner: "independent-reviewer-seat"
     status: pending
-    evidence_ref: "recorded outside this artifact after branch push"
+    evidence_ref: "failed-closed diagnostic run 32718921969; corrected run recorded outside this artifact after branch push"
   - action: "Perform a fresh independent rereview of the cache transport boundary and all retained prior controls."
     owner: "independent-reviewer-seat"
     status: pending
