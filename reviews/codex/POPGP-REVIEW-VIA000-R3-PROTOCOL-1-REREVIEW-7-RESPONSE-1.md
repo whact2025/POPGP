@@ -107,6 +107,15 @@ summary: |-
   containment steps but the runner-temp upload boundary found no subjects; its
   post-containment evidence now lands under a medium-integrity checkout-root output
   directory and the step requires exactly four regular evidence files before upload.
+  The seventh branch-push attempt, run 32699125745 at handoff
+  be64f065002120d37eb46494bccfd7bf9dfbfe2b, confirmed the Ubuntu hosted service
+  still rejected its mount namespace and confirmed all Windows cells held the exact
+  four proof files before upload. The Ubuntu helper now removes only the unsupported
+  namespace-forcing properties while retaining DynamicUser, cgroup teardown, strict
+  Unix ownership/modes, no-new-privileges, SUID/SGID restriction, closure hashing,
+  and environment scrub. The Windows output name is no longer dot-prefixed because
+  upload-artifact v4 excludes hidden paths. Both OS steps now verify exact filenames
+  and recompute containment-result/stdout/stderr SHA-256 bindings before upload.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"

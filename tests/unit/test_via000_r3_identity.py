@@ -2022,8 +2022,10 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
     assert 'Join-Path "/tmp" "$cell-$($env:VIA000_RUN_ID)-workspace"' in workflow_text
     assert "containment proof output is absent after successful runner exit" in workflow_text
-    assert "${{ github.workspace }}\\.via000-proof-output-via000-r3-containment-proof-" in workflow_text
+    assert "${{ github.workspace }}\\via000-proof-output-via000-r3-containment-proof-" in workflow_text
     assert "containment proof output is not the exact four-file set" in workflow_text
+    assert "containment-result.json,proof.json,stderr.txt,stdout.txt" in workflow_text
+    assert "containment proof pre-upload hashes differ" in workflow_text
     assert "if ((Test-Path -LiteralPath $WorkspaceRoot) -or" in (
         CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
     )
@@ -2040,6 +2042,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         encoding="utf-8"
     )
     assert '"--property=PrivateTmp=no"' in CONTAINMENT.read_text(encoding="utf-8")
+    assert '"--property=ProtectSystem=no"' in CONTAINMENT.read_text(encoding="utf-8")
+    assert '"--property=ProtectHome=no"' in CONTAINMENT.read_text(encoding="utf-8")
     assert "Start-Descendant -ChildMode \"relay\"" in fixture_text
     assert "Start-Descendant -ChildMode \"writer\"" in fixture_text
 

@@ -498,12 +498,9 @@ function Invoke-Via000ContainedCommand {
                 "--property=DynamicUser=yes", "--property=KillMode=control-group",
                 "--property=SendSIGKILL=yes", "--property=TimeoutStopSec=15s",
                 "--property=PrivateTmp=no",
-                "--property=NoNewPrivileges=yes", "--property=ProtectSystem=strict",
-                "--property=ProtectHome=read-only", "--property=PrivateDevices=yes",
-                "--property=ProtectKernelTunables=yes", "--property=ProtectKernelModules=yes",
-                "--property=ProtectControlGroups=yes", "--property=RestrictSUIDSGID=yes",
-                "--property=LockPersonality=yes", "--property=ReadWritePaths=$mutable",
-                "--property=InaccessiblePaths=$trusted", "--working-directory=$WorkingDirectory"
+                "--property=ProtectSystem=no", "--property=ProtectHome=no",
+                "--property=NoNewPrivileges=yes", "--property=RestrictSUIDSGID=yes",
+                "--property=LockPersonality=yes", "--working-directory=$WorkingDirectory"
             )
             foreach ($entry in $cleanEnvironment.GetEnumerator()) {
                 $systemdArguments += "--setenv=$([string]$entry.Key)=$([string]$entry.Value)"
