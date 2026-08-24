@@ -1,4 +1,4 @@
-name: VIA-000 R3 disposable Windows transport diagnostic
+name: VIA-000 R3 RR13 Windows native child factor diagnostic
 
 on:
   push:
@@ -6,25 +6,25 @@ on:
       - experiment/via000-r3-windows-transport-*
     paths:
       - .github/workflows/via000-r3-windows-transport-diagnostic.yml
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-NATIVE-DIAGNOSTIC.ps1
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1
 
 permissions:
   contents: read
 
 concurrency:
-  group: via000-r3-windows-transport-diagnostic-${{ github.ref }}
+  group: via000-r3-rr13-native-child-diagnostic-${{ github.ref }}
   cancel-in-progress: false
 
-# Disposable and non-authoritative. This workflow does not execute scientific code,
-# alter lifecycle state, or supply campaign evidence.
+# Disposable, synthetic, and non-authoritative. It has no secrets, scientific checkout,
+# campaign execution, lifecycle access, output commitment, custody path, or retained artifact.
 jobs:
-  windows-producer:
-    name: diagnostic / Windows native output and cache producer
+  exact-proof-baseline:
+    name: RR13 A / exact proof baseline
     runs-on: windows-2025
     timeout-minutes: 10
-    outputs:
-      diagnostic_digest: ${{ steps.native-output.outputs.diagnostic_digest }}
     steps:
-      - name: Checkout minimal safe diagnostic closure
+      - name: Checkout exact public diagnostic closure
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: ${{ github.sha }}
@@ -33,215 +33,62 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             .github/workflows/via000-r3-windows-transport-diagnostic.yml
-            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-
-      - name: Generate fixed synthetic bytes outside final cache path
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-NATIVE-DIAGNOSTIC.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1
+      - name: Run exact proof baseline through reviewed primitive
+        id: probe
         shell: pwsh
         env:
           PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
-          VIA000_EXPECTED_PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
-          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
-          VIA000_EXPECTED_DIGEST_FILE_HASH: b6f794acedcbde6d5bfeedf12d2b242381b1e5105b173230a46e9018ba74504b
-          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-r3-windows-transport-control
+          VIA000_FACTOR: exact-proof-baseline
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-exact-proof-baseline
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $runner = Join-Path $env:GITHUB_WORKSPACE 'protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1'
+          & $runner -Factor $env:VIA000_FACTOR -RepoRoot $env:GITHUB_WORKSPACE `
+            -ControlRoot $env:VIA000_CONTROL_ROOT -GithubOutput $env:GITHUB_OUTPUT `
+            -SourceSha $env:VIA000_SOURCE_SHA -WorkflowSha $env:VIA000_WORKFLOW_SHA `
+            -RunId $env:VIA000_RUN_ID -RunAttempt $env:VIA000_RUN_ATTEMPT
+      - name: Recheck exact proof baseline diagnostic facts
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-exact-proof-baseline
+          VIA000_SUMMARY_SHA256: ${{ steps.probe.outputs.summary_sha256 }}
+          VIA000_EXIT_SIGNED: ${{ steps.probe.outputs.exit_signed }}
+          VIA000_EXIT_UNSIGNED: ${{ steps.probe.outputs.exit_unsigned }}
+          VIA000_EXIT_HEX: ${{ steps.probe.outputs.exit_hex }}
+          VIA000_SENTINEL_PRESENT: ${{ steps.probe.outputs.sentinel_present }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $expectedPowerShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
-          $processPowerShell = [IO.Path]::GetFullPath(
-            [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
-          )
-          if (-not $processPowerShell.Equals($expectedPowerShell, [StringComparison]::OrdinalIgnoreCase) -or
-              -not ([IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))).Equals(
-                $expectedPowerShell, [StringComparison]::OrdinalIgnoreCase
-              ) -or
-              $PSVersionTable.PSVersion.Major -ne 7 -or
-              [string]$env:PATH -cne [string]$env:VIA000_EXPECTED_PATH) {
-            throw 'built-in PowerShell identity, version, or sanitized PATH differs'
-          }
-          $controlRoot = [string]$env:VIA000_CONTROL_ROOT
-          if ($controlRoot -cnotmatch '^[A-Za-z]:\\' -or
-              [IO.Path]::GetFullPath($controlRoot) -cne $controlRoot) {
-            throw 'diagnostic control root is not fully qualified'
-          }
-          if (Test-Path -LiteralPath $controlRoot) { throw 'diagnostic control root is not fresh' }
-          [void](New-Item -ItemType Directory -Path $controlRoot)
-          $source = Join-Path $controlRoot 'synthetic.json'
-          $digestFile = Join-Path $controlRoot 'digest.txt'
-          $encoding = New-Object Text.UTF8Encoding($false)
-          $bytes = $encoding.GetBytes("{`"diagnostic`":`"via000-r3-windows-cache-transport-v1`"}`n")
-          if ($bytes.Length -ne 54) { throw 'fixed synthetic byte length differs' }
-          [IO.File]::WriteAllBytes($source, $bytes)
-          $digest = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($digest -cne [string]$env:VIA000_EXPECTED_DIGEST) {
-            throw 'fixed synthetic digest differs'
-          }
-          [IO.File]::WriteAllText($digestFile, "$digest`n", $encoding)
-          $rootItem = Get-Item -LiteralPath $controlRoot -Force -ErrorAction Stop
-          $members = @(Get-ChildItem -LiteralPath $controlRoot -Force -ErrorAction Stop)
-          $memberNames = @($members.Name | Sort-Object -CaseSensitive)
-          if (-not ($rootItem -is [IO.DirectoryInfo]) -or
-              ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-              $members.Count -ne 2 -or
-              $memberNames[0] -cne 'digest.txt' -or $memberNames[1] -cne 'synthetic.json') {
-            throw 'same-step diagnostic root identity differs'
-          }
-          foreach ($subject in @($source, $digestFile)) {
-            $item = Get-Item -LiteralPath $subject -Force -ErrorAction Stop
-            $streams = @(Get-Item -LiteralPath $subject -Stream * -ErrorAction Stop)
-            $links = @(& 'C:\Windows\System32\fsutil.exe' hardlink list $subject)
-            $linkExit = $LASTEXITCODE
-            if (-not ($item -is [IO.FileInfo]) -or
-                ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-                $streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA' -or
-                $linkExit -ne 0 -or $links.Count -ne 1) {
-              throw 'same-step diagnostic subject metadata differs'
-            }
-          }
-          if ((Get-Item -LiteralPath $source).Length -ne 54 -or
-              (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST -or
-              (Get-Item -LiteralPath $digestFile).Length -ne 65 -or
-              (Get-FileHash -LiteralPath $digestFile -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST_FILE_HASH) {
-            throw 'same-step diagnostic subject bytes differ'
+          $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+          $observed = [IO.Path]::GetFullPath([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
+          if (-not $observed.Equals($expectedShell,[StringComparison]::OrdinalIgnoreCase) -or
+              [string]$env:PATH -cne 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows') { throw 'trusted consumer boundary differs' }
+          $summaryPath = Join-Path $env:VIA000_CONTROL_ROOT 'diagnostic-summary.json'
+          $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json -AsHashtable
+          if ((Get-FileHash -LiteralPath $summaryPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:VIA000_SUMMARY_SHA256 -or
+              $summary.factor -cne 'exact-proof-baseline' -or $summary.native_phase -cne 'post-teardown-quiescent' -or
+              $summary.exit_signed -ne -1073741502 -or $summary.exit_unsigned -ne 3221225794 -or
+              $summary.exit_hex -cne '0xC0000142' -or $summary.sentinel_present -ne $false -or
+              $summary.active_processes_after_teardown -ne 0 -or $summary.protected_root_unchanged -ne $true -or
+              $env:VIA000_EXIT_SIGNED -cne '-1073741502' -or $env:VIA000_EXIT_UNSIGNED -cne '3221225794' -or
+              $env:VIA000_EXIT_HEX -cne '0xC0000142' -or $env:VIA000_SENTINEL_PRESENT -cne 'false') {
+            throw 'exact proof baseline did not reproduce reviewed STATUS_DLL_INIT_FAILED with complete teardown'
           }
 
-      - name: Emit digest through native cmd control path
-        id: native-output
-        shell: cmd
-        env:
-          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-r3-windows-transport-control
-        run: |
-          @echo off
-          setlocal DisableDelayedExpansion
-          set "VIA000_DIGEST_FILE=%VIA000_CONTROL_ROOT%\digest.txt"
-          if not exist "%VIA000_DIGEST_FILE%" exit /b 91
-          set /p "VIA000_DIAGNOSTIC_DIGEST="<"%VIA000_DIGEST_FILE%"
-          if not defined VIA000_DIAGNOSTIC_DIGEST exit /b 92
-          echo diagnostic_digest=%VIA000_DIAGNOSTIC_DIGEST%>>"%GITHUB_OUTPUT%"
-
-      - name: Require native output presence and shape
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
-        env:
-          VIA000_DIAGNOSTIC_DIGEST: ${{ steps.native-output.outputs.diagnostic_digest }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if ([string]$env:VIA000_DIAGNOSTIC_DIGEST -cnotmatch '^[0-9a-f]{64}$') {
-            throw 'native diagnostic digest output is missing or malformed'
-          }
-
-      - name: Lookup exact diagnostic cache key before staging
-        id: preflight
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic
-          key: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ steps.native-output.outputs.diagnostic_digest }}
-          enableCrossOsArchive: true
-          lookup-only: true
-          fail-on-cache-miss: false
-
-      - name: Require exact cache miss
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
-        env:
-          VIA000_CACHE_HIT: ${{ steps.preflight.outputs.cache-hit }}
-          VIA000_CACHE_PRIMARY: ${{ steps.preflight.outputs.cache-primary-key }}
-          VIA000_CACHE_MATCHED: ${{ steps.preflight.outputs.cache-matched-key }}
-          VIA000_CACHE_KEY: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ steps.native-output.outputs.diagnostic_digest }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if ([string]$env:VIA000_CACHE_KEY -cnotmatch '^via000-r3-win-transport-v1-[1-9][0-9]*-[0-9a-f]{40}-[0-9a-f]{40}-[1-9][0-9]*-[1-9][0-9]*-windows-x86_64-diagnostic-[0-9a-f]{64}$' -or
-              ([string]$env:VIA000_CACHE_KEY).Length -ge 512 -or
-              [string]$env:VIA000_CACHE_PRIMARY -cne [string]$env:VIA000_CACHE_KEY -or
-              [string]$env:VIA000_CACHE_HIT -ne '' -or
-              [string]$env:VIA000_CACHE_MATCHED -ne '') {
-            throw 'diagnostic cache preflight was not an exact miss'
-          }
-
-      - name: Stage one checked file only after cache miss
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
-        env:
-          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $workspace = [IO.Path]::GetFullPath([string]$env:GITHUB_WORKSPACE)
-          $protocolRoot = Join-Path $workspace 'protocols/POPGP-VIABILITY-R3-2026-08'
-          $protocolItem = Get-Item -LiteralPath $protocolRoot -Force -ErrorAction Stop
-          if (-not ($protocolItem -is [IO.DirectoryInfo]) -or
-              ($protocolItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-            throw 'checked-out protocol directory identity differs'
-          }
-          $relative = '.via000-r3-windows-transport/windows-x86_64/diagnostic'
-          $cacheRoot = Join-Path $protocolItem.FullName $relative
-          if (Test-Path -LiteralPath $cacheRoot) { throw 'final diagnostic cache path is not fresh' }
-          [void](New-Item -ItemType Directory -Path $cacheRoot)
-          $source = Join-Path ([string]$env:RUNNER_TEMP) 'via000-r3-windows-transport-control/synthetic.json'
-          $target = Join-Path $cacheRoot 'synthetic.json'
-          [IO.File]::Copy($source, $target, $false)
-          $rootItem = Get-Item -LiteralPath $cacheRoot -Force -ErrorAction Stop
-          $members = @(Get-ChildItem -LiteralPath $cacheRoot -Force -ErrorAction Stop)
-          if (-not ($rootItem -is [IO.DirectoryInfo]) -or
-              ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-              $members.Count -ne 1 -or $members[0].Name -cne 'synthetic.json' -or
-              -not ($members[0] -is [IO.FileInfo]) -or
-              ($members[0].Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-            throw 'staged diagnostic cache root is not one ordinary file'
-          }
-          $streams = @(Get-Item -LiteralPath $target -Stream * -ErrorAction Stop)
-          if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA') {
-            throw 'staged diagnostic file has alternate streams'
-          }
-          $links = @(& 'C:\Windows\System32\fsutil.exe' hardlink list $target)
-          if ($LASTEXITCODE -ne 0 -or $links.Count -ne 1) {
-            throw 'staged diagnostic file is not single-link'
-          }
-          if ($members[0].Length -ne 54 -or
-              (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST) {
-            throw 'staged diagnostic bytes differ'
-          }
-
-      - name: Revalidate staged file before cache save
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
-        env:
-          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $cacheRoot = Join-Path ([string]$env:GITHUB_WORKSPACE) 'protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic'
-          $members = @(Get-ChildItem -LiteralPath $cacheRoot -Force -ErrorAction Stop)
-          if ($members.Count -ne 1 -or $members[0].Name -cne 'synthetic.json' -or
-              -not ($members[0] -is [IO.FileInfo]) -or
-              ($members[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-              $members[0].Length -ne 54 -or
-              (Get-FileHash -LiteralPath $members[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST) {
-            throw 'diagnostic file changed before cache save'
-          }
-          $streams = @(Get-Item -LiteralPath $members[0].FullName -Stream * -ErrorAction Stop)
-          $links = @(& 'C:\Windows\System32\fsutil.exe' hardlink list $members[0].FullName)
-          if ($LASTEXITCODE -ne 0 -or $streams.Count -ne 1 -or
-              [string]$streams[0].Stream -cne ':$DATA' -or $links.Count -ne 1) {
-            throw 'diagnostic file metadata changed before cache save'
-          }
-
-      - name: Save exact Windows diagnostic cache
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic
-          key: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ steps.native-output.outputs.diagnostic_digest }}
-          enableCrossOsArchive: true
-
-  ubuntu-consumer:
-    name: diagnostic / Ubuntu exact cross-OS cache consumer
-    if: ${{ always() }}
-    needs: [windows-producer]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 8
+  minimal-pwsh-baseline:
+    name: RR13 B / minimal pwsh baseline
+    runs-on: windows-2025
+    timeout-minutes: 10
     steps:
-      - name: Require green producer and exact digest output
-        shell: /usr/bin/bash --noprofile --norc -euo pipefail {0}
-        env:
-          VIA000_PRODUCER_RESULT: ${{ needs.windows-producer.result }}
-          VIA000_DIAGNOSTIC_DIGEST: ${{ needs.windows-producer.outputs.diagnostic_digest }}
-        run: |
-          [[ "$VIA000_PRODUCER_RESULT" == success ]]
-          [[ "$VIA000_DIAGNOSTIC_DIGEST" =~ ^[0-9a-f]{64}$ ]]
-
-      - name: Checkout minimal safe diagnostic closure
+      - name: Checkout exact public diagnostic closure
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: ${{ github.sha }}
@@ -250,35 +97,259 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             .github/workflows/via000-r3-windows-transport-diagnostic.yml
-            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-
-      - name: Restore exact Windows diagnostic cache
-        id: restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic
-          key: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ needs.windows-producer.outputs.diagnostic_digest }}
-          enableCrossOsArchive: true
-          fail-on-cache-miss: true
-
-      - name: Require exact hit and validate fixed bytes
-        shell: /usr/bin/bash --noprofile --norc -euo pipefail {0}
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-NATIVE-DIAGNOSTIC.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1
+      - name: Run minimal pwsh through current token and environment
+        id: probe
+        shell: pwsh
         env:
-          VIA000_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
-          VIA000_CACHE_PRIMARY: ${{ steps.restore.outputs.cache-primary-key }}
-          VIA000_CACHE_MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
-          VIA000_CACHE_KEY: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ needs.windows-producer.outputs.diagnostic_digest }}
-          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_FACTOR: minimal-pwsh-baseline
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-minimal-pwsh-baseline
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          [[ "$VIA000_CACHE_HIT" == true ]]
-          [[ "$VIA000_CACHE_PRIMARY" == "$VIA000_CACHE_KEY" ]]
-          [[ "$VIA000_CACHE_MATCHED" == "$VIA000_CACHE_KEY" ]]
-          root='protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic'
-          target="$root/synthetic.json"
-          [[ -d "$root" && ! -L "$root" ]]
-          [[ "$(/usr/bin/find "$root" -mindepth 1 -maxdepth 1 -printf '%f\n')" == synthetic.json ]]
-          [[ -f "$target" && ! -L "$target" ]]
-          [[ "$(/usr/bin/stat --format='%h' -- "$target")" == 1 ]]
-          [[ "$(/usr/bin/stat --format='%s' -- "$target")" == 54 ]]
-          [[ "$(/usr/bin/sha256sum -- "$target" | /usr/bin/cut -d' ' -f1)" == "$VIA000_EXPECTED_DIGEST" ]]
-          /usr/bin/printf '%s\n' '{"diagnostic":"via000-r3-windows-cache-transport-v1"}' | /usr/bin/cmp --silent - "$target"
+          $runner = Join-Path $env:GITHUB_WORKSPACE 'protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1'
+          & $runner -Factor $env:VIA000_FACTOR -RepoRoot $env:GITHUB_WORKSPACE `
+            -ControlRoot $env:VIA000_CONTROL_ROOT -GithubOutput $env:GITHUB_OUTPUT `
+            -SourceSha $env:VIA000_SOURCE_SHA -WorkflowSha $env:VIA000_WORKFLOW_SHA `
+            -RunId $env:VIA000_RUN_ID -RunAttempt $env:VIA000_RUN_ATTEMPT
+      - name: Recheck minimal pwsh diagnostic facts
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-minimal-pwsh-baseline
+          VIA000_SUMMARY_SHA256: ${{ steps.probe.outputs.summary_sha256 }}
+          VIA000_EXIT_SIGNED: ${{ steps.probe.outputs.exit_signed }}
+          VIA000_EXIT_UNSIGNED: ${{ steps.probe.outputs.exit_unsigned }}
+          VIA000_EXIT_HEX: ${{ steps.probe.outputs.exit_hex }}
+          VIA000_SENTINEL_PRESENT: ${{ steps.probe.outputs.sentinel_present }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+          $observed = [IO.Path]::GetFullPath([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
+          if (-not $observed.Equals($expectedShell,[StringComparison]::OrdinalIgnoreCase) -or
+              [string]$env:PATH -cne 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows') { throw 'trusted consumer boundary differs' }
+          $summaryPath = Join-Path $env:VIA000_CONTROL_ROOT 'diagnostic-summary.json'
+          $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json -AsHashtable
+          if ((Get-FileHash -LiteralPath $summaryPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:VIA000_SUMMARY_SHA256 -or
+              $summary.factor -cne 'minimal-pwsh-baseline' -or $summary.native_phase -cne 'post-teardown-quiescent' -or
+              $summary.token_flags -cne 'DISABLE_MAX_PRIVILEGE|LUA_TOKEN' -or
+              $summary.environment_construction -cne 'manual-filtered-parent' -or
+              $summary.active_processes_after_teardown -ne 0 -or $summary.protected_root_unchanged -ne $true -or
+              (($summary.exit_signed -eq 0) -ne ($summary.sentinel_present -eq $true)) -or
+              [string]$summary.exit_signed -cne $env:VIA000_EXIT_SIGNED -or
+              [string]$summary.exit_unsigned -cne $env:VIA000_EXIT_UNSIGNED -or
+              [string]$summary.exit_hex -cne $env:VIA000_EXIT_HEX -or
+              $summary.sentinel_present.ToString().ToLowerInvariant() -cne $env:VIA000_SENTINEL_PRESENT) {
+            throw 'minimal pwsh diagnostic persistence differs'
+          }
+
+  minimal-cmd-baseline:
+    name: RR13 C / minimal cmd baseline
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact public diagnostic closure
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-windows-transport-diagnostic.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-NATIVE-DIAGNOSTIC.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1
+      - name: Run minimal cmd through current token and environment
+        id: probe
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_FACTOR: minimal-cmd-baseline
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-minimal-cmd-baseline
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $runner = Join-Path $env:GITHUB_WORKSPACE 'protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1'
+          & $runner -Factor $env:VIA000_FACTOR -RepoRoot $env:GITHUB_WORKSPACE `
+            -ControlRoot $env:VIA000_CONTROL_ROOT -GithubOutput $env:GITHUB_OUTPUT `
+            -SourceSha $env:VIA000_SOURCE_SHA -WorkflowSha $env:VIA000_WORKFLOW_SHA `
+            -RunId $env:VIA000_RUN_ID -RunAttempt $env:VIA000_RUN_ATTEMPT
+      - name: Recheck minimal cmd diagnostic facts
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-minimal-cmd-baseline
+          VIA000_SUMMARY_SHA256: ${{ steps.probe.outputs.summary_sha256 }}
+          VIA000_EXIT_SIGNED: ${{ steps.probe.outputs.exit_signed }}
+          VIA000_EXIT_UNSIGNED: ${{ steps.probe.outputs.exit_unsigned }}
+          VIA000_EXIT_HEX: ${{ steps.probe.outputs.exit_hex }}
+          VIA000_SENTINEL_PRESENT: ${{ steps.probe.outputs.sentinel_present }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+          $observed = [IO.Path]::GetFullPath([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
+          if (-not $observed.Equals($expectedShell,[StringComparison]::OrdinalIgnoreCase) -or
+              [string]$env:PATH -cne 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows') { throw 'trusted consumer boundary differs' }
+          $summaryPath = Join-Path $env:VIA000_CONTROL_ROOT 'diagnostic-summary.json'
+          $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json -AsHashtable
+          if ((Get-FileHash -LiteralPath $summaryPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:VIA000_SUMMARY_SHA256 -or
+              $summary.factor -cne 'minimal-cmd-baseline' -or $summary.native_phase -cne 'post-teardown-quiescent' -or
+              $summary.executable_path -cne 'C:\Windows\System32\cmd.exe' -or
+              $summary.token_flags -cne 'DISABLE_MAX_PRIVILEGE|LUA_TOKEN' -or
+              $summary.environment_construction -cne 'manual-filtered-parent' -or
+              $summary.active_processes_after_teardown -ne 0 -or $summary.protected_root_unchanged -ne $true -or
+              (($summary.exit_signed -eq 0) -ne ($summary.sentinel_present -eq $true)) -or
+              [string]$summary.exit_signed -cne $env:VIA000_EXIT_SIGNED -or
+              [string]$summary.exit_unsigned -cne $env:VIA000_EXIT_UNSIGNED -or
+              [string]$summary.exit_hex -cne $env:VIA000_EXIT_HEX -or
+              $summary.sentinel_present.ToString().ToLowerInvariant() -cne $env:VIA000_SENTINEL_PRESENT) {
+            throw 'minimal cmd diagnostic persistence differs'
+          }
+
+  token-environment-pwsh:
+    name: RR13 D / token environment pwsh
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact public diagnostic closure
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-windows-transport-diagnostic.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-NATIVE-DIAGNOSTIC.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1
+      - name: Run minimal pwsh with restricted-token environment
+        id: probe
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_FACTOR: token-environment-pwsh
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-token-environment-pwsh
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $runner = Join-Path $env:GITHUB_WORKSPACE 'protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1'
+          & $runner -Factor $env:VIA000_FACTOR -RepoRoot $env:GITHUB_WORKSPACE `
+            -ControlRoot $env:VIA000_CONTROL_ROOT -GithubOutput $env:GITHUB_OUTPUT `
+            -SourceSha $env:VIA000_SOURCE_SHA -WorkflowSha $env:VIA000_WORKFLOW_SHA `
+            -RunId $env:VIA000_RUN_ID -RunAttempt $env:VIA000_RUN_ATTEMPT
+      - name: Recheck token environment diagnostic facts
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-token-environment-pwsh
+          VIA000_SUMMARY_SHA256: ${{ steps.probe.outputs.summary_sha256 }}
+          VIA000_EXIT_SIGNED: ${{ steps.probe.outputs.exit_signed }}
+          VIA000_EXIT_UNSIGNED: ${{ steps.probe.outputs.exit_unsigned }}
+          VIA000_EXIT_HEX: ${{ steps.probe.outputs.exit_hex }}
+          VIA000_SENTINEL_PRESENT: ${{ steps.probe.outputs.sentinel_present }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+          $observed = [IO.Path]::GetFullPath([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
+          if (-not $observed.Equals($expectedShell,[StringComparison]::OrdinalIgnoreCase) -or
+              [string]$env:PATH -cne 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows') { throw 'trusted consumer boundary differs' }
+          $summaryPath = Join-Path $env:VIA000_CONTROL_ROOT 'diagnostic-summary.json'
+          $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json -AsHashtable
+          if ((Get-FileHash -LiteralPath $summaryPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:VIA000_SUMMARY_SHA256 -or
+              $summary.factor -cne 'token-environment-pwsh' -or $summary.native_phase -cne 'post-teardown-quiescent' -or
+              $summary.token_flags -cne 'DISABLE_MAX_PRIVILEGE|LUA_TOKEN' -or
+              $summary.environment_construction -cne 'restricted-token-CreateEnvironmentBlock-reviewed-allowlist' -or
+              $summary.low_integrity_sid -cne 'S-1-16-4096' -or $summary.privileges_disabled -ne $true -or
+              $summary.active_processes_after_teardown -ne 0 -or $summary.protected_root_unchanged -ne $true -or
+              (($summary.exit_signed -eq 0) -ne ($summary.sentinel_present -eq $true)) -or
+              [string]$summary.exit_signed -cne $env:VIA000_EXIT_SIGNED -or
+              [string]$summary.exit_unsigned -cne $env:VIA000_EXIT_UNSIGNED -or
+              [string]$summary.exit_hex -cne $env:VIA000_EXIT_HEX -or
+              $summary.sentinel_present.ToString().ToLowerInvariant() -cne $env:VIA000_SENTINEL_PRESENT) {
+            throw 'token environment diagnostic persistence differs'
+          }
+
+  no-lua-low-il-pwsh:
+    name: RR13 E / no LUA low-IL pwsh
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact public diagnostic closure
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-windows-transport-diagnostic.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-NATIVE-DIAGNOSTIC.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1
+      - name: Run minimal pwsh without LUA token filtering
+        id: probe
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_FACTOR: no-lua-low-il-pwsh
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-no-lua-low-il-pwsh
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $runner = Join-Path $env:GITHUB_WORKSPACE 'protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RR13-CHILD-FACTOR-RUNNER.ps1'
+          & $runner -Factor $env:VIA000_FACTOR -RepoRoot $env:GITHUB_WORKSPACE `
+            -ControlRoot $env:VIA000_CONTROL_ROOT -GithubOutput $env:GITHUB_OUTPUT `
+            -SourceSha $env:VIA000_SOURCE_SHA -WorkflowSha $env:VIA000_WORKFLOW_SHA `
+            -RunId $env:VIA000_RUN_ID -RunAttempt $env:VIA000_RUN_ATTEMPT
+      - name: Recheck no-LUA low-IL diagnostic facts
+        shell: pwsh
+        env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-rr13-no-lua-low-il-pwsh
+          VIA000_SUMMARY_SHA256: ${{ steps.probe.outputs.summary_sha256 }}
+          VIA000_EXIT_SIGNED: ${{ steps.probe.outputs.exit_signed }}
+          VIA000_EXIT_UNSIGNED: ${{ steps.probe.outputs.exit_unsigned }}
+          VIA000_EXIT_HEX: ${{ steps.probe.outputs.exit_hex }}
+          VIA000_SENTINEL_PRESENT: ${{ steps.probe.outputs.sentinel_present }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+          $observed = [IO.Path]::GetFullPath([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
+          if (-not $observed.Equals($expectedShell,[StringComparison]::OrdinalIgnoreCase) -or
+              [string]$env:PATH -cne 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows') { throw 'trusted consumer boundary differs' }
+          $summaryPath = Join-Path $env:VIA000_CONTROL_ROOT 'diagnostic-summary.json'
+          $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json -AsHashtable
+          if ((Get-FileHash -LiteralPath $summaryPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $env:VIA000_SUMMARY_SHA256 -or
+              $summary.factor -cne 'no-lua-low-il-pwsh' -or $summary.native_phase -cne 'post-teardown-quiescent' -or
+              $summary.token_flags -cne 'DISABLE_MAX_PRIVILEGE' -or
+              $summary.environment_construction -cne 'manual-filtered-parent' -or
+              $summary.low_integrity_sid -cne 'S-1-16-4096' -or $summary.privileges_disabled -ne $true -or
+              $summary.active_processes_after_teardown -ne 0 -or $summary.protected_root_unchanged -ne $true -or
+              (($summary.exit_signed -eq 0) -ne ($summary.sentinel_present -eq $true)) -or
+              [string]$summary.exit_signed -cne $env:VIA000_EXIT_SIGNED -or
+              [string]$summary.exit_unsigned -cne $env:VIA000_EXIT_UNSIGNED -or
+              [string]$summary.exit_hex -cne $env:VIA000_EXIT_HEX -or
+              $summary.sentinel_present.ToString().ToLowerInvariant() -cne $env:VIA000_SENTINEL_PRESENT) {
+            throw 'no-LUA low-IL diagnostic persistence differs'
+          }
