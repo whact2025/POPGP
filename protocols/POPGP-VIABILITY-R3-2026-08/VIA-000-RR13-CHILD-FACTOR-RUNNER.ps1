@@ -57,7 +57,8 @@ function Get-Rr13Sha256 {
 function Assert-Rr13OrdinaryFile {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$Description
+        [Parameter(Mandatory = $true)][string]$Description,
+        [switch]$AllowMultipleLinks
     )
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     $streams = @(Get-Item -LiteralPath $Path -Stream * -ErrorAction Stop)
@@ -66,7 +67,7 @@ function Assert-Rr13OrdinaryFile {
     if (-not ($item -is [IO.FileInfo]) -or
         ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
         $streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA' -or
-        $linkExit -ne 0 -or $links.Count -ne 1) {
+        $linkExit -ne 0 -or (-not $AllowMultipleLinks -and $links.Count -ne 1)) {
         throw "$Description is not one ordinary single-link file"
     }
     return $item.FullName
@@ -117,8 +118,10 @@ $stdout = Join-Path $evidence "stdout.txt"
 $stderr = Join-Path $evidence "stderr.txt"
 $containedResult = Join-Path $evidence "containment-result.json"
 $minimalSentinel = Join-Path $mutable "rr13-sentinel.bin"
-$pwsh = Assert-Rr13OrdinaryFile -Path $expectedPowerShell -Description "trusted PowerShell"
-$cmd = Assert-Rr13OrdinaryFile -Path "C:\Windows\System32\cmd.exe" -Description "trusted cmd"
+$pwsh = Assert-Rr13OrdinaryFile -Path $expectedPowerShell `
+    -Description "trusted PowerShell" -AllowMultipleLinks
+$cmd = Assert-Rr13OrdinaryFile -Path "C:\Windows\System32\cmd.exe" `
+    -Description "trusted cmd" -AllowMultipleLinks
 $closure = @{
     $containmentSource = Get-Rr13Sha256 -Path $containmentSource
     $proofRunnerSource = Get-Rr13Sha256 -Path $proofRunnerSource
