@@ -28,6 +28,13 @@ Status: design handoff for independent review only. Do not dispatch or start hol
 - Runner: `protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1`
 - Mutation runner: `protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py`
 - Assembler: `protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py`
+
+RR18 preflight: the proof-only Windows cells must use the manifest-bound native
+descriptor helper. The post-teardown workspace-relative root requires exact runner
+ownership, protected non-defaulted one-ACE DACL, control mask 37892, and medium
+NO_WRITE_UP. The closed envelope requires explicit runner ownership while retaining
+its sole inherited ACE, control mask 33796, and inherited medium label. Any divergence
+must clean the cell and leave no digest/cache/artifact.
 - Raw-results schema:
   `protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json`
 - Hosted workflow: `.github/workflows/via000-r3-protocol.yml`

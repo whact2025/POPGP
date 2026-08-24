@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 444 passed |
+| `pytest -q` | about 1200 s | 445 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -229,3 +229,11 @@ no namespace-isolation claim: the enforced boundary is the ephemeral unprivilege
 account plus runner-owned mode-0700 protected roots, a dedicated mutable root,
 no-new-privileges/SUID controls, closure hashes, empty-cgroup and empty-UID-process
 proof, and account removal.
+RR18 replaces the Windows managed export-root ACL setter with native owner/DACL
+application. The fresh workspace-relative root must have the exact current runner
+owner, protected non-defaulted non-null DACL, one explicit runner FullControl CI/OI
+ACE, control mask 37892, and medium NO_WRITE_UP label. After the canonical envelope
+is closed, its owner is set natively without replacing its one inherited runner ACE;
+its exact control mask is 33796. Creation, digest, and pre-cache-save boundaries
+independently requery native and managed facts. The RR17 experiment remains
+non-authoritative and is not part of the campaign tree.

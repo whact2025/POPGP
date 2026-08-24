@@ -168,6 +168,16 @@ frozen helper hash, owner, DACL, mandatory label, single-file identity, and enve
 hash. The prior run produced no reusable cache or retained artifact; only a fresh exact
 RR16 handoff replay can supply proof.
 
+RR18 supersedes the failed RR16 proof run `32751391135` and incorporates only the
+sealed RR18 review artifact, not the RR17 experiment workflow or scripts. Windows now
+uses native APIs to set the workspace-relative export root's exact current-runner
+owner and protected one-runner-ACE DACL. After the canonical envelope is closed, only
+its owner is set natively; its inherited one-runner-ACE DACL remains unprotected.
+Native and managed owner, full control masks, DACL presence/default state, ACE shape,
+control masks, mandatory labels, link/stream identity, and hash are rechecked at
+creation, digest, and pre-cache-save boundaries. A fresh exact six-cell replay remains
+mandatory and fail-closed.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

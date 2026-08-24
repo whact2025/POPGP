@@ -166,6 +166,10 @@ def _export_evidence(platform: str) -> dict[str, object]:
             "export_dacl_policy": "protected-current-runner-full-control-v1",
             "export_integrity_sid": "S-1-16-8192",
             "export_mandatory_policy": "NO_WRITE_UP",
+            "export_root_control_flags": 37892,
+            "export_root_dacl_protected": True,
+            "export_root_native_ace_count": 1,
+            "export_root_managed_ace_count": 1,
             "export_created_after_teardown": True,
         }
     return {
@@ -173,6 +177,10 @@ def _export_evidence(platform: str) -> dict[str, object]:
         "export_dacl_policy": "owner-rwx-0700-v1",
         "export_integrity_sid": "",
         "export_mandatory_policy": "owner-only",
+        "export_root_control_flags": 0,
+        "export_root_dacl_protected": False,
+        "export_root_native_ace_count": 0,
+        "export_root_managed_ace_count": 0,
         "export_created_after_teardown": True,
     }
 
@@ -2130,7 +2138,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "Get-Item -LiteralPath $full -Stream *" in runner_text
     assert "LinkCount($full)" in runner_text
     assert "Set-Via000WindowsExportSecurity -Path $OutputRoot" in runner_text
-    assert "Windows export file did not inherit the exact protected runner DACL" in runner_text
+    assert "Set-Via000WindowsExportFileOwner -Path $verifiedEnvelope" in runner_text
+    assert "Windows export native root/file descriptor differs after hash capture" in runner_text
     assert "MaximumProofEnvelopeBytes" in runner_text
     assert "Protect-Via000ReadOnlyClosure -Path $OutputRoot" not in runner_text
     assert "Assert-FrozenProofBundle" in runner_text
@@ -2409,6 +2418,14 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         ("enabled_privileges", ["SeDebugPrivilege"]),
         ("enabled_privileges", ["SeChangeNotifyPrivilege", "SeDebugPrivilege"]),
         ("protected_label_policy", "mutable"),
+        ("export_owner_sid", ""),
+        ("export_dacl_policy", "owner-rwx-0700-v1"),
+        ("export_integrity_sid", "S-1-16-4096"),
+        ("export_mandatory_policy", "owner-only"),
+        ("export_root_control_flags", 33796),
+        ("export_root_dacl_protected", False),
+        ("export_root_native_ace_count", 2),
+        ("export_root_managed_ace_count", 2),
     ):
         document = json.loads(windows_original)
         proof_bytes = base64.b64decode(document["members"]["proof.json"]["base64"])
@@ -3526,9 +3543,12 @@ def test_r3_rr16_ubuntu_canonical_empty_array_and_windows_export_source(
             "S-1-16-8192",
             "NO_WRITE_UP",
             "GetMandatoryLabel",
-            "SetAccessRuleProtection($true, $false)",
+            "SetExportRootDescriptor",
+            "SetExportFileOwner",
+            "PROTECTED_DACL_SECURITY_INFORMATION",
         ):
             assert token in source
+        assert "Set-Acl -LiteralPath $item.FullName" not in source
 
 
 @pytest.mark.skipif(os.name != "nt", reason="exact Windows low-integrity export boundary")
@@ -3539,9 +3559,13 @@ def test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(
     """TST-VIA000-R3-RR16-WINDOWS-MEDIUM-EXPORT-BOUNDARY-001."""
     pwsh = shutil.which("pwsh")
     assert pwsh is not None
-    mutable, trusted, export = (tmp_path / name for name in ("mutable", "trusted", "export"))
-    for directory in (mutable, trusted, export):
+    mutable, trusted, workspace = (
+        tmp_path / name for name in ("mutable", "trusted", "workspace")
+    )
+    for directory in (mutable, trusted, workspace):
         directory.mkdir()
+    export = workspace / ".via000-r3-proof-cache/windows-x86_64/candidate"
+    export.mkdir(parents=True)
     envelope = export / "envelope.json"
     envelope.write_bytes(b'{"safe":true}\n')
     expected_sha = _sha(envelope)
@@ -3554,6 +3578,7 @@ def test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(
         "operations = {\n"
         " 'create': lambda: open(os.path.join(export, 'created'), 'wb').write(b'x'),\n"
         " 'write': lambda: open(envelope, 'wb').write(b'replaced'),\n"
+        " 'hardlink': lambda: os.link(envelope, os.path.join(export, 'hardlink')),\n"
         " 'rename': lambda: os.rename(envelope, envelope + '.moved'),\n"
         " 'delete': lambda: os.unlink(envelope),\n"
         " 'reparse': lambda: os.symlink(mutable, os.path.join(export, 'link'), "
@@ -3575,12 +3600,24 @@ def test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(
         "Test-Via000ContainmentAvailability -PlatformFamily windows-x86_64 -SystemTools $tools\n"
         "Set-Via000RootIntegrity -Path $Mutable -Kind mutable -SystemTools $tools\n"
         "Set-Via000RootIntegrity -Path $Trusted -Kind protected -SystemTools $tools\n"
+        "$preAcl=Get-Acl -LiteralPath $Export\n"
+        "$world=[Security.Principal.SecurityIdentifier]::new('S-1-1-0')\n"
+        "$preRule=[Security.AccessControl.FileSystemAccessRule]::new($world,"
+        "[Security.AccessControl.FileSystemRights]::Modify,"
+        "([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor "
+        "[Security.AccessControl.InheritanceFlags]::ObjectInherit),"
+        "[Security.AccessControl.PropagationFlags]::None,"
+        "[Security.AccessControl.AccessControlType]::Allow)\n"
+        "[void]$preAcl.AddAccessRule($preRule)\n"
+        "Set-Acl -LiteralPath $Export -AclObject $preAcl\n"
         "$rootSecurity=Set-Via000WindowsExportSecurity -Path $Export\n"
-        "$fileSecurity=Assert-Via000WindowsExportSecurity `\n"
-        " -Path (Join-Path $Export 'envelope.json') -Kind file `\n"
+        "$fileSecurity=Set-Via000WindowsExportFileOwner `\n"
+        " -Path (Join-Path $Export 'envelope.json') `\n"
         " -ExpectedSha256 $ExpectedSha\n"
         "if ($rootSecurity.owner_sid -cne $fileSecurity.owner_sid -or `\n"
-        " -not $fileSecurity.inherited_file_dacl) { `\n"
+        " -not $fileSecurity.inherited_file_dacl -or `\n"
+        " [uint16]$rootSecurity.control_flags -ne 37892 -or `\n"
+        " [uint16]$fileSecurity.control_flags -ne 33796) { `\n"
         " throw 'initial export descriptor differs' }\n"
         "$closure=@{}\n"
         "foreach($path in @($Python,$Boundary,(Join-Path $Export 'envelope.json'))){\n"
@@ -3621,10 +3658,46 @@ def test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(
     assert result["descendants_quiescent"] is True
     assert result["active_processes_after_teardown"] == 0
     assert (mutable / "mutable-write-allowed").read_text(encoding="utf-8") == "allowed"
-    for name in ("create", "write", "rename", "delete", "reparse", "replace"):
+    for name in (
+        "create", "write", "hardlink", "rename", "delete", "reparse", "replace"
+    ):
         assert not (mutable / f"{name}-succeeded").exists()
     assert _sha(envelope) == expected_sha
     assert (export / "trusted-write.txt").read_text(encoding="utf-8") == "trusted"
+
+
+@pytest.mark.negative_control
+def test_r3_rr18_native_root_file_descriptor_and_workspace_hostile_replay(
+    tmp_path: Path,
+) -> None:
+    """TST-VIA000-R3-RR18-NATIVE-ROOT-FILE-DESCRIPTOR-001."""
+    containment_text = CONTAINMENT.read_text(encoding="utf-8")
+    runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    for token in (
+        "OWNER_SECURITY_INFORMATION",
+        "DACL_SECURITY_INFORMATION",
+        "PROTECTED_DACL_SECURITY_INFORMATION",
+        "SetExportRootDescriptor",
+        "SetExportFileOwner",
+        "GetExportDescriptor",
+        "DaclDefaulted",
+        "DaclNull",
+        "AccessMask -ne 2032127",
+        "AceFlags -ne $expectedAceFlags",
+        "$expectedControlFlags",
+        "GetMandatoryLabel",
+    ):
+        assert token in containment_text
+    assert "Set-Acl -LiteralPath $item.FullName -AclObject $security" not in containment_text
+    assert "Set-Via000WindowsExportFileOwner -Path $verifiedEnvelope" in runner_text
+    assert runner_text.index("$stream.Dispose()") < runner_text.index(
+        "Set-Via000WindowsExportFileOwner -Path $verifiedEnvelope"
+    )
+    assert workflow_text.count("[uint16]$rootSecurity.control_flags -ne 37892") == 2
+    assert workflow_text.count("[uint16]$fileSecurity.control_flags -ne 33796") == 2
+    if os.name == "nt":
+        test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(tmp_path)
 
 
 @pytest.mark.negative_control

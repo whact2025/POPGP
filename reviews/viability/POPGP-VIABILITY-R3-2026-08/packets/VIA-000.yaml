@@ -658,7 +658,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-    sha256: 92730fe6fc32c7980f3a6a357f68b5df90bd9e6c0c60ee24baa1bc9aad56fd8b
+    sha256: ece93ad9a7c80746260932bf3dfe9027cfea0d27d1b2579f280e77eb36a7206d
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
@@ -670,13 +670,13 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-protocol.ps1
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
-    sha256: 19f3da83be0498ccaea16571aaa7b8b95b4d636006cf7131aa2495fd841a0104
+    sha256: ca5f374c4d4325f3a81225882fd96094e56e227d2cecf7b8d805bb2713f606e4
     media_type: text/plain
   - receipt_id: containment-proof-runner
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-proof-runner.ps1
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
-    sha256: ec827f0197e6eba1e40bc2bcf6f80f80833a2ef419c6829b70545dc5a338cd52
+    sha256: 587ef54f6ae03d8f9e5b2dfd70199f451204fef98508da2ad15a374207a6b27e
     media_type: text/plain
   - receipt_id: containment-proof-hostile
     content_role: supporting
@@ -688,7 +688,7 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-proof.schema.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
-    sha256: 67b9a231db66df20ce1677ac7d8aa7aa187fc1dba6e91539983f81dbe2ad7a3d
+    sha256: 648d52b90c67ec1f6598976eb36bf0b132b4804374135aba61dba7fe86f771e7
     media_type: application/schema+json
   - receipt_id: containment-proof-envelope-schema
     content_role: supporting
@@ -700,13 +700,13 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-proof-aggregator.py
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
-    sha256: 7fc7d22b19fcc8bbd85fb123f4e823355eaf234c7c145a34380b75d8f9e3987d
+    sha256: 5499f38bc4a10f48c1a3ff374c8d6f2bb88dd3f14bf6ed8ffdabb580d1b8944e
     media_type: text/plain
   - receipt_id: containment-proof-workflow
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-proof-workflow.yml
     protocol_path: .github/workflows/via000-r3-containment-proof.yml
-    sha256: 3f4a0a45e8a4e63f3cd7b77780b221a56aed51d955710818dc6d82dc35ab4146
+    sha256: 183ac47877fc422e646a6dee829120cea0ff3f0063f29e7d10efa6852ad4000b
     media_type: text/plain
   - receipt_id: raw-results-schema
     content_role: supporting
@@ -954,7 +954,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 92730fe6fc32c7980f3a6a357f68b5df90bd9e6c0c60ee24baa1bc9aad56fd8b
+  sha256: ece93ad9a7c80746260932bf3dfe9027cfea0d27d1b2579f280e77eb36a7206d
   media_type: application/json
 - id: runner-protocol
   kind: protocol
@@ -964,12 +964,12 @@ receipts:
 - id: containment-protocol
   kind: protocol
   path: ../receipts/VIA-000/containment-protocol.ps1
-  sha256: 19f3da83be0498ccaea16571aaa7b8b95b4d636006cf7131aa2495fd841a0104
+  sha256: ca5f374c4d4325f3a81225882fd96094e56e227d2cecf7b8d805bb2713f606e4
   media_type: text/plain
 - id: containment-proof-runner
   kind: protocol
   path: ../receipts/VIA-000/containment-proof-runner.ps1
-  sha256: ec827f0197e6eba1e40bc2bcf6f80f80833a2ef419c6829b70545dc5a338cd52
+  sha256: 587ef54f6ae03d8f9e5b2dfd70199f451204fef98508da2ad15a374207a6b27e
   media_type: text/plain
 - id: containment-proof-hostile
   kind: protocol
@@ -979,7 +979,7 @@ receipts:
 - id: containment-proof-schema
   kind: protocol
   path: ../receipts/VIA-000/containment-proof.schema.json
-  sha256: 67b9a231db66df20ce1677ac7d8aa7aa187fc1dba6e91539983f81dbe2ad7a3d
+  sha256: 648d52b90c67ec1f6598976eb36bf0b132b4804374135aba61dba7fe86f771e7
   media_type: application/schema+json
 - id: containment-proof-envelope-schema
   kind: protocol
@@ -989,12 +989,12 @@ receipts:
 - id: containment-proof-aggregator
   kind: protocol
   path: ../receipts/VIA-000/containment-proof-aggregator.py
-  sha256: 7fc7d22b19fcc8bbd85fb123f4e823355eaf234c7c145a34380b75d8f9e3987d
+  sha256: 5499f38bc4a10f48c1a3ff374c8d6f2bb88dd3f14bf6ed8ffdabb580d1b8944e
   media_type: text/plain
 - id: containment-proof-workflow
   kind: protocol
   path: ../receipts/VIA-000/containment-proof-workflow.yml
-  sha256: 3f4a0a45e8a4e63f3cd7b77780b221a56aed51d955710818dc6d82dc35ab4146
+  sha256: 183ac47877fc422e646a6dee829120cea0ff3f0063f29e7d10efa6852ad4000b
   media_type: text/plain
 - id: raw-results-schema
   kind: protocol

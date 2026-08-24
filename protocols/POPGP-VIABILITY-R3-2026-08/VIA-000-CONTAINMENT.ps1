@@ -134,6 +134,23 @@ namespace Via000R3 {
     public uint AceCount { get; set; }
   }
 
+  public sealed class ExportAceResult {
+    public byte AceType { get; set; }
+    public byte AceFlags { get; set; }
+    public uint AccessMask { get; set; }
+    public string Sid { get; set; } = "";
+  }
+
+  public sealed class ExportDescriptorResult {
+    public string OwnerSid { get; set; } = "";
+    public ushort ControlFlags { get; set; }
+    public bool DaclPresent { get; set; }
+    public bool DaclDefaulted { get; set; }
+    public bool DaclNull { get; set; }
+    public uint AceCount { get; set; }
+    public ExportAceResult[] Aces { get; set; } = new ExportAceResult[0];
+  }
+
   public static class NativeContainment {
     const UInt32 TOKEN_ASSIGN_PRIMARY = 0x0001;
     const UInt32 TOKEN_DUPLICATE = 0x0002;
@@ -162,6 +179,9 @@ namespace Via000R3 {
     const int TokenPrivileges = 3;
     const UInt32 SE_GROUP_INTEGRITY = 0x20;
     const UInt32 SE_PRIVILEGE_ENABLED = 0x2;
+    const UInt32 OWNER_SECURITY_INFORMATION = 0x00000001;
+    const UInt32 DACL_SECURITY_INFORMATION = 0x00000004;
+    const UInt32 PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000;
     const UInt32 WAIT_OBJECT_0 = 0;
     const UInt32 WAIT_TIMEOUT = 258;
     static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
@@ -220,6 +240,9 @@ namespace Via000R3 {
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool LookupPrivilegeName(string system, ref LUID luid, StringBuilder name, ref int length);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSecurityDescriptorToSecurityDescriptor(string value, UInt32 revision, out IntPtr descriptor, out UInt32 size);
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetSecurityDescriptorSacl(IntPtr descriptor, out bool present, out IntPtr sacl, out bool defaulted);
+    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetSecurityDescriptorOwner(IntPtr descriptor, out IntPtr owner, out bool defaulted);
+    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetSecurityDescriptorDacl(IntPtr descriptor, out bool present, out IntPtr dacl, out bool defaulted);
+    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetSecurityDescriptorControl(IntPtr descriptor, out UInt16 control, out UInt32 revision);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern UInt32 SetNamedSecurityInfo(string name, int objectType, UInt32 information, IntPtr owner, IntPtr group, IntPtr dacl, IntPtr sacl);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern UInt32 GetNamedSecurityInfo(string name, int objectType, UInt32 information, out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetAclInformation(IntPtr acl, out ACL_SIZE_INFORMATION information, UInt32 length, int informationClass);
@@ -359,6 +382,72 @@ namespace Via000R3 {
       } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
     }
 
+    public static void SetExportRootDescriptor(string path, string runnerSid) {
+      IntPtr descriptor = IntPtr.Zero;
+      try {
+        string sddl = "O:" + runnerSid + "D:P(A;OICI;FA;;;" + runnerSid + ")";
+        Win32(ConvertStringSecurityDescriptorToSecurityDescriptor(sddl, 1, out descriptor, out _), "ConvertStringSecurityDescriptorToSecurityDescriptor export root");
+        Win32(GetSecurityDescriptorOwner(descriptor, out IntPtr owner, out _), "GetSecurityDescriptorOwner export root");
+        Win32(GetSecurityDescriptorDacl(descriptor, out bool present, out IntPtr dacl, out bool defaulted), "GetSecurityDescriptorDacl export root");
+        if (owner == IntPtr.Zero || !present || defaulted || dacl == IntPtr.Zero)
+          throw new InvalidOperationException("constructed export root owner or DACL is absent/defaulted/null");
+        UInt32 status = SetNamedSecurityInfo(
+          path, 1, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION |
+          PROTECTED_DACL_SECURITY_INFORMATION,
+          owner, IntPtr.Zero, dacl, IntPtr.Zero);
+        if (status != 0) throw new Win32Exception((int)status, "SetNamedSecurityInfo export root owner/protected DACL");
+      } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+    }
+
+    public static void SetExportFileOwner(string path, string runnerSid) {
+      IntPtr sid = IntPtr.Zero;
+      try {
+        Win32(ConvertStringSidToSid(runnerSid, out sid), "ConvertStringSidToSid export file owner");
+        UInt32 status = SetNamedSecurityInfo(
+          path, 1, OWNER_SECURITY_INFORMATION, sid, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+        if (status != 0) throw new Win32Exception((int)status, "SetNamedSecurityInfo export file owner");
+      } finally { if (sid != IntPtr.Zero) LocalFree(sid); }
+    }
+
+    public static ExportDescriptorResult GetExportDescriptor(string path) {
+      IntPtr descriptor = IntPtr.Zero;
+      try {
+        UInt32 status = GetNamedSecurityInfo(
+          path, 1, OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+          out _, out _, out _, out _, out descriptor);
+        if (status != 0) throw new Win32Exception((int)status, "GetNamedSecurityInfo export owner/DACL");
+        if (descriptor == IntPtr.Zero)
+          throw new InvalidOperationException("export security descriptor is absent");
+        Win32(GetSecurityDescriptorOwner(descriptor, out IntPtr owner, out _), "GetSecurityDescriptorOwner export query");
+        Win32(GetSecurityDescriptorDacl(descriptor, out bool present, out IntPtr dacl, out bool defaulted), "GetSecurityDescriptorDacl export query");
+        Win32(GetSecurityDescriptorControl(descriptor, out UInt16 control, out _), "GetSecurityDescriptorControl export query");
+        var result = new ExportDescriptorResult {
+          OwnerSid = owner == IntPtr.Zero ? "" : new SecurityIdentifier(owner).Value,
+          ControlFlags = control,
+          DaclPresent = present,
+          DaclDefaulted = defaulted,
+          DaclNull = dacl == IntPtr.Zero
+        };
+        if (!present || dacl == IntPtr.Zero) return result;
+        Win32(GetAclInformation(dacl, out ACL_SIZE_INFORMATION info, (uint)Marshal.SizeOf<ACL_SIZE_INFORMATION>(), 2), "GetAclInformation export DACL");
+        result.AceCount = info.AceCount;
+        var aces = new List<ExportAceResult>();
+        for (UInt32 index = 0; index < info.AceCount; index++) {
+          Win32(GetAce(dacl, index, out IntPtr ace), "GetAce export DACL");
+          if (ace == IntPtr.Zero) throw new InvalidOperationException("export DACL ACE is absent");
+          byte type = Marshal.ReadByte(ace, 0);
+          aces.Add(new ExportAceResult {
+            AceType = type,
+            AceFlags = Marshal.ReadByte(ace, 1),
+            AccessMask = unchecked((uint)Marshal.ReadInt32(ace, 4)),
+            Sid = (type == 0x00 || type == 0x01) ? new SecurityIdentifier(IntPtr.Add(ace, 8)).Value : ""
+          });
+        }
+        result.Aces = aces.ToArray();
+        return result;
+      } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+    }
+
     public static ContainedResult Run(string executable, string[] arguments, string workingDirectory, IDictionary<string,string> environment, string stdoutPath, string stderrPath, int timeoutSeconds) {
       IntPtr current = IntPtr.Zero, restricted = IntPtr.Zero, lowSid = IntPtr.Zero, env = IntPtr.Zero;
       IntPtr job = IntPtr.Zero, stdout = IntPtr.Zero, stderr = IntPtr.Zero, stdin = IntPtr.Zero;
@@ -487,23 +576,35 @@ function Set-Via000WindowsExportSecurity {
     if ($null -eq $runnerSid -or $runnerSid.Value -cnotmatch '^S-1-(?:[0-9]+-)+[0-9]+$') {
         throw "trusted Windows runner SID is unavailable"
     }
-    $security = [Security.AccessControl.DirectorySecurity]::new()
-    $security.SetOwner($runnerSid)
-    $security.SetAccessRuleProtection($true, $false)
-    $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
-        [Security.AccessControl.InheritanceFlags]::ObjectInherit
-    $rule = [Security.AccessControl.FileSystemAccessRule]::new(
-        $runnerSid,
-        [Security.AccessControl.FileSystemRights]::FullControl,
-        $inheritance,
-        [Security.AccessControl.PropagationFlags]::None,
-        [Security.AccessControl.AccessControlType]::Allow
-    )
-    [void]$security.AddAccessRule($rule)
-    Set-Acl -LiteralPath $item.FullName -AclObject $security -ErrorAction Stop
     Initialize-Via000WindowsNative
+    [Via000R3.NativeContainment]::SetExportRootDescriptor(
+        $item.FullName, $runnerSid.Value
+    )
     [Via000R3.NativeContainment]::SetIntegrityLabel($item.FullName, $false, $false)
     return Assert-Via000WindowsExportSecurity -Path $item.FullName -Kind root
+}
+
+function Set-Via000WindowsExportFileOwner {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedSha256
+    )
+    if (-not $IsWindows) { throw "Windows export security requires a Windows host" }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if (-not ($item -is [IO.FileInfo]) -or
+        ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Windows export file is not one ordinary non-reparse file"
+    }
+    $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    if ($null -eq $runnerSid -or $runnerSid.Value -cnotmatch '^S-1-(?:[0-9]+-)+[0-9]+$') {
+        throw "trusted Windows runner SID is unavailable"
+    }
+    Initialize-Via000WindowsNative
+    [Via000R3.NativeContainment]::SetExportFileOwner(
+        $item.FullName, $runnerSid.Value
+    )
+    return Assert-Via000WindowsExportSecurity -Path $item.FullName `
+        -Kind file -ExpectedSha256 $ExpectedSha256
 }
 
 function Assert-Via000WindowsExportSecurity {
@@ -533,31 +634,47 @@ function Assert-Via000WindowsExportSecurity {
     }
 
     $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    Initialize-Via000WindowsNative
+    $native = [Via000R3.NativeContainment]::GetExportDescriptor($item.FullName)
     $acl = Get-Acl -LiteralPath $item.FullName -ErrorAction Stop
     $ownerSid = $acl.GetOwner([Security.Principal.SecurityIdentifier])
     $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
+    $raw = [Security.AccessControl.RawSecurityDescriptor]::new(
+        $acl.GetSecurityDescriptorBinaryForm(), 0
+    )
     $expectedInheritance = if ($Kind -eq "root") {
         [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
             [Security.AccessControl.InheritanceFlags]::ObjectInherit
     } else { [Security.AccessControl.InheritanceFlags]::None }
     $expectedInherited = $Kind -eq "file"
     $expectedProtected = $Kind -eq "root"
+    $expectedAceFlags = if ($Kind -eq "root") { [byte]3 } else { [byte]16 }
+    $expectedControlFlags = if ($Kind -eq "root") { [uint16]37892 } else { [uint16]33796 }
     if ($null -eq $runnerSid -or $ownerSid.Value -cne $runnerSid.Value -or
-        $acl.AreAccessRulesProtected -ne $expectedProtected -or $rules.Count -ne 1) {
-        throw "Windows export owner or protected DACL cardinality differs"
+        [string]$native.OwnerSid -cne $runnerSid.Value -or
+        $acl.AreAccessRulesProtected -ne $expectedProtected -or
+        [bool]$native.DaclPresent -ne $true -or [bool]$native.DaclDefaulted -ne $false -or
+        [bool]$native.DaclNull -ne $false -or $rules.Count -ne 1 -or
+        [uint32]$native.AceCount -ne 1 -or @($native.Aces).Count -ne 1 -or
+        [uint16]$native.ControlFlags -ne $expectedControlFlags -or
+        [uint16]$raw.ControlFlags -ne $expectedControlFlags) {
+        throw "Windows export native/managed owner, DACL, or control flags differ"
     }
     $access = $rules[0]
+    $nativeAccess = @($native.Aces)[0]
     if ($access.IdentityReference.Value -cne $runnerSid.Value -or
         $access.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow -or
         $access.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl -or
         $access.InheritanceFlags -ne $expectedInheritance -or
         $access.PropagationFlags -ne [Security.AccessControl.PropagationFlags]::None -or
-        $access.IsInherited -ne $expectedInherited) {
+        $access.IsInherited -ne $expectedInherited -or
+        [string]$nativeAccess.Sid -cne $runnerSid.Value -or
+        [byte]$nativeAccess.AceType -ne 0 -or
+        [uint32]$nativeAccess.AccessMask -ne 2032127 -or
+        [byte]$nativeAccess.AceFlags -ne $expectedAceFlags) {
         throw "Windows export DACL grants a subject other than the exact runner SID"
     }
-    Initialize-Via000WindowsNative
     $label = [Via000R3.NativeContainment]::GetMandatoryLabel($item.FullName)
-    $expectedAceFlags = if ($Kind -eq "root") { [byte]3 } else { [byte]16 }
     if ($label.AceCount -ne 1 -or $label.Sid -cne 'S-1-16-8192' -or
         $label.PolicyMask -ne 1 -or $label.AceFlags -ne $expectedAceFlags) {
         throw "Windows export mandatory label is not exact medium NO_WRITE_UP"
@@ -568,6 +685,10 @@ function Assert-Via000WindowsExportSecurity {
         integrity_sid = $label.Sid
         mandatory_policy = "NO_WRITE_UP"
         inherited_file_dacl = $expectedInherited
+        control_flags = [uint16]$native.ControlFlags
+        dacl_protected = $expectedProtected
+        native_ace_count = [uint32]$native.AceCount
+        managed_ace_count = $rules.Count
     }
 }
 

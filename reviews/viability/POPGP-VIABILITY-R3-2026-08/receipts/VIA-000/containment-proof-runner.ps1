@@ -474,6 +474,18 @@ try {
         export_dacl_policy = [string]$exportSecurity.dacl_policy
         export_integrity_sid = [string]$exportSecurity.integrity_sid
         export_mandatory_policy = [string]$exportSecurity.mandatory_policy
+        export_root_control_flags = $(if ($IsWindows) {
+            [int]$exportSecurity.control_flags
+        } else { 0 })
+        export_root_dacl_protected = $(if ($IsWindows) {
+            [bool]$exportSecurity.dacl_protected
+        } else { $false })
+        export_root_native_ace_count = $(if ($IsWindows) {
+            [int]$exportSecurity.native_ace_count
+        } else { 0 })
+        export_root_managed_ace_count = $(if ($IsWindows) {
+            [int]$exportSecurity.managed_ace_count
+        } else { 0 })
         export_created_after_teardown = $true
         no_campaign_execution = $true
         no_candidate_checkout = $true
@@ -580,12 +592,16 @@ try {
     }
     $envelopeSha256 = Get-ProofBytesSha256 -Bytes $writtenBytes
     if ($IsWindows) {
-        $fileSecurity = Assert-Via000WindowsExportSecurity -Path $verifiedEnvelope `
-            -Kind file -ExpectedSha256 $envelopeSha256
+        $fileSecurity = Set-Via000WindowsExportFileOwner -Path $verifiedEnvelope `
+            -ExpectedSha256 $envelopeSha256
         $rootSecurity = Assert-Via000WindowsExportSecurity -Path $OutputRoot -Kind root
         if ($fileSecurity.owner_sid -cne $rootSecurity.owner_sid -or
-            $fileSecurity.inherited_file_dacl -ne $true) {
-            throw "Windows export file did not inherit the exact protected runner DACL"
+            $fileSecurity.inherited_file_dacl -ne $true -or
+            [uint16]$rootSecurity.control_flags -ne 37892 -or
+            [uint16]$fileSecurity.control_flags -ne 33796 -or
+            [uint32]$rootSecurity.native_ace_count -ne 1 -or
+            [uint32]$fileSecurity.native_ace_count -ne 1) {
+            throw "Windows export native root/file descriptor differs after hash capture"
         }
     }
     $success = $true

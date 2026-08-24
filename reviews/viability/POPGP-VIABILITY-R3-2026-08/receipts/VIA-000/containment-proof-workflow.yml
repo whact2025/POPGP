@@ -175,7 +175,11 @@ jobs:
             $rootSecurity = Assert-Via000WindowsExportSecurity -Path $directory -Kind root
             $fileSecurity = Assert-Via000WindowsExportSecurity -Path $envelope -Kind file -ExpectedSha256 $digest
             if ($rootSecurity.owner_sid -cne $fileSecurity.owner_sid -or
-                $fileSecurity.inherited_file_dacl -ne $true) {
+                $fileSecurity.inherited_file_dacl -ne $true -or
+                [uint16]$rootSecurity.control_flags -ne 37892 -or
+                [uint16]$fileSecurity.control_flags -ne 33796 -or
+                [uint32]$rootSecurity.native_ace_count -ne 1 -or
+                [uint32]$fileSecurity.native_ace_count -ne 1) {
               throw "staged Windows export boundary differs before digest output"
             }
           }
@@ -310,7 +314,11 @@ jobs:
             $fileSecurity = Assert-Via000WindowsExportSecurity -Path $files[0].FullName `
               -Kind file -ExpectedSha256 ([string]$env:VIA000_EXPECTED_DIGEST)
             if ($rootSecurity.owner_sid -cne $fileSecurity.owner_sid -or
-                $fileSecurity.inherited_file_dacl -ne $true) {
+                $fileSecurity.inherited_file_dacl -ne $true -or
+                [uint16]$rootSecurity.control_flags -ne 37892 -or
+                [uint16]$fileSecurity.control_flags -ne 33796 -or
+                [uint32]$rootSecurity.native_ace_count -ne 1 -or
+                [uint32]$fileSecurity.native_ace_count -ne 1) {
               throw "staged Windows export boundary differs immediately before cache save"
             }
           }

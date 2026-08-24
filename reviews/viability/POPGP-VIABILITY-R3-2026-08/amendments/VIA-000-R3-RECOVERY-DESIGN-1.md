@@ -371,6 +371,19 @@ order, count, type, null, delimiter-collision, and empty-array substitutions. RR
 token, integrity, privilege, containment, and evidence requirements are unchanged.
 A fresh six-cell hosted proof and retained redownload remain mandatory.
 
+## RR18 native root/file descriptor amendment
+
+RR17's proof-only experiment established that the exact medium-integrity boundary is
+viable and that the hosted envelope's default owner can be BUILTIN Administrators.
+RR18 does not import the experiment workflow or scripts. It replaces only the managed
+root ACL application with native owner plus protected-DACL application and explicitly
+sets only the closed envelope's owner to the current runner SID. The root remains one
+explicit runner FullControl CI/OI ACE; the file remains one inherited runner
+FullControl ACE. Exact native and managed control masks, owner, DACL presence/default
+state, ACE type/mask/flags, medium label, stream/link identity, and hash must agree at
+all three trusted boundaries. No owner, DACL, label, or hostile-operation predicate is
+relaxed. The fresh retained 2x3 hosted proof remains the acceptance gate.
+
 ## RR16 hosted export-boundary amendment
 
 RR15's hosted run proved that all six frozen runners parse and both containment

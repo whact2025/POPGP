@@ -106,6 +106,10 @@ CELL_FIELDS = {
     "export_dacl_policy",
     "export_integrity_sid",
     "export_mandatory_policy",
+    "export_root_control_flags",
+    "export_root_dacl_protected",
+    "export_root_native_ace_count",
+    "export_root_managed_ace_count",
     *HASH_FIELDS,
     *TRUE_FIELDS,
     "primitive",
@@ -365,15 +369,23 @@ def _validate_cell(
             "protected-current-runner-full-control-v1",
             "S-1-16-8192",
             "NO_WRITE_UP",
+            37892,
+            True,
+            1,
+            1,
         )
         if platform == "windows-x86_64"
-        else (r"", "owner-rwx-0700-v1", "", "owner-only")
+        else (r"", "owner-rwx-0700-v1", "", "owner-only", 0, False, 0, 0)
     )
     if (
         re.fullmatch(expected_export[0], document.get("export_owner_sid", "")) is None
         or document.get("export_dacl_policy") != expected_export[1]
         or document.get("export_integrity_sid") != expected_export[2]
         or document.get("export_mandatory_policy") != expected_export[3]
+        or document.get("export_root_control_flags") != expected_export[4]
+        or document.get("export_root_dacl_protected") is not expected_export[5]
+        or document.get("export_root_native_ace_count") != expected_export[6]
+        or document.get("export_root_managed_ace_count") != expected_export[7]
         or document.get("export_created_after_teardown") is not True
     ):
         raise ValueError(f"proof export security evidence differs: {path}")
