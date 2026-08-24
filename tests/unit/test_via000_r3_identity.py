@@ -2034,8 +2034,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert workflow_text.count('$workspace = Join-Path $root "via000-proof-workspace"') == 1
     assert workflow_text.count('$output = Join-Path $root "via000-proof-output"') == 2
     assert "containment proof output is absent after successful runner exit" in workflow_text
-    assert "path: /home/runner/work/POPGP/POPGP/via000-proof-output" in workflow_text
-    assert "path: D:/a/POPGP/POPGP/via000-proof-output" in workflow_text
+    assert "/home/runner/work/POPGP/POPGP/via000-proof-output/proof.json" in workflow_text
+    assert "D:/a/POPGP/POPGP/via000-proof-output/proof.json" in workflow_text
     assert "containment proof output is not the exact four-file set" in workflow_text
     assert "containment-result.json,proof.json,stderr.txt,stdout.txt" in workflow_text
     assert "containment proof pre-upload hashes differ" in workflow_text
@@ -2045,6 +2045,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
     fixture_text = CONTAINMENT_PROOF_FIXTURE.read_text(encoding="utf-8")
     assert "Invoke-Via000ContainedCommand" in runner_text
+    assert "synthetic containment diagnostic" in runner_text
     assert "Assert-FrozenProofBundle" in runner_text
     assert "child-of-child-ready" in runner_text
     assert "delayed-descendant-survived" in runner_text

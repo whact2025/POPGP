@@ -181,7 +181,11 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
-          path: /home/runner/work/POPGP/POPGP/via000-proof-output
+          path: |
+            /home/runner/work/POPGP/POPGP/via000-proof-output/containment-result.json
+            /home/runner/work/POPGP/POPGP/via000-proof-output/proof.json
+            /home/runner/work/POPGP/POPGP/via000-proof-output/stderr.txt
+            /home/runner/work/POPGP/POPGP/via000-proof-output/stdout.txt
           if-no-files-found: error
           retention-days: 7
 
@@ -190,7 +194,11 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
-          path: D:/a/POPGP/POPGP/via000-proof-output
+          path: |
+            D:/a/POPGP/POPGP/via000-proof-output/containment-result.json
+            D:/a/POPGP/POPGP/via000-proof-output/proof.json
+            D:/a/POPGP/POPGP/via000-proof-output/stderr.txt
+            D:/a/POPGP/POPGP/via000-proof-output/stdout.txt
           if-no-files-found: error
           retention-days: 7
 

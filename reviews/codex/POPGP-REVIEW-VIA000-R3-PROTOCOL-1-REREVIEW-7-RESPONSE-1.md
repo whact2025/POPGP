@@ -151,6 +151,14 @@ summary: |-
   two upload steps reviewed OS-specific absolute forward-slash output roots. The
   Windows low-integrity child and Ubuntu service identity still cannot create or
   write the checkout-root proof-output directory before trusted evidence emission.
+  The eleventh branch-push attempt, run 32703232251 at handoff
+  d9db6df863acdc57976c1990a088b9c2564b1ec6, moved Ubuntu past CHDIR but the frozen
+  synthetic command returned exit 64; failure cleanup correctly removed its evidence
+  before the workflow log exposed the contained stderr. Windows again passed all
+  containment and exact-file/hash checks while upload-artifact did not resolve the
+  static directory. The next narrow correction supplies four exact forward-slash
+  file subjects to each OS upload step and emits stdout/stderr diagnostics only for
+  this fixed non-scientific fixture before preserving fail-closed cleanup.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
@@ -205,7 +213,7 @@ finding_responses:
       - "26748521df05dae3fe74cd54b6100ffb79a83d5e"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
-        result: "1 passed in 3.39 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
+        result: "1 passed in 2.88 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
       - command: "full R3 identity test file"
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"
