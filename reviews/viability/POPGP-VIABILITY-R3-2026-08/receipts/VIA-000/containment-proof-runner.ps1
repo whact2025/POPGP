@@ -287,6 +287,7 @@ try {
     foreach ($path in @($proofPath, $containedResult, $stdout, $stderr)) {
         Copy-Item -LiteralPath $path -Destination (Join-Path $OutputRoot ([IO.Path]::GetFileName($path)))
     }
+    Protect-Via000ReadOnlyClosure -Path $OutputRoot -SystemTools $systemTools
     $success = $true
 } finally {
     if (Test-Path -LiteralPath $WorkspaceRoot) {

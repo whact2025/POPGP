@@ -26,7 +26,7 @@
     "containment_protocol_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1",
     "containment_protocol_sha256": "44908f2529876865a88ac0ae82c5da7d38089ccd0159def4e2dbf2f55f43500d",
     "containment_proof_runner_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1",
-    "containment_proof_runner_sha256": "05457cf2be7f61933a7d95ef4ec9acb4eb65f3ace6bffbd8b79d031cfea92fde",
+    "containment_proof_runner_sha256": "d0307bec8e78c41205eba238e2015b18b9689cb2dad7cafb8d5b2170f9aaf77a",
     "containment_proof_fixture_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1",
     "containment_proof_fixture_sha256": "bf3bc6470171d8d93b073de4fd85a87d45694e349de8d56dd8b3a4a4af038ebf",
     "containment_proof_schema_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json",

@@ -171,6 +171,16 @@ summary: |-
   now pinned to the current immutable Node-24 releases, upload-artifact v7.0.1 commit
   043fb46d1a93c77aae656e7c1c64a875d1fc6a0a and download-artifact v8.0.1 commit
   3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c.
+  The thirteenth branch-push attempt, run 32704238354 at handoff
+  9923edee20291bae32d8e8450377b09a018e5a66, completed all three Ubuntu cells
+  successfully through production containment, explicit UID retirement, exact-file
+  and hash checks, and artifact upload. All three Windows cells again completed the
+  production containment and exact-file/hash checks, but upload discovery found no
+  subjects after computing the correct output-root ancestor. The copied subjects had
+  retained the live evidence closure's no-read-up mandatory label. The final narrow
+  correction normalizes only the four post-teardown output copies to the reviewed
+  medium-integrity, no-write-up/readable closure. The untrusted Job Object is already
+  empty before those copies exist and cannot write or read the live evidence closure.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
@@ -227,7 +237,7 @@ finding_responses:
       - "ced3ea24068f77592eae759f48b8e7f25074ed0f"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
-        result: "1 passed in 3.20 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
+        result: "1 passed in 3.17 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
       - command: "full R3 identity test file"
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"

@@ -2047,6 +2047,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "Invoke-Via000ContainedCommand" in runner_text
     assert "mutable hostile fixture copy differs from the frozen Git bytes" in runner_text
     assert "synthetic containment diagnostic" not in runner_text
+    assert "Protect-Via000ReadOnlyClosure -Path $OutputRoot" in runner_text
     assert "Assert-FrozenProofBundle" in runner_text
     assert "child-of-child-ready" in runner_text
     assert "delayed-descendant-survived" in runner_text
