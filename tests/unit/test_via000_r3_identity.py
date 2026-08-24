@@ -620,6 +620,9 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
         summary["tool_identity_manifest_sha256"] = hashlib.sha256(
             tool_identity_path.read_bytes()
         ).hexdigest()
+        summary["evidence_paths"] = sorted(
+            [*summary["evidence_paths"], "evidence/tool-identity-manifest.json"]
+        )
         summary_path.write_text(json.dumps(summary), encoding="utf-8")
     return roots
 
