@@ -1972,7 +1972,7 @@ def test_r3_workflow_requires_production_containment_and_atomic_subject_capture(
         "ActiveProcessesAfterTermination",
         "User=$serviceUser",
         "KillMode=control-group",
-        "InaccessiblePaths=$trusted",
+        "NoNewPrivileges=yes",
         "cgroup.procs",
     ):
         assert token in containment
