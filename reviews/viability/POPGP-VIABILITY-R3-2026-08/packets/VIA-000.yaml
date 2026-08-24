@@ -5,7 +5,7 @@ packet_id: VIA-000
 candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
-protocol_commit: 3a7d55e4797627765cd01801310a39fe58c655eb
+protocol_commit: 6036cab8c021f5fbef7e51a3662ce4f147a633bc
 protocol_rule_sha256: c6bd82b5a14af163719219f57eefaf9b3388054618182a40cbf7dff99c87851d
 lifecycle_phase: drafted
 claims:
