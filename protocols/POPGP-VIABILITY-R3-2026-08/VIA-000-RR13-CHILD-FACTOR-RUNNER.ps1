@@ -319,7 +319,11 @@ $beforeOutput = (Get-Item -LiteralPath $GithubOutput -Force -ErrorAction Stop).L
     "exit_hex=$exitHex",
     "sentinel_present=$($sentinelPresent.ToString().ToLowerInvariant())",
     "stdout_nonempty=$(($stdoutLength -gt 0).ToString().ToLowerInvariant())",
-    "stderr_nonempty=$(($stderrLength -gt 0).ToString().ToLowerInvariant())"
+    "stderr_nonempty=$(($stderrLength -gt 0).ToString().ToLowerInvariant())",
+    "stdout_sha256=$([string]$summary.stdout_sha256)",
+    "stderr_sha256=$([string]$summary.stderr_sha256)",
+    "executable_sha256=$([string]$summary.executable_sha256)",
+    "native_phase=$nativePhase"
 ) | Add-Content -LiteralPath $GithubOutput -Encoding utf8NoBOM
 if ((Get-Item -LiteralPath $GithubOutput -Force -ErrorAction Stop).Length -le $beforeOutput) {
     throw "RR13 output facts were not appended"
@@ -327,9 +331,13 @@ if ((Get-Item -LiteralPath $GithubOutput -Force -ErrorAction Stop).Length -le $b
 Write-Host ((
     "RR13 factor={0} phase={1} exit_signed={2} exit_unsigned={3} exit_hex={4} " +
     "sentinel_present={5} stdout_nonempty={6} stderr_nonempty={7} " +
-    "token_flags={8} environment={9} active_after=0"
+    "stdout_sha256={8} stderr_sha256={9} executable={10} executable_sha256={11} " +
+    "token_flags={12} environment={13} suspended=true assigned_before_resume=true " +
+    "kill_on_close=true explicit_termination=true active_after=0 protected_unchanged=true"
 ) -f $Factor, $nativePhase, $exitSigned, $exitUnsigned, $exitHex,
     $sentinelPresent.ToString().ToLowerInvariant(),
     ($stdoutLength -gt 0).ToString().ToLowerInvariant(),
     ($stderrLength -gt 0).ToString().ToLowerInvariant(),
+    [string]$summary.stdout_sha256, [string]$summary.stderr_sha256,
+    $executablePath, [string]$summary.executable_sha256,
     $tokenFlags, $environmentConstruction)
