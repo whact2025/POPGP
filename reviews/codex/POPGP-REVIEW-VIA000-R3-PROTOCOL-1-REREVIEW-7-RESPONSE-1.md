@@ -98,6 +98,15 @@ summary: |-
   not traverse the hosted runner's private temporary ancestry. Its synthetic mutable
   workspace now uses the standard traversable /tmp root while evidence output remains
   in runner.temp and outside the untrusted identity. No proof artifact was uploaded.
+  The sixth branch-push attempt, run 32698727669 at handoff
+  ad15d11d458314ee60da87d3b290938f8768248f, showed systemd status 226/NAMESPACE:
+  DynamicUser's implicit private temporary namespace hid the dedicated /tmp mutable
+  root. PrivateTmp is now explicitly disabled while DynamicUser identity separation,
+  no-new-privileges, strict protected-root permissions, control-group teardown, and
+  empty-cgroup proof remain mandatory. Windows again passed all three production
+  containment steps but the runner-temp upload boundary found no subjects; its
+  post-containment evidence now lands under a medium-integrity checkout-root output
+  directory and the step requires exactly four regular evidence files before upload.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"

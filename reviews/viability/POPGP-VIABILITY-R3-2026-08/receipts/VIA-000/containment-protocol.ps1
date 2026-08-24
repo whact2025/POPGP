@@ -497,6 +497,7 @@ function Invoke-Via000ContainedCommand {
                 "--quiet", "--wait", "--pipe", "--service-type=exec", "--unit=$unit",
                 "--property=DynamicUser=yes", "--property=KillMode=control-group",
                 "--property=SendSIGKILL=yes", "--property=TimeoutStopSec=15s",
+                "--property=PrivateTmp=no",
                 "--property=NoNewPrivileges=yes", "--property=ProtectSystem=strict",
                 "--property=ProtectHome=read-only", "--property=PrivateDevices=yes",
                 "--property=ProtectKernelTunables=yes", "--property=ProtectKernelModules=yes",
