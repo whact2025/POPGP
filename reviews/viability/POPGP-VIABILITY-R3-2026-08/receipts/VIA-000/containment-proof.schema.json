@@ -66,8 +66,10 @@
             "protected_tool_write_denied", "replace_restore_denied",
             "hardlink_substitution_denied", "control_plane_environment_scrubbed",
             "delayed_descendant_write_absent", "closure_unchanged",
-            "protected_evidence_sha256", "protected_tool_sha256",
-            "containment_result_sha256", "no_campaign_execution",
+             "protected_evidence_sha256", "protected_tool_sha256",
+             "containment_result_sha256", "no_campaign_execution",
+             "export_owner_sid", "export_dacl_policy", "export_integrity_sid",
+             "export_mandatory_policy", "export_created_after_teardown",
             "no_candidate_checkout", "no_lifecycle_mutation", "no_custody_access",
             "no_commitment_or_reveal"
           ],
@@ -138,7 +140,17 @@
             "closure_unchanged": {"const": true},
             "protected_evidence_sha256": {"$ref": "#/$defs/sha256"},
             "protected_tool_sha256": {"$ref": "#/$defs/sha256"},
-            "containment_result_sha256": {"$ref": "#/$defs/sha256"},
+             "containment_result_sha256": {"$ref": "#/$defs/sha256"},
+             "export_owner_sid": {
+               "type": "string",
+               "pattern": "^(?:|S-1-(?:[0-9]+-)+[0-9]+)$"
+             },
+             "export_dacl_policy": {
+               "enum": ["protected-current-runner-full-control-v1", "owner-rwx-0700-v1"]
+             },
+             "export_integrity_sid": {"enum": ["", "S-1-16-8192"]},
+             "export_mandatory_policy": {"enum": ["NO_WRITE_UP", "owner-only"]},
+             "export_created_after_teardown": {"const": true},
             "no_campaign_execution": {"const": true},
             "no_candidate_checkout": {"const": true},
             "no_lifecycle_mutation": {"const": true},

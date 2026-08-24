@@ -111,6 +111,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 
@@ -124,6 +125,13 @@ namespace Via000R3 {
     public string TokenIntegritySid { get; set; } = "";
     public string[] EnabledPrivileges { get; set; } = new string[0];
     public string ProtectedLabelPolicy { get; set; } = "medium-integrity-no-write-up-no-read-up";
+  }
+
+  public sealed class MandatoryLabelResult {
+    public string Sid { get; set; } = "";
+    public uint PolicyMask { get; set; }
+    public byte AceFlags { get; set; }
+    public uint AceCount { get; set; }
   }
 
   public static class NativeContainment {
@@ -200,6 +208,7 @@ namespace Via000R3 {
     [StructLayout(LayoutKind.Sequential)] struct TOKEN_MANDATORY_LABEL { public SID_AND_ATTRIBUTES Label; }
     [StructLayout(LayoutKind.Sequential)] struct LUID { public UInt32 LowPart; public Int32 HighPart; }
     [StructLayout(LayoutKind.Sequential)] struct LUID_AND_ATTRIBUTES { public LUID Luid; public UInt32 Attributes; }
+    [StructLayout(LayoutKind.Sequential)] struct ACL_SIZE_INFORMATION { public UInt32 AceCount, AclBytesInUse, AclBytesFree; }
 
     [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr GetCurrentProcess();
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool OpenProcessToken(IntPtr p, UInt32 access, out IntPtr token);
@@ -212,6 +221,9 @@ namespace Via000R3 {
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSecurityDescriptorToSecurityDescriptor(string value, UInt32 revision, out IntPtr descriptor, out UInt32 size);
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetSecurityDescriptorSacl(IntPtr descriptor, out bool present, out IntPtr sacl, out bool defaulted);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern UInt32 SetNamedSecurityInfo(string name, int objectType, UInt32 information, IntPtr owner, IntPtr group, IntPtr dacl, IntPtr sacl);
+    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern UInt32 GetNamedSecurityInfo(string name, int objectType, UInt32 information, out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
+    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetAclInformation(IntPtr acl, out ACL_SIZE_INFORMATION information, UInt32 length, int informationClass);
+    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetAce(IntPtr acl, UInt32 index, out IntPtr ace);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool CreateProcessAsUser(IntPtr token, string app, StringBuilder command, IntPtr pa, IntPtr ta, bool inherit, UInt32 flags, IntPtr env, string cwd, ref STARTUPINFO si, out PROCESS_INFORMATION pi);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr CreateJobObject(IntPtr attrs, string name);
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetInformationJobObject(IntPtr job, int cls, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info, UInt32 len);
@@ -323,6 +335,27 @@ namespace Via000R3 {
         if (!present || sacl == IntPtr.Zero) throw new InvalidOperationException("mandatory label SACL is absent");
         UInt32 status = SetNamedSecurityInfo(path, 1, 0x10, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, sacl);
         if (status != 0) throw new Win32Exception((int)status, "SetNamedSecurityInfo mandatory label");
+      } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+    }
+
+    public static MandatoryLabelResult GetMandatoryLabel(string path) {
+      IntPtr descriptor = IntPtr.Zero;
+      try {
+        UInt32 status = GetNamedSecurityInfo(path, 1, 0x10, out _, out _, out _, out IntPtr sacl, out descriptor);
+        if (status != 0) throw new Win32Exception((int)status, "GetNamedSecurityInfo mandatory label");
+        if (descriptor == IntPtr.Zero || sacl == IntPtr.Zero)
+          throw new InvalidOperationException("mandatory label SACL is absent");
+        Win32(GetAclInformation(sacl, out ACL_SIZE_INFORMATION info, (uint)Marshal.SizeOf<ACL_SIZE_INFORMATION>(), 2), "GetAclInformation mandatory label");
+        if (info.AceCount != 1) throw new InvalidOperationException("mandatory label SACL does not contain exactly one ACE");
+        Win32(GetAce(sacl, 0, out IntPtr ace), "GetAce mandatory label");
+        if (ace == IntPtr.Zero || Marshal.ReadByte(ace, 0) != 0x11)
+          throw new InvalidOperationException("mandatory label ACE type differs");
+        return new MandatoryLabelResult {
+          Sid = new SecurityIdentifier(IntPtr.Add(ace, 8)).Value,
+          PolicyMask = unchecked((uint)Marshal.ReadInt32(ace, 4)),
+          AceFlags = Marshal.ReadByte(ace, 1),
+          AceCount = info.AceCount
+        };
       } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
     }
 
@@ -440,6 +473,102 @@ function Set-Via000RootIntegrity {
         [IO.UnixFileMode]::GroupExecute -bor [IO.UnixFileMode]::OtherExecute
     }
     [IO.File]::SetUnixFileMode($item.FullName, $mode)
+}
+
+function Set-Via000WindowsExportSecurity {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not $IsWindows) { throw "Windows export security requires a Windows host" }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if (-not ($item -is [IO.DirectoryInfo]) -or
+        ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Windows export root is not one ordinary non-reparse directory"
+    }
+    $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    if ($null -eq $runnerSid -or $runnerSid.Value -cnotmatch '^S-1-(?:[0-9]+-)+[0-9]+$') {
+        throw "trusted Windows runner SID is unavailable"
+    }
+    $security = [Security.AccessControl.DirectorySecurity]::new()
+    $security.SetOwner($runnerSid)
+    $security.SetAccessRuleProtection($true, $false)
+    $inheritance = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+        [Security.AccessControl.InheritanceFlags]::ObjectInherit
+    $rule = [Security.AccessControl.FileSystemAccessRule]::new(
+        $runnerSid,
+        [Security.AccessControl.FileSystemRights]::FullControl,
+        $inheritance,
+        [Security.AccessControl.PropagationFlags]::None,
+        [Security.AccessControl.AccessControlType]::Allow
+    )
+    [void]$security.AddAccessRule($rule)
+    Set-Acl -LiteralPath $item.FullName -AclObject $security -ErrorAction Stop
+    Initialize-Via000WindowsNative
+    [Via000R3.NativeContainment]::SetIntegrityLabel($item.FullName, $false, $false)
+    return Assert-Via000WindowsExportSecurity -Path $item.FullName -Kind root
+}
+
+function Assert-Via000WindowsExportSecurity {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateSet("root", "file")][string]$Kind,
+        [string]$ExpectedSha256 = ""
+    )
+    if (-not $IsWindows) { throw "Windows export security requires a Windows host" }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if (($Kind -eq "root" -and -not ($item -is [IO.DirectoryInfo])) -or
+        ($Kind -eq "file" -and -not ($item -is [IO.FileInfo])) -or
+        ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Windows export subject type or reparse identity differs"
+    }
+    if ($Kind -eq "file") {
+        $streams = @(Get-Item -LiteralPath $item.FullName -Stream * -ErrorAction Stop)
+        if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA') {
+            throw "Windows export file contains an alternate data stream"
+        }
+        if ($ExpectedSha256 -cnotmatch '^[0-9a-f]{64}$' -or
+            (Get-Via000Sha256 -Path $item.FullName) -cne $ExpectedSha256) {
+            throw "Windows export file hash differs"
+        }
+    } elseif ($ExpectedSha256) {
+        throw "Windows export root cannot declare a file hash"
+    }
+
+    $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    $acl = Get-Acl -LiteralPath $item.FullName -ErrorAction Stop
+    $ownerSid = $acl.GetOwner([Security.Principal.SecurityIdentifier])
+    $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
+    $expectedInheritance = if ($Kind -eq "root") {
+        [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+            [Security.AccessControl.InheritanceFlags]::ObjectInherit
+    } else { [Security.AccessControl.InheritanceFlags]::None }
+    $expectedInherited = $Kind -eq "file"
+    $expectedProtected = $Kind -eq "root"
+    if ($null -eq $runnerSid -or $ownerSid.Value -cne $runnerSid.Value -or
+        $acl.AreAccessRulesProtected -ne $expectedProtected -or $rules.Count -ne 1) {
+        throw "Windows export owner or protected DACL cardinality differs"
+    }
+    $access = $rules[0]
+    if ($access.IdentityReference.Value -cne $runnerSid.Value -or
+        $access.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow -or
+        $access.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl -or
+        $access.InheritanceFlags -ne $expectedInheritance -or
+        $access.PropagationFlags -ne [Security.AccessControl.PropagationFlags]::None -or
+        $access.IsInherited -ne $expectedInherited) {
+        throw "Windows export DACL grants a subject other than the exact runner SID"
+    }
+    Initialize-Via000WindowsNative
+    $label = [Via000R3.NativeContainment]::GetMandatoryLabel($item.FullName)
+    $expectedAceFlags = if ($Kind -eq "root") { [byte]3 } else { [byte]16 }
+    if ($label.AceCount -ne 1 -or $label.Sid -cne 'S-1-16-8192' -or
+        $label.PolicyMask -ne 1 -or $label.AceFlags -ne $expectedAceFlags) {
+        throw "Windows export mandatory label is not exact medium NO_WRITE_UP"
+    }
+    return [pscustomobject][ordered]@{
+        owner_sid = $runnerSid.Value
+        dacl_policy = "protected-current-runner-full-control-v1"
+        integrity_sid = $label.Sid
+        mandatory_policy = "NO_WRITE_UP"
+        inherited_file_dacl = $expectedInherited
+    }
 }
 
 function Protect-Via000ReadOnlyClosure {

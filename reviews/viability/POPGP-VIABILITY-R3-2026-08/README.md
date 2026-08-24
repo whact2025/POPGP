@@ -156,6 +156,18 @@ exact four protocol and four public receipt scripts, requires zero `ParseFile` e
 and proves malformed grammar is rejected. Only a fresh exact-head six-cell run can
 supply hosted proof; the failed RR14 run and its absent artifacts cannot be reused.
 
+RR16 supersedes RR15 hosted run `32745872694`. Its Windows containment completed, but
+Ubuntu's conditional empty-array expression collapsed the expected token flags to null,
+and Windows then rejected a legitimate fresh export root because it assumed inherited
+ACL shape. Ubuntu now constructs a non-null empty object array before the platform
+branch. Windows now creates a protected post-teardown export DACL with one exact
+current-runner SID `FullControl` ACE and exact owner, and natively re-queries an exact
+medium `S-1-16-8192` mandatory label with `NO_WRITE_UP` on both root and inherited
+envelope. The trusted digest and pre-cache-save boundaries independently recheck the
+frozen helper hash, owner, DACL, mandatory label, single-file identity, and envelope
+hash. The prior run produced no reusable cache or retained artifact; only a fresh exact
+RR16 handoff replay can supply proof.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

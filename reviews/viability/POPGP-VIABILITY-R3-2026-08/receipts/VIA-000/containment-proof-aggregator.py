@@ -53,6 +53,7 @@ TRUE_FIELDS = {
     "control_plane_environment_scrubbed",
     "delayed_descendant_write_absent",
     "closure_unchanged",
+    "export_created_after_teardown",
     "no_campaign_execution",
     "no_candidate_checkout",
     "no_lifecycle_mutation",
@@ -101,6 +102,10 @@ CELL_FIELDS = {
     "enabled_privilege_count",
     "enabled_privileges",
     "protected_label_policy",
+    "export_owner_sid",
+    "export_dacl_policy",
+    "export_integrity_sid",
+    "export_mandatory_policy",
     *HASH_FIELDS,
     *TRUE_FIELDS,
     "primitive",
@@ -354,6 +359,24 @@ def _validate_cell(
         or document.get("protected_label_policy") != expected_label_policy
     ):
         raise ValueError(f"proof token or protected-label policy differs: {path}")
+    expected_export = (
+        (
+            r"S-1-(?:[0-9]+-)+[0-9]+",
+            "protected-current-runner-full-control-v1",
+            "S-1-16-8192",
+            "NO_WRITE_UP",
+        )
+        if platform == "windows-x86_64"
+        else (r"", "owner-rwx-0700-v1", "", "owner-only")
+    )
+    if (
+        re.fullmatch(expected_export[0], document.get("export_owner_sid", "")) is None
+        or document.get("export_dacl_policy") != expected_export[1]
+        or document.get("export_integrity_sid") != expected_export[2]
+        or document.get("export_mandatory_policy") != expected_export[3]
+        or document.get("export_created_after_teardown") is not True
+    ):
+        raise ValueError(f"proof export security evidence differs: {path}")
     if any(
         not isinstance(document[field], str)
         or re.fullmatch(r"[0-9a-f]{64}", document[field]) is None

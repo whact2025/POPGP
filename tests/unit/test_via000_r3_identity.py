@@ -159,6 +159,24 @@ def _token_evidence(platform: str) -> dict[str, object]:
     }
 
 
+def _export_evidence(platform: str) -> dict[str, object]:
+    if platform == "windows-x86_64":
+        return {
+            "export_owner_sid": "S-1-5-21-1-2-3-1001",
+            "export_dacl_policy": "protected-current-runner-full-control-v1",
+            "export_integrity_sid": "S-1-16-8192",
+            "export_mandatory_policy": "NO_WRITE_UP",
+            "export_created_after_teardown": True,
+        }
+    return {
+        "export_owner_sid": "",
+        "export_dacl_policy": "owner-rwx-0700-v1",
+        "export_integrity_sid": "",
+        "export_mandatory_policy": "owner-only",
+        "export_created_after_teardown": True,
+    }
+
+
 def _overlay(source: Path, destination: Path) -> None:
     if source.is_dir():
         destination.mkdir(parents=True, exist_ok=True)
@@ -2111,7 +2129,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "live proof subject inner hash binding differs before export" in runner_text
     assert "Get-Item -LiteralPath $full -Stream *" in runner_text
     assert "LinkCount($full)" in runner_text
-    assert "inherited medium-user DACL" in runner_text
+    assert "Set-Via000WindowsExportSecurity -Path $OutputRoot" in runner_text
+    assert "Windows export file did not inherit the exact protected runner DACL" in runner_text
     assert "MaximumProofEnvelopeBytes" in runner_text
     assert "Protect-Via000ReadOnlyClosure -Path $OutputRoot" not in runner_text
     assert "Assert-FrozenProofBundle" in runner_text
@@ -2166,6 +2185,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "control_plane_environment_scrubbed",
         "delayed_descendant_write_absent",
         "closure_unchanged",
+        "export_created_after_teardown",
         "no_campaign_execution",
         "no_candidate_checkout",
         "no_lifecycle_mutation",
@@ -2242,6 +2262,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 "primitive": primitive,
                 "privilege_separation": privilege,
                 **_token_evidence(platform),
+                **_export_evidence(platform),
                 "active_processes_after_teardown": 0,
                 "containment_result_sha256": hashlib.sha256(
                     subjects["containment-result.json"]
@@ -2540,6 +2561,7 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
             "primitive": contained["primitive"],
             "privilege_separation": contained["privilege_separation"],
             **_token_evidence(platform),
+            **_export_evidence(platform),
             "containment_result_sha256": hashlib.sha256(
                 subjects["containment-result.json"]
             ).hexdigest(),
@@ -2788,6 +2810,43 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
     if os.name == "nt":
         pwsh = shutil.which("pwsh")
         assert pwsh is not None
+        local_protocol_dir = tmp_path / "protocols/POPGP-VIABILITY-R3-2026-08"
+        local_protocol_dir.mkdir(parents=True)
+        local_helper = local_protocol_dir / "VIA-000-CONTAINMENT.ps1"
+        shutil.copyfile(CONTAINMENT, local_helper)
+        (local_protocol_dir / "VIA-000.json").write_text(
+            json.dumps(
+                {
+                    "parameters": {
+                        "containment_protocol_sha256": hashlib.sha256(
+                            local_helper.read_bytes()
+                        ).hexdigest()
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        live_export = cache_root / "windows-x86_64/candidate"
+        live_envelope = live_export / "envelope.json"
+        live_bytes = live_envelope.read_bytes()
+        live_envelope.unlink()
+        secure_script = tmp_path / "rr16-secure-live-export.ps1"
+        secure_script.write_text(
+            "param([string]$Helper,[string]$Root)\n"
+            + "$ErrorActionPreference='Stop'; . $Helper\n"
+            + "$null=Set-Via000WindowsExportSecurity -Path $Root\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        secured = subprocess.run(
+            [pwsh, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", str(secure_script),
+             str(local_helper), str(live_export)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert secured.returncode == 0, secured.stderr
+        live_envelope.write_bytes(live_bytes)
         local_trusted_path = f"{Path(pwsh).parent};C:\\Windows\\System32;C:\\Windows"
         digest_step = next(
             step
@@ -3407,6 +3466,165 @@ Assert-ExactArrayCase { Test-ExactOrdinalStringArray -Left @('') -Right @('') } 
     assert predicate_result.returncode == 0, predicate_result.stderr
     assert predicate_result.stdout == ""
     assert predicate_result.stderr == ""
+
+
+@pytest.mark.negative_control
+def test_r3_rr16_ubuntu_canonical_empty_array_and_windows_export_source(
+    tmp_path: Path,
+) -> None:
+    """TST-VIA000-R3-RR16-UBUNTU-CANONICAL-EMPTY-ARRAY-001."""
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    affected = (
+        CONTAINMENT_PROOF_RUNNER,
+        RUNNER,
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-runner.ps1",
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/runner-protocol.ps1",
+    )
+    for path in affected:
+        source = path.read_text(encoding="utf-8")
+        assert "[object[]]$expectedTokenFlags = @()" in source
+        assert '$expectedTokenFlags = [object[]]@("DISABLE_MAX_PRIVILEGE")' in source
+        assert '$expectedTokenFlags = if ($PlatformFamily' not in source
+
+    predicate = _powershell_function_text(
+        CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8"),
+        "Test-ExactOrdinalStringArray",
+    )
+    script = tmp_path / "canonical-empty-array.ps1"
+    script.write_text(
+        predicate
+        + "\n[object[]]$expected=@()\n"
+        + "if ($null -eq $expected -or $expected.Count -ne 0) { exit 71 }\n"
+        + "if (-not (Test-ExactOrdinalStringArray -Left ([object[]]@()) "
+        + "-Right $expected)) { exit 72 }\n"
+        + "if (Test-ExactOrdinalStringArray -Left $null -Right $expected) { exit 73 }\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    result = subprocess.run(
+        [pwsh, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", str(script)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+    for path in (
+        CONTAINMENT,
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-protocol.ps1",
+    ):
+        source = path.read_text(encoding="utf-8")
+        for token in (
+            "Set-Via000WindowsExportSecurity",
+            "Assert-Via000WindowsExportSecurity",
+            "protected-current-runner-full-control-v1",
+            "S-1-16-8192",
+            "NO_WRITE_UP",
+            "GetMandatoryLabel",
+            "SetAccessRuleProtection($true, $false)",
+        ):
+            assert token in source
+
+
+@pytest.mark.skipif(os.name != "nt", reason="exact Windows low-integrity export boundary")
+@pytest.mark.negative_control
+def test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(
+    tmp_path: Path,
+) -> None:
+    """TST-VIA000-R3-RR16-WINDOWS-MEDIUM-EXPORT-BOUNDARY-001."""
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    mutable, trusted, export = (tmp_path / name for name in ("mutable", "trusted", "export"))
+    for directory in (mutable, trusted, export):
+        directory.mkdir()
+    envelope = export / "envelope.json"
+    envelope.write_bytes(b'{"safe":true}\n')
+    expected_sha = _sha(envelope)
+    (mutable / "replacement.json").write_bytes(b"replacement\n")
+    payload = mutable / "export-attack.py"
+    payload.write_text(
+        "import os, sys\n"
+        "export, envelope, mutable = sys.argv[1:]\n"
+        "open(os.path.join(mutable, 'mutable-write-allowed'), 'w').write('allowed')\n"
+        "operations = {\n"
+        " 'create': lambda: open(os.path.join(export, 'created'), 'wb').write(b'x'),\n"
+        " 'write': lambda: open(envelope, 'wb').write(b'replaced'),\n"
+        " 'rename': lambda: os.rename(envelope, envelope + '.moved'),\n"
+        " 'delete': lambda: os.unlink(envelope),\n"
+        " 'reparse': lambda: os.symlink(mutable, os.path.join(export, 'link'), "
+        "target_is_directory=True),\n"
+        " 'replace': lambda: os.replace(os.path.join(mutable, 'replacement.json'), envelope),\n"
+        "}\n"
+        "for name, operation in operations.items():\n"
+        " try:\n"
+        "  operation(); open(os.path.join(mutable, name + '-succeeded'), 'w').write(name)\n"
+        " except OSError:\n"
+        "  pass\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    harness = tmp_path / "invoke-export.ps1"
+    harness.write_text(
+        "param([string]$Boundary,[string]$Python,[string]$Payload,[string]$Mutable,[string]$Trusted,[string]$Export,[string]$ExpectedSha)\n"
+        "$ErrorActionPreference='Stop'; . $Boundary; $tools=@{}\n"
+        "Test-Via000ContainmentAvailability -PlatformFamily windows-x86_64 -SystemTools $tools\n"
+        "Set-Via000RootIntegrity -Path $Mutable -Kind mutable -SystemTools $tools\n"
+        "Set-Via000RootIntegrity -Path $Trusted -Kind protected -SystemTools $tools\n"
+        "$rootSecurity=Set-Via000WindowsExportSecurity -Path $Export\n"
+        "$fileSecurity=Assert-Via000WindowsExportSecurity `\n"
+        " -Path (Join-Path $Export 'envelope.json') -Kind file `\n"
+        " -ExpectedSha256 $ExpectedSha\n"
+        "if ($rootSecurity.owner_sid -cne $fileSecurity.owner_sid -or `\n"
+        " -not $fileSecurity.inherited_file_dacl) { `\n"
+        " throw 'initial export descriptor differs' }\n"
+        "$closure=@{}\n"
+        "foreach($path in @($Python,$Boundary,(Join-Path $Export 'envelope.json'))){\n"
+        " $closure[$path]=(Get-FileHash -Algorithm SHA256 `\n"
+        "  -LiteralPath $path).Hash.ToLowerInvariant()\n"
+        "}\n"
+        "Invoke-Via000ContainedCommand -Label rr16-export `\n"
+        " -ContractId rr16-export-boundary -PlatformFamily windows-x86_64 `\n"
+        " -FilePath $Python -Arguments @('-I','-S',$Payload,$Export,`\n"
+        "  (Join-Path $Export 'envelope.json'),$Mutable) `\n"
+        " -WorkingDirectory $Mutable -MutableRoot $Mutable -TrustedRoot $Trusted `\n"
+        " -StdoutPath (Join-Path $Trusted 'stdout.txt') `\n"
+        " -StderrPath (Join-Path $Trusted 'stderr.txt') `\n"
+        " -ResultPath (Join-Path $Trusted 'result.json') `\n"
+        " -Environment @{} -Closure $closure -SystemTools $tools -TimeoutSeconds 30\n"
+        "$rootCheck=Assert-Via000WindowsExportSecurity -Path $Export -Kind root\n"
+        "$fileCheck=Assert-Via000WindowsExportSecurity `\n"
+        " -Path (Join-Path $Export 'envelope.json') -Kind file `\n"
+        " -ExpectedSha256 $ExpectedSha\n"
+        "[IO.File]::WriteAllText((Join-Path $Export 'trusted-write.txt'),`\n"
+        " 'trusted',[Text.UTF8Encoding]::new($false))\n"
+        "if ([IO.File]::ReadAllText((Join-Path $Export 'trusted-write.txt')) `\n"
+        " -cne 'trusted') { throw 'trusted runner export access failed' }\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    completed = subprocess.run(
+        [pwsh, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", str(harness),
+         str(CONTAINMENT), sys.executable, str(payload), str(mutable), str(trusted),
+         str(export), expected_sha],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads((trusted / "result.json").read_text(encoding="utf-8"))
+    assert result["descendants_quiescent"] is True
+    assert result["active_processes_after_teardown"] == 0
+    assert (mutable / "mutable-write-allowed").read_text(encoding="utf-8") == "allowed"
+    for name in ("create", "write", "rename", "delete", "reparse", "replace"):
+        assert not (mutable / f"{name}-succeeded").exists()
+    assert _sha(envelope) == expected_sha
+    assert (export / "trusted-write.txt").read_text(encoding="utf-8") == "trusted"
 
 
 @pytest.mark.negative_control

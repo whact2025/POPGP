@@ -342,9 +342,10 @@ try {
         $result.exit_code -ne 0 -or $result.timed_out -ne $false) {
         throw "production containment result is incomplete or uses the wrong primitive"
     }
-    $expectedTokenFlags = if ($PlatformFamily -eq "windows-x86_64") {
-        @("DISABLE_MAX_PRIVILEGE")
-    } else { @() }
+    [object[]]$expectedTokenFlags = @()
+    if ($PlatformFamily -eq "windows-x86_64") {
+        $expectedTokenFlags = [object[]]@("DISABLE_MAX_PRIVILEGE")
+    }
     $expectedIntegritySid = if ($PlatformFamily -eq "windows-x86_64") {
         "S-1-16-4096"
     } else { "" }
@@ -392,6 +393,33 @@ try {
         throw "protected evidence or tool subject changed after containment"
     }
     Assert-Via000Closure -Closure $closure -MutableRoot $mutable -Moment "proof-final"
+
+    foreach ($path in @($cacheBase, $cachePlatform, $OutputRoot)) {
+        New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
+    }
+    $outputItem = Get-Item -LiteralPath $OutputRoot -Force -ErrorAction Stop
+    if (-not ($outputItem -is [IO.DirectoryInfo]) -or
+        ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+        -not $outputItem.Parent.FullName.Equals($cachePlatform, $comparison)) {
+        throw "proof envelope export root is not one fresh cell-specific cache directory"
+    }
+    if ($IsWindows) {
+        $exportSecurity = Set-Via000WindowsExportSecurity -Path $OutputRoot
+    } else {
+        $mode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
+            [IO.UnixFileMode]::UserExecute
+        [IO.File]::SetUnixFileMode($OutputRoot, $mode)
+        if ([IO.File]::GetUnixFileMode($OutputRoot) -ne $mode) {
+            throw "Ubuntu proof envelope export root mode differs"
+        }
+        $exportSecurity = [pscustomobject][ordered]@{
+            owner_sid = ""
+            dacl_policy = "owner-rwx-0700-v1"
+            integrity_sid = ""
+            mandatory_policy = "owner-only"
+            inherited_file_dacl = $false
+        }
+    }
 
     $artifactName = "via000-r3-containment-proof-$PlatformFamily-$StageId"
     $proof = [ordered]@{
@@ -442,6 +470,11 @@ try {
         protected_evidence_sha256 = $evidenceHash
         protected_tool_sha256 = $toolHash
         containment_result_sha256 = Get-ProofSha256 -Path $containedResult
+        export_owner_sid = [string]$exportSecurity.owner_sid
+        export_dacl_policy = [string]$exportSecurity.dacl_policy
+        export_integrity_sid = [string]$exportSecurity.integrity_sid
+        export_mandatory_policy = [string]$exportSecurity.mandatory_policy
+        export_created_after_teardown = $true
         no_campaign_execution = $true
         no_candidate_checkout = $true
         no_lifecycle_mutation = $true
@@ -487,33 +520,6 @@ try {
         [string]$resultCheck.stderr_sha256 -cne
             (Get-ProofBytesSha256 -Bytes $subjectBytes["stderr.txt"])) {
         throw "live proof subject inner hash binding differs before export"
-    }
-
-    foreach ($path in @($cacheBase, $cachePlatform, $OutputRoot)) {
-        New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
-    }
-    $outputItem = Get-Item -LiteralPath $OutputRoot -Force -ErrorAction Stop
-    if (-not ($outputItem -is [IO.DirectoryInfo]) -or
-        ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-        -not $outputItem.Parent.FullName.Equals($cachePlatform, $comparison)) {
-        throw "proof envelope export root is not one fresh cell-specific cache directory"
-    }
-    if ($IsWindows) {
-        Set-Via000RootIntegrity -Path $OutputRoot -Kind traverse -SystemTools $systemTools
-        $parentAcl = Get-Acl -LiteralPath $cachePlatform -ErrorAction Stop
-        $outputAcl = Get-Acl -LiteralPath $OutputRoot -ErrorAction Stop
-        $explicitRules = @($outputAcl.Access | Where-Object { -not $_.IsInherited })
-        if ($outputAcl.AreAccessRulesProtected -or $explicitRules.Count -ne 0 -or
-            [string]$outputAcl.Owner -cne [string]$parentAcl.Owner) {
-            throw "Windows proof envelope export root is not an inherited medium-user DACL"
-        }
-    } else {
-        $mode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
-            [IO.UnixFileMode]::UserExecute
-        [IO.File]::SetUnixFileMode($OutputRoot, $mode)
-        if ([IO.File]::GetUnixFileMode($OutputRoot) -ne $mode) {
-            throw "Ubuntu proof envelope export root mode differs"
-        }
     }
 
     $identity = New-ProofSortedMap
@@ -571,6 +577,16 @@ try {
         (Get-ProofBytesSha256 -Bytes $writtenBytes) -cne
             (Get-ProofBytesSha256 -Bytes $envelopeBytes)) {
         throw "canonical proof envelope changed after export"
+    }
+    $envelopeSha256 = Get-ProofBytesSha256 -Bytes $writtenBytes
+    if ($IsWindows) {
+        $fileSecurity = Assert-Via000WindowsExportSecurity -Path $verifiedEnvelope `
+            -Kind file -ExpectedSha256 $envelopeSha256
+        $rootSecurity = Assert-Via000WindowsExportSecurity -Path $OutputRoot -Kind root
+        if ($fileSecurity.owner_sid -cne $rootSecurity.owner_sid -or
+            $fileSecurity.inherited_file_dacl -ne $true) {
+            throw "Windows export file did not inherit the exact protected runner DACL"
+        }
     }
     $success = $true
 } finally {

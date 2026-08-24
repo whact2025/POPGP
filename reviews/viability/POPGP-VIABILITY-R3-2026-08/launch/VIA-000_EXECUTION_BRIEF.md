@@ -119,6 +119,10 @@ Status: design handoff for independent review only. Do not dispatch or start hol
     Before any hosted replay, parse the exact eight frozen R3 protocol/receipt `.ps1`
     files with PowerShell 7 `Parser.ParseFile` and require zero errors; the exact token
     flag arrays must compare by count plus ordinal element equality, never by joining.
+    Ubuntu's empty expected flag list must be a non-null object array. On Windows the
+    post-teardown cache/export root and envelope must have the exact current-runner SID
+    owner/DACL and medium `S-1-16-8192` `NO_WRITE_UP` label, rechecked before digest and
+    immediately before cache save; inherited hosted-workspace ACL shape is not evidence.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

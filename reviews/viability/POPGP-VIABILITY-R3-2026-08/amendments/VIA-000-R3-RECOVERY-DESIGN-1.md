@@ -370,3 +370,19 @@ temporary `-cjoin` source must fail the same gate, while separate probes reject 
 order, count, type, null, delimiter-collision, and empty-array substitutions. RR14's
 token, integrity, privilege, containment, and evidence requirements are unchanged.
 A fresh six-cell hosted proof and retained redownload remain mandatory.
+
+## RR16 hosted export-boundary amendment
+
+RR15's hosted run proved that all six frozen runners parse and both containment
+primitives execute, but Ubuntu's conditional empty-array expression collapsed the
+expected flags to null, while Windows tested a nondeterministic inherited ACL shape.
+RR16 constructs the Ubuntu expectation as an explicit non-null empty object array.
+
+After Windows teardown, trusted PowerShell now applies a protected DACL containing
+only one exact current-runner SID `FullControl` ACE, fixes the owner to that SID, and
+sets an inheritable exact medium `S-1-16-8192` mandatory label with `NO_WRITE_UP`.
+Native SID/mask/ACE queries and SID-based DACL inspection verify the fresh root and its
+single inherited envelope before digest output and again before cache save. A live low-
+integrity regression requires mutable writes to succeed while export create, write,
+rename, delete, reparse, and replace attempts fail. A fresh six-cell hosted proof and
+retained redownload remain mandatory.

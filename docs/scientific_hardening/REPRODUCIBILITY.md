@@ -217,6 +217,11 @@ one aggregate manifest in one artifact, then downloads and revalidates that seve
 set. Empty stdout/stderr retain the standard SHA-256 of the empty byte string. Cache
 save warnings cannot establish success; missing, duplicate, nonhex, stale, fallback,
 oversized, corrupt, cross-cell, or retained link/file/hash substitutions fail closed.
+On Windows the fresh post-teardown cell export root has a protected DACL containing
+exactly one current-runner SID `FullControl` ACE, exact owner SID, and an exact medium
+`S-1-16-8192` mandatory label with `NO_WRITE_UP`; the inherited envelope descriptor
+and hash are re-queried by separate trusted steps before digest output and cache save.
+Ubuntu constructs its canonical expected empty token list as a non-null object array.
 
 The hosted Ubuntu proof explicitly disables `PrivateTmp`, `ProtectSystem`, and
 `ProtectHome` because that runner rejects the corresponding mount namespace. It makes

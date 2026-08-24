@@ -771,9 +771,10 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
             [int]$record.active_processes_after_teardown -ne 0) {
             throw "contained command retained an untrusted descendant"
         }
-        $expectedTokenFlags = if ($PlatformFamily -eq "windows-x86_64") {
-            @("DISABLE_MAX_PRIVILEGE")
-        } else { @() }
+        [object[]]$expectedTokenFlags = @()
+        if ($PlatformFamily -eq "windows-x86_64") {
+            $expectedTokenFlags = [object[]]@("DISABLE_MAX_PRIVILEGE")
+        }
         $expectedIntegritySid = if ($PlatformFamily -eq "windows-x86_64") {
             "S-1-16-4096"
         } else { "" }
