@@ -31,7 +31,10 @@ access_declaration:
     created. The new workflow is synthetic and non-scientific.
 
 summary: |-
-  The RR7 proof-path finding is accepted and addressed in implementation commit
+  The RR7 proof-path finding is accepted. The frozen draft implements the requested
+  containment proof path, but hosted acceptance remains externally blocked because
+  GitHub's Windows artifact action cannot discover the four proof files that the
+  immediately preceding trusted step verifies byte-for-byte. Implementation commit
   6e1b3beccba3072a861f3452665e85d20f2f4c0f and final content commit
   fa42dbdb66ad61f774a2d6d33b1592787752019e (tree
   807219e8b3d507b9bd9108b74e34f1dfebc95548). A separate safe workflow now runs the
@@ -188,18 +191,28 @@ summary: |-
   copies: it creates four new post-teardown byte-for-byte subjects with normal file
   attributes, applies the reviewed medium/no-write-up closure, and enables hidden-file
   discovery for those exact four names. No live protected evidence permission changes.
+  The fifteenth branch-push attempt, run 32705009673 at handoff
+  689ba359f229dea5bead7e90e6dc84dde2e2fc4a, again completed all three Ubuntu cells
+  end-to-end and uploaded artifacts 9511903681 (candidate), 9511903097 (PDF), and
+  9511902419 (mutation). Windows jobs 97364106435 (candidate), 97364106550 (PDF), and
+  97364106303 (mutation) each passed production containment plus exact four-file/hash
+  verification, then the current pinned upload action reported no files for the exact
+  verified paths. Aggregate job 97364218625 rejected the incomplete 2x3 set. This is
+  the concrete hosted proof-path blocker; the builder stops here rather than weaken
+  the required artifact/aggregate gate or claim an unsupported six-cell success.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
     blocking_as_reported: true
     disposition: accepted
-    implementation_status: implemented
+    implementation_status: external-action-required
     rationale: |-
-      Reviewers can now exercise the required production Windows Job Object and
+      The safe workflow exercises the required production Windows Job Object and
       Ubuntu systemd ephemeral-user/control-group primitives on an unmerged reviewed
-      source without creating campaign authorization or weakening the production
-      workflow's signer/lifecycle guard. Runtime unavailability or any failed cell
-      fails the synthetic workflow and prevents its aggregate artifact.
+      source without campaign authorization or signer/lifecycle changes. The Ubuntu
+      path is proven end-to-end. The Windows primitive and pre-upload evidence checks
+      pass, but GitHub artifact discovery remains externally unresolved, so the exact
+      2x3 aggregate is correctly absent and the finding cannot yet be called closed.
     changed_files:
       - ".github/workflows/via000-r3-containment-proof.yml"
       - ".gitattributes"
@@ -257,13 +270,13 @@ finding_responses:
         result: "9 review-guidance tests passed in 10.83 seconds with the 431-test ledger reconciled; TeX source validation passed."
       - command: "campaign validator"
         result: "The drafted campaign is validator-clean at the bound content commit; no lifecycle state advanced."
-    residual_risk: "Fresh hosted execution must pass all six cells and be independently inspected. GitHub hosted image/service/ACL policy and the pinned action/control-plane principals remain external runtime premises. The comment-only signer and fresh custody verification continue to block activation."
+    residual_risk: "Critical: Windows proof files are verified locally in each hosted job but are not retained by the pinned artifact action, so no exact 2x3 aggregate exists. A fresh independent fix/review of that external artifact boundary is required. The comment-only signer and fresh custody verification also continue to block activation."
     disagreement_ref: ""
 
 requested_test_responses:
   - requested_test_id: "TST-VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
     disposition: accepted
-    implementation_status: implemented
+    implementation_status: external-action-required
     test_locations:
       - ".github/workflows/via000-r3-containment-proof.yml"
       - "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
@@ -273,14 +286,15 @@ requested_test_responses:
     verification:
       - command: "source-level exact production-path and safety regression"
         result: "The workflow has the exact six hosted cells, immutable action revisions, read-only permissions, safe branch trigger, exact production helper invocation, frozen receipts, and no campaign execution surface."
-      - command: "real hosted branch-push replay"
-        result: "Triggered only after the immutable handoff is pushed; exact run, six job, and artifact identifiers are recorded outside this pre-push artifact for independent replay."
-    rationale: "The requested real platform execution is now reachable without campaign authorization. Local tests prove the workflow contract and fail-closed aggregator; the branch push supplies the real Windows/Ubuntu primitive evidence."
+      - command: "real hosted branch-push replay 32705009673"
+        result: "Ubuntu candidate/PDF/mutation passed and uploaded artifacts 9511903681/9511903097/9511902419. Windows candidate/PDF/mutation passed containment and exact-file/hash checks but artifact discovery failed; aggregate job 97364218625 rejected the incomplete set."
+    rationale: "The real platform execution is safely reachable and fail-closed, but the requested exact six-cell retained aggregate is not achieved until the external Windows artifact boundary is repaired and independently replayed."
     disagreement_ref: ""
 
 new_or_changed_risks:
   - "The proof workflow intentionally runs on qualifying feature/review branch pushes; its path filter, read-only permissions, synthetic-only closure, and no-secrets design bound that exposure."
-  - "Hosted Windows nested Job Object behavior and Ubuntu passwordless ephemeral-account/systemd policy must still pass in the recorded run."
+  - "Hosted Windows Job Object and Ubuntu ephemeral-account/systemd containment passed in the recorded run but still require independent replay and inspection."
+  - "Windows hosted artifact discovery remains a critical external blocker even though production containment and pre-upload evidence verification pass in all three Windows cells."
   - "Artifact retention is seven days, so the independent reviewer should inspect or download the small proof set promptly."
   - "The full 431-test suite and the slow 22-case compatibility suite were deferred because the focused 52-case R3 aggregate and guidance/schema checks were green; fresh rereview should run them if feasible."
 
