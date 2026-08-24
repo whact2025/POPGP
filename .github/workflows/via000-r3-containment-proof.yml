@@ -112,7 +112,7 @@ jobs:
 
       - name: Exercise production containment boundary on Windows
         if: matrix.platform_family == 'windows-x86_64'
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
         env:
           VIA000_PLATFORM_FAMILY: ${{ matrix.platform_family }}
           VIA000_STAGE_ID: ${{ matrix.stage_id }}

@@ -535,7 +535,8 @@ function Invoke-Via000ContainedCommand {
             if ($cgroupProcs -and (Test-Path -LiteralPath $cgroupProcs -PathType Leaf)) {
                 $remaining = @(Get-Content -LiteralPath $cgroupProcs | Where-Object { $_ })
             }
-            $quiescent = ($active -eq "inactive" -and $sub -in @("dead", "failed") -and $remaining.Count -eq 0)
+            $quiescent = ($active -in @("inactive", "failed") -and
+                $sub -in @("dead", "failed") -and $remaining.Count -eq 0)
             $primitive = "ubuntu-systemd-dynamic-user-control-group"
             & ([string]$SystemTools.sudo) -n ([string]$SystemTools.systemctl) reset-failed $unit 2>$null | Out-Null
         }

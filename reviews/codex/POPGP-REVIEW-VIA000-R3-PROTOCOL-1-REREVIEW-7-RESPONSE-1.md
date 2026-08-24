@@ -80,6 +80,15 @@ summary: |-
   containing spaces. The preflight is parenthesized and the Windows step now uses
   the absolute built-in Windows PowerShell host solely to launch the separately
   verified absolute PowerShell 7 executable. This run is not containment evidence.
+  The fourth branch-push attempt, run 32697922964 at handoff
+  dc67f5fe153327e50f5277914f07a6b868efd103, reached the production helper in all
+  Ubuntu cells and exposed an over-narrow terminal-state predicate: a stopped empty
+  transient unit may report ActiveState failed, while the prior check admitted only
+  inactive. The corrected predicate admits only inactive/failed terminal states and
+  still requires dead/failed SubState plus an empty or removed cgroup. Its Windows
+  cells exposed that Windows PowerShell -File rejects GitHub's extensionless runner
+  temp file; the absolute host now dot-sources that fixed control-plane file with
+  -Command before launching verified PowerShell 7. No cell uploaded proof evidence.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
