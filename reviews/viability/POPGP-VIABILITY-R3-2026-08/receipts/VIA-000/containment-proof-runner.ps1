@@ -30,6 +30,30 @@ $script:MaximumProofMemberBytes = 262144
 $script:MaximumProofDecodedBytes = 524288
 $script:MaximumProofEnvelopeBytes = 131072
 
+function Test-ExactOrdinalStringArray {
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)][AllowNull()][AllowEmptyCollection()][object[]]$Left,
+        [Parameter(Mandatory = $true)][AllowNull()][AllowEmptyCollection()][object[]]$Right
+    )
+    if ($null -eq $Left -or $null -eq $Right) { return $false }
+    if ($Left.Count -ne $Right.Count) { return $false }
+    for ($index = 0; $index -lt $Left.Count; $index++) {
+        $leftValue = $Left[$index]
+        $rightValue = $Right[$index]
+        if ($null -eq $leftValue -or $null -eq $rightValue -or
+            $leftValue -isnot [string] -or $rightValue -isnot [string] -or
+            -not [string]::Equals(
+                [string]$leftValue,
+                [string]$rightValue,
+                [StringComparison]::Ordinal
+            )) {
+            return $false
+        }
+    }
+    return $true
+}
+
 function Get-ProofSha256 {
     param([Parameter(Mandatory = $true)][string]$Path)
     return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
@@ -329,7 +353,8 @@ try {
     } else { "owner-only-protected-root" }
     $observedTokenFlags = @($result.token_restriction_flags)
     $observedEnabledPrivileges = @($result.enabled_privileges)
-    if (($observedTokenFlags -cjoin "\n") -cne ($expectedTokenFlags -cjoin "\n") -or
+    if (-not (Test-ExactOrdinalStringArray `
+            -Left $observedTokenFlags -Right $expectedTokenFlags) -or
         [string]$result.token_integrity_sid -cne $expectedIntegritySid -or
         [int]$result.enabled_privilege_count -ne $observedEnabledPrivileges.Count -or
         $observedEnabledPrivileges.Count -gt 1 -or

@@ -147,6 +147,15 @@ root split, kill-on-close, explicit termination, and zero-active proof are uncha
 A fresh six-cell proof at the exact RR14 handoff is mandatory; the RR13 factor experiment
 is diagnostic only and none of its output is campaign evidence.
 
+RR15 supersedes the failed RR14 hosted run `32742067802`, whose six cells all stopped
+at the same invalid `-cjoin` parser token before containment, digest, or cache work.
+Both frozen runners and their receipt mirrors now use one count-preserving, ordered,
+case-sensitive ordinal string-array predicate that rejects null and non-string values;
+no delimiter serialization is used. A mandatory PowerShell 7 gate enumerates the
+exact four protocol and four public receipt scripts, requires zero `ParseFile` errors,
+and proves malformed grammar is rejected. Only a fresh exact-head six-cell run can
+supply hosted proof; the failed RR14 run and its absent artifacts cannot be reused.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

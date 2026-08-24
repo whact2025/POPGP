@@ -77,6 +77,30 @@ if ($DispatchRef -ne $ExpectedDispatchRef) {
     throw "dispatch ref differs from the content-addressed protocol snapshot tag"
 }
 
+function Test-ExactOrdinalStringArray {
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)][AllowNull()][AllowEmptyCollection()][object[]]$Left,
+        [Parameter(Mandatory = $true)][AllowNull()][AllowEmptyCollection()][object[]]$Right
+    )
+    if ($null -eq $Left -or $null -eq $Right) { return $false }
+    if ($Left.Count -ne $Right.Count) { return $false }
+    for ($index = 0; $index -lt $Left.Count; $index++) {
+        $leftValue = $Left[$index]
+        $rightValue = $Right[$index]
+        if ($null -eq $leftValue -or $null -eq $rightValue -or
+            $leftValue -isnot [string] -or $rightValue -isnot [string] -or
+            -not [string]::Equals(
+                [string]$leftValue,
+                [string]$rightValue,
+                [StringComparison]::Ordinal
+            )) {
+            return $false
+        }
+    }
+    return $true
+}
+
 function Assert-Success {
     param(
         [Parameter(Mandatory = $true)][int]$ExitCode,
@@ -758,7 +782,8 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
         } else { "owner-only-protected-root" }
         $recordTokenFlags = @($record.token_restriction_flags)
         $recordEnabledPrivileges = @($record.enabled_privileges)
-        if (($recordTokenFlags -cjoin "\n") -cne ($expectedTokenFlags -cjoin "\n") -or
+        if (-not (Test-ExactOrdinalStringArray `
+                -Left $recordTokenFlags -Right $expectedTokenFlags) -or
             [string]$record.token_integrity_sid -cne $expectedIntegritySid -or
             [int]$record.enabled_privilege_count -ne $recordEnabledPrivileges.Count -or
             $recordEnabledPrivileges.Count -gt 1 -or

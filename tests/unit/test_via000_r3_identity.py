@@ -34,6 +34,16 @@ CONTAINMENT_PROOF_ENVELOPE_SCHEMA = (
 )
 CONTAINMENT_PROOF_AGGREGATOR = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
 MUTATION_RUNNER = PROTOCOL_DIR / "VIA-000-MUTATION-RUNNER.py"
+R3_POWERSHELL_RELATIVE_PATHS = (
+    "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1",
+    "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1",
+    "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1",
+    "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1",
+    "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-hostile.ps1",
+    "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-runner.ps1",
+    "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-protocol.ps1",
+    "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/runner-protocol.ps1",
+)
 CAMPAIGN_CHECKER = ROOT / "scripts/check_viability_campaign.py"
 WORKFLOW = ROOT / ".github/workflows/via000-r3-protocol.yml"
 CONTAINMENT_PROOF_WORKFLOW = ROOT / ".github/workflows/via000-r3-containment-proof.yml"
@@ -115,6 +125,20 @@ def _write_yaml(path: Path, document: object) -> None:
 
 def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _powershell_function_text(source: str, name: str) -> str:
+    start = source.index(f"function {name} {{")
+    opening = source.index("{", start)
+    depth = 0
+    for index in range(opening, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start : index + 1]
+    raise AssertionError(f"PowerShell function {name} is unterminated")
 
 
 def _token_evidence(platform: str) -> dict[str, object]:
@@ -3188,6 +3212,201 @@ def test_r3_rr14_no_lua_low_il_production_identity_is_bound() -> None:
             "protected_label_policy",
         ):
             assert token in consumer
+
+
+@pytest.mark.negative_control
+def test_r3_rr15_powershell_parse_closure_and_exact_array_comparison(
+    tmp_path: Path,
+) -> None:
+    """TST-VIA000-R3-RR15-R3-POWERSHELL-PARSE-CLOSURE-001."""
+    protocol_paths = sorted(PROTOCOL_DIR.glob("*.ps1"))
+    receipt_paths = sorted(
+        (
+            ROOT
+            / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000"
+        ).glob("*.ps1")
+    )
+    paths = sorted(protocol_paths + receipt_paths)
+    observed_paths = tuple(path.relative_to(ROOT).as_posix() for path in paths)
+    assert observed_paths == R3_POWERSHELL_RELATIVE_PATHS
+
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None, "PowerShell 7 is mandatory for the R3 parser gate"
+    version = subprocess.run(
+        [pwsh, "--version"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert version.startswith("PowerShell 7."), version
+
+    parser_gate = tmp_path / "rr15-parse-gate.ps1"
+    parser_gate.write_text(
+        """param(
+    [Parameter(Mandatory = $true, Position = 0, ValueFromRemainingArguments = $true)]
+    [string[]]$Paths
+)
+$failed = $false
+foreach ($path in $Paths) {
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile(
+        $path, [ref]$tokens, [ref]$errors
+    ) | Out-Null
+    if ($errors.Count -ne 0) {
+        $failed = $true
+        foreach ($parseError in $errors) {
+            [Console]::Error.WriteLine("{0}: {1}", $path, $parseError.Message)
+        }
+    }
+}
+if ($failed) { exit 1 }
+""",
+        encoding="utf-8",
+        newline="\n",
+    )
+    parser_command = [
+        pwsh,
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        str(parser_gate),
+    ]
+    parsed = subprocess.run(
+        [*parser_command, *(str(path) for path in paths)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert parsed.returncode == 0, parsed.stderr
+    assert parsed.stderr == ""
+
+    workflow_blocks: list[Path] = []
+    for workflow_path in (WORKFLOW, CONTAINMENT_PROOF_WORKFLOW):
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        for job_name, job in workflow["jobs"].items():
+            for step_index, step in enumerate(job.get("steps", [])):
+                shell = str(step.get("shell", "")).lower()
+                if not isinstance(step.get("run"), str) or not (
+                    "pwsh" in shell or "powershell" in shell
+                ):
+                    continue
+                block_path = tmp_path / (
+                    f"{workflow_path.stem}-{job_name}-{step_index:02d}.ps1"
+                )
+                block_path.write_text(
+                    step["run"], encoding="utf-8", newline="\n"
+                )
+                workflow_blocks.append(block_path)
+    assert len(workflow_blocks) == 37
+    parsed_blocks = subprocess.run(
+        [*parser_command, *(str(path) for path in workflow_blocks)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert parsed_blocks.returncode == 0, parsed_blocks.stderr
+    assert parsed_blocks.stderr == ""
+
+    malformed = tmp_path / "rr15-invalid-operator.ps1"
+    malformed.write_text(
+        'if (($value -cjoin "\\n")) { $true }\n',
+        encoding="utf-8",
+        newline="\n",
+    )
+    rejected = subprocess.run(
+        [*parser_command, *(str(path) for path in paths), str(malformed)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert malformed.name in rejected.stderr
+    assert "Unexpected token '-cjoin'" in rejected.stderr
+
+    affected_paths = (
+        CONTAINMENT_PROOF_RUNNER,
+        RUNNER,
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-runner.ps1",
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/runner-protocol.ps1",
+    )
+    affected_sources = [path.read_text(encoding="utf-8") for path in affected_paths]
+    assert all("-cjoin" not in source for source in affected_sources)
+    predicates = {
+        _powershell_function_text(source, "Test-ExactOrdinalStringArray")
+        for source in affected_sources
+    }
+    assert len(predicates) == 1
+    predicate = predicates.pop()
+    assert "[StringComparison]::Ordinal" in predicate
+    assert "[string]::Equals" in predicate
+    assert "$Left.Count -ne $Right.Count" in predicate
+    assert "$null -eq $Left" in predicate
+    assert "$null -eq $leftValue" in predicate
+    assert "$leftValue -isnot [string]" in predicate
+
+    predicate_gate = tmp_path / "rr15-exact-array-gate.ps1"
+    predicate_gate.write_text(
+        predicate
+        + """
+function Assert-ExactArrayCase {
+    param(
+        [Parameter(Mandatory = $true)][scriptblock]$Invocation,
+        [Parameter(Mandatory = $true)][bool]$Expected
+    )
+    $result = @(& $Invocation)
+    if ($result.Count -ne 1 -or $result[0] -isnot [bool] -or
+        [bool]$result[0] -ne $Expected) {
+        throw 'exact ordinal string-array predicate returned a wrong or non-Boolean result'
+    }
+}
+Assert-ExactArrayCase { Test-ExactOrdinalStringArray -Left @() -Right @() } $true
+Assert-ExactArrayCase {
+    Test-ExactOrdinalStringArray `
+        -Left @('DISABLE_MAX_PRIVILEGE') -Right @('DISABLE_MAX_PRIVILEGE')
+} $true
+Assert-ExactArrayCase {
+    Test-ExactOrdinalStringArray `
+        -Left @('DISABLE_MAX_PRIVILEGE') -Right @('disable_max_privilege')
+} $false
+Assert-ExactArrayCase { Test-ExactOrdinalStringArray -Left @('a', 'b') -Right @('b', 'a') } $false
+Assert-ExactArrayCase { Test-ExactOrdinalStringArray -Left @('a') -Right @('a', 'b') } $false
+Assert-ExactArrayCase {
+    Test-ExactOrdinalStringArray `
+        -Left ([object[]]@($null)) -Right ([object[]]@($null))
+} $false
+Assert-ExactArrayCase {
+    Test-ExactOrdinalStringArray -Left ([object[]]@(1)) -Right ([object[]]@(1))
+} $false
+Assert-ExactArrayCase {
+    Test-ExactOrdinalStringArray -Left @('a', "b`nc") -Right @("a`nb", 'c')
+} $false
+Assert-ExactArrayCase { Test-ExactOrdinalStringArray -Left @() -Right @('') } $false
+Assert-ExactArrayCase { Test-ExactOrdinalStringArray -Left @('') -Right @('') } $true
+""",
+        encoding="utf-8",
+        newline="\n",
+    )
+    predicate_result = subprocess.run(
+        [
+            pwsh,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(predicate_gate),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert predicate_result.returncode == 0, predicate_result.stderr
+    assert predicate_result.stdout == ""
+    assert predicate_result.stderr == ""
 
 
 @pytest.mark.negative_control

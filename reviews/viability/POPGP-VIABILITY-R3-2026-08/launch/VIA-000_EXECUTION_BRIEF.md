@@ -116,6 +116,9 @@ Status: design handoff for independent review only. Do not dispatch or start hol
     not authorization.
     Require all twelve Windows proof run steps to resolve through built-in `pwsh` and
     reject any custom PowerShell shell string before accepting the six-cell result.
+    Before any hosted replay, parse the exact eight frozen R3 protocol/receipt `.ps1`
+    files with PowerShell 7 `Parser.ParseFile` and require zero errors; the exact token
+    flag arrays must compare by count plus ordinal element equality, never by joining.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

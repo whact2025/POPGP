@@ -352,3 +352,21 @@ teardown state. The local exact hostile replay requires payload execution, mutab
 success, protected read/write/replace denial, unchanged protected hashes, and complete
 descendant teardown. A new exact-source six-cell hosted proof and independent rereview
 remain required; this draft amendment is not activation or scientific evidence.
+
+## RR15 PowerShell parse-closure amendment
+
+The exact RR14 proof-only run reached the frozen proof runner on all six hosted cells
+but PowerShell rejected the nonexistent `-cjoin` operator before containment began.
+The same invalid comparison was present in the production runner and both byte-equal
+receipt copies. RR15 replaces all four comparisons with one explicit predicate that
+requires equal counts and then compares each non-null string at the same index using
+`[StringComparison]::Ordinal`. It preserves case and order, distinguishes an empty
+array from one empty string, rejects non-string/null entries, and never serializes the
+arrays through a delimiter.
+
+The pre-seal test now records the exact eight R3 protocol/receipt PowerShell paths and
+uses PowerShell 7 `Parser.ParseFile` to require zero errors in every file. A malformed
+temporary `-cjoin` source must fail the same gate, while separate probes reject case,
+order, count, type, null, delimiter-collision, and empty-array substitutions. RR14's
+token, integrity, privilege, containment, and evidence requirements are unchanged.
+A fresh six-cell hosted proof and retained redownload remain mandatory.

@@ -22,7 +22,7 @@
     },
     {
       "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
-      "sha256": "cc97f28b1f734eccf1efd7d8bb04452ec013e68d3f1782ed0aac514054061134"
+      "sha256": "3f3964561018c007617fb124ea983dddd8a50e5426bb32a20724f98fd1032248"
     },
     {
       "path": "popgp/diagnostics.py",
@@ -78,7 +78,7 @@
     }
   ],
   "packet_rule_sha256": {
-    "VIA-000": "cd0cfc05a930ed2248ef90e7f20828cf4b43fd2a31548c91ccc9b55f590ee447",
+    "VIA-000": "e13fc7d4de7130241906c1af1d32eaefd823702c6e2306ee6e024bb6e955e682",
     "VIA-010": "5061a90ec7ff5ccf11b875f0e64f7951020f79e4f3b91c691b28e4099ba6533a",
     "VIA-100": "b9b911474688a191dffe03ce14a5372e166465fa024d2430ed020b1a70d941d2",
     "VIA-150": "ec2879e91e12974ae64819d42382d200bb9e15170a6a3fc00ad15f91e51134ff",
