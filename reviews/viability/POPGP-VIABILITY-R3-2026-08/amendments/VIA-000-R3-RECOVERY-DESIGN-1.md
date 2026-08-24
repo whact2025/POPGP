@@ -31,16 +31,18 @@ The record hashes that commit's campaign, packet, and protocol-manifest blobs; b
 campaign and packet independently bind the exact source snapshot. Before any
 scientific command, the frozen dispatch guard requires:
 
-1. event name `workflow_dispatch`;
-2. exact content-addressed tag ref;
-3. the resolved source tag equal to its suffix;
-4. `github.sha` and checkout HEAD equal to the source snapshot;
-5. one captured authorization tag object for record parsing, target peeling, and
+1. data-only step-environment transport for the canonical authorization ref, with
+   exact grammar/length rejection before Git, Python, or input-directed file access;
+2. event name `workflow_dispatch`;
+3. exact content-addressed tag ref;
+4. the resolved source tag equal to its suffix;
+5. `github.sha` and checkout HEAD equal to the source snapshot;
+6. one captured authorization tag object for record parsing, target peeling, and
    returned identity, with replacement objects disabled and a final check that its
    ref did not change;
-6. a valid SSH signature over that same captured object from the public key frozen in
+7. a valid SSH signature over that same captured object from the public key frozen in
    the source snapshot; and
-7. exact hashes and protocol bindings in the authorized campaign, packet, and
+8. exact hashes and protocol bindings in the authorized campaign, packet, and
    manifest blobs.
 
 The runner and mutation runner retain the same commit/ref plus the shared GitHub run
@@ -60,6 +62,11 @@ an absolute system Git program with `--no-replace-objects`, scrub all inherited
 `GIT_*` repository/object/config/namespace/discovery controls, and disable system and
 global Git config. SSH verification also pins the absolute system `ssh-keygen`
 program, so local or environment-injected signature programs cannot run.
+Workflow inputs and GitHub identity values are supplied only as step environment data,
+validated before use, and passed through PowerShell argument arrays. The workflow
+contains no GitHub expression in any `run:` source and performs no `Get-Command` or
+dispatcher-`PATH` tool discovery. Its OS branches name the reviewed Windows and Ubuntu
+Git/SSH paths, while the pinned setup action supplies exact Python 3.11.15.
 
 Thus the following identity is single-valued:
 
@@ -78,12 +85,15 @@ self-consistent exact-tagged commit, unsigned/moved/deleted/substituted authoriz
 an authorization-ref swap between parsing, peeling, and signature verification,
 default or custom-namespace Git object replacement, caller-controlled Git object
 directories/alternates/config/programs, protocol files or validator dependencies that
-differ from no-replacement snapshot Git blobs,
+differ from no-replacement snapshot Git blobs, PowerShell quote/statement/
+subexpression/newline/control payloads, option-like input, or `PATH`-shadowed
+Git/SSH/Python programs,
 wrong-source attestations, and Ubuntu/Windows fragments from different workflow runs.
 Every rejection is required before an output commitment can exist. Disposable test
 repositories exercise the exact signed authorization path, invalid-tag replacement,
 source/campaign/packet/manifest/validator replacement, environment/config injection,
-and Git-normalized LF blobs under both `core.autocrlf=true` and `false`.
+the actual workflow shell boundary with hostile inputs and zero/one/multiple `PATH`
+shims, and Git-normalized LF blobs under both `core.autocrlf=true` and `false`.
 
 ## Custody and authorization boundary
 

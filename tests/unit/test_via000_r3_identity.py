@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -348,6 +349,31 @@ def _hash_blob(repo: Path, content: bytes) -> str:
     return _git_bytes_input(repo, content, "hash-object", "-w", "--stdin").decode(
         "ascii"
     ).strip()
+
+
+def _workflow_step_script(step_name: str) -> str:
+    document = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    steps = document["jobs"]["platform-fragment"]["steps"]
+    matches = [step["run"] for step in steps if step.get("name") == step_name]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _path_shim(directory: Path, name: str, marker: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        path = directory / f"{name}.cmd"
+        path.write_text(
+            f'@echo off\r\necho invoked>>"{marker}"\r\nexit /b 99\r\n',
+            encoding="utf-8",
+        )
+    else:
+        path = directory / name
+        path.write_text(
+            f"#!/bin/sh\nprintf invoked >> '{marker}'\nexit 99\n",
+            encoding="utf-8",
+        )
+        path.chmod(0o755)
 
 
 def _snapshot_repo(tmp_path: Path, *, protocol_tree: bool = False) -> tuple[Path, str, str]:
@@ -1187,9 +1213,18 @@ def test_r3_cross_platform_git_blob_identity_with_autocrlf(
 @pytest.mark.negative_control
 def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
+    document = yaml.safe_load(workflow)
     trigger = workflow.split("permissions:", 1)[0]
     assert "workflow_dispatch:" in trigger
     assert "push:" not in trigger
+    run_sources = [
+        step["run"]
+        for step in document["jobs"]["platform-fragment"]["steps"]
+        if "run" in step
+    ]
+    assert all("${{" not in source for source in run_sources)
+    authorization_script = _workflow_step_script("Reject non-snapshot lifecycle refs")
+    assert "Get-Command" not in authorization_script
     for token in (
         "${{ github.ref }}",
         "${{ github.sha }}",
@@ -1199,12 +1234,143 @@ def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
         'Where-Object Name -Like "GIT_*"',
         'GIT_NO_REPLACE_OBJECTS = "1"',
         'GIT_CONFIG_NOSYSTEM = "1"',
+        'VIA000_AUTHORIZATION_REF: ${{ inputs.authorization_ref }}',
+        'VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}',
+        '"C:\\Program Files\\Git\\cmd\\git.exe"',
+        '"C:\\Windows\\System32\\OpenSSH\\ssh-keygen.exe"',
+        '"/usr/bin/git"',
+        '"/usr/bin/ssh-keygen"',
+        '"--end-of-options"',
         "authorization ref changed before platform execution",
         "${{ github.run_id }}",
         "${{ github.run_attempt }}",
         "VIA-000-DISPATCH-GUARD.py",
     ):
         assert token in workflow
+
+
+@pytest.mark.negative_control
+def test_r3_workflow_command_boundary_rejects_dispatch_payloads_as_inert_data(
+    tmp_path: Path,
+) -> None:
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    script_path = tmp_path / "authorization-step.ps1"
+    script_path.write_text(
+        _workflow_step_script("Reject non-snapshot lifecycle refs"),
+        encoding="utf-8",
+        newline="\n",
+    )
+    marker = tmp_path / "workflow-input-marker"
+    reviewer_payload = (
+        '"; Write-Output VIA000_AUTH_INPUT_CODE_EXECUTED; '
+        '$capturedAuthorizationTagOid=("b"*40); $global:LASTEXITCODE=0; #'
+    )
+    side_effect_payload = (
+        f'"; Set-Content -LiteralPath \'{marker}\' -Value injected; '
+        '$global:LASTEXITCODE=0; #'
+    )
+    payloads = [
+        reviewer_payload,
+        side_effect_payload,
+        "refs/tags/popgp-via000-r3-authorization-" + "a" * 63 + "\n",
+        "`Write-Output injected",
+        "$(Write-Output injected)",
+        "; Write-Output injected",
+        "| Write-Output injected",
+        "& Write-Output injected",
+        '"quoted"',
+        "'quoted'",
+        "authorization-\N{SNOWMAN}",
+        "authorization-\x01-control",
+        " authorization ",
+        "--help",
+    ]
+    for index, payload in enumerate(payloads):
+        runner_temp = tmp_path / f"runner-{index}"
+        runner_temp.mkdir()
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "VIA000_AUTHORIZATION_REF": payload,
+                "VIA000_EVENT_NAME": "workflow_dispatch",
+                "VIA000_GITHUB_REF": FAKE_REF,
+                "VIA000_GITHUB_SHA": FAKE_COMMIT,
+                "VIA000_BASE_PYTHON": sys.executable,
+                "GITHUB_WORKSPACE": str(tmp_path),
+                "RUNNER_TEMP": str(runner_temp),
+            }
+        )
+        completed = subprocess.run(
+            [pwsh, "-NoProfile", "-NonInteractive", "-File", str(script_path)],
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode != 0
+        assert "VIA000_AUTH_INPUT_CODE_EXECUTED" not in completed.stdout
+        assert not marker.exists()
+        assert not any(runner_temp.iterdir())
+
+
+@pytest.mark.negative_control
+def test_r3_workflow_command_boundary_ignores_path_tool_shims(
+    tmp_path: Path,
+) -> None:
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
+        _authorized_repo(tmp_path)
+    )
+    script_path = tmp_path / "authorization-step.ps1"
+    script_path.write_text(
+        _workflow_step_script("Reject non-snapshot lifecycle refs"),
+        encoding="utf-8",
+        newline="\n",
+    )
+    marker = tmp_path / "path-shim-marker"
+    shim_one = tmp_path / "shim-one"
+    shim_two = tmp_path / "shim-two"
+    for directory in (shim_one, shim_two):
+        for name in ("git", "ssh-keygen", "python"):
+            _path_shim(directory, name, marker)
+    path_sets = [
+        "",
+        str(shim_one),
+        os.pathsep.join((str(shim_one), str(shim_two), os.environ.get("PATH", ""))),
+    ]
+    for index, path_value in enumerate(path_sets):
+        runner_temp = tmp_path / f"trusted-runner-{index}"
+        runner_temp.mkdir()
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "PATH": path_value,
+                "VIA000_AUTHORIZATION_REF": authorization_ref,
+                "VIA000_EVENT_NAME": "workflow_dispatch",
+                "VIA000_GITHUB_REF": protocol_ref,
+                "VIA000_GITHUB_SHA": snapshot,
+                "VIA000_BASE_PYTHON": sys.executable,
+                "GITHUB_WORKSPACE": str(repo),
+                "RUNNER_TEMP": str(runner_temp),
+            }
+        )
+        completed = subprocess.run(
+            [pwsh, "-NoProfile", "-NonInteractive", "-File", str(script_path)],
+            cwd=repo,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, completed.stderr
+        authorization_output = runner_temp / "via000-r3-authorization.json"
+        assert authorization_output.is_file()
+        assert json.loads(authorization_output.read_text(encoding="utf-8"))[
+            "authorization_ref"
+        ] == authorization_ref
+        assert not marker.exists()
 
 
 @pytest.mark.negative_control

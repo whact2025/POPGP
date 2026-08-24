@@ -50,11 +50,18 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    set `holdout_started: true`.
 8. A separate reproduction runner manually dispatches the workflow from the exact
    content-addressed protocol tag and supplies the exact signed authorization ref.
+   GitHub supplies that input to PowerShell only as step environment data. The shell
+   validates the complete canonical ref before any use and passes all values through
+   argument arrays; no workflow expression may occur in `run:` source.
    The workflow captures that ref as one tag object ID and uses only that object for
    parsing, peeling, signature verification, and retained identity. All such Git
    operations use `--no-replace-objects`, a scrubbed Git environment/config, and the
    absolute system Git/SSH verifier programs; a changed ref or substituted object
    aborts before platform execution.
+   Windows uses `C:\Program Files\Git\cmd\git.exe` and
+   `C:\Windows\System32\OpenSSH\ssh-keygen.exe`; Ubuntu uses `/usr/bin/git` and
+   `/usr/bin/ssh-keygen`. Base Python is the pinned setup-action 3.11.15 output. Any
+   missing tool or `PATH`-shadow attempt aborts before authorization reads.
 9. Both matrix jobs must share `github.run_id` and `github.run_attempt`; all signed
    summaries and manifests must bind that run and the exact source commit.
 10. The runner invokes the frozen assembler with the same protocol and authorization

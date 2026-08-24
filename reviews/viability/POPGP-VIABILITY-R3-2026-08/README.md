@@ -37,6 +37,13 @@ read in that chain disables replacement objects, uses an absolute system Git pro
 and runs with caller-supplied Git repository, object-store, replacement, namespace,
 config, SSH, and discovery variables removed. Signature verification additionally
 pins the absolute system `ssh-keygen` program and an isolated allowed-signers file.
+The manual authorization input crosses the GitHub/PowerShell boundary only through a
+step environment value. The first shell decision validates its exact full-ref grammar
+and length; later Git, Python, runner, and mutation values are data elements in
+argument arrays. No GitHub expression is rendered into PowerShell source. The
+workflow uses reviewed literal Git and `ssh-keygen` paths for Windows and Ubuntu plus
+the exact Python 3.11.15 path produced by the pinned setup action, never dispatcher
+`PATH` discovery.
 The source-tag suffix and resolution, authorized packet `protocol_commit`,
 `github.sha`, checkout HEAD, runner and mutation `protocol_source_commit`, Sigstore
 source digest, raw-results identity, assembler-derived identity, and validator
@@ -44,7 +51,8 @@ expectation must all be the same lowercase 40-hex commit. Linux and Windows frag
 must also carry one shared GitHub Actions run ID and attempt. A branch/lifecycle HEAD,
 later self-consistent tag, static or mid-verification authorization replacement, Git
 replacement object or injected Git environment/config, mutable validator source,
-wrong-source attestation, or cross-run mixture fails before output commitment.
+workflow-expression or tool-path injection, wrong-source attestation, or cross-run
+mixture fails before output commitment.
 
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,

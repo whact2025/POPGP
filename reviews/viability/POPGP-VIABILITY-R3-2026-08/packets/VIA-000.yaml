@@ -6,7 +6,7 @@ candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
 protocol_commit: 47fb5477ac4d8a44b8e5edc22230f383583b5409
-protocol_rule_sha256: 12318a6bec99f1c80154cb5ac20b5b0955960b40b0b2a5f866275834a69cb3cd
+protocol_rule_sha256: c913e52a13a999cc5bc69269d683296eb0d99a78c01e75bd7c158f2ffde30131
 lifecycle_phase: drafted
 claims:
 - C03
@@ -106,7 +106,7 @@ preregistration:
     dispatch_guard_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py
     dispatch_guard_protocol_sha256: 4bc8e1046d044999fc774447e1823952f9557938f19aa147923bef76809da6c1
     workflow_protocol_path: .github/workflows/via000-r3-protocol.yml
-    workflow_protocol_sha256: 1633c848efcf6c42b40ba1737effbdbc73e5df5ac510748c8e9066023fb55dbc
+    workflow_protocol_sha256: c9cc59095d311e8c9fece67d5c614ac0432dfdedab5af735c34aa7301e19a37f
     validator_package_init_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py
     validator_package_init_sha256: 9d8059d7d655894958e03be4eb8a7dd89b45caa639651545bb3950abcd65880c
     authorization_contract:
@@ -124,7 +124,7 @@ preregistration:
       validator_bundle:
       - source_path: scripts/check_viability_campaign.py
         bundle_path: check_viability_campaign.py
-        sha256: de5ba32a62a3632d820061a3e0388b8fc33515e8b946c3111803551bff79b1a9
+        sha256: bc90ab67caff0703c4b25f8a8d913b748bdf96895ae2e75fbe939f0fdfacc9c3
       - source_path: scripts/check_validation_artifacts.py
         bundle_path: scripts/check_validation_artifacts.py
         sha256: 109c3505480ea3baaecdc1901e0bd78ada3207450141883ed92eeafa263096f7
@@ -369,6 +369,10 @@ preregistration:
         require_git_no_replace_objects: true
         require_sanitized_git_environment: true
         require_pinned_signature_program: true
+        require_workflow_step_env_transport: true
+        require_workflow_argument_arrays: true
+        require_explicit_os_tool_paths: true
+        pinned_base_python: 3.11.15
         require_workflow_sha_match: true
         require_checkout_head_match: true
         require_single_producer_run: true
@@ -531,7 +535,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-    sha256: 9e5e1facebeaa764f08755544a7b676e16412b6306adf8450aa01e4fccd80325
+    sha256: 2b59effdd642532800539f373144fee57b56e5df23d1e9425171342cc072ce56
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
@@ -567,7 +571,7 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/workflow-protocol.yml
     protocol_path: .github/workflows/via000-r3-protocol.yml
-    sha256: 1633c848efcf6c42b40ba1737effbdbc73e5df5ac510748c8e9066023fb55dbc
+    sha256: c9cc59095d311e8c9fece67d5c614ac0432dfdedab5af735c34aa7301e19a37f
     media_type: text/plain
   - receipt_id: validator-package-init
     content_role: supporting
@@ -785,7 +789,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 9e5e1facebeaa764f08755544a7b676e16412b6306adf8450aa01e4fccd80325
+  sha256: 2b59effdd642532800539f373144fee57b56e5df23d1e9425171342cc072ce56
   media_type: application/json
 - id: runner-protocol
   kind: protocol
@@ -815,7 +819,7 @@ receipts:
 - id: workflow-protocol
   kind: protocol
   path: ../receipts/VIA-000/workflow-protocol.yml
-  sha256: 1633c848efcf6c42b40ba1737effbdbc73e5df5ac510748c8e9066023fb55dbc
+  sha256: c9cc59095d311e8c9fece67d5c614ac0432dfdedab5af735c34aa7301e19a37f
   media_type: text/plain
 - id: validator-package-init
   kind: protocol

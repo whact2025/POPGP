@@ -31,6 +31,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
+      - name: Set up pinned base Python
+        id: base-python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11.15"
+
       - name: Check out dispatched protocol snapshot
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -40,9 +46,52 @@ jobs:
       - name: Reject non-snapshot lifecycle refs
         id: authorization
         shell: pwsh
+        env:
+          VIA000_AUTHORIZATION_REF: ${{ inputs.authorization_ref }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_GITHUB_REF: ${{ github.ref }}
+          VIA000_GITHUB_SHA: ${{ github.sha }}
+          VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}
         run: |
           $ErrorActionPreference = "Stop"
-          $trustedGit = (Get-Command git -CommandType Application).Source
+          $authorizationRef = [string]$env:VIA000_AUTHORIZATION_REF
+          $authorizationPrefix = "refs/tags/popgp-via000-r3-authorization-"
+          if (
+            $authorizationRef.Length -ne ($authorizationPrefix.Length + 64) -or
+            $authorizationRef -cnotmatch '^refs/tags/popgp-via000-r3-authorization-[0-9a-f]{64}$'
+          ) {
+            throw "authorization ref is not one canonical full R3 authorization ref"
+          }
+          $eventName = [string]$env:VIA000_EVENT_NAME
+          $githubRef = [string]$env:VIA000_GITHUB_REF
+          $githubSha = [string]$env:VIA000_GITHUB_SHA
+          if ($eventName -cne "workflow_dispatch") {
+            throw "R3 protocol permits workflow_dispatch only"
+          }
+          if ($githubRef -cnotmatch '^refs/tags/popgp-via000-r3-protocol-[0-9a-f]{40}$') {
+            throw "dispatch ref is not one canonical full R3 snapshot ref"
+          }
+          if ($githubSha -cnotmatch '^[0-9a-f]{40}$') {
+            throw "github sha is not one full lowercase commit"
+          }
+          if ($IsWindows) {
+            $trustedGit = "C:\Program Files\Git\cmd\git.exe"
+            $trustedSshKeygen = "C:\Windows\System32\OpenSSH\ssh-keygen.exe"
+          } elseif ($IsLinux) {
+            $trustedGit = "/usr/bin/git"
+            $trustedSshKeygen = "/usr/bin/ssh-keygen"
+          } else {
+            throw "unsupported R3 workflow operating system"
+          }
+          $basePython = [string]$env:VIA000_BASE_PYTHON
+          foreach ($trustedTool in @($trustedGit, $trustedSshKeygen, $basePython)) {
+            if (-not [System.IO.Path]::IsPathFullyQualified($trustedTool)) {
+              throw "trusted R3 tool path is not absolute"
+            }
+            if (-not (Test-Path -LiteralPath $trustedTool -PathType Leaf)) {
+              throw "trusted R3 tool is unavailable"
+            }
+          }
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
@@ -53,26 +102,31 @@ jobs:
           $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
           $env:GIT_TERMINAL_PROMPT = "0"
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
-          $capturedAuthorizationTagOid = & $trustedGit --no-replace-objects `
-            -C $env:GITHUB_WORKSPACE rev-parse --verify "${{ inputs.authorization_ref }}"
-          if ($LASTEXITCODE -ne 0 -or $capturedAuthorizationTagOid -notmatch '^[0-9a-f]{40}$') {
+          $gitArguments = @(
+            "--no-replace-objects", "-C", $env:GITHUB_WORKSPACE,
+            "rev-parse", "--verify", "--end-of-options", $authorizationRef
+          )
+          $capturedAuthorizationTagOid = @(& $trustedGit @gitArguments)
+          $gitExitCode = $LASTEXITCODE
+          if (
+            $gitExitCode -ne 0 -or $capturedAuthorizationTagOid.Count -ne 1 -or
+            $capturedAuthorizationTagOid[0] -cnotmatch '^[0-9a-f]{40}$'
+          ) {
             throw "authorization ref did not resolve to one immutable tag object"
           }
-          python -I -S `
-            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py `
-            --repo-root $env:GITHUB_WORKSPACE `
-            --event-name "${{ github.event_name }}" `
-            --github-ref "${{ github.ref }}" `
-            --github-sha "${{ github.sha }}" `
-            --authorization-ref "${{ inputs.authorization_ref }}" `
-            --expected-authorization-tag-oid $capturedAuthorizationTagOid `
-            --output-json $authorizationPath
+          $guardArguments = @(
+            "-I", "-S",
+            "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py",
+            "--repo-root", $env:GITHUB_WORKSPACE,
+            "--event-name", $eventName,
+            "--github-ref", $githubRef,
+            "--github-sha", $githubSha,
+            "--authorization-ref", $authorizationRef,
+            "--expected-authorization-tag-oid", $capturedAuthorizationTagOid[0],
+            "--output-json", $authorizationPath
+          )
+          & $basePython @guardArguments
           if ($LASTEXITCODE -ne 0) { throw "protocol snapshot identity guard failed" }
-
-      - name: Set up base Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        with:
-          python-version: "3.11"
 
       - name: Set up exact TeX Live 2026
         uses: TeX-Live/setup-texlive-action@eb78d21f41941476d9121e3a0abcab73265c876f
@@ -84,13 +138,36 @@ jobs:
 
       - name: Install exact uv runner
         shell: pwsh
-        run: python -m pip install --disable-pip-version-check uv==0.11.11
+        env:
+          VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}
+        run: |
+          $pipArguments = @("-I", "-m", "pip", "install", "--disable-pip-version-check", "uv==0.11.11")
+          & $env:VIA000_BASE_PYTHON @pipArguments
+          if ($LASTEXITCODE -ne 0) { throw "exact uv installation failed" }
 
       - name: Execute frozen clean platform protocol
         shell: pwsh
+        env:
+          VIA000_PLATFORM: ${{ matrix.platform }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           $ErrorActionPreference = "Stop"
-          $trustedGit = (Get-Command git -CommandType Application).Source
+          $platform = [string]$env:VIA000_PLATFORM
+          $producerRunId = [string]$env:VIA000_RUN_ID
+          $producerRunAttempt = [string]$env:VIA000_RUN_ATTEMPT
+          if ($platform -notin @("ubuntu-latest-x86_64", "windows-x86_64")) {
+            throw "unrecognized frozen platform"
+          }
+          if ($producerRunId -cnotmatch '^[1-9][0-9]*$' -or $producerRunAttempt -cnotmatch '^[1-9][0-9]*$') {
+            throw "producer run identity is malformed"
+          }
+          if ($IsWindows) { $trustedGit = "C:\Program Files\Git\cmd\git.exe" }
+          elseif ($IsLinux) { $trustedGit = "/usr/bin/git" }
+          else { throw "unsupported R3 workflow operating system" }
+          if (-not (Test-Path -LiteralPath $trustedGit -PathType Leaf)) {
+            throw "trusted R3 Git is unavailable"
+          }
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
@@ -103,23 +180,28 @@ jobs:
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
-          $currentAuthorizationTagOid = & $trustedGit --no-replace-objects `
-            -C $env:GITHUB_WORKSPACE rev-parse --verify $authorization.authorization_ref
+          $gitArguments = @(
+            "--no-replace-objects", "-C", $env:GITHUB_WORKSPACE,
+            "rev-parse", "--verify", "--end-of-options", $authorization.authorization_ref
+          )
+          $currentAuthorizationTagOid = @(& $trustedGit @gitArguments)
           if ($LASTEXITCODE -ne 0 -or $currentAuthorizationTagOid -ne $authorization.authorization_tag_oid) {
             throw "authorization ref changed before platform execution"
           }
-          pwsh -NoProfile -File `
-            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1 `
-            -WorkspaceRoot $workspace `
-            -PlatformFamily "${{ matrix.platform }}" `
-            -ProtocolSourceCommit $authorization.protocol_commit `
-            -DispatchRef $authorization.source_ref `
-            -AuthorizationRef $authorization.authorization_ref `
-            -AuthorizationTagOid $authorization.authorization_tag_oid `
-            -AuthorizationCommit $authorization.authorization_commit `
-            -AuthorizationRecordSha256 $authorization.authorization_record_sha256 `
-            -ProducerRunId "${{ github.run_id }}" `
-            -ProducerRunAttempt ${{ github.run_attempt }}
+          $runnerArguments = @(
+            "-NoProfile", "-File", "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1",
+            "-WorkspaceRoot", $workspace,
+            "-PlatformFamily", $platform,
+            "-ProtocolSourceCommit", $authorization.protocol_commit,
+            "-DispatchRef", $authorization.source_ref,
+            "-AuthorizationRef", $authorization.authorization_ref,
+            "-AuthorizationTagOid", $authorization.authorization_tag_oid,
+            "-AuthorizationCommit", $authorization.authorization_commit,
+            "-AuthorizationRecordSha256", $authorization.authorization_record_sha256,
+            "-ProducerRunId", $producerRunId,
+            "-ProducerRunAttempt", $producerRunAttempt
+          )
+          & (Get-Process -Id $PID).Path @runnerArguments
           if ($LASTEXITCODE -ne 0) { throw "frozen platform runner failed" }
 
           $candidatePython = if ($IsWindows) {
@@ -156,9 +238,28 @@ jobs:
 
       - name: Execute frozen mutation-test matrix
         shell: pwsh
+        env:
+          VIA000_PLATFORM: ${{ matrix.platform }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}
         run: |
           $ErrorActionPreference = "Stop"
-          $trustedGit = (Get-Command git -CommandType Application).Source
+          $platform = [string]$env:VIA000_PLATFORM
+          $producerRunId = [string]$env:VIA000_RUN_ID
+          $producerRunAttempt = [string]$env:VIA000_RUN_ATTEMPT
+          if ($platform -notin @("ubuntu-latest-x86_64", "windows-x86_64")) {
+            throw "unrecognized frozen platform"
+          }
+          if ($producerRunId -cnotmatch '^[1-9][0-9]*$' -or $producerRunAttempt -cnotmatch '^[1-9][0-9]*$') {
+            throw "producer run identity is malformed"
+          }
+          if ($IsWindows) { $trustedGit = "C:\Program Files\Git\cmd\git.exe" }
+          elseif ($IsLinux) { $trustedGit = "/usr/bin/git" }
+          else { throw "unsupported R3 workflow operating system" }
+          if (-not (Test-Path -LiteralPath $trustedGit -PathType Leaf)) {
+            throw "trusted R3 Git is unavailable"
+          }
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
@@ -171,24 +272,29 @@ jobs:
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
-          $currentAuthorizationTagOid = & $trustedGit --no-replace-objects `
-            -C $env:GITHUB_WORKSPACE rev-parse --verify $authorization.authorization_ref
+          $gitArguments = @(
+            "--no-replace-objects", "-C", $env:GITHUB_WORKSPACE,
+            "rev-parse", "--verify", "--end-of-options", $authorization.authorization_ref
+          )
+          $currentAuthorizationTagOid = @(& $trustedGit @gitArguments)
           if ($LASTEXITCODE -ne 0 -or $currentAuthorizationTagOid -ne $authorization.authorization_tag_oid) {
             throw "authorization ref changed before mutation execution"
           }
-          python -I -S `
-            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py `
-            --repo-root $env:GITHUB_WORKSPACE `
-            --workspace-root $workspace `
-            --platform-family "${{ matrix.platform }}" `
-            --protocol-source-commit $authorization.protocol_commit `
-            --dispatch-ref $authorization.source_ref `
-            --authorization-ref $authorization.authorization_ref `
-            --authorization-tag-oid $authorization.authorization_tag_oid `
-            --authorization-commit $authorization.authorization_commit `
-            --authorization-record-sha256 $authorization.authorization_record_sha256 `
-            --producer-run-id "${{ github.run_id }}" `
-            --producer-run-attempt ${{ github.run_attempt }}
+          $mutationArguments = @(
+            "-I", "-S", "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py",
+            "--repo-root", $env:GITHUB_WORKSPACE,
+            "--workspace-root", $workspace,
+            "--platform-family", $platform,
+            "--protocol-source-commit", $authorization.protocol_commit,
+            "--dispatch-ref", $authorization.source_ref,
+            "--authorization-ref", $authorization.authorization_ref,
+            "--authorization-tag-oid", $authorization.authorization_tag_oid,
+            "--authorization-commit", $authorization.authorization_commit,
+            "--authorization-record-sha256", $authorization.authorization_record_sha256,
+            "--producer-run-id", $producerRunId,
+            "--producer-run-attempt", $producerRunAttempt
+          )
+          & $env:VIA000_BASE_PYTHON @mutationArguments
           if ($LASTEXITCODE -ne 0) { throw "frozen mutation-test matrix failed" }
 
           $candidatePython = if ($IsWindows) {
@@ -232,11 +338,13 @@ jobs:
 
       - name: Retain producer attestation bundle
         shell: pwsh
+        env:
+          VIA000_ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
           $ErrorActionPreference = "Stop"
           $destination = Join-Path $env:RUNNER_TEMP `
             "via000-r3-platform/evidence/producer-attestation.sigstore.json"
-          Copy-Item -LiteralPath "${{ steps.attest.outputs.bundle-path }}" `
+          Copy-Item -LiteralPath $env:VIA000_ATTESTATION_BUNDLE `
             -Destination $destination
           if (-not (Test-Path -LiteralPath $destination -PathType Leaf)) {
             throw "producer attestation bundle was not retained"
