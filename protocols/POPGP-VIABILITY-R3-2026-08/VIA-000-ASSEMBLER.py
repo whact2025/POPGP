@@ -371,10 +371,23 @@ def _copy_manifest_evidence(
         if platform == "windows-x86_64"
         else "systemd-ephemeral-user"
     )
+    expected_token_flags = ["DISABLE_MAX_PRIVILEGE"] if platform == "windows-x86_64" else []
+    expected_integrity_sid = "S-1-16-4096" if platform == "windows-x86_64" else ""
+    expected_label_policy = (
+        "medium-integrity-no-write-up-no-read-up"
+        if platform == "windows-x86_64"
+        else "owner-only-protected-root"
+    )
+    boundary_privileges = boundary.get("enabled_privileges") if isinstance(boundary, dict) else None
     if (
         not isinstance(boundary, dict)
         or boundary.get("primitive") != expected_primitive
         or boundary.get("privilege_separation") != expected_separation
+        or boundary.get("token_restriction_flags") != expected_token_flags
+        or boundary.get("token_integrity_sid") != expected_integrity_sid
+        or boundary_privileges not in ([], ["SeChangeNotifyPrivilege"])
+        or boundary.get("enabled_privilege_count") != len(boundary_privileges or [])
+        or boundary.get("protected_label_policy") != expected_label_policy
         or boundary.get("all_commands_contained") is not True
         or boundary.get("descendants_quiescent") is not True
         or boundary.get("active_processes_after_teardown") != 0
@@ -428,10 +441,16 @@ def _copy_manifest_evidence(
             command = _load_json(source)
             primitive = command.get("primitive") if isinstance(command, dict) else None
             if primitive == expected_primitive:
+                command_privileges = command.get("enabled_privileges")
                 if (
                     command.get("descendants_quiescent") is not True
                     or command.get("active_processes_after_teardown") != 0
                     or command.get("privilege_separation") != expected_separation
+                    or command.get("token_restriction_flags") != expected_token_flags
+                    or command.get("token_integrity_sid") != expected_integrity_sid
+                    or command_privileges not in ([], ["SeChangeNotifyPrivilege"])
+                    or command.get("enabled_privilege_count") != len(command_privileges or [])
+                    or command.get("protected_label_policy") != expected_label_policy
                 ):
                     raise ValueError(
                         f"{platform}/{stage}: retained command has no quiescence proof"

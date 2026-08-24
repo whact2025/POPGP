@@ -120,6 +120,10 @@ namespace Via000R3 {
     public bool TimedOut { get; set; }
     public uint ActiveProcessesAfterTermination { get; set; }
     public string Primitive { get; set; } = "windows-low-integrity-restricted-token-job-object";
+    public string[] TokenRestrictionFlags { get; set; } = new [] { "DISABLE_MAX_PRIVILEGE" };
+    public string TokenIntegritySid { get; set; } = "";
+    public string[] EnabledPrivileges { get; set; } = new string[0];
+    public string ProtectedLabelPolicy { get; set; } = "medium-integrity-no-write-up-no-read-up";
   }
 
   public static class NativeContainment {
@@ -129,7 +133,6 @@ namespace Via000R3 {
     const UInt32 TOKEN_ADJUST_DEFAULT = 0x0080;
     const UInt32 TOKEN_ADJUST_SESSIONID = 0x0100;
     const UInt32 DISABLE_MAX_PRIVILEGE = 0x1;
-    const UInt32 LUA_TOKEN = 0x4;
     const UInt32 CREATE_SUSPENDED = 0x00000004;
     const UInt32 CREATE_UNICODE_ENVIRONMENT = 0x00000400;
     const UInt32 CREATE_NO_WINDOW = 0x08000000;
@@ -148,7 +151,9 @@ namespace Via000R3 {
     const int JobObjectBasicAccountingInformation = 1;
     const int JobObjectExtendedLimitInformation = 9;
     const int TokenIntegrityLevel = 25;
+    const int TokenPrivileges = 3;
     const UInt32 SE_GROUP_INTEGRITY = 0x20;
+    const UInt32 SE_PRIVILEGE_ENABLED = 0x2;
     const UInt32 WAIT_OBJECT_0 = 0;
     const UInt32 WAIT_TIMEOUT = 258;
     static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
@@ -193,12 +198,17 @@ namespace Via000R3 {
     }
     [StructLayout(LayoutKind.Sequential)] struct SID_AND_ATTRIBUTES { public IntPtr Sid; public UInt32 Attributes; }
     [StructLayout(LayoutKind.Sequential)] struct TOKEN_MANDATORY_LABEL { public SID_AND_ATTRIBUTES Label; }
+    [StructLayout(LayoutKind.Sequential)] struct LUID { public UInt32 LowPart; public Int32 HighPart; }
+    [StructLayout(LayoutKind.Sequential)] struct LUID_AND_ATTRIBUTES { public LUID Luid; public UInt32 Attributes; }
 
     [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr GetCurrentProcess();
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool OpenProcessToken(IntPtr p, UInt32 access, out IntPtr token);
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool CreateRestrictedToken(IntPtr existing, UInt32 flags, UInt32 ds, IntPtr disable, UInt32 dp, IntPtr delPriv, UInt32 rs, IntPtr restrict, out IntPtr token);
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool SetTokenInformation(IntPtr token, int cls, ref TOKEN_MANDATORY_LABEL info, int len);
+    [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int len, out int required);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSidToSid(string value, out IntPtr sid);
+    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertSidToStringSid(IntPtr sid, out IntPtr value);
+    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool LookupPrivilegeName(string system, ref LUID luid, StringBuilder name, ref int length);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSecurityDescriptorToSecurityDescriptor(string value, UInt32 revision, out IntPtr descriptor, out UInt32 size);
     [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetSecurityDescriptorSacl(IntPtr descriptor, out bool present, out IntPtr sacl, out bool defaulted);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern UInt32 SetNamedSecurityInfo(string name, int objectType, UInt32 information, IntPtr owner, IntPtr group, IntPtr dacl, IntPtr sacl);
@@ -252,6 +262,57 @@ namespace Via000R3 {
       return info.ActiveProcesses;
     }
 
+    static IntPtr TokenInformation(IntPtr token, int cls, out int length) {
+      GetTokenInformation(token, cls, IntPtr.Zero, 0, out length);
+      int error = Marshal.GetLastWin32Error();
+      if (length <= 0 || error != 122) throw new Win32Exception(error, "GetTokenInformation length");
+      IntPtr buffer = Marshal.AllocHGlobal(length);
+      try {
+        Win32(GetTokenInformation(token, cls, buffer, length, out length), "GetTokenInformation");
+        return buffer;
+      } catch { Marshal.FreeHGlobal(buffer); throw; }
+    }
+    static string IntegritySid(IntPtr token) {
+      IntPtr buffer = IntPtr.Zero, value = IntPtr.Zero;
+      try {
+        buffer = TokenInformation(token, TokenIntegrityLevel, out _);
+        var label = Marshal.PtrToStructure<TOKEN_MANDATORY_LABEL>(buffer);
+        Win32(ConvertSidToStringSid(label.Label.Sid, out value), "ConvertSidToStringSid");
+        return Marshal.PtrToStringUni(value);
+      } finally {
+        if (value != IntPtr.Zero) LocalFree(value);
+        if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+      }
+    }
+    static string PrivilegeName(LUID luid) {
+      int length = 0;
+      LookupPrivilegeName(null, ref luid, null, ref length);
+      int error = Marshal.GetLastWin32Error();
+      if (length <= 0 || error != 122) throw new Win32Exception(error, "LookupPrivilegeName length");
+      var name = new StringBuilder(length + 1);
+      Win32(LookupPrivilegeName(null, ref luid, name, ref length), "LookupPrivilegeName");
+      return name.ToString();
+    }
+    static string[] EnabledPrivilegeNames(IntPtr token) {
+      IntPtr buffer = IntPtr.Zero;
+      try {
+        buffer = TokenInformation(token, TokenPrivileges, out int length);
+        UInt32 count = unchecked((UInt32)Marshal.ReadInt32(buffer));
+        int itemSize = Marshal.SizeOf<LUID_AND_ATTRIBUTES>();
+        if (count > 1024 || 4L + (long)count * itemSize > length)
+          throw new InvalidOperationException("token privilege buffer is malformed");
+        var names = new List<string>();
+        for (int index = 0; index < count; index++) {
+          IntPtr item = IntPtr.Add(buffer, 4 + index * itemSize);
+          var privilege = Marshal.PtrToStructure<LUID_AND_ATTRIBUTES>(item);
+          if ((privilege.Attributes & SE_PRIVILEGE_ENABLED) != 0)
+            names.Add(PrivilegeName(privilege.Luid));
+        }
+        names.Sort(StringComparer.Ordinal);
+        return names.ToArray();
+      } finally { if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer); }
+    }
+
     public static void SetIntegrityLabel(string path, bool mutable, bool noReadUp) {
       IntPtr descriptor = IntPtr.Zero;
       try {
@@ -271,10 +332,17 @@ namespace Via000R3 {
       PROCESS_INFORMATION pi = new PROCESS_INFORMATION(); bool created = false;
       try {
         Win32(OpenProcessToken(GetCurrentProcess(), TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, out current), "OpenProcessToken");
-        Win32(CreateRestrictedToken(current, DISABLE_MAX_PRIVILEGE | LUA_TOKEN, 0, IntPtr.Zero, 0, IntPtr.Zero, 0, IntPtr.Zero, out restricted), "CreateRestrictedToken");
+        Win32(CreateRestrictedToken(current, DISABLE_MAX_PRIVILEGE, 0, IntPtr.Zero, 0, IntPtr.Zero, 0, IntPtr.Zero, out restricted), "CreateRestrictedToken");
         Win32(ConvertStringSidToSid("S-1-16-4096", out lowSid), "ConvertStringSidToSid");
         var label = new TOKEN_MANDATORY_LABEL { Label = new SID_AND_ATTRIBUTES { Sid = lowSid, Attributes = SE_GROUP_INTEGRITY } };
         Win32(SetTokenInformation(restricted, TokenIntegrityLevel, ref label, Marshal.SizeOf<TOKEN_MANDATORY_LABEL>() + (int)GetLengthSid(lowSid)), "SetTokenInformation low integrity");
+        string integritySid = IntegritySid(restricted);
+        if (!String.Equals(integritySid, "S-1-16-4096", StringComparison.Ordinal))
+          throw new InvalidOperationException("restricted token integrity is not exact low integrity");
+        string[] enabledPrivileges = EnabledPrivilegeNames(restricted);
+        if (enabledPrivileges.Length > 1 ||
+            (enabledPrivileges.Length == 1 && !String.Equals(enabledPrivileges[0], "SeChangeNotifyPrivilege", StringComparison.Ordinal)))
+          throw new InvalidOperationException("restricted token retained an unexpected enabled privilege");
         job = CreateJobObject(IntPtr.Zero, null); if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "CreateJobObject");
         var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
         limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
@@ -297,7 +365,11 @@ namespace Via000R3 {
         while (Active(job) != 0 && DateTime.UtcNow < deadline) Thread.Sleep(25);
         uint remaining = Active(job);
         if (remaining != 0) throw new InvalidOperationException("job object retained active descendants after termination");
-        return new ContainedResult { ExitCode = unchecked((int)exitCode), TimedOut = timedOut, ActiveProcessesAfterTermination = remaining };
+        return new ContainedResult {
+          ExitCode = unchecked((int)exitCode), TimedOut = timedOut,
+          ActiveProcessesAfterTermination = remaining, TokenIntegritySid = integritySid,
+          EnabledPrivileges = enabledPrivileges
+        };
       } finally {
         if (created) { if (pi.hThread != IntPtr.Zero) CloseHandle(pi.hThread); if (pi.hProcess != IntPtr.Zero) CloseHandle(pi.hProcess); }
         if (stdin != IntPtr.Zero && stdin != INVALID_HANDLE_VALUE) CloseHandle(stdin);
@@ -487,6 +559,12 @@ function Invoke-Via000ContainedCommand {
     $untrustedStdout = Join-Path $staging "stdout.txt"
     $untrustedStderr = Join-Path $staging "stderr.txt"
     $primitive = ""
+    $tokenRestrictionFlags = @()
+    $tokenIntegritySid = ""
+    $enabledPrivileges = @()
+    $protectedLabelPolicy = $(if ($PlatformFamily -eq "windows-x86_64") {
+        "medium-integrity-no-write-up-no-read-up"
+    } else { "owner-only-protected-root" })
     $quiescent = $false
     $exitCode = 125
     $timeout = $false
@@ -507,6 +585,17 @@ function Invoke-Via000ContainedCommand {
             $timeout = [bool]$result.TimedOut
             $quiescent = ([uint32]$result.ActiveProcessesAfterTermination -eq 0)
             $primitive = [string]$result.Primitive
+            $tokenRestrictionFlags = @($result.TokenRestrictionFlags)
+            $tokenIntegritySid = [string]$result.TokenIntegritySid
+            $enabledPrivileges = @($result.EnabledPrivileges)
+            if ($tokenRestrictionFlags.Count -ne 1 -or
+                [string]$tokenRestrictionFlags[0] -cne "DISABLE_MAX_PRIVILEGE" -or
+                $tokenIntegritySid -cne "S-1-16-4096" -or
+                $enabledPrivileges.Count -gt 1 -or
+                ($enabledPrivileges.Count -eq 1 -and
+                    [string]$enabledPrivileges[0] -cne "SeChangeNotifyPrivilege")) {
+                throw "restricted token evidence differs from the frozen policy"
+            }
         } else {
             $unit = "via000-r3-$($Label.ToLowerInvariant().Replace('_','-'))-$([Guid]::NewGuid().ToString('N'))"
             $serviceUser = "via000r3$([Guid]::NewGuid().ToString('N').Substring(0,12))"
@@ -602,6 +691,11 @@ function Invoke-Via000ContainedCommand {
             } else {
                 "systemd-ephemeral-user"
             })
+            token_restriction_flags = @($tokenRestrictionFlags)
+            token_integrity_sid = $tokenIntegritySid
+            enabled_privilege_count = $enabledPrivileges.Count
+            enabled_privileges = @($enabledPrivileges)
+            protected_label_policy = $protectedLabelPolicy
             unit = $unit
             stdout_sha256 = Get-Via000Sha256 -Path $StdoutPath
             stderr_sha256 = Get-Via000Sha256 -Path $StderrPath

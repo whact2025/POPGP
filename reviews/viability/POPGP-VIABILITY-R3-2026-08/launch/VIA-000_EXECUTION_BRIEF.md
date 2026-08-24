@@ -93,6 +93,10 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    assigned to a kill-on-close Job Object before resume; Ubuntu requires a systemd
    fresh per-command unprivileged system account in a transient service with
    control-group kill, empty-cgroup/UID-process proof, and account removal.
+   The Windows token uses only `DISABLE_MAX_PRIVILEGE` (never `LUA_TOKEN`), is queried
+   before child creation for exact `S-1-16-4096`, and may retain no enabled privilege
+   except optional `SeChangeNotifyPrivilege`. Retain and validate the exact flag, SID,
+   canonical privilege list/count, protected-label policy, and teardown evidence.
    Only mutable staging is writable to the untrusted identity. Tool/configuration and
    trusted-evidence roots remain protected, and trusted evidence/attestation subjects
    are created only after whole-tree teardown and zero-descendant verification. The

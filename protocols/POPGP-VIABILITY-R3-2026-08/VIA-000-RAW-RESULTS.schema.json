@@ -274,7 +274,9 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "primitive", "privilege_separation", "all_commands_contained",
+        "primitive", "privilege_separation", "token_restriction_flags",
+        "token_integrity_sid", "enabled_privilege_count", "enabled_privileges",
+        "protected_label_policy", "all_commands_contained",
         "descendants_quiescent", "active_processes_after_teardown",
         "untrusted_identity_processes_empty", "untrusted_identity_retired",
         "trusted_evidence_unreadable_unwritable", "mutable_root_separate",
@@ -289,6 +291,19 @@
         },
         "privilege_separation": {
           "enum": ["systemd-ephemeral-user", "low-integrity-restricted-token"]
+        },
+        "token_restriction_flags": {
+          "type": "array", "maxItems": 1, "uniqueItems": true,
+          "items": {"const": "DISABLE_MAX_PRIVILEGE"}
+        },
+        "token_integrity_sid": {"enum": ["", "S-1-16-4096"]},
+        "enabled_privilege_count": {"type": "integer", "minimum": 0, "maximum": 1},
+        "enabled_privileges": {
+          "type": "array", "maxItems": 1, "uniqueItems": true,
+          "items": {"const": "SeChangeNotifyPrivilege"}
+        },
+        "protected_label_policy": {
+          "enum": ["medium-integrity-no-write-up-no-read-up", "owner-only-protected-root"]
         },
         "all_commands_contained": {"const": true},
         "descendants_quiescent": {"const": true},

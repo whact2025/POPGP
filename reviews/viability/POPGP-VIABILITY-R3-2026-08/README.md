@@ -136,6 +136,17 @@ state may be reused.
 Hosted output is
 review evidence only; it cannot activate R3 or establish scientific viability.
 
+RR14 narrows the Windows restricted-token flags to `DISABLE_MAX_PRIVILEGE` only;
+`LUA_TOKEN` is forbidden. Before any suspended child is created, the frozen native
+helper queries and requires exact low integrity `S-1-16-4096` and an enabled-privilege
+list containing at most `SeChangeNotifyPrivilege`. The exact flag list, integrity SID,
+canonical privilege count/list, protected-label policy, and teardown facts are retained
+in every Windows command result and stage/proof summary and independently revalidated.
+The manual scrubbed environment, Job Object assignment-before-resume, protected/mutable
+root split, kill-on-close, explicit termination, and zero-active proof are unchanged.
+A fresh six-cell proof at the exact RR14 handoff is mandatory; the RR13 factor experiment
+is diagnostic only and none of its output is campaign evidence.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

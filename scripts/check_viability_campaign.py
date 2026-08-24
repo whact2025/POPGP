@@ -1821,6 +1821,12 @@ def _validate_raw_evidence_contract(
         "require_privilege_separated_evidence": True,
         "require_post_teardown_subject_capture": True,
         "require_zero_active_descendants": True,
+        "windows_restricted_token_flags": ["DISABLE_MAX_PRIVILEGE"],
+        "windows_token_integrity_sid": "S-1-16-4096",
+        "windows_enabled_privilege_allowlist": ["SeChangeNotifyPrivilege"],
+        "windows_protected_label_policy": (
+            "medium-integrity-no-write-up-no-read-up"
+        ),
         "require_production_hostile_containment_gate": True,
         "require_safe_hosted_containment_proof_workflow": True,
         "required_hosted_containment_proof_cells": 6,

@@ -117,6 +117,24 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _token_evidence(platform: str) -> dict[str, object]:
+    if platform == "windows-x86_64":
+        return {
+            "token_restriction_flags": ["DISABLE_MAX_PRIVILEGE"],
+            "token_integrity_sid": "S-1-16-4096",
+            "enabled_privilege_count": 0,
+            "enabled_privileges": [],
+            "protected_label_policy": "medium-integrity-no-write-up-no-read-up",
+        }
+    return {
+        "token_restriction_flags": [],
+        "token_integrity_sid": "",
+        "enabled_privilege_count": 0,
+        "enabled_privileges": [],
+        "protected_label_policy": "owner-only-protected-root",
+    }
+
+
 def _overlay(source: Path, destination: Path) -> None:
     if source.is_dir():
         destination.mkdir(parents=True, exist_ok=True)
@@ -636,6 +654,7 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                 "privilege_separation": separation,
                 "descendants_quiescent": True,
                 "active_processes_after_teardown": 0,
+                **_token_evidence(platform_name),
             }
         )
         suite_path.write_text(json.dumps(suite), encoding="utf-8")
@@ -695,6 +714,7 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
                     "privilege_separation": separation,
                     "descendants_quiescent": True,
                     "active_processes_after_teardown": 0,
+                    **_token_evidence(platform_name),
                 }
             )
             if platform_name == "ubuntu-latest-x86_64":
@@ -738,6 +758,7 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
             "mutable_root_separate": True,
             "attestation_subjects_captured_after_quiescence": True,
             "contained_command_count": containment_count,
+            **_token_evidence(platform_name),
         }
         summary["evidence_paths"] = sorted(
             [*summary["evidence_paths"], "evidence/tool-identity-manifest.json"]
@@ -2164,6 +2185,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 "active_processes_after_teardown": 0,
                 "exit_code": 0,
                 "timed_out": False,
+                **_token_evidence(platform),
                 "stdout_sha256": hashlib.sha256(subjects["stdout.txt"]).hexdigest(),
                 "stderr_sha256": hashlib.sha256(subjects["stderr.txt"]).hexdigest(),
             }
@@ -2195,6 +2217,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 "artifact_name": artifact_name,
                 "primitive": primitive,
                 "privilege_separation": privilege,
+                **_token_evidence(platform),
                 "active_processes_after_teardown": 0,
                 "containment_result_sha256": hashlib.sha256(
                     subjects["containment-result.json"]
@@ -2330,6 +2353,38 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert not output.exists()
     (ubuntu_artifact / "envelope.json").write_bytes(original_envelope)
 
+    windows_artifact = (
+        fragments / "via000-r3-containment-proof-windows-x86_64-candidate"
+    )
+    windows_original = (windows_artifact / "envelope.json").read_bytes()
+    for field, value in (
+        ("token_restriction_flags", []),
+        ("token_integrity_sid", "S-1-16-8192"),
+        ("enabled_privilege_count", 1),
+        ("enabled_privileges", ["SeDebugPrivilege"]),
+        ("enabled_privileges", ["SeChangeNotifyPrivilege", "SeDebugPrivilege"]),
+        ("protected_label_policy", "mutable"),
+    ):
+        document = json.loads(windows_original)
+        proof_bytes = base64.b64decode(document["members"]["proof.json"]["base64"])
+        proof = json.loads(proof_bytes)
+        proof[field] = value
+        replacement = json.dumps(proof, indent=2).encode() + b"\n"
+        document["members"]["proof.json"] = {
+            "base64": base64.b64encode(replacement).decode(),
+            "sha256": hashlib.sha256(replacement).hexdigest(),
+            "size": len(replacement),
+        }
+        document["total_decoded_bytes"] += len(replacement) - len(proof_bytes)
+        (windows_artifact / "envelope.json").write_bytes(
+            aggregator_module.canonical_envelope_bytes(document)
+        )
+        output.unlink(missing_ok=True)
+        forged = subprocess.run(command, check=False, capture_output=True, text=True)
+        assert forged.returncode != 0
+        assert not output.exists()
+        (windows_artifact / "envelope.json").write_bytes(windows_original)
+
     removed = next(fragments.glob("*/envelope.json"))
     removed.unlink()
     rejected = subprocess.run(command, check=False, capture_output=True, text=True)
@@ -2431,6 +2486,7 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
                 if platform.startswith("ubuntu")
                 else "low-integrity-restricted-token"
             ),
+            **_token_evidence(platform),
         }
     )
     if platform.startswith("ubuntu"):
@@ -2459,6 +2515,7 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
             "stage_id": stage,
             "primitive": contained["primitive"],
             "privilege_separation": contained["privilege_separation"],
+            **_token_evidence(platform),
             "containment_result_sha256": hashlib.sha256(
                 subjects["containment-result.json"]
             ).hexdigest(),
@@ -2987,6 +3044,8 @@ def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
     trusted = tmp_path / "trusted"
     mutable.mkdir()
     trusted.mkdir()
+    protected_tool = trusted / "tool.bin"
+    protected_tool.write_bytes(b"trusted-tool-closure")
     payload = mutable / "hostile.py"
     payload.write_text(
         "import os, subprocess, sys, time\n"
@@ -2996,6 +3055,8 @@ def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
         "    for target in (os.path.join(trusted, 'delayed-marker'), tool):\n"
         "        try:\n"
         "            old = open(target, 'rb').read() if os.path.exists(target) else b''\n"
+        "            if target == tool and old: open(os.path.join(mutable, "
+        "'delayed-protected-read-succeeded'), 'wb').write(old)\n"
         "            open(target, 'wb').write(b'replaced')\n"
         "            open(target, 'wb').write(old)\n"
         "        except OSError:\n"
@@ -3007,9 +3068,12 @@ def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
         "subprocess.CREATE_NEW_PROCESS_GROUP, close_fds=True)\n"
         "    open(os.path.join(mutable, 'ready'), 'w').write('ready')\n"
         "    raise SystemExit(0)\n"
+        "open(os.path.join(mutable, 'mutable-write-allowed'), 'w').write('allowed')\n"
         "for target in (os.path.join(trusted, 'direct-marker'), tool):\n"
         "    try:\n"
         "        old = open(target, 'rb').read() if os.path.exists(target) else b''\n"
+        "        if target == tool and old: open(os.path.join(mutable, "
+        "'protected-read-succeeded'), 'wb').write(old)\n"
         "        open(target, 'wb').write(b'replace-then-restore')\n"
         "        open(target, 'wb').write(old)\n"
         "    except OSError:\n"
@@ -3038,21 +3102,26 @@ def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
         "$tools=@{}\n"
         "Test-Via000ContainmentAvailability -PlatformFamily windows-x86_64 -SystemTools $tools\n"
         "Set-Via000RootIntegrity -Path $Mutable -Kind mutable -SystemTools $tools\n"
-        "Set-Via000RootIntegrity -Path $Trusted -Kind protected -SystemTools $tools\n"
+            "Set-Via000RootIntegrity -Path $Trusted -Kind protected -SystemTools $tools\n"
+            "[Via000R3.NativeContainment]::SetIntegrityLabel("
+            "(Join-Path $Trusted 'tool.bin'),$false,$true)\n"
         "$closure=@{}; $closure[$Python]=(Get-FileHash -Algorithm SHA256 "
         "-LiteralPath $Python).Hash.ToLowerInvariant(); "
         "$closure[$Boundary]=(Get-FileHash -Algorithm SHA256 -LiteralPath "
         "$Boundary).Hash.ToLowerInvariant()\n"
+        "$closure[(Join-Path $Trusted 'tool.bin')]=(Get-FileHash -Algorithm SHA256 "
+        "-LiteralPath (Join-Path $Trusted 'tool.bin')).Hash.ToLowerInvariant()\n"
         "Invoke-Via000ContainedCommand -Label hostile -ContractId "
         "rr6-production-hostile -PlatformFamily windows-x86_64 -FilePath $Python "
-        "-Arguments @('-I','-S',$Payload,'attack',$Python,$Trusted,$Mutable) "
+        "-Arguments @('-I','-S',$Payload,'attack',"
+        "(Join-Path $Trusted 'tool.bin'),$Trusted,$Mutable) "
         "-WorkingDirectory $Mutable -MutableRoot $Mutable -TrustedRoot $Trusted "
         "-StdoutPath (Join-Path $Trusted 'stdout.txt') -StderrPath (Join-Path "
         "$Trusted 'stderr.txt') -ResultPath (Join-Path $Trusted 'result.json') "
         "-Environment @{} -Closure $closure -SystemTools $tools -TimeoutSeconds 30\n",
         encoding="utf-8",
     )
-    python_sha = _sha(Path(sys.executable))
+    tool_sha = _sha(protected_tool)
     completed = subprocess.run(
         [
             pwsh,
@@ -3075,12 +3144,50 @@ def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
     assert result["primitive"] == "windows-low-integrity-restricted-token-job-object"
     assert result["descendants_quiescent"] is True
     assert result["active_processes_after_teardown"] == 0
+    assert result["token_restriction_flags"] == ["DISABLE_MAX_PRIVILEGE"]
+    assert result["token_integrity_sid"] == "S-1-16-4096"
+    assert result["enabled_privileges"] in ([], ["SeChangeNotifyPrivilege"])
+    assert result["enabled_privilege_count"] == len(result["enabled_privileges"])
+    assert result["protected_label_policy"] == "medium-integrity-no-write-up-no-read-up"
     import time
 
     time.sleep(2)
     assert not (trusted / "direct-marker").exists()
     assert not (trusted / "delayed-marker").exists()
-    assert _sha(Path(sys.executable)) == python_sha
+    assert not (mutable / "protected-read-succeeded").exists()
+    assert not (mutable / "delayed-protected-read-succeeded").exists()
+    assert (mutable / "mutable-write-allowed").read_text(encoding="utf-8") == "allowed"
+    assert _sha(protected_tool) == tool_sha
+
+
+@pytest.mark.negative_control
+def test_r3_rr14_no_lua_low_il_production_identity_is_bound() -> None:
+    """TST-VIA000-R3-RR14-NO-LUA-LOW-IL-PRODUCTION-001."""
+    source = CONTAINMENT.read_text(encoding="utf-8")
+    receipt = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-protocol.ps1"
+    ).read_text(encoding="utf-8")
+    for frozen in (source, receipt):
+        assert "LUA_TOKEN" not in frozen
+        assert "CreateRestrictedToken(current, DISABLE_MAX_PRIVILEGE," in frozen
+        assert 'String.Equals(integritySid, "S-1-16-4096"' in frozen
+        assert '"SeChangeNotifyPrivilege"' in frozen
+        assert "EnabledPrivilegeNames(restricted)" in frozen
+    for consumer in (
+        CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8"),
+        CONTAINMENT_PROOF_AGGREGATOR.read_text(encoding="utf-8"),
+        RUNNER.read_text(encoding="utf-8"),
+        MUTATION_RUNNER.read_text(encoding="utf-8"),
+        ASSEMBLER.read_text(encoding="utf-8"),
+    ):
+        for token in (
+            "DISABLE_MAX_PRIVILEGE",
+            "S-1-16-4096",
+            "enabled_privileges",
+            "protected_label_policy",
+        ):
+            assert token in consumer
 
 
 @pytest.mark.negative_control
@@ -3090,6 +3197,11 @@ def test_r3_windows_production_containment_kills_detached_replace_restore_tree(
         ("descendants_quiescent", False),
         ("active_processes_after_teardown", 1),
         ("trusted_evidence_unreadable_unwritable", False),
+        ("token_restriction_flags", ["DISABLE_MAX_PRIVILEGE", "LUA_TOKEN"]),
+        ("token_integrity_sid", "S-1-16-8192"),
+        ("enabled_privilege_count", 1),
+        ("enabled_privileges", ["SeDebugPrivilege"]),
+        ("protected_label_policy", "mutable"),
     ],
 )
 def test_r3_assembler_rejects_forged_execution_boundary(

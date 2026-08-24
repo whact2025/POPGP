@@ -333,3 +333,22 @@ key or tag has been created. Activation is blocked until a separately reviewed
 amendment freezes exactly one Ed25519 public key. Independent review with zero blockers
 is then required before a maintainer creates final snapshot/authorization tags and
 activates the campaign. This document is design evidence only.
+
+## RR14 Windows restricted-token compatibility amendment
+
+The bounded RR13 factor matrix isolated `LUA_TOKEN` as the cause of hosted Windows
+`STATUS_DLL_INIT_FAILED`; the manual scrubbed environment was not causal. RR14 therefore
+removes only `LUA_TOKEN` from the production `CreateRestrictedToken` flags and retains
+`DISABLE_MAX_PRIVILEGE`, explicit `S-1-16-4096` relabeling, suspended process creation,
+atomic Job Object assignment before resume, kill-on-close, explicit descendant-tree
+termination, protected/mutable separation, closure checks, and zero-active proof.
+
+The production helper now queries the restricted token before process creation and
+fails unless integrity is exactly `S-1-16-4096` and the sorted enabled-privilege list is
+empty or exactly `SeChangeNotifyPrivilege`. Command results, stage summaries, canonical
+proof envelopes, schemas, and the assembler bind and independently validate the exact
+flag list, integrity SID, canonical privilege count/list, protected-label policy, and
+teardown state. The local exact hostile replay requires payload execution, mutable-write
+success, protected read/write/replace denial, unchanged protected hashes, and complete
+descendant teardown. A new exact-source six-cell hosted proof and independent rereview
+remain required; this draft amendment is not activation or scientific evidence.

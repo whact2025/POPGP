@@ -96,6 +96,11 @@ CELL_FIELDS = {
     "stage_id",
     "cell",
     "artifact_name",
+    "token_restriction_flags",
+    "token_integrity_sid",
+    "enabled_privilege_count",
+    "enabled_privileges",
+    "protected_label_policy",
     *HASH_FIELDS,
     *TRUE_FIELDS,
     "primitive",
@@ -332,6 +337,23 @@ def _validate_cell(
         or document["privilege_separation"] != expected_privilege
     ):
         raise ValueError(f"proof uses the wrong platform containment primitive: {path}")
+    expected_token_flags = ["DISABLE_MAX_PRIVILEGE"] if platform == "windows-x86_64" else []
+    expected_integrity_sid = "S-1-16-4096" if platform == "windows-x86_64" else ""
+    expected_label_policy = (
+        "medium-integrity-no-write-up-no-read-up"
+        if platform == "windows-x86_64"
+        else "owner-only-protected-root"
+    )
+    enabled_privileges = document.get("enabled_privileges")
+    if (
+        document.get("token_restriction_flags") != expected_token_flags
+        or document.get("token_integrity_sid") != expected_integrity_sid
+        or not isinstance(enabled_privileges, list)
+        or enabled_privileges not in ([], ["SeChangeNotifyPrivilege"])
+        or document.get("enabled_privilege_count") != len(enabled_privileges)
+        or document.get("protected_label_policy") != expected_label_policy
+    ):
+        raise ValueError(f"proof token or protected-label policy differs: {path}")
     if any(
         not isinstance(document[field], str)
         or re.fullmatch(r"[0-9a-f]{64}", document[field]) is None
@@ -352,6 +374,11 @@ def _validate_cell(
         or contained.get("active_processes_after_teardown") != 0
         or contained.get("exit_code") != 0
         or contained.get("timed_out") is not False
+        or contained.get("token_restriction_flags") != expected_token_flags
+        or contained.get("token_integrity_sid") != expected_integrity_sid
+        or contained.get("enabled_privileges") != enabled_privileges
+        or contained.get("enabled_privilege_count") != len(enabled_privileges)
+        or contained.get("protected_label_policy") != expected_label_policy
     ):
         raise ValueError(f"containment result predicates differ: {path}")
     if platform == "ubuntu-latest-x86_64" and (

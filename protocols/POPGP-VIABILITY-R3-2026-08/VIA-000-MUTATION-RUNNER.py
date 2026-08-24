@@ -172,6 +172,18 @@ def finalize(args: argparse.Namespace) -> None:
     dispatch, selectors = _identity(args, protocol)
     if plan.get("selectors") != selectors or plan.get("dispatch_identity") != dispatch:
         raise ValueError("mutation plan identity differs from the frozen protocol")
+    expected_token_flags = (
+        ["DISABLE_MAX_PRIVILEGE"] if args.platform_family == "windows-x86_64" else []
+    )
+    expected_integrity_sid = (
+        "S-1-16-4096" if args.platform_family == "windows-x86_64" else ""
+    )
+    expected_label_policy = (
+        "medium-integrity-no-write-up-no-read-up"
+        if args.platform_family == "windows-x86_64"
+        else "owner-only-protected-root"
+    )
+    enabled_privileges = contained.get("enabled_privileges")
     if (
         contained.get("exit_code") != 0
         or contained.get("timed_out") is not False
@@ -179,6 +191,11 @@ def finalize(args: argparse.Namespace) -> None:
         or contained.get("active_processes_after_teardown") != 0
         or contained.get("privilege_separation")
         not in {"low-integrity-restricted-token", "systemd-ephemeral-user"}
+        or contained.get("token_restriction_flags") != expected_token_flags
+        or contained.get("token_integrity_sid") != expected_integrity_sid
+        or enabled_privileges not in ([], ["SeChangeNotifyPrivilege"])
+        or contained.get("enabled_privilege_count") != len(enabled_privileges or [])
+        or contained.get("protected_label_policy") != expected_label_policy
     ):
         raise ValueError("mutation containment proof is absent or unsuccessful")
     stdout_path = args.stdout.resolve(strict=True)

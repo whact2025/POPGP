@@ -57,6 +57,8 @@
             "proof_envelope_schema_sha256", "proof_aggregator_sha256",
             "proof_workflow_sha256",
             "receipt_bindings_verified", "primitive", "privilege_separation",
+            "token_restriction_flags", "token_integrity_sid",
+            "enabled_privilege_count", "enabled_privileges", "protected_label_policy",
             "descendants_quiescent", "active_processes_after_teardown",
             "os_process_tree_empty", "untrusted_identity_processes_empty",
             "untrusted_identity_retired", "child_of_child_observed_before_direct_exit",
@@ -106,6 +108,19 @@
             },
             "privilege_separation": {
               "enum": ["low-integrity-restricted-token", "systemd-ephemeral-user"]
+            },
+            "token_restriction_flags": {
+              "type": "array", "maxItems": 1, "uniqueItems": true,
+              "items": {"const": "DISABLE_MAX_PRIVILEGE"}
+            },
+            "token_integrity_sid": {"enum": ["", "S-1-16-4096"]},
+            "enabled_privilege_count": {"type": "integer", "minimum": 0, "maximum": 1},
+            "enabled_privileges": {
+              "type": "array", "maxItems": 1, "uniqueItems": true,
+              "items": {"const": "SeChangeNotifyPrivilege"}
+            },
+            "protected_label_policy": {
+              "enum": ["medium-integrity-no-write-up-no-read-up", "owner-only-protected-root"]
             },
             "descendants_quiescent": {"const": true},
             "active_processes_after_teardown": {"const": 0},

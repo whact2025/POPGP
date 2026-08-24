@@ -272,6 +272,11 @@ try {
     Set-Via000RootIntegrity -Path $mutable -Kind mutable -SystemTools $systemTools
     Set-Via000RootIntegrity -Path $evidence -Kind protected -SystemTools $systemTools
     Set-Via000RootIntegrity -Path $toolClosure -Kind protected -SystemTools $systemTools
+    if ($IsWindows) {
+        Initialize-Via000WindowsNative
+        [Via000R3.NativeContainment]::SetIntegrityLabel($evidenceSubject, $false, $true)
+        [Via000R3.NativeContainment]::SetIntegrityLabel($toolSubject, $false, $true)
+    }
     Protect-Via000ReadOnlyClosure -Path $toolClosure -SystemTools $systemTools
 
     $stdout = Join-Path $evidence "stdout.txt"
@@ -312,6 +317,26 @@ try {
         $result.active_processes_after_teardown -ne 0 -or
         $result.exit_code -ne 0 -or $result.timed_out -ne $false) {
         throw "production containment result is incomplete or uses the wrong primitive"
+    }
+    $expectedTokenFlags = if ($PlatformFamily -eq "windows-x86_64") {
+        @("DISABLE_MAX_PRIVILEGE")
+    } else { @() }
+    $expectedIntegritySid = if ($PlatformFamily -eq "windows-x86_64") {
+        "S-1-16-4096"
+    } else { "" }
+    $expectedLabelPolicy = if ($PlatformFamily -eq "windows-x86_64") {
+        "medium-integrity-no-write-up-no-read-up"
+    } else { "owner-only-protected-root" }
+    $observedTokenFlags = @($result.token_restriction_flags)
+    $observedEnabledPrivileges = @($result.enabled_privileges)
+    if (($observedTokenFlags -cjoin "\n") -cne ($expectedTokenFlags -cjoin "\n") -or
+        [string]$result.token_integrity_sid -cne $expectedIntegritySid -or
+        [int]$result.enabled_privilege_count -ne $observedEnabledPrivileges.Count -or
+        $observedEnabledPrivileges.Count -gt 1 -or
+        ($observedEnabledPrivileges.Count -eq 1 -and
+            [string]$observedEnabledPrivileges[0] -cne "SeChangeNotifyPrivilege") -or
+        [string]$result.protected_label_policy -cne $expectedLabelPolicy) {
+        throw "production containment result has invalid token or protected-label evidence"
     }
     if ($PlatformFamily -eq "ubuntu-latest-x86_64" -and (
         [string]$result.ephemeral_identity_uid -cnotmatch '^[1-9][0-9]*$' -or
@@ -370,6 +395,11 @@ try {
         receipt_bindings_verified = $true
         primitive = $expectedPrimitive
         privilege_separation = $expectedPrivilege
+        token_restriction_flags = @($observedTokenFlags)
+        token_integrity_sid = [string]$result.token_integrity_sid
+        enabled_privilege_count = [int]$result.enabled_privilege_count
+        enabled_privileges = @($observedEnabledPrivileges)
+        protected_label_policy = [string]$result.protected_label_policy
         descendants_quiescent = $true
         active_processes_after_teardown = 0
         os_process_tree_empty = $true

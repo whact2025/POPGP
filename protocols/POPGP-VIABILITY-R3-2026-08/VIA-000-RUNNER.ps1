@@ -747,6 +747,26 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
             [int]$record.active_processes_after_teardown -ne 0) {
             throw "contained command retained an untrusted descendant"
         }
+        $expectedTokenFlags = if ($PlatformFamily -eq "windows-x86_64") {
+            @("DISABLE_MAX_PRIVILEGE")
+        } else { @() }
+        $expectedIntegritySid = if ($PlatformFamily -eq "windows-x86_64") {
+            "S-1-16-4096"
+        } else { "" }
+        $expectedLabelPolicy = if ($PlatformFamily -eq "windows-x86_64") {
+            "medium-integrity-no-write-up-no-read-up"
+        } else { "owner-only-protected-root" }
+        $recordTokenFlags = @($record.token_restriction_flags)
+        $recordEnabledPrivileges = @($record.enabled_privileges)
+        if (($recordTokenFlags -cjoin "\n") -cne ($expectedTokenFlags -cjoin "\n") -or
+            [string]$record.token_integrity_sid -cne $expectedIntegritySid -or
+            [int]$record.enabled_privilege_count -ne $recordEnabledPrivileges.Count -or
+            $recordEnabledPrivileges.Count -gt 1 -or
+            ($recordEnabledPrivileges.Count -eq 1 -and
+                [string]$recordEnabledPrivileges[0] -cne "SeChangeNotifyPrivilege") -or
+            [string]$record.protected_label_policy -cne $expectedLabelPolicy) {
+            throw "contained command retained invalid token or protected-label evidence"
+        }
         if ($PlatformFamily -eq "ubuntu-latest-x86_64" -and (
             [string]$record.ephemeral_identity_uid -cnotmatch '^[1-9][0-9]*$' -or
             $record.ephemeral_identity_processes_empty -ne $true -or
@@ -798,6 +818,17 @@ if ($containmentRecords.Count -lt 2) {
         privilege_separation = $(if ($PlatformFamily -eq "windows-x86_64") {
             "low-integrity-restricted-token"
         } else { "systemd-ephemeral-user" })
+        token_restriction_flags = $(if ($PlatformFamily -eq "windows-x86_64") {
+            @("DISABLE_MAX_PRIVILEGE")
+        } else { @() })
+        token_integrity_sid = $(if ($PlatformFamily -eq "windows-x86_64") {
+            "S-1-16-4096"
+        } else { "" })
+        enabled_privilege_count = @($containmentRecords[0].enabled_privileges).Count
+        enabled_privileges = @($containmentRecords[0].enabled_privileges)
+        protected_label_policy = $(if ($PlatformFamily -eq "windows-x86_64") {
+            "medium-integrity-no-write-up-no-read-up"
+        } else { "owner-only-protected-root" })
         all_commands_contained = $true
         descendants_quiescent = $true
         active_processes_after_teardown = 0
