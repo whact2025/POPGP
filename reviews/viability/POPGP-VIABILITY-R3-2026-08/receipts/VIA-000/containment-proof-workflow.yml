@@ -143,7 +143,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "containment proof cell failed" }
 
       - name: Upload non-scientific cell proof
-        uses: actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
           path: ${{ runner.temp }}/via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
@@ -233,7 +233,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "hosted containment proof aggregate failed" }
 
       - name: Upload non-scientific exact-matrix proof
-        uses: actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: via000-r3-containment-proof-aggregate
           path: ${{ runner.temp }}/via000-r3-containment-proof-aggregate

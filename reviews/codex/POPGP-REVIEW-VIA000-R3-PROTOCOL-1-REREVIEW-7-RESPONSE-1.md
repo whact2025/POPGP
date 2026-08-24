@@ -66,6 +66,12 @@ summary: |-
   are literal reviewed absolute paths. Official actionlint 1.7.12 accepts the
   corrected workflow with zero parse or expression errors. This failed zero-job run
   is not containment evidence and is retained as transparent negative evidence.
+  The second branch-push attempt, run 32697185085 at handoff
+  f3ae178c62d19c9efdf81eaa5ce3b1b729b46372, created all six matrix jobs but each
+  failed during action preparation before checkout because the declared
+  upload-artifact revision did not exist upstream. The pin is corrected to the
+  verified immutable v4.6.2 commit ea165f8d65b6e75b540449e92b4886f43607fa02;
+  this second run likewise contains no containment result or campaign evidence.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
