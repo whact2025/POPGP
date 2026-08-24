@@ -202,6 +202,14 @@ trusted post-upload step now validates the raw ID/digest/URL exactly, prefixes t
 digest once, and exposes only the canonical values. It does not broaden verifier input
 grammar or change containment, cache, envelope, aggregate, or download semantics.
 
+RR22 supersedes run `32777599858` as lifecycle evidence. Its six producers, caches,
+aggregate, upload, and independently downloaded seven-file bytes passed, but the new
+normalizer failed closed because built-in `pwsh` launched `/usr/bin/pwsh` while its
+identity predicate required `/opt/microsoft/powershell/7/pwsh`. The step now uses the
+already-proven exact literal `/opt/.../pwsh -NoLogo -NoProfile -NonInteractive -File
+{0}` launcher. No process, profile, PATH, digest, URL, output, or verifier predicate
+was broadened; a fresh exact-handoff replay remains mandatory.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

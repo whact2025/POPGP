@@ -2109,7 +2109,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     ):
         assert action in workflow_text
-    assert workflow_text.count("shell: pwsh") == 16
+    assert workflow_text.count("shell: pwsh") == 15
     assert "WindowsPowerShell" not in workflow_text
     assert "-NonInteractive -Command \". '{0}'\"" not in workflow_text
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
@@ -4133,7 +4133,10 @@ def test_r3_rr21_artifact_digest_canonicalization() -> None:
     assert normalize_index == upload_index + 1
     normalize = aggregate["steps"][normalize_index]
     assert normalize["id"] == "normalize-artifact"
-    assert normalize["shell"] == "pwsh"
+    assert normalize["shell"] == (
+        "/opt/microsoft/powershell/7/pwsh "
+        "-NoLogo -NoProfile -NonInteractive -File {0}"
+    )
     assert normalize["env"] == {
         "VIA000_RAW_ARTIFACT_ID": "${{ steps.upload.outputs.artifact-id }}",
         "VIA000_RAW_ARTIFACT_DIGEST": "${{ steps.upload.outputs.artifact-digest }}",
@@ -4254,6 +4257,60 @@ def test_r3_rr21_artifact_digest_canonicalization() -> None:
         f"sha256:{bare[:-1]}0",
     ):
         assert not api_digest_equal(normalized[1], bad_api_digest)
+
+
+@pytest.mark.negative_control
+def test_r3_rr22_ubuntu_pwsh_launch_identity() -> None:
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    receipt_text = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-workflow.yml"
+    ).read_text(encoding="utf-8")
+    assert workflow_text == receipt_text
+    workflow = yaml.safe_load(workflow_text)
+    normalize = next(
+        step
+        for step in workflow["jobs"]["aggregate"]["steps"]
+        if step.get("id") == "normalize-artifact"
+    )
+    expected = (
+        "/opt/microsoft/powershell/7/pwsh "
+        "-NoLogo -NoProfile -NonInteractive -File {0}"
+    )
+
+    def require_exact_normalizer_shell(candidate: object) -> None:
+        if candidate != expected:
+            raise ValueError("untrusted Ubuntu PowerShell launcher")
+
+    require_exact_normalizer_shell(normalize["shell"])
+    for rejected in (
+        "pwsh",
+        "/usr/bin/pwsh -NoLogo -NoProfile -NonInteractive -File {0}",
+        "/opt/microsoft/powershell/7/pwsh",
+        "/opt/microsoft/powershell/7/pwsh -NoLogo -NonInteractive -File {0}",
+        "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -File {0}",
+        "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -Command {0}",
+        "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File '{0}'",
+        "/opt/microsoft/powershell/7-preview/pwsh -NoLogo -NoProfile -NonInteractive -File {0}",
+    ):
+        with pytest.raises(ValueError):
+            require_exact_normalizer_shell(rejected)
+
+    run = normalize["run"]
+    for invariant in (
+        "$expectedShell = '/opt/microsoft/powershell/7/pwsh'",
+        "$expectedPsHome = '/opt/microsoft/powershell/7'",
+        "$expectedPath = '/usr/bin:/bin'",
+        "$observedShell -cne $expectedShell",
+        "@($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0",
+        "$artifactId -cnotmatch '^[1-9][0-9]*$'",
+        "$bareDigest -cnotmatch '^[0-9a-f]{64}$'",
+        '$canonicalDigest = "sha256:$bareDigest"',
+        "$artifactUrl -cne $expectedUrl",
+        "normalized artifact output side effect was absent or malformed",
+    ):
+        assert invariant in run
 
 
 @pytest.mark.negative_control

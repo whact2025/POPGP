@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 448 passed |
+| `pytest -q` | about 1200 s | 449 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -261,3 +261,10 @@ it constructs `sha256:<hex>` exactly once and exports only those normalized valu
 The verifier retains its single prefixed grammar and exact URL binding. Hosted run
 `32771982270` is superseded: its six producers, caches, aggregate, upload, and retained
 bytes passed, but its final verifier rejected the unnormalized bare action digest.
+
+RR22 corrects only that normalizer's Ubuntu launch contract. Hosted run
+`32777599858` proved all six cells, caches, aggregation, upload, and retained bytes,
+but GitHub's built-in shell launched `/usr/bin/pwsh` while the unchanged identity gate
+required `/opt/microsoft/powershell/7/pwsh`. The normalizer now uses the exact literal
+`-NoLogo -NoProfile -NonInteractive -File {0}` shell already proven elsewhere in the
+same job; all digest, URL, output-control, and verifier predicates remain unchanged.

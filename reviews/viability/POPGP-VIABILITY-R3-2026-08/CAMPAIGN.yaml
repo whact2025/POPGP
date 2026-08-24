@@ -11,7 +11,7 @@ protocol_commit: 914ca1ae2e9cb3b916ae2231ef288d8f3a597ed8
 requirements_path: schemas/viability/requirements-v2.json
 requirements_sha256: 632528e8c4b19d746253719e308b3a676b5a19cffc3a734a670d1c878c161d20
 protocol_manifest_path: reviews/viability/POPGP-VIABILITY-R3-2026-08/PROTOCOL_MANIFEST.json
-protocol_manifest_sha256: 0f3faf6adf701400339bb42ae330854ffb3b555228b6f7992a56c34026f0316b
+protocol_manifest_sha256: 9d38a313b7ece49c54ada343ecf2ec2f9a168087fa2584ce53ab9551c68ea331
 packet_files:
   VIA-000: packets/VIA-000.yaml
   VIA-010: packets/VIA-010.yaml

@@ -420,6 +420,17 @@ normalized ID/digest/URL. The verifier remains prefixed-only and independently b
 the URL to the current repository, run, and artifact ID. All inner/outer bytes,
 containment, cache, aggregation, and pinned download checks remain unchanged.
 
+## RR22 Ubuntu PowerShell launch-identity amendment
+
+RR21's exact-handoff replay passed all six producer/cache cells, aggregate validation,
+and upload, but the post-upload normalizer failed before canonicalization. GitHub's
+built-in Ubuntu `pwsh` selector launched `/usr/bin/pwsh`, contradicting the step's
+unchanged exact `/opt/microsoft/powershell/7/pwsh` process-identity predicate. RR22
+changes only that shell declaration to the already-proven literal `/opt/.../pwsh
+-NoLogo -NoProfile -NonInteractive -File {0}` form. Exact PSHOME, PS7, absent-profile,
+sanitized-PATH, raw ID/digest/URL, output-control, and verifier predicates remain
+unchanged. Run `32777599858` remains synthetic and cannot authorize lifecycle action.
+
 ## RR16 hosted export-boundary amendment
 
 RR15's hosted run proved that all six frozen runners parse and both containment

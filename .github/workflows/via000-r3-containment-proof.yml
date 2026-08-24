@@ -806,7 +806,7 @@ jobs:
           retention-days: 7
       - name: Normalize exact retained artifact identity
         id: normalize-artifact
-        shell: pwsh
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
         env:
           VIA000_RAW_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
           VIA000_RAW_ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}

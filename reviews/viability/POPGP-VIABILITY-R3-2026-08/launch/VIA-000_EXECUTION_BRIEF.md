@@ -143,6 +143,11 @@ must clean the cell and leave no digest/cache/artifact.
     trusted built-in-pwsh step, prefix the digest exactly once as `sha256:<hex>`, and
     give only those canonical values to the prefixed-only redownload verifier. Do not
     accept run `32771982270` as lifecycle evidence because its verifier remained red.
+    Launch that Ubuntu normalizer only through the exact literal
+    `/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}`;
+    do not accept built-in `pwsh`, `/usr/bin/pwsh`, alternate targets, or missing flags.
+    Do not accept run `32777599858` as lifecycle evidence because its built-in-shell
+    launch contradicted the exact process-identity gate and skipped the verifier.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and
