@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,6 +49,33 @@ def _utc_now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
+def _regular_explicit_file(path: Path, expected_root: Path, expected_sha256: str) -> Path:
+    if not path.is_absolute() or not expected_root.is_absolute():
+        raise ValueError("tool paths and roots must be absolute")
+    cursor = path
+    while True:
+        info = cursor.lstat()
+        if stat.S_ISLNK(info.st_mode) or (
+            getattr(info, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+        ):
+            raise ValueError("environment Python has symlink or reparse ancestry")
+        if cursor == expected_root:
+            break
+        if cursor.parent == cursor:
+            raise ValueError("environment Python is outside the locked environment")
+        cursor = cursor.parent
+    path = path.resolve(strict=True)
+    expected_root = expected_root.resolve(strict=True)
+    if not path.is_relative_to(expected_root):
+        raise ValueError("environment Python is outside the locked environment")
+    if not path.is_file() or path.suffix.lower() in {".cmd", ".bat", ".ps1"}:
+        raise ValueError("environment Python is not one regular executable")
+    if _sha256(path) != expected_sha256:
+        raise ValueError("environment Python bytes changed before mutation execution")
+    return path
+
+
 def _passed_nodes(stdout: str) -> list[str]:
     nodes: list[str] = []
     for line in stdout.splitlines():
@@ -73,6 +101,15 @@ def run(args: argparse.Namespace) -> None:
     repo_root = args.repo_root.resolve()
     workspace = args.workspace_root.resolve()
     evidence = workspace / "evidence"
+    if not workspace.is_dir() or workspace.is_symlink() or not evidence.is_dir():
+        raise ValueError("runner workspace and evidence must already exist")
+    environment = workspace / "python-environment"
+    environment_python = _regular_explicit_file(
+        args.environment_python, environment, args.environment_python_sha256
+    )
+    bootstrap = (repo_root / "scripts/run_without_startup_hooks.py").resolve(strict=True)
+    if not bootstrap.is_file() or bootstrap.is_symlink():
+        raise ValueError("mutation bootstrap is not one regular source file")
     protocol = _load_json(args.protocol.resolve())
     contract = protocol["parameters"]["raw_results_contract"]
     test_contracts = contract["required_mutation_tests"]
@@ -89,9 +126,7 @@ def run(args: argparse.Namespace) -> None:
         "producer_run_id": args.producer_run_id,
         "producer_run_attempt": args.producer_run_attempt,
     }
-    expected_ref = (
-        "refs/tags/popgp-via000-r3-protocol-" + args.protocol_source_commit
-    )
+    expected_ref = "refs/tags/popgp-via000-r3-protocol-" + args.protocol_source_commit
     if args.dispatch_ref != expected_ref:
         raise ValueError("dispatch ref differs from the content-addressed snapshot tag")
     if set(test_contracts) != set(mutation_ids):
@@ -109,25 +144,43 @@ def run(args: argparse.Namespace) -> None:
     stdout_path = mutation_root / "mutation-suite.stdout.txt"
     stderr_path = mutation_root / "mutation-suite.stderr.txt"
     result_path = mutation_root / "mutation-suite.result.json"
+    python_cache = workspace / "mutation-python-cache"
+    python_cache.mkdir(parents=True, exist_ok=False)
     command = [
-        "uv",
-        "run",
-        "--isolated",
-        "--frozen",
-        "--no-editable",
-        "python",
-        "-m",
+        str(environment_python),
+        "-I",
+        "-S",
+        "-X",
+        f"pycache_prefix={python_cache}",
+        str(bootstrap),
+        "--repo-root",
+        str(repo_root),
+        "--module",
         "pytest",
+        "--",
         "-vv",
         "-p",
         "no:cacheprovider",
         *selectors,
     ]
     environment = os.environ.copy()
+    for name in list(environment):
+        if name.startswith("GIT_") or name in {
+            "PATH",
+            "PATHEXT",
+            "PYTHONPATH",
+            "PYTHONHOME",
+            "VIRTUAL_ENV",
+            "UV_PROJECT_ENVIRONMENT",
+            "GITHUB_ENV",
+            "BASH_ENV",
+            "ENV",
+        }:
+            environment.pop(name, None)
     environment.update(
         {
             "UV_CACHE_DIR": str(workspace / "mutation-uv-cache"),
-            "PYTHONPYCACHEPREFIX": str(workspace / "mutation-python-cache"),
+            "PYTHONPYCACHEPREFIX": str(python_cache),
             "PYTHONDONTWRITEBYTECODE": "1",
             "RUFF_CACHE_DIR": str(workspace / "mutation-ruff-cache"),
             "MPLCONFIGDIR": str(workspace / "mutation-matplotlib-cache"),
@@ -269,6 +322,8 @@ def main() -> int:
     parser.add_argument("--repo-root", type=Path, default=here.parents[1])
     parser.add_argument("--protocol", type=Path, default=here / "VIA-000.json")
     parser.add_argument("--workspace-root", type=Path, required=True)
+    parser.add_argument("--environment-python", type=Path, required=True)
+    parser.add_argument("--environment-python-sha256", required=True)
     parser.add_argument(
         "--platform-family",
         choices=("ubuntu-latest-x86_64", "windows-x86_64"),
@@ -295,6 +350,8 @@ def main() -> int:
         parser.error("--producer-run-id must be a positive decimal identifier")
     if args.producer_run_attempt < 1:
         parser.error("--producer-run-attempt must be positive")
+    if re.fullmatch(r"[0-9a-f]{64}", args.environment_python_sha256) is None:
+        parser.error("--environment-python-sha256 must be a lowercase SHA-256")
     run(args)
     return 0
 

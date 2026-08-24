@@ -24,10 +24,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: ubuntu-latest-x86_64
-          - os: windows-latest
+            shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
+          - os: windows-2025
             platform: windows-x86_64
+            shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
@@ -36,6 +38,8 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.11.15"
+          architecture: "x64"
+          update-environment: "false"
 
       - name: Check out dispatched protocol snapshot
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -45,13 +49,15 @@ jobs:
 
       - name: Reject non-snapshot lifecycle refs
         id: authorization
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         env:
           VIA000_AUTHORIZATION_REF: ${{ inputs.authorization_ref }}
           VIA000_EVENT_NAME: ${{ github.event_name }}
           VIA000_GITHUB_REF: ${{ github.ref }}
           VIA000_GITHUB_SHA: ${{ github.sha }}
           VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}
+          VIA000_BASE_PYTHON_VERSION: ${{ steps.base-python.outputs.python-version }}
+          VIA000_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           $ErrorActionPreference = "Stop"
           $authorizationRef = [string]$env:VIA000_AUTHORIZATION_REF
@@ -74,24 +80,65 @@ jobs:
           if ($githubSha -cnotmatch '^[0-9a-f]{40}$') {
             throw "github sha is not one full lowercase commit"
           }
+          if ([string]$env:VIA000_BASE_PYTHON_VERSION -cne "3.11.15") {
+            throw "setup-python did not report exact Python 3.11.15"
+          }
+          if ([string]$env:VIA000_RUNNER_ARCH -cne "X64") {
+            throw "R3 requires the x64 hosted-runner architecture"
+          }
           if ($IsWindows) {
             $trustedGit = "C:\Program Files\Git\cmd\git.exe"
             $trustedSshKeygen = "C:\Windows\System32\OpenSSH\ssh-keygen.exe"
+            $expectedPythonOutput = "C:\hostedtoolcache\windows\Python\3.11.15\x64\python.exe"
+            $basePython = $expectedPythonOutput
           } elseif ($IsLinux) {
             $trustedGit = "/usr/bin/git"
             $trustedSshKeygen = "/usr/bin/ssh-keygen"
+            $expectedPythonOutput = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
+            $basePython = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
           } else {
             throw "unsupported R3 workflow operating system"
           }
-          $basePython = [string]$env:VIA000_BASE_PYTHON
+          $basePythonOutput = [string]$env:VIA000_BASE_PYTHON
+          $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+          if (-not ([IO.Path]::GetFullPath($basePythonOutput)).Equals([IO.Path]::GetFullPath($expectedPythonOutput), $comparison)) {
+            throw "setup-python path is outside the frozen hosted tool-cache root"
+          }
           foreach ($trustedTool in @($trustedGit, $trustedSshKeygen, $basePython)) {
-            if (-not [System.IO.Path]::IsPathFullyQualified($trustedTool)) {
+            if (-not [IO.Path]::IsPathFullyQualified($trustedTool)) {
               throw "trusted R3 tool path is not absolute"
             }
-            if (-not (Test-Path -LiteralPath $trustedTool -PathType Leaf)) {
-              throw "trusted R3 tool is unavailable"
+            $item = Get-Item -LiteralPath $trustedTool -Force -ErrorAction Stop
+            if (-not ($item -is [IO.FileInfo]) -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+              throw "trusted R3 tool is not one regular non-reparse executable"
+            }
+            if ($item.Extension -in @(".cmd", ".bat", ".ps1")) {
+              throw "script or command shims are forbidden at the trusted tool boundary"
+            }
+            $cursor = $item.Directory
+            while ($null -ne $cursor) {
+              if ($cursor.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "trusted R3 tool has reparse ancestry"
+              }
+              $cursor = $cursor.Parent
             }
           }
+          $env:PATH = ""
+          $env:PATHEXT = ""
+          foreach ($name in @("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT")) {
+            Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+          }
+          $baseVersion = (& $basePython -I -S -c "import sys; print('.'.join(map(str, sys.version_info[:3])))" 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $baseVersion -cne "3.11.15") {
+            throw "setup-python executable is not exact CPython 3.11.15"
+          }
+          $gitVersion = (& $trustedGit --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $gitVersion -cnotmatch '^git version 2\.[0-9]+\.[0-9]+(?:\.windows\.[0-9]+)?$') {
+            throw "system Git version banner is malformed"
+          }
+          $basePythonSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $basePython).Hash.ToLowerInvariant()
+          $gitSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $trustedGit).Hash.ToLowerInvariant()
+          $sshKeygenSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $trustedSshKeygen).Hash.ToLowerInvariant()
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
@@ -127,30 +174,195 @@ jobs:
           )
           & $basePython @guardArguments
           if ($LASTEXITCODE -ne 0) { throw "protocol snapshot identity guard failed" }
+          foreach ($entry in [ordered]@{
+            base_python_sha256 = $basePythonSha256
+            git_sha256 = $gitSha256
+            ssh_keygen_sha256 = $sshKeygenSha256
+          }.GetEnumerator()) {
+            [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false))
+          }
 
       - name: Set up exact TeX Live 2026
+        id: texlive
         uses: TeX-Live/setup-texlive-action@eb78d21f41941476d9121e3a0abcab73265c876f
         with:
           version: "2026"
+          texdir: ${{ runner.temp }}/via000-r3-texlive/2026
           cache: "false"
           packages: >-
             scheme-small revtex amsmath graphics hyperref tools booktabs ec
 
-      - name: Install exact uv runner
-        shell: pwsh
+      - name: Validate complete trusted toolchain
+        id: tools
+        shell: ${{ matrix.shell }}
         env:
-          VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}
+          VIA000_BASE_PYTHON_OUTPUT: ${{ steps.base-python.outputs.python-path }}
+          VIA000_BASE_PYTHON_VERSION: ${{ steps.base-python.outputs.python-version }}
+          VIA000_TEXLIVE_VERSION: ${{ steps.texlive.outputs.version }}
+          VIA000_AUTH_BASE_PYTHON_SHA256: ${{ steps.authorization.outputs.base_python_sha256 }}
+          VIA000_AUTH_GIT_SHA256: ${{ steps.authorization.outputs.git_sha256 }}
+          VIA000_AUTH_SSH_KEYGEN_SHA256: ${{ steps.authorization.outputs.ssh_keygen_sha256 }}
+          VIA000_PLATFORM: ${{ matrix.platform }}
+          VIA000_RUNNER_ARCH: ${{ runner.arch }}
         run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]$env:VIA000_BASE_PYTHON_VERSION -cne "3.11.15") {
+            throw "setup-python version output differs from 3.11.15"
+          }
+          if ([string]$env:VIA000_TEXLIVE_VERSION -cne "2026") {
+            throw "setup-texlive version output differs from 2026"
+          }
+          if ([string]$env:VIA000_RUNNER_ARCH -cne "X64") {
+            throw "R3 requires one x64 runner"
+          }
+          $platform = [string]$env:VIA000_PLATFORM
+          if ($platform -eq "windows-x86_64" -and $IsWindows) {
+            if ([string]$env:ImageOS -cne "win25") { throw "unexpected Windows runner image family" }
+            $runnerLabel = "windows-2025"
+            $gitPath = "C:\Program Files\Git\cmd\git.exe"
+            $sshKeygenPath = "C:\Windows\System32\OpenSSH\ssh-keygen.exe"
+            $pythonOutput = "C:\hostedtoolcache\windows\Python\3.11.15\x64\python.exe"
+            $basePythonPath = $pythonOutput
+            $uvPath = "C:\hostedtoolcache\windows\Python\3.11.15\x64\Scripts\uv.exe"
+            $pdfLatexPath = Join-Path $env:RUNNER_TEMP "via000-r3-texlive/2026/bin/windows/pdftex.exe"
+            $powerShellPath = "C:\Program Files\PowerShell\7\pwsh.exe"
+          } elseif ($platform -eq "ubuntu-latest-x86_64" -and $IsLinux) {
+            if ([string]$env:ImageOS -cne "ubuntu24") { throw "unexpected Ubuntu runner image family" }
+            $runnerLabel = "ubuntu-24.04"
+            $gitPath = "/usr/bin/git"
+            $sshKeygenPath = "/usr/bin/ssh-keygen"
+            $pythonOutput = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
+            $basePythonPath = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
+            $uvPath = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/uv"
+            $pdfLatexPath = Join-Path $env:RUNNER_TEMP "via000-r3-texlive/2026/bin/x86_64-linux/pdftex"
+            $powerShellPath = "/opt/microsoft/powershell/7/pwsh"
+          } else {
+            throw "workflow platform and hosted operating system disagree"
+          }
+          $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+          if (-not ([IO.Path]::GetFullPath([string]$env:VIA000_BASE_PYTHON_OUTPUT)).Equals([IO.Path]::GetFullPath($pythonOutput), $comparison)) {
+            throw "setup-python output is not the single frozen tool-cache location"
+          }
+          function Assert-RegularExecutable([string]$Path, [string]$Description) {
+            if (-not [IO.Path]::IsPathFullyQualified($Path)) { throw "$Description path is not absolute" }
+            $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+            if (-not ($item -is [IO.FileInfo]) -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+              throw "$Description is not one regular non-reparse file"
+            }
+            if ($item.Extension -in @(".cmd", ".bat", ".ps1")) { throw "$Description is a forbidden command shim" }
+            $cursor = $item.Directory
+            while ($null -ne $cursor) {
+              if ($cursor.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "$Description has reparse ancestry" }
+              $cursor = $cursor.Parent
+            }
+          }
+          foreach ($name in @("PATH", "PATHEXT", "PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT")) {
+            Set-Item -LiteralPath "Env:$name" -Value ""
+          }
+          Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
+            Remove-Item -LiteralPath "Env:$($_.Name)"
+          }
+          foreach ($tool in @($gitPath, $sshKeygenPath, $basePythonPath, $pdfLatexPath, $powerShellPath)) {
+            Assert-RegularExecutable $tool "trusted hosted tool"
+          }
+          $preAuthorizationDigests = [ordered]@{
+            git = [string]$env:VIA000_AUTH_GIT_SHA256
+            ssh_keygen = [string]$env:VIA000_AUTH_SSH_KEYGEN_SHA256
+            base_python = [string]$env:VIA000_AUTH_BASE_PYTHON_SHA256
+          }
+          foreach ($entry in $preAuthorizationDigests.GetEnumerator()) {
+            if ($entry.Value -cnotmatch '^[0-9a-f]{64}$') { throw "missing pre-authorization tool digest" }
+          }
+          if (
+            (Get-FileHash -Algorithm SHA256 -LiteralPath $gitPath).Hash.ToLowerInvariant() -cne $preAuthorizationDigests.git -or
+            (Get-FileHash -Algorithm SHA256 -LiteralPath $sshKeygenPath).Hash.ToLowerInvariant() -cne $preAuthorizationDigests.ssh_keygen -or
+            (Get-FileHash -Algorithm SHA256 -LiteralPath $basePythonPath).Hash.ToLowerInvariant() -cne $preAuthorizationDigests.base_python
+          ) {
+            throw "authorization tool bytes changed after the initial guard"
+          }
+          $pythonVersion = (& $basePythonPath -I -S -c "import sys; print('.'.join(map(str, sys.version_info[:3])))" 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $pythonVersion -cne "3.11.15") { throw "base Python executable/version mismatch" }
           $pipArguments = @("-I", "-m", "pip", "install", "--disable-pip-version-check", "uv==0.11.11")
-          & $env:VIA000_BASE_PYTHON @pipArguments
+          & $basePythonPath @pipArguments
           if ($LASTEXITCODE -ne 0) { throw "exact uv installation failed" }
+          $scriptsPaths = @(& $basePythonPath -I -S -c "import sysconfig; print(sysconfig.get_path('scripts'))")
+          if ($LASTEXITCODE -ne 0 -or $scriptsPaths.Count -ne 1) { throw "Python scripts root was not singular" }
+          $observedUvPath = Join-Path $scriptsPaths[0] $(if ($IsWindows) { "uv.exe" } else { "uv" })
+          if (-not ([IO.Path]::GetFullPath($observedUvPath)).Equals([IO.Path]::GetFullPath($uvPath), $comparison)) {
+            throw "uv path differs from the trusted Python sysconfig root"
+          }
+          Assert-RegularExecutable $uvPath "trusted uv"
+          $uvVersion = (& $uvPath --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $uvVersion -cne "uv 0.11.11") { throw "uv executable/version mismatch" }
+          $pdfVersion = (& $pdfLatexPath --version 2>&1 | Select-Object -First 1).Trim()
+          if ($LASTEXITCODE -ne 0 -or $pdfVersion -cne "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)") {
+            throw "pdfTeX executable/banner mismatch"
+          }
+          $gitVersion = (& $gitPath --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $gitVersion -cnotmatch '^git version 2\.[0-9]+\.[0-9]+(?:\.windows\.[0-9]+)?$') {
+            throw "Git executable/banner mismatch"
+          }
+          $powerShellVersion = (& $powerShellPath -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()' 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $powerShellVersion -cnotmatch '^7\.[0-9]+\.[0-9]+$') {
+            throw "PowerShell executable/banner mismatch"
+          }
+          $tools = [ordered]@{}
+          foreach ($item in @(
+            @("git", $gitPath, $gitVersion),
+            @("ssh_keygen", $sshKeygenPath, "OpenSSH system ssh-keygen"),
+            @("base_python", $basePythonPath, $pythonVersion),
+            @("uv", $uvPath, $uvVersion),
+            @("pdflatex", $pdfLatexPath, $pdfVersion),
+            @("powershell", $powerShellPath, $powerShellVersion)
+          )) {
+            $tools[$item[0]] = [ordered]@{
+              path = $item[1]
+              sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $item[1]).Hash.ToLowerInvariant()
+              version = $item[2]
+            }
+          }
+          $manifestPath = Join-Path $env:RUNNER_TEMP "via000-r3-tool-identity.json"
+          [ordered]@{
+            schema_version = 1
+            platform_family = $platform
+            runner_label = $runnerLabel
+            image_os = [string]$env:ImageOS
+            image_version = [string]$env:ImageVersion
+            runner_arch = [string]$env:VIA000_RUNNER_ARCH
+            tools = $tools
+          } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+          $manifestSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $manifestPath).Hash.ToLowerInvariant()
+          $outputs = [ordered]@{
+            git_path = $gitPath; git_sha256 = $tools.git.sha256
+            base_python_path = $basePythonPath; base_python_sha256 = $tools.base_python.sha256
+            uv_path = $uvPath; uv_sha256 = $tools.uv.sha256
+            pdflatex_path = $pdfLatexPath; pdflatex_sha256 = $tools.pdflatex.sha256
+            powershell_path = $powerShellPath; powershell_sha256 = $tools.powershell.sha256
+            manifest_path = $manifestPath; manifest_sha256 = $manifestSha
+          }
+          foreach ($entry in $outputs.GetEnumerator()) {
+            [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false))
+          }
 
       - name: Execute frozen clean platform protocol
-        shell: pwsh
+        id: execution
+        shell: ${{ matrix.shell }}
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
           VIA000_RUN_ID: ${{ github.run_id }}
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_GIT_PATH: ${{ steps.tools.outputs.git_path }}
+          VIA000_GIT_SHA256: ${{ steps.tools.outputs.git_sha256 }}
+          VIA000_BASE_PYTHON_PATH: ${{ steps.tools.outputs.base_python_path }}
+          VIA000_BASE_PYTHON_SHA256: ${{ steps.tools.outputs.base_python_sha256 }}
+          VIA000_UV_PATH: ${{ steps.tools.outputs.uv_path }}
+          VIA000_UV_SHA256: ${{ steps.tools.outputs.uv_sha256 }}
+          VIA000_PDFLATEX_PATH: ${{ steps.tools.outputs.pdflatex_path }}
+          VIA000_PDFLATEX_SHA256: ${{ steps.tools.outputs.pdflatex_sha256 }}
+          VIA000_POWERSHELL_PATH: ${{ steps.tools.outputs.powershell_path }}
+          VIA000_POWERSHELL_SHA256: ${{ steps.tools.outputs.powershell_sha256 }}
+          VIA000_TOOL_MANIFEST_PATH: ${{ steps.tools.outputs.manifest_path }}
+          VIA000_TOOL_MANIFEST_SHA256: ${{ steps.tools.outputs.manifest_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
           $platform = [string]$env:VIA000_PLATFORM
@@ -162,12 +374,13 @@ jobs:
           if ($producerRunId -cnotmatch '^[1-9][0-9]*$' -or $producerRunAttempt -cnotmatch '^[1-9][0-9]*$') {
             throw "producer run identity is malformed"
           }
-          if ($IsWindows) { $trustedGit = "C:\Program Files\Git\cmd\git.exe" }
-          elseif ($IsLinux) { $trustedGit = "/usr/bin/git" }
-          else { throw "unsupported R3 workflow operating system" }
-          if (-not (Test-Path -LiteralPath $trustedGit -PathType Leaf)) {
-            throw "trusted R3 Git is unavailable"
+          $trustedGit = [string]$env:VIA000_GIT_PATH
+          if (-not [IO.Path]::IsPathFullyQualified($trustedGit)) { throw "trusted Git path is not absolute" }
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $trustedGit).Hash.ToLowerInvariant() -cne [string]$env:VIA000_GIT_SHA256) {
+            throw "trusted Git changed before runner execution"
           }
+          $env:PATH = ""
+          $env:PATHEXT = ""
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
@@ -178,6 +391,7 @@ jobs:
           $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
           $env:GIT_TERMINAL_PROMPT = "0"
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          try {
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
           $gitArguments = @(
@@ -199,9 +413,21 @@ jobs:
             "-AuthorizationCommit", $authorization.authorization_commit,
             "-AuthorizationRecordSha256", $authorization.authorization_record_sha256,
             "-ProducerRunId", $producerRunId,
-            "-ProducerRunAttempt", $producerRunAttempt
+            "-ProducerRunAttempt", $producerRunAttempt,
+            "-TrustedGitPath", $trustedGit,
+            "-TrustedBasePythonPath", [string]$env:VIA000_BASE_PYTHON_PATH,
+            "-TrustedUvPath", [string]$env:VIA000_UV_PATH,
+            "-TrustedPdfLatexPath", [string]$env:VIA000_PDFLATEX_PATH,
+            "-TrustedPowerShellPath", [string]$env:VIA000_POWERSHELL_PATH,
+            "-ToolIdentityManifestPath", [string]$env:VIA000_TOOL_MANIFEST_PATH,
+            "-TrustedGitSha256", [string]$env:VIA000_GIT_SHA256,
+            "-TrustedBasePythonSha256", [string]$env:VIA000_BASE_PYTHON_SHA256,
+            "-TrustedUvSha256", [string]$env:VIA000_UV_SHA256,
+            "-TrustedPdfLatexSha256", [string]$env:VIA000_PDFLATEX_SHA256,
+            "-TrustedPowerShellSha256", [string]$env:VIA000_POWERSHELL_SHA256,
+            "-ToolIdentityManifestSha256", [string]$env:VIA000_TOOL_MANIFEST_SHA256
           )
-          & (Get-Process -Id $PID).Path @runnerArguments
+          & ([string]$env:VIA000_POWERSHELL_PATH) @runnerArguments
           if ($LASTEXITCODE -ne 0) { throw "frozen platform runner failed" }
 
           $candidatePython = if ($IsWindows) {
@@ -209,6 +435,13 @@ jobs:
           } else {
             Join-Path $workspace "python-environment/bin/python"
           }
+          $candidatePythonItem = Get-Item -LiteralPath $candidatePython -Force -ErrorAction Stop
+          if (-not ($candidatePythonItem -is [IO.FileInfo]) -or ($candidatePythonItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "locked environment Python is not one regular non-reparse executable"
+          }
+          $candidatePythonSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidatePython).Hash.ToLowerInvariant()
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "environment_python_path=$candidatePython`n", [Text.UTF8Encoding]::new($false))
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "environment_python_sha256=$candidatePythonSha256`n", [Text.UTF8Encoding]::new($false))
 
           @'
           import json
@@ -235,14 +468,24 @@ jobs:
               raise SystemExit(errors[0].message)
           '@ | & $candidatePython -I -
           if ($LASTEXITCODE -ne 0) { throw "platform fragment schema validation failed" }
+          } catch {
+            if (Test-Path -LiteralPath $workspace) {
+              Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            throw
+          }
 
       - name: Execute frozen mutation-test matrix
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
           VIA000_RUN_ID: ${{ github.run_id }}
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
-          VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}
+          VIA000_BASE_PYTHON: ${{ steps.tools.outputs.base_python_path }}
+          VIA000_GIT_PATH: ${{ steps.tools.outputs.git_path }}
+          VIA000_GIT_SHA256: ${{ steps.tools.outputs.git_sha256 }}
+          VIA000_ENVIRONMENT_PYTHON: ${{ steps.execution.outputs.environment_python_path }}
+          VIA000_ENVIRONMENT_PYTHON_SHA256: ${{ steps.execution.outputs.environment_python_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
           $platform = [string]$env:VIA000_PLATFORM
@@ -254,12 +497,13 @@ jobs:
           if ($producerRunId -cnotmatch '^[1-9][0-9]*$' -or $producerRunAttempt -cnotmatch '^[1-9][0-9]*$') {
             throw "producer run identity is malformed"
           }
-          if ($IsWindows) { $trustedGit = "C:\Program Files\Git\cmd\git.exe" }
-          elseif ($IsLinux) { $trustedGit = "/usr/bin/git" }
-          else { throw "unsupported R3 workflow operating system" }
-          if (-not (Test-Path -LiteralPath $trustedGit -PathType Leaf)) {
-            throw "trusted R3 Git is unavailable"
+          $trustedGit = [string]$env:VIA000_GIT_PATH
+          if (-not [IO.Path]::IsPathFullyQualified($trustedGit)) { throw "trusted Git path is not absolute" }
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $trustedGit).Hash.ToLowerInvariant() -cne [string]$env:VIA000_GIT_SHA256) {
+            throw "trusted Git changed before mutation execution"
           }
+          $env:PATH = ""
+          $env:PATHEXT = ""
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
@@ -270,6 +514,7 @@ jobs:
           $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
           $env:GIT_TERMINAL_PROMPT = "0"
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          try {
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
           $gitArguments = @(
@@ -284,6 +529,8 @@ jobs:
             "-I", "-S", "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py",
             "--repo-root", $env:GITHUB_WORKSPACE,
             "--workspace-root", $workspace,
+            "--environment-python", [string]$env:VIA000_ENVIRONMENT_PYTHON,
+            "--environment-python-sha256", [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256,
             "--platform-family", $platform,
             "--protocol-source-commit", $authorization.protocol_commit,
             "--dispatch-ref", $authorization.source_ref,
@@ -297,10 +544,9 @@ jobs:
           & $env:VIA000_BASE_PYTHON @mutationArguments
           if ($LASTEXITCODE -ne 0) { throw "frozen mutation-test matrix failed" }
 
-          $candidatePython = if ($IsWindows) {
-            Join-Path $workspace "python-environment/Scripts/python.exe"
-          } else {
-            Join-Path $workspace "python-environment/bin/python"
+          $candidatePython = [string]$env:VIA000_ENVIRONMENT_PYTHON
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $candidatePython).Hash.ToLowerInvariant() -cne [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256) {
+            throw "locked environment Python changed after mutation execution"
           }
           @'
           import json
@@ -327,6 +573,12 @@ jobs:
               raise SystemExit(errors[0].message)
           '@ | & $candidatePython -I -
           if ($LASTEXITCODE -ne 0) { throw "mutated platform fragment schema validation failed" }
+          } catch {
+            if (Test-Path -LiteralPath $workspace) {
+              Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            throw
+          }
 
       - name: Attest exact platform subjects
         id: attest
@@ -337,7 +589,7 @@ jobs:
             ${{ runner.temp }}/via000-r3-platform/evidence/evidence-manifest.json
 
       - name: Retain producer attestation bundle
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         env:
           VIA000_ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
@@ -350,8 +602,16 @@ jobs:
             throw "producer attestation bundle was not retained"
           }
 
+      - name: Remove rejected platform workspace
+        if: failure()
+        shell: ${{ matrix.shell }}
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          if (Test-Path -LiteralPath $workspace) {
+            Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Retain immutable platform fragment
-        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: via000-r3-protocol-${{ matrix.platform }}-run-${{ github.run_id }}-${{ github.run_attempt }}

@@ -62,9 +62,7 @@ GIT_EXECUTABLE = _trusted_program("git")
 
 def _git_environment() -> dict[str, str]:
     environment = {
-        name: value
-        for name, value in os.environ.items()
-        if not name.upper().startswith("GIT_")
+        name: value for name, value in os.environ.items() if not name.upper().startswith("GIT_")
     }
     environment.update(
         {
@@ -87,6 +85,7 @@ def _git_command(root: Path, *args: str) -> list[str]:
         *args,
     ]
 
+
 CONTRACT_FILE_PATHS = {
     "docs/scientific_hardening/CLAIMS_MATRIX.md",
     "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
@@ -105,8 +104,7 @@ R3_CONTRACT_FILE_PATHS = CONTRACT_FILE_PATHS | {
     "scripts/check_reproduction_boundary.py",
     "scripts/check_validation_artifacts.py",
     "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py",
-    "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/"
-    "VIA-000-AUTHORIZED-SIGNERS",
+    "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/VIA-000-AUTHORIZED-SIGNERS",
 }
 
 PACKET_FREEZE_FIELDS = (
@@ -294,8 +292,7 @@ def _validate_structured_graph(
             expanded_nodes += child_nodes
             if expanded_nodes > max_expanded_nodes:
                 raise ValueError(
-                    "structured input expanded node count exceeds limit "
-                    f"{max_expanded_nodes}"
+                    f"structured input expanded node count exceeds limit {max_expanded_nodes}"
                 )
             height = max(height, child_height + 1)
         active.remove(marker)
@@ -389,9 +386,7 @@ def _load_json_bytes(content: bytes) -> Any:
     return _load_json_text(content.decode("utf-8"))
 
 
-def _load_json_text(
-    text: str, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES
-) -> Any:
+def _load_json_text(text: str, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES) -> Any:
     _check_json_nesting(text)
     try:
         document = json.loads(
@@ -407,12 +402,8 @@ def _load_json_text(
     return document
 
 
-def _load_json(
-    path: Path, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES
-) -> Any:
-    return _load_json_text(
-        _read_structured_text(path), max_expanded_nodes=max_expanded_nodes
-    )
+def _load_json(path: Path, *, max_expanded_nodes: int = MAX_STRUCTURED_EXPANDED_NODES) -> Any:
+    return _load_json_text(_read_structured_text(path), max_expanded_nodes=max_expanded_nodes)
 
 
 def _format_path(parts: list[Any]) -> str:
@@ -1471,6 +1462,131 @@ def _environment_manifest_errors(document: Any, label: str) -> list[str]:
     return errors
 
 
+def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> list[str]:
+    expected_platform = {
+        "windows-x86_64": ("windows-2025", "win25"),
+        "ubuntu-latest-x86_64": ("ubuntu-24.04", "ubuntu24"),
+    }
+    if not isinstance(document, Mapping) or set(document) != {
+        "schema_version",
+        "platform_family",
+        "runner_label",
+        "image_os",
+        "image_version",
+        "runner_arch",
+        "tools",
+    }:
+        return [f"{label} has malformed tool-identity manifest envelope"]
+    if platform not in expected_platform:
+        return [f"{label} has an unsupported tool-identity platform"]
+    runner_label, image_os = expected_platform[platform]
+    if (
+        document["schema_version"] != 1
+        or document["platform_family"] != platform
+        or document["runner_label"] != runner_label
+        or document["image_os"] != image_os
+        or document["runner_arch"] != "X64"
+        or not isinstance(document["image_version"], str)
+        or re.fullmatch(r"[0-9]{8}\.[0-9]+(?:\.[0-9]+)?", document["image_version"]) is None
+    ):
+        return [f"{label} tool-identity hosted image differs from the frozen family"]
+    tools = document["tools"]
+    expected_tools = {
+        "git",
+        "ssh_keygen",
+        "base_python",
+        "uv",
+        "pdflatex",
+        "powershell",
+        "environment_python",
+    }
+    if not isinstance(tools, Mapping) or set(tools) != expected_tools:
+        return [f"{label} tool-identity executable set is incomplete"]
+    errors: list[str] = []
+    observed_paths: set[str] = set()
+    for name, entry in tools.items():
+        if not isinstance(entry, Mapping) or set(entry) != {"path", "sha256", "version"}:
+            return [f"{label} tool-identity entry {name!r} is malformed"]
+        path = entry["path"]
+        absolute = (
+            isinstance(path, str)
+            and bool(path)
+            and "\x00" not in path
+            and (
+                (platform == "windows-x86_64" and re.match(r"^[A-Za-z]:[\\/]", path))
+                or (platform == "ubuntu-latest-x86_64" and path.startswith("/"))
+            )
+        )
+        if (
+            not absolute
+            or str(path).lower().endswith((".cmd", ".bat", ".ps1"))
+            or not isinstance(entry["version"], str)
+            or not entry["version"]
+            or re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is None
+        ):
+            errors.append(f"{label} tool-identity entry {name!r} has invalid typed data")
+            continue
+        canonical_path = path.replace("\\", "/").lower()
+        if canonical_path in observed_paths:
+            errors.append(f"{label} tool-identity paths are not unique")
+        observed_paths.add(canonical_path)
+    if errors:
+        return errors
+    if platform == "windows-x86_64":
+        exact_paths = {
+            "git": "c:/program files/git/cmd/git.exe",
+            "ssh_keygen": "c:/windows/system32/openssh/ssh-keygen.exe",
+            "base_python": "c:/hostedtoolcache/windows/python/3.11.15/x64/python.exe",
+            "uv": "c:/hostedtoolcache/windows/python/3.11.15/x64/scripts/uv.exe",
+            "powershell": "c:/program files/powershell/7/pwsh.exe",
+        }
+        pdf_suffix = "/via000-r3-texlive/2026/bin/windows/pdftex.exe"
+        environment_suffix = "/via000-r3-platform/python-environment/scripts/python.exe"
+    else:
+        exact_paths = {
+            "git": "/usr/bin/git",
+            "ssh_keygen": "/usr/bin/ssh-keygen",
+            "base_python": "/opt/hostedtoolcache/python/3.11.15/x64/bin/python3.11",
+            "uv": "/opt/hostedtoolcache/python/3.11.15/x64/bin/uv",
+            "powershell": "/opt/microsoft/powershell/7/pwsh",
+        }
+        pdf_suffix = "/via000-r3-texlive/2026/bin/x86_64-linux/pdftex"
+        environment_suffix = "/via000-r3-platform/python-environment/bin/python"
+    for name, expected in exact_paths.items():
+        if tools[name]["path"].replace("\\", "/").lower() != expected:
+            errors.append(f"{label} tool-identity path differs for {name!r}")
+    if not tools["pdflatex"]["path"].replace("\\", "/").lower().endswith(pdf_suffix):
+        errors.append(f"{label} canonical pdfTeX path differs from frozen TeX root")
+    if (
+        not tools["environment_python"]["path"]
+        .replace("\\", "/")
+        .lower()
+        .endswith(environment_suffix)
+    ):
+        errors.append(f"{label} environment Python path differs from runner workspace")
+    if (
+        tools["base_python"]["version"] != "3.11.15"
+        or tools["environment_python"]["version"] != "3.11.15"
+    ):
+        errors.append(f"{label} Python tool versions differ from 3.11.15")
+    if tools["uv"]["version"] != "uv 0.11.11":
+        errors.append(f"{label} uv tool version differs from 0.11.11")
+    if tools["pdflatex"]["version"] != "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)":
+        errors.append(f"{label} pdfTeX banner differs from frozen engine")
+    if (
+        re.fullmatch(
+            r"git version 2\.[0-9]+\.[0-9]+(?:\.windows\.[0-9]+)?", tools["git"]["version"]
+        )
+        is None
+    ):
+        errors.append(f"{label} Git banner is malformed")
+    if re.fullmatch(r"7\.[0-9]+\.[0-9]+", tools["powershell"]["version"]) is None:
+        errors.append(f"{label} PowerShell banner is malformed")
+    if tools["environment_python"]["sha256"] != tools["base_python"]["sha256"]:
+        errors.append(f"{label} copied environment Python bytes differ from trusted base")
+    return errors
+
+
 def _github_attestation_errors(
     subject: Path,
     bundle: Path,
@@ -1488,11 +1604,7 @@ def _github_attestation_errors(
         )
         match = re.search(r"(?m)^gh version (\d+)\.(\d+)\.(\d+)", version.stdout)
         expected = tuple(int(item) for item in minimum_gh_version.split("."))
-        if (
-            version.returncode != 0
-            or match is None
-            or tuple(map(int, match.groups())) < expected
-        ):
+        if version.returncode != 0 or match is None or tuple(map(int, match.groups())) < expected:
             return [f"{label} requires GitHub CLI {minimum_gh_version}+ for provenance"]
         completed = subprocess.run(
             [
@@ -1553,9 +1665,7 @@ def _rewrite_attested_platform_summary(
         for field in ("result_path", "stdout_path", "stderr_path"):
             command[field] = _prefixed_platform_path(platform, command[field])
     for artifact in rewritten["artifact_results"].values():
-        artifact["evidence_path"] = _prefixed_platform_path(
-            platform, artifact["evidence_path"]
-        )
+        artifact["evidence_path"] = _prefixed_platform_path(platform, artifact["evidence_path"])
     for mutation in rewritten["mutation_results"]:
         mutation["evidence_paths"] = [
             _prefixed_platform_path(platform, path) for path in mutation["evidence_paths"]
@@ -1642,7 +1752,13 @@ def _validate_raw_evidence_contract(
         "require_workflow_step_env_transport": True,
         "require_workflow_argument_arrays": True,
         "require_explicit_os_tool_paths": True,
+        "require_content_bound_execution_tools": True,
+        "require_non_reparse_tool_paths": True,
+        "require_tool_identity_manifest": True,
+        "pinned_runner_labels": ["ubuntu-24.04", "windows-2025"],
         "pinned_base_python": "3.11.15",
+        "pinned_uv": "0.11.11",
+        "pinned_texlive": "2026",
         "require_workflow_sha_match": True,
         "require_checkout_head_match": True,
         "require_single_producer_run": True,
@@ -1666,9 +1782,7 @@ def _validate_raw_evidence_contract(
         or len(mutation_ids) != len(set(mutation_ids))
         or not isinstance(mutation_oracles, Mapping)
         or set(mutation_oracles) != set(mutation_ids)
-        or any(
-            not isinstance(value, str) or not value for value in mutation_oracles.values()
-        )
+        or any(not isinstance(value, str) or not value for value in mutation_oracles.values())
         or not isinstance(mutation_tests, Mapping)
         or set(mutation_tests) != set(mutation_ids)
         or any(
@@ -1700,18 +1814,14 @@ def _validate_raw_evidence_contract(
         or producer_contract["signer_workflow"] != expected_signer_workflow
         or producer_contract["predicate_type"] != "https://slsa.dev/provenance/v1"
         or re.fullmatch(r"[0-9a-f]{40}", producer_contract["action_commit"]) is None
-        or re.fullmatch(r"\d+\.\d+\.\d+", producer_contract["minimum_gh_version"])
-        is None
+        or re.fullmatch(r"\d+\.\d+\.\d+", producer_contract["minimum_gh_version"]) is None
         or producer_contract["bundle_path"] != "evidence/producer-attestation.sigstore.json"
         or producer_contract["subject_paths"]
         != ["evidence/platform-summary.json", "evidence/evidence-manifest.json"]
         or parameters.get("required_mutation_count") != len(mutation_ids)
         or type(contract["required_pdf_page_count"]) is not int
         or contract["required_pdf_page_count"] < 1
-        or (
-            dispatch_contract is not None
-            and dispatch_contract != expected_dispatch_contract
-        )
+        or (dispatch_contract is not None and dispatch_contract != expected_dispatch_contract)
     ):
         return [f"packet {packet_id}: raw_results_contract has malformed or contradictory values"]
 
@@ -1824,10 +1934,7 @@ def _validate_raw_evidence_contract(
     expected_uv = parameters["uv_version"]
     expected_pages = contract["required_pdf_page_count"]
     expected_pdf_banner = parameters["pdf_engine_banner"]
-    if (
-        parameters.get("maximum_cross_platform_channel_delta")
-        != VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT
-    ):
+    if parameters.get("maximum_cross_platform_channel_delta") != VISUAL_MAXIMUM_CHANNEL_ERROR_LIMIT:
         return [
             f"packet {packet_id}: cross-platform visual limit differs from the "
             "authoritative checker"
@@ -2138,11 +2245,14 @@ def _validate_raw_evidence_contract(
         source_matches = [
             (path, entry) for path, entry in role_entries if entry.get("role") == "source-manifest"
         ]
-        pdf_matches = [(path, entry) for path, entry in role_entries if entry.get("role") == "pdf"]
-        pdf_engine_matches = [
+        tool_identity_matches = [
             (path, entry)
             for path, entry in role_entries
-            if entry.get("role") == "pdf-engine"
+            if entry.get("role") == "tool-identity-manifest"
+        ]
+        pdf_matches = [(path, entry) for path, entry in role_entries if entry.get("role") == "pdf"]
+        pdf_engine_matches = [
+            (path, entry) for path, entry in role_entries if entry.get("role") == "pdf-engine"
         ]
         status_matches = [
             (path, entry)
@@ -2151,6 +2261,7 @@ def _validate_raw_evidence_contract(
         ]
         environment_ok = len(environment_matches) == 1
         source_ok = len(source_matches) == 1
+        tool_identity_ok = len(tool_identity_matches) == 1
         pdf_ok = len(pdf_matches) == 1
         pdf_engine_ok = len(pdf_engine_matches) == 1
         status_ok = len(status_matches) == 2
@@ -2185,6 +2296,22 @@ def _validate_raw_evidence_contract(
             except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
                 source_ok = False
                 errors.append(f"{label} source manifest cannot be validated: {exc}")
+        tool_identity_document: Mapping[str, Any] | None = None
+        if tool_identity_ok:
+            path, entry = tool_identity_matches[0]
+            tool_identity_ok = entry["sha256"] == platform["tool_identity_manifest_sha256"]
+            try:
+                loaded_tool_identity = _load_json(evidence_files[path])
+                tool_identity_errors = _tool_identity_manifest_errors(
+                    loaded_tool_identity, platform_name, label
+                )
+                tool_identity_ok = tool_identity_ok and not tool_identity_errors
+                if isinstance(loaded_tool_identity, Mapping):
+                    tool_identity_document = loaded_tool_identity
+                errors.extend(tool_identity_errors)
+            except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+                tool_identity_ok = False
+                errors.append(f"{label} tool identity manifest cannot be validated: {exc}")
         if pdf_ok:
             path, entry = pdf_matches[0]
             pdf_file = evidence_files[path]
@@ -2227,6 +2354,8 @@ def _validate_raw_evidence_contract(
             errors.append(f"{label} environment evidence is incomplete or invalid")
         if not source_ok:
             errors.append(f"{label} source evidence is incomplete or invalid")
+        if not tool_identity_ok:
+            errors.append(f"{label} tool identity evidence is incomplete or invalid")
         if status_ok:
             status_files = {
                 Path(path).name: evidence_files[path] for path, _entry in status_matches
@@ -2249,8 +2378,7 @@ def _validate_raw_evidence_contract(
                 status_ok = (
                     status_ok
                     and generated_paths <= set(artifact_paths)
-                    and final_status.read_text(encoding="utf-8", errors="strict").strip()
-                    == ""
+                    and final_status.read_text(encoding="utf-8", errors="strict").strip() == ""
                 )
         if not status_ok:
             errors.append(f"{label} retained repository-status evidence is incomplete or dirty")
@@ -2315,19 +2443,8 @@ def _validate_raw_evidence_contract(
                 }
                 if dispatch_contract is not None:
                     expected_suite_fields.add("dispatch_identity")
-                mutation_ok = mutation_ok and (
-                    isinstance(suite_result, Mapping)
-                    and set(suite_result) == expected_suite_fields
-                    and suite_result["schema_version"] == 1
-                    and suite_result["candidate_commit"] == packet["candidate_commit"]
-                    and suite_result["candidate_tree"] == packet["tree_hash"]
-                    and suite_result["platform_family"] == platform_name
-                    and suite_result["protocol_source_commit"] == protocol_commit
-                    and (
-                        dispatch_contract is None
-                        or suite_result.get("dispatch_identity") == expected_dispatch
-                    )
-                    and isinstance(command, list)
+                legacy_command_ok = (
+                    isinstance(command, list)
                     and command[:10]
                     == [
                         "uv",
@@ -2345,6 +2462,46 @@ def _validate_raw_evidence_contract(
                     and command[10] == "no:cacheprovider"
                     and set(command[11:]) == expected_selectors
                     and len(command[11:]) == len(expected_selectors)
+                )
+                r3_command_ok = (
+                    isinstance(command, list)
+                    and isinstance(tool_identity_document, Mapping)
+                    and command[0]
+                    == tool_identity_document.get("tools", {})
+                    .get("environment_python", {})
+                    .get("path")
+                    and command[1:4] == ["-I", "-S", "-X"]
+                    and len(command) >= 14
+                    and command[4].startswith("pycache_prefix=")
+                    and command[5]
+                    .replace("\\", "/")
+                    .endswith("/scripts/run_without_startup_hooks.py")
+                    and command[6] == "--repo-root"
+                    and command[8:14]
+                    == [
+                        "--module",
+                        "pytest",
+                        "--",
+                        "-vv",
+                        "-p",
+                        "no:cacheprovider",
+                    ]
+                    and set(command[14:]) == expected_selectors
+                    and len(command[14:]) == len(expected_selectors)
+                )
+                mutation_ok = mutation_ok and (
+                    isinstance(suite_result, Mapping)
+                    and set(suite_result) == expected_suite_fields
+                    and suite_result["schema_version"] == 1
+                    and suite_result["candidate_commit"] == packet["candidate_commit"]
+                    and suite_result["candidate_tree"] == packet["tree_hash"]
+                    and suite_result["platform_family"] == platform_name
+                    and suite_result["protocol_source_commit"] == protocol_commit
+                    and (
+                        dispatch_contract is None
+                        or suite_result.get("dispatch_identity") == expected_dispatch
+                    )
+                    and (r3_command_ok if dispatch_contract is not None else legacy_command_ok)
                     and suite_result["exit_code"] == 0
                     and suite_result["stdout_sha256"] == stdout_entry["sha256"]
                     and suite_result["stderr_sha256"] == stderr_entry["sha256"]
@@ -2372,13 +2529,7 @@ def _validate_raw_evidence_contract(
                 if node.startswith(requirement["test_prefix"])
             )
             mutation_ok = mutation_ok and all(
-                len(
-                    [
-                        node
-                        for node in passed_nodes
-                        if node.startswith(requirement["test_prefix"])
-                    ]
-                )
+                len([node for node in passed_nodes if node.startswith(requirement["test_prefix"])])
                 == requirement["expected_passed_count"]
                 for requirement in requirements
             )
@@ -2423,8 +2574,7 @@ def _validate_raw_evidence_contract(
                         and mutation_document.get("rejected") is True
                         and isinstance(mutation_document.get("attack"), str)
                         and bool(mutation_document.get("attack"))
-                        and mutation_document.get("oracle_id")
-                        == mutation_oracles[mutation_id]
+                        and mutation_document.get("oracle_id") == mutation_oracles[mutation_id]
                         and isinstance(oracle_errors, list)
                         and bool(oracle_errors)
                         and all(
@@ -2451,8 +2601,7 @@ def _validate_raw_evidence_contract(
                             "stdout_sha256",
                             "stderr_sha256",
                         }
-                        and execution.get("command")
-                        == " ".join(suite_result.get("command", []))
+                        and execution.get("command") == " ".join(suite_result.get("command", []))
                         and execution.get("exit_code") == suite_result.get("exit_code") == 0
                         and isinstance(execution.get("started_at"), str)
                         and isinstance(execution.get("finished_at"), str)
@@ -2460,10 +2609,8 @@ def _validate_raw_evidence_contract(
                         and execution.get("finished_at") == suite_result.get("finished_at")
                         and execution.get("test_ids") == expected_test_ids
                         and execution.get("passed_test_count") == len(expected_test_ids)
-                        and execution.get("stdout_sha256")
-                        == suite_result.get("stdout_sha256")
-                        and execution.get("stderr_sha256")
-                        == suite_result.get("stderr_sha256")
+                        and execution.get("stdout_sha256") == suite_result.get("stdout_sha256")
+                        and execution.get("stderr_sha256") == suite_result.get("stderr_sha256")
                     )
                 except (
                     OSError,
@@ -2511,6 +2658,7 @@ def _validate_raw_evidence_contract(
                 source_ok,
                 status_ok,
                 environment_ok,
+                tool_identity_ok,
                 pdf_ok,
                 uv_ok,
                 evidence_paths_ok,
@@ -2529,6 +2677,7 @@ def _validate_raw_evidence_contract(
             and artifact_ok
             and evidence_paths_ok
             and provenance_ok
+            and tool_identity_ok
         )
         platform_clean[platform_name] = clean
         platform_mutations[platform_name] = mutation_ok

@@ -22,13 +22,14 @@ PROTOCOL = PROTOCOL_DIR / "VIA-000.json"
 SCHEMA = PROTOCOL_DIR / "VIA-000-RAW-RESULTS.schema.json"
 ASSEMBLER = PROTOCOL_DIR / "VIA-000-ASSEMBLER.py"
 GUARD = PROTOCOL_DIR / "VIA-000-DISPATCH-GUARD.py"
+RUNNER = PROTOCOL_DIR / "VIA-000-RUNNER.ps1"
+MUTATION_RUNNER = PROTOCOL_DIR / "VIA-000-MUTATION-RUNNER.py"
+CAMPAIGN_CHECKER = ROOT / "scripts/check_viability_campaign.py"
 WORKFLOW = ROOT / ".github/workflows/via000-r3-protocol.yml"
 FAKE_COMMIT = "a" * 40
 FAKE_REF = f"refs/tags/popgp-via000-r3-protocol-{FAKE_COMMIT}"
 FAKE_AUTHORIZATION_SHA256 = "b" * 64
-FAKE_AUTHORIZATION_REF = (
-    "refs/tags/popgp-via000-r3-authorization-" + FAKE_AUTHORIZATION_SHA256
-)
+FAKE_AUTHORIZATION_REF = "refs/tags/popgp-via000-r3-authorization-" + FAKE_AUTHORIZATION_SHA256
 FAKE_AUTHORIZATION = {
     "protocol_commit": FAKE_COMMIT,
     "source_ref": FAKE_REF,
@@ -175,8 +176,7 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
     )
     public_key = key.with_suffix(".pub").read_text(encoding="utf-8").strip()
     signers_path = (
-        repo
-        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/"
+        repo / "reviews/viability/POPGP-VIABILITY-R3-2026-08/authorization/"
         "VIA-000-AUTHORIZED-SIGNERS"
     )
     signers_path.write_text(
@@ -276,9 +276,7 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
         "packet_path": authorization_contract["packet_path"],
         "packet_sha256": frozen_sha(authorization_contract["packet_path"]),
         "protocol_manifest_path": authorization_contract["protocol_manifest_path"],
-        "protocol_manifest_sha256": frozen_sha(
-            authorization_contract["protocol_manifest_path"]
-        ),
+        "protocol_manifest_sha256": frozen_sha(authorization_contract["protocol_manifest_path"]),
     }
     record_bytes = (
         json.dumps(record, allow_nan=False, separators=(",", ":"), sort_keys=True) + "\n"
@@ -286,8 +284,7 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
     record_path = tmp_path / "authorization-record.json"
     record_path.write_bytes(record_bytes)
     authorization_ref = (
-        "refs/tags/popgp-via000-r3-authorization-"
-        + hashlib.sha256(record_bytes).hexdigest()
+        "refs/tags/popgp-via000-r3-authorization-" + hashlib.sha256(record_bytes).hexdigest()
     )
     _git(repo, "config", "gpg.format", "ssh")
     _git(repo, "config", "user.signingkey", str(key))
@@ -320,9 +317,11 @@ def _authorization_race_objects(
             signature_lines[index] = replacement + line[1:]
             break
     invalid = prefix + marker + b"".join(signature_lines)
-    invalid_oid = _git_bytes_input(
-        repo, invalid, "hash-object", "-w", "-t", "tag", "--stdin"
-    ).decode("ascii").strip()
+    invalid_oid = (
+        _git_bytes_input(repo, invalid, "hash-object", "-w", "-t", "tag", "--stdin")
+        .decode("ascii")
+        .strip()
+    )
 
     tag_name = authorization_ref.removeprefix("refs/tags/")
     _git(
@@ -346,9 +345,7 @@ def _replace_object(repo: Path, original_oid: str, replacement_oid: str) -> None
 
 
 def _hash_blob(repo: Path, content: bytes) -> str:
-    return _git_bytes_input(repo, content, "hash-object", "-w", "--stdin").decode(
-        "ascii"
-    ).strip()
+    return _git_bytes_input(repo, content, "hash-object", "-w", "--stdin").decode("ascii").strip()
 
 
 def _workflow_step_script(step_name: str) -> str:
@@ -410,32 +407,138 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
         for requirement in contract["required_mutation_tests"][mutation_id]:
             if requirement["test_prefix"] not in selectors:
                 selectors.append(requirement["test_prefix"])
-    command = [
-        "uv",
-        "run",
-        "--isolated",
-        "--frozen",
-        "--no-editable",
-        "python",
-        "-m",
-        "pytest",
-        "-vv",
-        "-p",
-        "no:cacheprovider",
-        *selectors,
-    ]
-    for workspace in roots.values():
+    for platform_name, workspace in roots.items():
         manifest_path = workspace / "evidence/evidence-manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        stdout_entry = next(
-            entry for entry in manifest if entry["role"] == "mutation-suite-stdout"
+        if platform_name == "windows-x86_64":
+            tools = {
+                "git": {
+                    "path": "C:/Program Files/Git/cmd/git.exe",
+                    "sha256": "1" * 64,
+                    "version": "git version 2.51.0.windows.1",
+                },
+                "ssh_keygen": {
+                    "path": "C:/Windows/System32/OpenSSH/ssh-keygen.exe",
+                    "sha256": "2" * 64,
+                    "version": "OpenSSH system ssh-keygen",
+                },
+                "base_python": {
+                    "path": "C:/hostedtoolcache/windows/Python/3.11.15/x64/python.exe",
+                    "sha256": "3" * 64,
+                    "version": "3.11.15",
+                },
+                "uv": {
+                    "path": "C:/hostedtoolcache/windows/Python/3.11.15/x64/Scripts/uv.exe",
+                    "sha256": "4" * 64,
+                    "version": "uv 0.11.11",
+                },
+                "pdflatex": {
+                    "path": "C:/runner/_temp/via000-r3-texlive/2026/bin/windows/pdftex.exe",
+                    "sha256": "5" * 64,
+                    "version": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
+                },
+                "powershell": {
+                    "path": "C:/Program Files/PowerShell/7/pwsh.exe",
+                    "sha256": "6" * 64,
+                    "version": "7.5.3",
+                },
+                "environment_python": {
+                    "path": (
+                        "C:/runner/_temp/via000-r3-platform/python-environment/Scripts/python.exe"
+                    ),
+                    "sha256": "3" * 64,
+                    "version": "3.11.15",
+                },
+            }
+            runner_label, image_os = "windows-2025", "win25"
+        else:
+            tools = {
+                "git": {
+                    "path": "/usr/bin/git",
+                    "sha256": "1" * 64,
+                    "version": "git version 2.51.0",
+                },
+                "ssh_keygen": {
+                    "path": "/usr/bin/ssh-keygen",
+                    "sha256": "2" * 64,
+                    "version": "OpenSSH system ssh-keygen",
+                },
+                "base_python": {
+                    "path": "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11",
+                    "sha256": "3" * 64,
+                    "version": "3.11.15",
+                },
+                "uv": {
+                    "path": "/opt/hostedtoolcache/Python/3.11.15/x64/bin/uv",
+                    "sha256": "4" * 64,
+                    "version": "uv 0.11.11",
+                },
+                "pdflatex": {
+                    "path": (
+                        "/home/runner/work/_temp/via000-r3-texlive/2026/bin/x86_64-linux/pdftex"
+                    ),
+                    "sha256": "5" * 64,
+                    "version": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
+                },
+                "powershell": {
+                    "path": "/opt/microsoft/powershell/7/pwsh",
+                    "sha256": "6" * 64,
+                    "version": "7.5.3",
+                },
+                "environment_python": {
+                    "path": (
+                        "/home/runner/work/_temp/via000-r3-platform/python-environment/bin/python"
+                    ),
+                    "sha256": "3" * 64,
+                    "version": "3.11.15",
+                },
+            }
+            runner_label, image_os = "ubuntu-24.04", "ubuntu24"
+        tool_identity_path = workspace / "evidence/tool-identity-manifest.json"
+        tool_identity_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "platform_family": platform_name,
+                    "runner_label": runner_label,
+                    "image_os": image_os,
+                    "image_version": "20260823.1.0",
+                    "runner_arch": "X64",
+                    "tools": tools,
+                }
+            ),
+            encoding="utf-8",
         )
-        stderr_entry = next(
-            entry for entry in manifest if entry["role"] == "mutation-suite-stderr"
+        manifest.append(
+            {
+                "platform_family": platform_name,
+                "path": "evidence/tool-identity-manifest.json",
+                "sha256": hashlib.sha256(tool_identity_path.read_bytes()).hexdigest(),
+                "byte_count": tool_identity_path.stat().st_size,
+                "media_type": "application/json",
+                "role": "tool-identity-manifest",
+            }
         )
-        suite_entry = next(
-            entry for entry in manifest if entry["role"] == "mutation-suite-result"
-        )
+        command = [
+            tools["environment_python"]["path"],
+            "-I",
+            "-S",
+            "-X",
+            "pycache_prefix=/runner/_temp/via000-r3-platform/mutation-python-cache",
+            "/runner/work/POPGP/scripts/run_without_startup_hooks.py",
+            "--repo-root",
+            "/runner/work/POPGP",
+            "--module",
+            "pytest",
+            "--",
+            "-vv",
+            "-p",
+            "no:cacheprovider",
+            *selectors,
+        ]
+        stdout_entry = next(entry for entry in manifest if entry["role"] == "mutation-suite-stdout")
+        stderr_entry = next(entry for entry in manifest if entry["role"] == "mutation-suite-stderr")
+        suite_entry = next(entry for entry in manifest if entry["role"] == "mutation-suite-result")
         stdout_path = workspace / stdout_entry["path"]
         stdout = stdout_path.read_text(encoding="utf-8")
         for requirements in contract["required_mutation_tests"].values():
@@ -464,11 +567,7 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
         passed_nodes = [
             match.group(1)
             for line in stdout.splitlines()
-            if (
-                match := re.match(
-                    r"^(tests/\S+::\S+)\s+PASSED(?:\s+\[.*\])?$", line.strip()
-                )
-            )
+            if (match := re.match(r"^(tests/\S+::\S+)\s+PASSED(?:\s+\[.*\])?$", line.strip()))
         ]
         mutation_entries = {
             Path(entry["path"]).stem: entry
@@ -518,6 +617,9 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
             "bundle_path": signer["bundle_path"],
             "subject_paths": signer["subject_paths"],
         }
+        summary["tool_identity_manifest_sha256"] = hashlib.sha256(
+            tool_identity_path.read_bytes()
+        ).hexdigest()
         summary_path.write_text(json.dumps(summary), encoding="utf-8")
     return roots
 
@@ -535,9 +637,7 @@ def _run_assembler(
         else repr(FAKE_AUTHORIZATION)
     )
     attestation_patch = (
-        "(_ for _ in ()).throw(ValueError('attestation rejected'))"
-        if attestation_error
-        else "None"
+        "(_ for _ in ()).throw(ValueError('attestation rejected'))" if attestation_error else "None"
     )
     bootstrap = (
         "import importlib.util,sys;"
@@ -601,9 +701,7 @@ def test_dispatch_guard_accepts_exact_snapshot_ref(tmp_path: Path) -> None:
 
 @pytest.mark.negative_control
 @pytest.mark.parametrize("mutation", ["event", "ref", "sha", "head", "authorization"])
-def test_dispatch_guard_rejects_wrong_event_ref_sha_or_head(
-    tmp_path: Path, mutation: str
-) -> None:
+def test_dispatch_guard_rejects_wrong_event_ref_sha_or_head(tmp_path: Path, mutation: str) -> None:
     guard = _load_module(GUARD, f"r3_dispatch_guard_{mutation}")
     repo, commit, ref, authorization_ref, _authorization_commit = _authorized_repo(tmp_path)
     authorization_tag_oid = _git(repo, "rev-parse", authorization_ref)
@@ -700,8 +798,8 @@ def test_r3_authorization_rejects_moved_deleted_or_wrong_kind_refs(
     tmp_path: Path, mutation: str
 ) -> None:
     guard = _load_module(GUARD, f"r3_dispatch_guard_ref_{mutation}")
-    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = _authorized_repo(
+        tmp_path
     )
     authorization_tag_oid = _git(repo, "rev-parse", authorization_ref)
     if mutation == "deleted-authorization":
@@ -739,8 +837,8 @@ def test_r3_authorization_rejects_invalid_captured_object_after_valid_ref_swap(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_captured_invalid_swap")
-    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     _original_oid, invalid_oid, unrelated_valid_oid = _authorization_race_objects(
         repo, authorization_ref, authorization_commit
@@ -790,8 +888,8 @@ def test_r3_authorization_rejects_ref_change_during_exact_object_verification(
     mutation: str,
 ) -> None:
     guard = _load_module(GUARD, f"r3_dispatch_guard_race_{stage}")
-    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     original_oid, _invalid_oid, unrelated_valid_oid = _authorization_race_objects(
         repo, authorization_ref, authorization_commit
@@ -811,9 +909,7 @@ def test_r3_authorization_rejects_ref_change_during_exact_object_verification(
             command = ["update-ref", authorization_ref, authorization_commit, original_oid]
         else:
             command = ["update-ref", authorization_ref, unrelated_valid_oid, original_oid]
-        original_run(
-            ["git", "-C", str(repo), *command], check=True, capture_output=True
-        )
+        original_run(["git", "-C", str(repo), *command], check=True, capture_output=True)
         changed = True
 
     def git_with_race(repo_root: Path, *arguments: str) -> bytes:
@@ -830,11 +926,7 @@ def test_r3_authorization_rejects_ref_change_during_exact_object_verification(
 
     def run_with_race(*args: object, **kwargs: object):
         command = args[0] if args else kwargs.get("args")
-        if (
-            stage == "verify"
-            and isinstance(command, list)
-            and "verify-tag" in command
-        ):
+        if stage == "verify" and isinstance(command, list) and "verify-tag" in command:
             mutate_ref()
         return original_run(*args, **kwargs)
 
@@ -858,8 +950,8 @@ def test_r3_assembler_extracted_guard_rejects_ref_swap_after_oid_capture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     assembler = _load_module(ASSEMBLER, "r3_assembler_extracted_guard_ref_swap")
-    repo, _snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, _snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     _original_oid, invalid_oid, unrelated_valid_oid = _authorization_race_objects(
         repo, authorization_ref, authorization_commit
@@ -905,8 +997,8 @@ def test_r3_guard_rejects_invalid_tag_hidden_by_default_replacement(
     tmp_path: Path,
 ) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_default_replace")
-    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     original_oid, invalid_oid, _unrelated_oid = _authorization_race_objects(
         repo, authorization_ref, authorization_commit
@@ -915,9 +1007,9 @@ def test_r3_guard_rejects_invalid_tag_hidden_by_default_replacement(
     assert _git_bytes(repo, "cat-file", "tag", invalid_oid) == _git_bytes(
         repo, "--no-replace-objects", "cat-file", "tag", original_oid
     )
-    assert _git_bytes(
-        repo, "--no-replace-objects", "cat-file", "tag", invalid_oid
-    ) != _git_bytes(repo, "cat-file", "tag", invalid_oid)
+    assert _git_bytes(repo, "--no-replace-objects", "cat-file", "tag", invalid_oid) != _git_bytes(
+        repo, "cat-file", "tag", invalid_oid
+    )
 
     with pytest.raises(ValueError, match="signature"):
         guard.verify_campaign_authorization(
@@ -935,8 +1027,8 @@ def test_r3_guard_rejects_invalid_tag_hidden_by_default_replacement(
 def test_r3_unmodified_assembler_rejects_invalid_tag_hidden_by_replacement(
     tmp_path: Path,
 ) -> None:
-    repo, _snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, _snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     original_oid, invalid_oid, _unrelated_oid = _authorization_race_objects(
         repo, authorization_ref, authorization_commit
@@ -983,8 +1075,8 @@ def test_r3_guard_scrubs_custom_replace_object_repository_and_config_environment
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_git_environment")
-    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = _authorized_repo(
+        tmp_path
     )
     authorization_oid = _git(repo, "rev-parse", authorization_ref)
     missing = tmp_path / "caller-controlled-missing"
@@ -1033,8 +1125,8 @@ def test_r3_custom_replace_namespace_cannot_authenticate_invalid_tag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     guard = _load_module(GUARD, "r3_dispatch_guard_custom_replace")
-    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     original_oid, invalid_oid, _unrelated_oid = _authorization_race_objects(
         repo, authorization_ref, authorization_commit
@@ -1062,8 +1154,8 @@ def test_r3_source_campaign_packet_manifest_and_validator_reads_ignore_replaceme
     tmp_path: Path,
 ) -> None:
     assembler = _load_module(ASSEMBLER, "r3_assembler_source_replacements")
-    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, authorization_commit = _authorized_repo(
+        tmp_path
     )
     protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
     schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
@@ -1091,11 +1183,14 @@ def test_r3_source_campaign_packet_manifest_and_validator_reads_ignore_replaceme
             b"caller-controlled replacement bytes\n"
         )
 
-    assert _git_bytes(
-        repo,
-        "show",
-        f"{snapshot}:protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json",
-    ) != original_primary
+    assert (
+        _git_bytes(
+            repo,
+            "show",
+            f"{snapshot}:protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json",
+        )
+        != original_primary
+    )
     args = SimpleNamespace(
         repo_root=repo,
         protocol=protocol_path,
@@ -1126,8 +1221,8 @@ def test_r3_frozen_validator_rejects_worktree_dependency_substitution_without_ou
     tmp_path: Path, dependency: str
 ) -> None:
     assembler = _load_module(ASSEMBLER, "r3_frozen_validator_source_closure")
-    repo, _snapshot, protocol_ref, authorization_ref, _authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, _snapshot, protocol_ref, authorization_ref, _authorization_commit = _authorized_repo(
+        tmp_path
     )
     protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
     schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
@@ -1145,17 +1240,15 @@ def test_r3_frozen_validator_rejects_worktree_dependency_substitution_without_ou
     changed = repo / dependency
     changed.write_bytes(changed.read_bytes() + b"\n# substituted only in worktree\n")
     with pytest.raises(ValueError, match="worktree source differs"):
-        assembler._run_frozen_precommit_validator(
-            args, protocol, authorization, raw_path
-        )
+        assembler._run_frozen_precommit_validator(args, protocol, authorization, raw_path)
     assert not (tmp_path / "assembled").exists()
 
 
 @pytest.mark.negative_control
 def test_r3_frozen_validator_executes_snapshot_bundle_and_real_packet(tmp_path: Path) -> None:
     assembler = _load_module(ASSEMBLER, "r3_frozen_validator_bundle_execution")
-    repo, _snapshot, protocol_ref, authorization_ref, _authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, _snapshot, protocol_ref, authorization_ref, _authorization_commit = _authorized_repo(
+        tmp_path
     )
     protocol_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
     schema_path = repo / "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
@@ -1177,9 +1270,7 @@ def test_r3_frozen_validator_executes_snapshot_bundle_and_real_packet(tmp_path: 
 
 
 @pytest.mark.parametrize("autocrlf", ["true", "false"])
-def test_r3_cross_platform_git_blob_identity_with_autocrlf(
-    tmp_path: Path, autocrlf: str
-) -> None:
+def test_r3_cross_platform_git_blob_identity_with_autocrlf(tmp_path: Path, autocrlf: str) -> None:
     origin = tmp_path / "blob-origin"
     origin.mkdir()
     _git(origin, "init")
@@ -1218,9 +1309,7 @@ def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
     assert "workflow_dispatch:" in trigger
     assert "push:" not in trigger
     run_sources = [
-        step["run"]
-        for step in document["jobs"]["platform-fragment"]["steps"]
-        if "run" in step
+        step["run"] for step in document["jobs"]["platform-fragment"]["steps"] if "run" in step
     ]
     assert all("${{" not in source for source in run_sources)
     authorization_script = _workflow_step_script("Reject non-snapshot lifecycle refs")
@@ -1234,8 +1323,8 @@ def test_r3_workflow_is_manual_only_and_binds_exact_identity() -> None:
         'Where-Object Name -Like "GIT_*"',
         'GIT_NO_REPLACE_OBJECTS = "1"',
         'GIT_CONFIG_NOSYSTEM = "1"',
-        'VIA000_AUTHORIZATION_REF: ${{ inputs.authorization_ref }}',
-        'VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}',
+        "VIA000_AUTHORIZATION_REF: ${{ inputs.authorization_ref }}",
+        "VIA000_BASE_PYTHON: ${{ steps.base-python.outputs.python-path }}",
         '"C:\\Program Files\\Git\\cmd\\git.exe"',
         '"C:\\Windows\\System32\\OpenSSH\\ssh-keygen.exe"',
         '"/usr/bin/git"',
@@ -1267,8 +1356,7 @@ def test_r3_workflow_command_boundary_rejects_dispatch_payloads_as_inert_data(
         '$capturedAuthorizationTagOid=("b"*40); $global:LASTEXITCODE=0; #'
     )
     side_effect_payload = (
-        f'"; Set-Content -LiteralPath \'{marker}\' -Value injected; '
-        '$global:LASTEXITCODE=0; #'
+        f"\"; Set-Content -LiteralPath '{marker}' -Value injected; $global:LASTEXITCODE=0; #"
     )
     payloads = [
         reviewer_payload,
@@ -1297,6 +1385,8 @@ def test_r3_workflow_command_boundary_rejects_dispatch_payloads_as_inert_data(
                 "VIA000_GITHUB_REF": FAKE_REF,
                 "VIA000_GITHUB_SHA": FAKE_COMMIT,
                 "VIA000_BASE_PYTHON": sys.executable,
+                "VIA000_BASE_PYTHON_VERSION": "3.11.15",
+                "VIA000_RUNNER_ARCH": "X64",
                 "GITHUB_WORKSPACE": str(tmp_path),
                 "RUNNER_TEMP": str(runner_temp),
             }
@@ -1320,8 +1410,8 @@ def test_r3_workflow_command_boundary_ignores_path_tool_shims(
 ) -> None:
     pwsh = shutil.which("pwsh")
     assert pwsh is not None
-    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = (
-        _authorized_repo(tmp_path)
+    repo, snapshot, protocol_ref, authorization_ref, _authorization_commit = _authorized_repo(
+        tmp_path
     )
     script_path = tmp_path / "authorization-step.ps1"
     script_path.write_text(
@@ -1352,6 +1442,8 @@ def test_r3_workflow_command_boundary_ignores_path_tool_shims(
                 "VIA000_GITHUB_REF": protocol_ref,
                 "VIA000_GITHUB_SHA": snapshot,
                 "VIA000_BASE_PYTHON": sys.executable,
+                "VIA000_BASE_PYTHON_VERSION": "3.11.15",
+                "VIA000_RUNNER_ARCH": "X64",
                 "GITHUB_WORKSPACE": str(repo),
                 "RUNNER_TEMP": str(runner_temp),
             }
@@ -1364,13 +1456,272 @@ def test_r3_workflow_command_boundary_ignores_path_tool_shims(
             capture_output=True,
             text=True,
         )
-        assert completed.returncode == 0, completed.stderr
+        assert completed.returncode != 0
         authorization_output = runner_temp / "via000-r3-authorization.json"
-        assert authorization_output.is_file()
-        assert json.loads(authorization_output.read_text(encoding="utf-8"))[
-            "authorization_ref"
-        ] == authorization_ref
+        assert not authorization_output.exists()
         assert not marker.exists()
+
+
+@pytest.mark.negative_control
+def test_r3_complete_execution_toolchain_has_no_path_resolved_commands() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    runner = RUNNER.read_text(encoding="utf-8")
+    mutation_runner = MUTATION_RUNNER.read_text(encoding="utf-8")
+    document = yaml.safe_load(workflow)
+    assert {
+        item["os"]
+        for item in document["jobs"]["platform-fragment"]["strategy"]["matrix"]["include"]
+    } == {
+        "ubuntu-24.04",
+        "windows-2025",
+    }
+    matrix = document["jobs"]["platform-fragment"]["strategy"]["matrix"]["include"]
+    assert all(item["shell"].startswith(("/opt/", '"C:\\Program Files')) for item in matrix)
+    assert all(
+        step.get("shell") == "${{ matrix.shell }}"
+        for step in document["jobs"]["platform-fragment"]["steps"]
+        if "run" in step
+    )
+    assert 'update-environment: "false"' in workflow
+    assert "if: always()" not in workflow
+    assert "Validate complete trusted toolchain" in workflow
+    assert "Assert-RegularExecutable" in workflow
+    assert "Get-FileHash -Algorithm SHA256" in workflow
+    assert "via000-r3-tool-identity.json" in workflow
+    assert "C:\\hostedtoolcache\\windows\\Python\\3.11.15\\x64\\python.exe" in workflow
+    assert "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11" in workflow
+    assert "via000-r3-texlive/2026/bin/x86_64-linux/pdftex" in workflow
+    assert "-TrustedGitPath" in workflow and "$TrustedGitPath" in runner
+    assert "-TrustedBasePythonPath" in workflow and "$TrustedBasePythonPath" in runner
+    assert "-TrustedUvPath" in workflow and "$TrustedUvPath" in runner
+    assert "-TrustedPdfLatexPath" in workflow and "$TrustedPdfLatexPath" in runner
+    assert "-TrustedPowerShellPath" in workflow and "$TrustedPowerShellPath" in runner
+    assert "tool_identity_manifest_sha256" in runner
+    assert (
+        re.search(
+            r'(?im)(?:&|FilePath\s+)\s*["\']?(?:git|python|uv|pdflatex|pwsh)["\']?(?:\s|$)',
+            runner,
+        )
+        is None
+    )
+    assert '"uv",\n        "run"' not in mutation_runner
+    assert '"python",\n        "-m"' not in mutation_runner
+    assert "str(environment_python)" in mutation_runner
+    assert "environment.pop(name, None)" in mutation_runner
+
+
+@pytest.mark.negative_control
+def test_r3_workflow_rejects_setup_python_output_substitution_before_execution(
+    tmp_path: Path,
+) -> None:
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    script_path = tmp_path / "authorization-step.ps1"
+    script_path.write_text(
+        _workflow_step_script("Reject non-snapshot lifecycle refs"),
+        encoding="utf-8",
+        newline="\n",
+    )
+    marker = tmp_path / "setup-python-substitution-marker"
+    malicious_python = tmp_path / "python.cmd"
+    malicious_python.write_text(
+        f'@echo executed>"{marker}"\r\n@exit /b 0\r\n',
+        encoding="utf-8",
+    )
+    runner_temp = tmp_path / "setup-substitution-runner"
+    runner_temp.mkdir()
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "VIA000_AUTHORIZATION_REF": FAKE_AUTHORIZATION_REF,
+            "VIA000_EVENT_NAME": "workflow_dispatch",
+            "VIA000_GITHUB_REF": FAKE_REF,
+            "VIA000_GITHUB_SHA": FAKE_COMMIT,
+            "VIA000_BASE_PYTHON": str(malicious_python),
+            "VIA000_BASE_PYTHON_VERSION": "3.11.15",
+            "VIA000_RUNNER_ARCH": "X64",
+            "GITHUB_WORKSPACE": str(tmp_path),
+            "RUNNER_TEMP": str(runner_temp),
+        }
+    )
+    completed = subprocess.run(
+        [pwsh, "-NoProfile", "-NonInteractive", "-File", str(script_path)],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert not marker.exists()
+    assert not (runner_temp / "via000-r3-authorization.json").exists()
+
+
+@pytest.mark.negative_control
+def test_r3_tool_identity_manifest_rejects_substituted_paths_versions_and_hashes(
+    tmp_path: Path,
+) -> None:
+    checker = _load_module(CAMPAIGN_CHECKER, "r3_tool_identity_checker")
+    roots = _r3_platform_roots(tmp_path)
+    for platform, workspace in roots.items():
+        manifest_path = workspace / "evidence/tool-identity-manifest.json"
+        valid = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert checker._tool_identity_manifest_errors(valid, platform, platform) == []
+        mutations = []
+        for mutate in (
+            lambda item: item["tools"]["base_python"].update(
+                path="C:/untrusted/python.cmd" if os.name == "nt" else "/tmp/python"
+            ),
+            lambda item: item["tools"]["base_python"].update(version="3.11.14"),
+            lambda item: item["tools"]["uv"].update(version="uv 0.11.12"),
+            lambda item: item["tools"]["pdflatex"].update(version="forged banner"),
+            lambda item: item["tools"]["environment_python"].update(sha256="9" * 64),
+            lambda item: item.update(runner_arch="ARM64"),
+        ):
+            changed = json.loads(json.dumps(valid))
+            mutate(changed)
+            mutations.append(changed)
+        for changed in mutations:
+            assert checker._tool_identity_manifest_errors(changed, platform, platform)
+
+
+@pytest.mark.negative_control
+def test_r3_unmodified_runner_rejects_explicit_shim_before_workspace(
+    tmp_path: Path,
+) -> None:
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    marker = tmp_path / "runner-tool-shim-marker"
+    shim_dir = tmp_path / "path-shims"
+    for name in ("git", "python", "uv", "pdflatex", "pwsh"):
+        _path_shim(shim_dir, name, marker)
+    suffix = ".cmd" if os.name == "nt" else ""
+    git_shim = shim_dir / f"git{suffix}"
+    manifest = tmp_path / "tool-manifest.json"
+    manifest.write_text("{}\n", encoding="utf-8")
+    workspace = tmp_path / "runner-workspace"
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(shim_dir), environment.get("PATH", "")))
+    environment["PATHEXT"] = ".CMD;.EXE"
+    environment["RUNNER_TEMP"] = str(tmp_path)
+    arguments = [
+        pwsh,
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        str(RUNNER),
+        "-WorkspaceRoot",
+        str(workspace),
+        "-PlatformFamily",
+        "windows-x86_64" if os.name == "nt" else "ubuntu-latest-x86_64",
+        "-ProtocolSourceCommit",
+        FAKE_COMMIT,
+        "-DispatchRef",
+        FAKE_REF,
+        "-AuthorizationRef",
+        FAKE_AUTHORIZATION_REF,
+        "-AuthorizationTagOid",
+        "c" * 40,
+        "-AuthorizationCommit",
+        "d" * 40,
+        "-AuthorizationRecordSha256",
+        FAKE_AUTHORIZATION_SHA256,
+        "-ProducerRunId",
+        "424242",
+        "-ProducerRunAttempt",
+        "1",
+        "-TrustedGitPath",
+        str(git_shim),
+        "-TrustedBasePythonPath",
+        sys.executable,
+        "-TrustedUvPath",
+        str(shim_dir / f"uv{suffix}"),
+        "-TrustedPdfLatexPath",
+        str(shim_dir / f"pdflatex{suffix}"),
+        "-TrustedPowerShellPath",
+        str(shim_dir / f"pwsh{suffix}"),
+        "-ToolIdentityManifestPath",
+        str(manifest),
+    ]
+    for name, path in (
+        ("TrustedGitSha256", git_shim),
+        ("TrustedBasePythonSha256", Path(sys.executable)),
+        ("TrustedUvSha256", shim_dir / f"uv{suffix}"),
+        ("TrustedPdfLatexSha256", shim_dir / f"pdflatex{suffix}"),
+        ("TrustedPowerShellSha256", shim_dir / f"pwsh{suffix}"),
+        ("ToolIdentityManifestSha256", manifest),
+    ):
+        arguments.extend((f"-{name}", hashlib.sha256(path.read_bytes()).hexdigest()))
+    completed = subprocess.run(
+        arguments,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert not marker.exists()
+    assert not workspace.exists()
+
+
+@pytest.mark.negative_control
+def test_r3_unmodified_mutation_runner_rejects_command_shim_before_output(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "via000-r3-platform"
+    evidence = workspace / "evidence"
+    environment_root = workspace / "python-environment"
+    evidence.mkdir(parents=True)
+    environment_root.mkdir()
+    marker = tmp_path / "mutation-tool-shim-marker"
+    shim_dir = tmp_path / "mutation-path-shims"
+    for name in ("git", "python", "uv", "pdflatex", "pwsh"):
+        _path_shim(shim_dir, name, marker)
+    suffix = ".cmd" if os.name == "nt" else ""
+    python_shim = environment_root / f"python{suffix}"
+    _path_shim(environment_root, "python", marker)
+    initial_entries = sorted(evidence.iterdir())
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join((str(shim_dir), environment.get("PATH", "")))
+    environment["PATHEXT"] = ".CMD;.EXE"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(MUTATION_RUNNER),
+            "--repo-root",
+            str(ROOT),
+            "--workspace-root",
+            str(workspace),
+            "--environment-python",
+            str(python_shim),
+            "--environment-python-sha256",
+            hashlib.sha256(python_shim.read_bytes()).hexdigest(),
+            "--platform-family",
+            "windows-x86_64" if os.name == "nt" else "ubuntu-latest-x86_64",
+            "--protocol-source-commit",
+            FAKE_COMMIT,
+            "--dispatch-ref",
+            FAKE_REF,
+            "--authorization-ref",
+            FAKE_AUTHORIZATION_REF,
+            "--authorization-tag-oid",
+            "c" * 40,
+            "--authorization-commit",
+            "d" * 40,
+            "--authorization-record-sha256",
+            FAKE_AUTHORIZATION_SHA256,
+            "--producer-run-id",
+            "424242",
+            "--producer-run-attempt",
+            "1",
+        ],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0
+    assert not marker.exists()
+    assert sorted(evidence.iterdir()) == initial_entries
 
 
 @pytest.mark.negative_control

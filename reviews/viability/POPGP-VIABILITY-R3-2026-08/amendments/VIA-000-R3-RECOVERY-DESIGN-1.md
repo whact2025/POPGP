@@ -67,6 +67,14 @@ validated before use, and passed through PowerShell argument arrays. The workflo
 contains no GitHub expression in any `run:` source and performs no `Get-Command` or
 dispatcher-`PATH` tool discovery. Its OS branches name the reviewed Windows and Ubuntu
 Git/SSH paths, while the pinned setup action supplies exact Python 3.11.15.
+The GitHub control plane and exact pinned action revisions are the declared bootstrap
+principal. Fixed `ubuntu-24.04` and `windows-2025` labels, setup-Python output/root,
+canonical Git/SSH/Python/PowerShell paths, uv 0.11.11 derived through trusted
+`sysconfig`, and the TeX Live 2026 `pdftex` path are checked before experiment output.
+Every executable must be a regular non-reparse file under its exact trusted root;
+PATH/PATHEXT and child-process injection state are scrubbed, hashes are rechecked
+across step boundaries, and a tool-identity manifest is retained in signed evidence.
+Any failure removes the complete platform workspace and prevents artifact upload.
 
 Thus the following identity is single-valued:
 
@@ -86,8 +94,9 @@ an authorization-ref swap between parsing, peeling, and signature verification,
 default or custom-namespace Git object replacement, caller-controlled Git object
 directories/alternates/config/programs, protocol files or validator dependencies that
 differ from no-replacement snapshot Git blobs, PowerShell quote/statement/
-subexpression/newline/control payloads, option-like input, or `PATH`-shadowed
-Git/SSH/Python programs,
+subexpression/newline/control payloads, option-like input, `PATH`/`PATHEXT`-shadowed
+tools, substituted setup-action output, wrong roots/versions/banners/hashes, command
+shims, or symlink/junction/reparse tools,
 wrong-source attestations, and Ubuntu/Windows fragments from different workflow runs.
 Every rejection is required before an output commitment can exist. Disposable test
 repositories exercise the exact signed authorization path, invalid-tag replacement,

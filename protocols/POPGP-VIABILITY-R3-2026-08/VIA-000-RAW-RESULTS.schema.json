@@ -110,6 +110,7 @@
         "producer_attestation",
         "uv_version",
         "pdf_engine",
+        "tool_identity_manifest_sha256",
         "command_results",
         "artifact_results",
         "mutation_results",
@@ -146,6 +147,7 @@
         "producer_attestation": {"$ref": "#/$defs/producer_attestation"},
         "uv_version": {"type": "string", "minLength": 2},
         "pdf_engine": {"type": "string", "minLength": 2},
+        "tool_identity_manifest_sha256": {"$ref": "#/$defs/sha256"},
         "command_results": {
           "type": "object",
           "minProperties": 1,
@@ -302,6 +304,7 @@
             "producer-summary",
             "source-manifest",
             "supporting",
+            "tool-identity-manifest",
             "validation-json",
             "visual"
           ]

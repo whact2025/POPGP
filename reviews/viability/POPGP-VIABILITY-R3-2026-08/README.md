@@ -42,8 +42,13 @@ step environment value. The first shell decision validates its exact full-ref gr
 and length; later Git, Python, runner, and mutation values are data elements in
 argument arrays. No GitHub expression is rendered into PowerShell source. The
 workflow uses reviewed literal Git and `ssh-keygen` paths for Windows and Ubuntu plus
-the exact Python 3.11.15 path produced by the pinned setup action, never dispatcher
-`PATH` discovery.
+the exact Python 3.11.15 path produced by the pinned setup action. Fixed hosted-runner
+labels, trusted roots, regular/non-reparse ancestry, exact Python/uv/TeX banners, and
+SHA-256 identities bind Git, SSH, base/environment Python, uv, pdfTeX, and PowerShell.
+uv is found only through trusted Python `sysconfig`; TeX is found only beneath the
+pinned action root. PATH/PATHEXT and child injection state are scrubbed, every child
+gets an explicit executable path, signed evidence retains the tool-identity manifest,
+and a rejected execution leaves no platform workspace or uploaded artifact.
 The source-tag suffix and resolution, authorized packet `protocol_commit`,
 `github.sha`, checkout HEAD, runner and mutation `protocol_source_commit`, Sigstore
 source digest, raw-results identity, assembler-derived identity, and validator
@@ -51,7 +56,7 @@ expectation must all be the same lowercase 40-hex commit. Linux and Windows frag
 must also carry one shared GitHub Actions run ID and attempt. A branch/lifecycle HEAD,
 later self-consistent tag, static or mid-verification authorization replacement, Git
 replacement object or injected Git environment/config, mutable validator source,
-workflow-expression or tool-path injection, wrong-source attestation, or cross-run
+workflow-expression, setup-output/executable identity injection, wrong-source attestation, or cross-run
 mixture fails before output commitment.
 
 The checked-in allowed-signers file is deliberately comment-only. Activation is

@@ -60,8 +60,14 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    aborts before platform execution.
    Windows uses `C:\Program Files\Git\cmd\git.exe` and
    `C:\Windows\System32\OpenSSH\ssh-keygen.exe`; Ubuntu uses `/usr/bin/git` and
-   `/usr/bin/ssh-keygen`. Base Python is the pinned setup-action 3.11.15 output. Any
-   missing tool or `PATH`-shadow attempt aborts before authorization reads.
+   `/usr/bin/ssh-keygen`. Base Python is the pinned setup-action 3.11.15 output; uv
+   0.11.11 is derived from that interpreter's `sysconfig`; TeX is the canonical
+   `pdftex` beneath the pinned TeX Live 2026 root; and PowerShell is the fixed system
+   installation. The workflow accepts only fixed hosted-runner labels and regular
+   non-reparse executables at exact trusted roots, records/rechecks SHA-256 identities,
+   clears PATH/PATHEXT and child injection state, and passes explicit paths to every
+   child. Any missing/substituted/shadowed tool aborts before experiment workspace or
+   output; failure removes the entire platform workspace and no artifact is uploaded.
 9. Both matrix jobs must share `github.run_id` and `github.run_attempt`; all signed
    summaries and manifests must bind that run and the exact source commit.
 10. The runner invokes the frozen assembler with the same protocol and authorization
