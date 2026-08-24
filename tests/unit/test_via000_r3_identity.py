@@ -624,7 +624,43 @@ def _r3_platform_roots(tmp_path: Path) -> dict[str, Path]:
             [*summary["evidence_paths"], "evidence/tool-identity-manifest.json"]
         )
         summary_path.write_text(json.dumps(summary), encoding="utf-8")
-    return roots
+    staged_roots: dict[str, Path] = {}
+    for platform_name, combined in roots.items():
+        platform_root = tmp_path / "staged" / platform_name
+        for stage in ("candidate", "pdf", "mutation"):
+            stage_root = platform_root / stage
+            shutil.copytree(combined, stage_root)
+            summary_path = stage_root / "evidence/platform-summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary["stage_id"] = stage
+            summary["producer_attestation"]["subject_paths"] = [
+                "evidence/stage-summary.json",
+                "evidence/evidence-manifest.json",
+            ]
+            summary_path.rename(stage_root / "evidence/stage-summary.json")
+            (stage_root / "evidence/stage-summary.json").write_text(
+                json.dumps(summary), encoding="utf-8"
+            )
+            tool_path = stage_root / "evidence/tool-identity-manifest.json"
+            tool = json.loads(tool_path.read_text(encoding="utf-8"))
+            tool["stage_id"] = stage
+            tool_path.write_text(json.dumps(tool), encoding="utf-8")
+            manifest_path = stage_root / "evidence/evidence-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            tool_entry = next(
+                entry
+                for entry in manifest
+                if entry["path"] == "evidence/tool-identity-manifest.json"
+            )
+            tool_entry["sha256"] = _sha(tool_path)
+            tool_entry["byte_count"] = tool_path.stat().st_size
+            summary["tool_identity_manifest_sha256"] = _sha(tool_path)
+            (stage_root / "evidence/stage-summary.json").write_text(
+                json.dumps(summary), encoding="utf-8"
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        staged_roots[platform_name] = platform_root
+    return staged_roots
 
 
 def _run_assembler(
@@ -1566,8 +1602,9 @@ def test_r3_tool_identity_manifest_rejects_substituted_paths_versions_and_hashes
     checker = _load_module(CAMPAIGN_CHECKER, "r3_tool_identity_checker")
     roots = _r3_platform_roots(tmp_path)
     for platform, workspace in roots.items():
-        manifest_path = workspace / "evidence/tool-identity-manifest.json"
+        manifest_path = workspace / "candidate/evidence/tool-identity-manifest.json"
         valid = json.loads(manifest_path.read_text(encoding="utf-8"))
+        valid.pop("stage_id")
         assert checker._tool_identity_manifest_errors(valid, platform, platform) == []
         mutations = []
         for mutate in (
@@ -1734,7 +1771,7 @@ def test_r3_assembler_rejects_identity_attestation_and_cross_run_mismatch(
 ) -> None:
     roots = _r3_platform_roots(tmp_path)
     if mutation == "cross-run":
-        changed = roots[r2_assembler.PLATFORMS[1]] / "evidence/platform-summary.json"
+        changed = roots[r2_assembler.PLATFORMS[1]] / "candidate/evidence/stage-summary.json"
         summary = json.loads(changed.read_text(encoding="utf-8"))
         summary["dispatch_identity"]["producer_run_id"] = "424243"
         changed.write_text(json.dumps(summary), encoding="utf-8")
@@ -1772,3 +1809,64 @@ def test_r3_assembler_exact_snapshot_ref_happy_path(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert (output / "raw-results.json").is_file()
     assert (output / "output-commitment.json").is_file()
+
+
+def test_r3_workflow_separates_candidate_pdf_and_mutation_execution_contexts() -> None:
+    document = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    matrix = document["jobs"]["platform-fragment"]["strategy"]["matrix"]["include"]
+    assert {(item["platform"], item["stage"]) for item in matrix} == {
+        (platform, stage)
+        for platform in ("ubuntu-latest-x86_64", "windows-x86_64")
+        for stage in ("candidate", "pdf", "mutation")
+    }
+    steps = document["jobs"]["platform-fragment"]["steps"]
+    by_name = {step["name"]: step for step in steps}
+    assert by_name["Set up exact TeX Live 2026"]["if"] == "matrix.stage == 'pdf'"
+    assert by_name["Execute frozen mutation-test matrix"]["if"] == "matrix.stage == 'mutation'"
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    runner = RUNNER.read_text(encoding="utf-8")
+    assert "evidence/stage-summary.json" in workflow
+    assert "${{ matrix.stage }}-run-${{ github.run_id }}" in workflow
+    assert '[ValidateSet("candidate", "pdf", "mutation")]' in runner
+    assert 'if ($ExecutionStage -eq "pdf")' in runner
+    assert 'if ($ExecutionStage -in @("candidate", "mutation"))' in runner
+    assert "texlive-closure-before.json" in runner
+    assert "texlive-closure-after.json" in runner
+    assert '"-no-shell-escape"' in runner
+    for token in ("TEXMF*", "KPATHSEA*", "FONTCONFIG*", "LD_*", "DYLD_*"):
+        assert token in runner
+
+
+@pytest.mark.negative_control
+@pytest.mark.parametrize(
+    "payload_name",
+    [
+        "self-restored-pdftex.exe",
+        "self-restored-texmf.cnf",
+        "background-watcher-marker.txt",
+        "runner-temp-closure.py",
+        "cross-stage-payload.dll",
+    ],
+)
+def test_r3_stage_isolation_rejects_cross_stage_state_injection(
+    tmp_path: Path, payload_name: str
+) -> None:
+    roots = _r3_platform_roots(tmp_path)
+    platform = r2_assembler.PLATFORMS[0]
+    candidate = roots[platform] / "candidate"
+    pdf_summary = roots[platform] / "pdf/evidence/stage-summary.json"
+    mutation_summary = roots[platform] / "mutation/evidence/stage-summary.json"
+    later_stage_hashes = (_sha(pdf_summary), _sha(mutation_summary))
+
+    tool_manifest = candidate / "evidence/tool-identity-manifest.json"
+    original_tool_bytes = tool_manifest.read_bytes()
+    tool_manifest.write_bytes(b"candidate attempted a same-path replacement\n")
+    tool_manifest.write_bytes(original_tool_bytes)
+    (candidate / "evidence" / payload_name).write_bytes(b"untrusted cross-stage state\n")
+
+    output = tmp_path / "stage-injection-output"
+    result = _run_assembler(roots, output)
+    assert result.returncode != 0
+    assert not output.exists()
+    assert not list(tmp_path.glob(".stage-injection-output-*"))
+    assert (_sha(pdf_summary), _sha(mutation_summary)) == later_stage_hashes

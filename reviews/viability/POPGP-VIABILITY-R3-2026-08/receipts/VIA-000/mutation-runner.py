@@ -284,11 +284,13 @@ def run(args: argparse.Namespace) -> None:
         new_entries.append(_entry(workspace, receipt_path, args.platform_family, "mutation-result"))
 
     manifest_path = evidence / "evidence-manifest.json"
-    summary_path = evidence / "platform-summary.json"
+    summary_path = evidence / "stage-summary.json"
     manifest = _load_json(manifest_path)
     summary = _load_json(summary_path)
     if not isinstance(manifest, list) or not isinstance(summary, dict):
         raise ValueError("runner evidence manifest or summary is malformed")
+    if summary.get("stage_id") != "mutation":
+        raise ValueError("mutation runner requires a fresh mutation-stage workspace")
     if summary.get("dispatch_identity") != expected_dispatch:
         raise ValueError("runner summary dispatch identity differs from mutation execution")
     observed = {entry["path"] for entry in manifest}

@@ -177,3 +177,16 @@ the gravity example used a positive source and reversed redshift interpretation,
 the grid visualization overlaid reference edges without edge-recovery metrics, and
 the geometry report called a penalized objective “stress.” Those outputs should not
 be compared as evidence-equivalent to the regenerated artifacts.
+
+## R3 stage-isolated hosted evidence
+
+The drafted VIA-000 R3 hosted protocol treats candidate code as untrusted relative to
+later evidence production. Candidate tests/generators, PDF production, and mutation
+verification therefore run in separate fresh GitHub-hosted jobs on each platform.
+No job consumes another job's writable environment, cache, temporary directory, tool
+tree, configuration, or process state. The PDF job checks out the exact candidate
+without running candidate Python, sanitizes TeX/kpathsea/font/native-loader selectors,
+disables shell escape, and retains identical before/after manifests of the complete
+pinned TeX tree. Every stage attests its own identity-bound summary and evidence
+manifest. The assembler accepts only declared non-executable evidence bytes and
+requires the complete, same-run three-stage set before emitting any commitment.

@@ -26,9 +26,27 @@ jobs:
         include:
           - os: ubuntu-24.04
             platform: ubuntu-latest-x86_64
+            stage: candidate
             shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
           - os: windows-2025
             platform: windows-x86_64
+            stage: candidate
+            shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
+          - os: ubuntu-24.04
+            platform: ubuntu-latest-x86_64
+            stage: pdf
+            shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
+          - os: windows-2025
+            platform: windows-x86_64
+            stage: pdf
+            shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
+          - os: ubuntu-24.04
+            platform: ubuntu-latest-x86_64
+            stage: mutation
+            shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
+          - os: windows-2025
+            platform: windows-x86_64
+            stage: mutation
             shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
@@ -184,6 +202,7 @@ jobs:
 
       - name: Set up exact TeX Live 2026
         id: texlive
+        if: matrix.stage == 'pdf'
         uses: TeX-Live/setup-texlive-action@eb78d21f41941476d9121e3a0abcab73265c876f
         with:
           version: "2026"
@@ -203,13 +222,16 @@ jobs:
           VIA000_AUTH_GIT_SHA256: ${{ steps.authorization.outputs.git_sha256 }}
           VIA000_AUTH_SSH_KEYGEN_SHA256: ${{ steps.authorization.outputs.ssh_keygen_sha256 }}
           VIA000_PLATFORM: ${{ matrix.platform }}
+          VIA000_STAGE: ${{ matrix.stage }}
           VIA000_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           $ErrorActionPreference = "Stop"
           if ([string]$env:VIA000_BASE_PYTHON_VERSION -cne "3.11.15") {
             throw "setup-python version output differs from 3.11.15"
           }
-          if ([string]$env:VIA000_TEXLIVE_VERSION -cne "2026") {
+          $stage = [string]$env:VIA000_STAGE
+          if ($stage -notin @("candidate", "pdf", "mutation")) { throw "invalid execution stage" }
+          if ($stage -eq "pdf" -and [string]$env:VIA000_TEXLIVE_VERSION -cne "2026") {
             throw "setup-texlive version output differs from 2026"
           }
           if ([string]$env:VIA000_RUNNER_ARCH -cne "X64") {
@@ -223,8 +245,8 @@ jobs:
             $sshKeygenPath = "C:\Windows\System32\OpenSSH\ssh-keygen.exe"
             $pythonOutput = "C:\hostedtoolcache\windows\Python\3.11.15\x64\python.exe"
             $basePythonPath = $pythonOutput
-            $uvPath = "C:\hostedtoolcache\windows\Python\3.11.15\x64\Scripts\uv.exe"
-            $pdfLatexPath = Join-Path $env:RUNNER_TEMP "via000-r3-texlive/2026/bin/windows/pdftex.exe"
+            $uvPath = $(if ($stage -in @("candidate", "mutation")) { "C:\hostedtoolcache\windows\Python\3.11.15\x64\Scripts\uv.exe" } else { "" })
+            $pdfLatexPath = $(if ($stage -eq "pdf") { Join-Path $env:RUNNER_TEMP "via000-r3-texlive/2026/bin/windows/pdftex.exe" } else { "" })
             $powerShellPath = "C:\Program Files\PowerShell\7\pwsh.exe"
           } elseif ($platform -eq "ubuntu-latest-x86_64" -and $IsLinux) {
             if ([string]$env:ImageOS -cne "ubuntu24") { throw "unexpected Ubuntu runner image family" }
@@ -233,8 +255,8 @@ jobs:
             $sshKeygenPath = "/usr/bin/ssh-keygen"
             $pythonOutput = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
             $basePythonPath = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
-            $uvPath = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/uv"
-            $pdfLatexPath = Join-Path $env:RUNNER_TEMP "via000-r3-texlive/2026/bin/x86_64-linux/pdftex"
+            $uvPath = $(if ($stage -in @("candidate", "mutation")) { "/opt/hostedtoolcache/Python/3.11.15/x64/bin/uv" } else { "" })
+            $pdfLatexPath = $(if ($stage -eq "pdf") { Join-Path $env:RUNNER_TEMP "via000-r3-texlive/2026/bin/x86_64-linux/pdftex" } else { "" })
             $powerShellPath = "/opt/microsoft/powershell/7/pwsh"
           } else {
             throw "workflow platform and hosted operating system disagree"
@@ -262,7 +284,9 @@ jobs:
           Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
             Remove-Item -LiteralPath "Env:$($_.Name)"
           }
-          foreach ($tool in @($gitPath, $sshKeygenPath, $basePythonPath, $pdfLatexPath, $powerShellPath)) {
+          $stageTools = @($gitPath, $sshKeygenPath, $basePythonPath, $powerShellPath)
+          if ($stage -eq "pdf") { $stageTools += $pdfLatexPath }
+          foreach ($tool in $stageTools) {
             Assert-RegularExecutable $tool "trusted hosted tool"
           }
           $preAuthorizationDigests = [ordered]@{
@@ -282,21 +306,27 @@ jobs:
           }
           $pythonVersion = (& $basePythonPath -I -S -c "import sys; print('.'.join(map(str, sys.version_info[:3])))" 2>&1 | Out-String).Trim()
           if ($LASTEXITCODE -ne 0 -or $pythonVersion -cne "3.11.15") { throw "base Python executable/version mismatch" }
-          $pipArguments = @("-I", "-m", "pip", "install", "--disable-pip-version-check", "uv==0.11.11")
-          & $basePythonPath @pipArguments
-          if ($LASTEXITCODE -ne 0) { throw "exact uv installation failed" }
-          $scriptsPaths = @(& $basePythonPath -I -S -c "import sysconfig; print(sysconfig.get_path('scripts'))")
-          if ($LASTEXITCODE -ne 0 -or $scriptsPaths.Count -ne 1) { throw "Python scripts root was not singular" }
-          $observedUvPath = Join-Path $scriptsPaths[0] $(if ($IsWindows) { "uv.exe" } else { "uv" })
-          if (-not ([IO.Path]::GetFullPath($observedUvPath)).Equals([IO.Path]::GetFullPath($uvPath), $comparison)) {
-            throw "uv path differs from the trusted Python sysconfig root"
+          $uvVersion = "not-used"
+          if ($stage -in @("candidate", "mutation")) {
+            $pipArguments = @("-I", "-m", "pip", "install", "--disable-pip-version-check", "uv==0.11.11")
+            & $basePythonPath @pipArguments
+            if ($LASTEXITCODE -ne 0) { throw "exact uv installation failed" }
+            $scriptsPaths = @(& $basePythonPath -I -S -c "import sysconfig; print(sysconfig.get_path('scripts'))")
+            if ($LASTEXITCODE -ne 0 -or $scriptsPaths.Count -ne 1) { throw "Python scripts root was not singular" }
+            $observedUvPath = Join-Path $scriptsPaths[0] $(if ($IsWindows) { "uv.exe" } else { "uv" })
+            if (-not ([IO.Path]::GetFullPath($observedUvPath)).Equals([IO.Path]::GetFullPath($uvPath), $comparison)) {
+              throw "uv path differs from the trusted Python sysconfig root"
+            }
+            Assert-RegularExecutable $uvPath "trusted uv"
+            $uvVersion = (& $uvPath --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $uvVersion -cne "uv 0.11.11") { throw "uv executable/version mismatch" }
           }
-          Assert-RegularExecutable $uvPath "trusted uv"
-          $uvVersion = (& $uvPath --version 2>&1 | Out-String).Trim()
-          if ($LASTEXITCODE -ne 0 -or $uvVersion -cne "uv 0.11.11") { throw "uv executable/version mismatch" }
-          $pdfVersion = (& $pdfLatexPath --version 2>&1 | Select-Object -First 1).Trim()
-          if ($LASTEXITCODE -ne 0 -or $pdfVersion -cne "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)") {
-            throw "pdfTeX executable/banner mismatch"
+          $pdfVersion = "not-used"
+          if ($stage -eq "pdf") {
+            $pdfVersion = (& $pdfLatexPath --version 2>&1 | Select-Object -First 1).Trim()
+            if ($LASTEXITCODE -ne 0 -or $pdfVersion -cne "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)") {
+              throw "pdfTeX executable/banner mismatch"
+            }
           }
           $gitVersion = (& $gitPath --version 2>&1 | Out-String).Trim()
           if ($LASTEXITCODE -ne 0 -or $gitVersion -cnotmatch '^git version 2\.[0-9]+\.[0-9]+(?:\.windows\.[0-9]+)?$') {
@@ -311,8 +341,6 @@ jobs:
             @("git", $gitPath, $gitVersion),
             @("ssh_keygen", $sshKeygenPath, "OpenSSH system ssh-keygen"),
             @("base_python", $basePythonPath, $pythonVersion),
-            @("uv", $uvPath, $uvVersion),
-            @("pdflatex", $pdfLatexPath, $pdfVersion),
             @("powershell", $powerShellPath, $powerShellVersion)
           )) {
             $tools[$item[0]] = [ordered]@{
@@ -321,10 +349,17 @@ jobs:
               version = $item[2]
             }
           }
+          if ($stage -in @("candidate", "mutation")) {
+            $tools.uv = [ordered]@{ path = $uvPath; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $uvPath).Hash.ToLowerInvariant(); version = $uvVersion }
+          }
+          if ($stage -eq "pdf") {
+            $tools.pdflatex = [ordered]@{ path = $pdfLatexPath; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $pdfLatexPath).Hash.ToLowerInvariant(); version = $pdfVersion }
+          }
           $manifestPath = Join-Path $env:RUNNER_TEMP "via000-r3-tool-identity.json"
           [ordered]@{
             schema_version = 1
             platform_family = $platform
+            stage_id = $stage
             runner_label = $runnerLabel
             image_os = [string]$env:ImageOS
             image_version = [string]$env:ImageVersion
@@ -335,8 +370,8 @@ jobs:
           $outputs = [ordered]@{
             git_path = $gitPath; git_sha256 = $tools.git.sha256
             base_python_path = $basePythonPath; base_python_sha256 = $tools.base_python.sha256
-            uv_path = $uvPath; uv_sha256 = $tools.uv.sha256
-            pdflatex_path = $pdfLatexPath; pdflatex_sha256 = $tools.pdflatex.sha256
+            uv_path = $uvPath; uv_sha256 = $(if ($stage -in @("candidate", "mutation")) { $tools.uv.sha256 } else { "" })
+            pdflatex_path = $pdfLatexPath; pdflatex_sha256 = $(if ($stage -eq "pdf") { $tools.pdflatex.sha256 } else { "" })
             powershell_path = $powerShellPath; powershell_sha256 = $tools.powershell.sha256
             manifest_path = $manifestPath; manifest_sha256 = $manifestSha
           }
@@ -349,6 +384,7 @@ jobs:
         shell: ${{ matrix.shell }}
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
+          VIA000_STAGE: ${{ matrix.stage }}
           VIA000_RUN_ID: ${{ github.run_id }}
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
           VIA000_GIT_PATH: ${{ steps.tools.outputs.git_path }}
@@ -366,9 +402,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $platform = [string]$env:VIA000_PLATFORM
+          $stage = [string]$env:VIA000_STAGE
           $producerRunId = [string]$env:VIA000_RUN_ID
           $producerRunAttempt = [string]$env:VIA000_RUN_ATTEMPT
-          if ($platform -notin @("ubuntu-latest-x86_64", "windows-x86_64")) {
+          if ($platform -notin @("ubuntu-latest-x86_64", "windows-x86_64") -or
+              $stage -notin @("candidate", "pdf", "mutation")) {
             throw "unrecognized frozen platform"
           }
           if ($producerRunId -cnotmatch '^[1-9][0-9]*$' -or $producerRunAttempt -cnotmatch '^[1-9][0-9]*$') {
@@ -390,7 +428,7 @@ jobs:
           $env:GIT_CONFIG_NOSYSTEM = "1"
           $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
           $env:GIT_TERMINAL_PROMPT = "0"
-          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-$stage-stage"
           try {
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
@@ -404,6 +442,7 @@ jobs:
           }
           $runnerArguments = @(
             "-NoProfile", "-File", "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1",
+            "-ExecutionStage", $stage,
             "-WorkspaceRoot", $workspace,
             "-PlatformFamily", $platform,
             "-ProtocolSourceCommit", $authorization.protocol_commit,
@@ -430,6 +469,7 @@ jobs:
           & ([string]$env:VIA000_POWERSHELL_PATH) @runnerArguments
           if ($LASTEXITCODE -ne 0) { throw "frozen platform runner failed" }
 
+          if ($stage -in @("candidate", "mutation")) {
           $candidatePython = if ($IsWindows) {
             Join-Path $workspace "python-environment/Scripts/python.exe"
           } else {
@@ -442,24 +482,26 @@ jobs:
           $candidatePythonSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidatePython).Hash.ToLowerInvariant()
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "environment_python_path=$candidatePython`n", [Text.UTF8Encoding]::new($false))
           [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "environment_python_sha256=$candidatePythonSha256`n", [Text.UTF8Encoding]::new($false))
+          }
 
+          if ($stage -in @("candidate", "mutation")) {
           @'
           import json
           import os
           from pathlib import Path
           from jsonschema import Draft202012Validator, FormatChecker
 
-          workspace = Path(os.environ["RUNNER_TEMP"]) / "via000-r3-platform"
+          workspace = Path(os.environ["RUNNER_TEMP"]) / f"via000-r3-{os.environ['VIA000_STAGE']}-stage"
           schema = json.loads(Path(
               "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
           ).read_text(encoding="utf-8"))
           summary = json.loads(
-              (workspace / "evidence/platform-summary.json").read_text(encoding="utf-8")
+              (workspace / "evidence/stage-summary.json").read_text(encoding="utf-8")
           )
           fragment_schema = {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "$defs": schema["$defs"],
-              "$ref": "#/$defs/platform",
+              "$ref": "#/$defs/stage_fragment",
           }
           errors = list(Draft202012Validator(
               fragment_schema, format_checker=FormatChecker()
@@ -468,6 +510,7 @@ jobs:
               raise SystemExit(errors[0].message)
           '@ | & $candidatePython -I -
           if ($LASTEXITCODE -ne 0) { throw "platform fragment schema validation failed" }
+          }
           } catch {
             if (Test-Path -LiteralPath $workspace) {
               Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
@@ -476,6 +519,7 @@ jobs:
           }
 
       - name: Execute frozen mutation-test matrix
+        if: matrix.stage == 'mutation'
         shell: ${{ matrix.shell }}
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
@@ -513,7 +557,7 @@ jobs:
           $env:GIT_CONFIG_NOSYSTEM = "1"
           $env:GIT_CONFIG_GLOBAL = $emptyGitConfig
           $env:GIT_TERMINAL_PROMPT = "0"
-          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-mutation-stage"
           try {
           $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
           $authorization = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
@@ -554,17 +598,17 @@ jobs:
           from pathlib import Path
           from jsonschema import Draft202012Validator, FormatChecker
 
-          workspace = Path(os.environ["RUNNER_TEMP"]) / "via000-r3-platform"
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "via000-r3-mutation-stage"
           schema = json.loads(Path(
               "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json"
           ).read_text(encoding="utf-8"))
           summary = json.loads(
-              (workspace / "evidence/platform-summary.json").read_text(encoding="utf-8")
+              (workspace / "evidence/stage-summary.json").read_text(encoding="utf-8")
           )
           fragment_schema = {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "$defs": schema["$defs"],
-              "$ref": "#/$defs/platform",
+              "$ref": "#/$defs/stage_fragment",
           }
           errors = list(Draft202012Validator(
               fragment_schema, format_checker=FormatChecker()
@@ -585,17 +629,18 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
         with:
           subject-path: |
-            ${{ runner.temp }}/via000-r3-platform/evidence/platform-summary.json
-            ${{ runner.temp }}/via000-r3-platform/evidence/evidence-manifest.json
+            ${{ runner.temp }}/via000-r3-${{ matrix.stage }}-stage/evidence/stage-summary.json
+            ${{ runner.temp }}/via000-r3-${{ matrix.stage }}-stage/evidence/evidence-manifest.json
 
       - name: Retain producer attestation bundle
         shell: ${{ matrix.shell }}
         env:
           VIA000_ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          VIA000_STAGE: ${{ matrix.stage }}
         run: |
           $ErrorActionPreference = "Stop"
           $destination = Join-Path $env:RUNNER_TEMP `
-            "via000-r3-platform/evidence/producer-attestation.sigstore.json"
+            "via000-r3-$([string]$env:VIA000_STAGE)-stage/evidence/producer-attestation.sigstore.json"
           Copy-Item -LiteralPath $env:VIA000_ATTESTATION_BUNDLE `
             -Destination $destination
           if (-not (Test-Path -LiteralPath $destination -PathType Leaf)) {
@@ -605,8 +650,10 @@ jobs:
       - name: Remove rejected platform workspace
         if: failure()
         shell: ${{ matrix.shell }}
+        env:
+          VIA000_STAGE: ${{ matrix.stage }}
         run: |
-          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-platform"
+          $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-$([string]$env:VIA000_STAGE)-stage"
           if (Test-Path -LiteralPath $workspace) {
             Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
           }
@@ -614,9 +661,9 @@ jobs:
       - name: Retain immutable platform fragment
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: via000-r3-protocol-${{ matrix.platform }}-run-${{ github.run_id }}-${{ github.run_attempt }}
+          name: via000-r3-protocol-${{ matrix.platform }}-${{ matrix.stage }}-run-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/via000-r3-platform/evidence/
-            ${{ runner.temp }}/via000-r3-platform/pdf/
+            ${{ runner.temp }}/via000-r3-${{ matrix.stage }}-stage/evidence/
+            ${{ runner.temp }}/via000-r3-${{ matrix.stage }}-stage/pdf/
           if-no-files-found: error
           retention-days: 90

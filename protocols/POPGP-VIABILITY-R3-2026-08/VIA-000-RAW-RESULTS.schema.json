@@ -107,10 +107,10 @@
         "candidate_tree",
         "protocol_source_commit",
         "dispatch_identity",
-        "producer_attestation",
+        "stage_attestations",
         "uv_version",
         "pdf_engine",
-        "tool_identity_manifest_sha256",
+        "stage_tool_identity_manifest_sha256",
         "command_results",
         "artifact_results",
         "mutation_results",
@@ -144,10 +144,28 @@
         "candidate_tree": {"$ref": "#/$defs/sha1"},
         "protocol_source_commit": {"$ref": "#/$defs/sha1"},
         "dispatch_identity": {"$ref": "#/$defs/dispatch_identity"},
-        "producer_attestation": {"$ref": "#/$defs/producer_attestation"},
+        "stage_attestations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidate", "pdf", "mutation"],
+          "properties": {
+            "candidate": {"$ref": "#/$defs/producer_attestation"},
+            "pdf": {"$ref": "#/$defs/producer_attestation"},
+            "mutation": {"$ref": "#/$defs/producer_attestation"}
+          }
+        },
         "uv_version": {"type": "string", "minLength": 2},
         "pdf_engine": {"type": "string", "minLength": 2},
-        "tool_identity_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "stage_tool_identity_manifest_sha256": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidate", "pdf", "mutation"],
+          "properties": {
+            "candidate": {"$ref": "#/$defs/sha256"},
+            "pdf": {"$ref": "#/$defs/sha256"},
+            "mutation": {"$ref": "#/$defs/sha256"}
+          }
+        },
         "command_results": {
           "type": "object",
           "minProperties": 1,
@@ -241,6 +259,33 @@
         }
       }
     },
+    "stage_fragment": {
+      "type": "object",
+      "required": [
+        "schema_version", "campaign_id", "packet_id", "platform_family", "stage_id",
+        "candidate_commit", "candidate_tree", "protocol_source_commit", "dispatch_identity",
+        "producer_attestation", "tool_identity_manifest_sha256", "command_results",
+        "artifact_results", "mutation_results", "evidence_paths", "completed_at"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "campaign_id": {"const": "POPGP-VIABILITY-R3-2026-08"},
+        "packet_id": {"const": "VIA-000"},
+        "platform_family": {"enum": ["ubuntu-latest-x86_64", "windows-x86_64"]},
+        "stage_id": {"enum": ["candidate", "pdf", "mutation"]},
+        "candidate_commit": {"$ref": "#/$defs/sha1"},
+        "candidate_tree": {"$ref": "#/$defs/sha1"},
+        "protocol_source_commit": {"$ref": "#/$defs/sha1"},
+        "dispatch_identity": {"$ref": "#/$defs/dispatch_identity"},
+        "producer_attestation": {"$ref": "#/$defs/producer_attestation"},
+        "tool_identity_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "command_results": {"type": "object", "additionalProperties": {"$ref": "#/$defs/command_result"}},
+        "artifact_results": {"type": "object", "additionalProperties": {"$ref": "#/$defs/artifact_result"}},
+        "mutation_results": {"type": "array", "items": {"$ref": "#/$defs/mutation_result"}},
+        "evidence_paths": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/safe_path"}},
+        "completed_at": {"type": "string", "format": "date-time"}
+      }
+    },
     "dispatch_identity": {
       "type": "object",
       "additionalProperties": false,
@@ -305,6 +350,7 @@
             "source-manifest",
             "supporting",
             "tool-identity-manifest",
+            "texlive-closure",
             "validation-json",
             "visual"
           ]

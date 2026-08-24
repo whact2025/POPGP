@@ -1,5 +1,9 @@
 param(
     [Parameter(Mandatory = $true)]
+    [ValidateSet("candidate", "pdf", "mutation")]
+    [string]$ExecutionStage,
+
+    [Parameter(Mandatory = $true)]
     [string]$WorkspaceRoot,
 
     [Parameter(Mandatory = $true)]
@@ -40,14 +44,14 @@ param(
 
     [Parameter(Mandatory = $true)][string]$TrustedGitPath,
     [Parameter(Mandatory = $true)][string]$TrustedBasePythonPath,
-    [Parameter(Mandatory = $true)][string]$TrustedUvPath,
-    [Parameter(Mandatory = $true)][string]$TrustedPdfLatexPath,
+    [string]$TrustedUvPath = "",
+    [string]$TrustedPdfLatexPath = "",
     [Parameter(Mandatory = $true)][string]$TrustedPowerShellPath,
     [Parameter(Mandatory = $true)][string]$ToolIdentityManifestPath,
     [Parameter(Mandatory = $true)][ValidatePattern("^[0-9a-f]{64}$")][string]$TrustedGitSha256,
     [Parameter(Mandatory = $true)][ValidatePattern("^[0-9a-f]{64}$")][string]$TrustedBasePythonSha256,
-    [Parameter(Mandatory = $true)][ValidatePattern("^[0-9a-f]{64}$")][string]$TrustedUvSha256,
-    [Parameter(Mandatory = $true)][ValidatePattern("^[0-9a-f]{64}$")][string]$TrustedPdfLatexSha256,
+    [ValidatePattern("^$|^[0-9a-f]{64}$")][string]$TrustedUvSha256 = "",
+    [ValidatePattern("^$|^[0-9a-f]{64}$")][string]$TrustedPdfLatexSha256 = "",
     [Parameter(Mandatory = $true)][ValidatePattern("^[0-9a-f]{64}$")][string]$TrustedPowerShellSha256,
     [Parameter(Mandatory = $true)][ValidatePattern("^[0-9a-f]{64}$")][string]$ToolIdentityManifestSha256
 )
@@ -130,11 +134,28 @@ function Invoke-RetainedCommand {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     foreach ($name in @($startInfo.Environment.Keys)) {
-        if ($name -like "GIT_*" -or $name -in @(
+        if ($name -like "GIT_*" -or $name -like "PIP_*" -or
+            $name -like "UV_*" -or $name -like "TEX*" -or
+            $name -like "TEXMF*" -or $name -like "KPATHSEA*" -or
+            $name -like "LD_*" -or $name -like "DYLD_*" -or
+            $name -in @(
             "PATH", "PATHEXT", "PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV",
-            "GITHUB_ENV", "BASH_ENV", "ENV"
+            "GITHUB_ENV", "GITHUB_WORKSPACE", "RUNNER_TEMP", "BASH_ENV", "ENV"
         )) {
             [void]$startInfo.Environment.Remove($name)
+        }
+    }
+    $startInfo.Environment["TEMP"] = $stageTemp
+    $startInfo.Environment["TMP"] = $stageTemp
+    if ($ExecutionStage -in @("candidate", "mutation")) {
+        $startInfo.Environment["UV_CACHE_DIR"] = $uvCache
+        $startInfo.Environment["PYTHONPYCACHEPREFIX"] = $pythonCache
+        $startInfo.Environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        $startInfo.Environment["RUFF_CACHE_DIR"] = $ruffCache
+        $startInfo.Environment["MPLCONFIGDIR"] = $matplotlibCache
+        $startInfo.Environment["XDG_CACHE_HOME"] = $generalCache
+        if ($ContractId -eq "uv-sync-frozen-no-editable") {
+            $startInfo.Environment["UV_PROJECT_ENVIRONMENT"] = $environment
         }
     }
     foreach ($argument in $Arguments) {
@@ -193,8 +214,12 @@ $expectedPdfLatexPath = if ($PlatformFamily -eq "windows-x86_64") {
 }
 Assert-RegularTool $TrustedGitPath $expectedGitPath $TrustedGitSha256 "trusted Git"
 Assert-RegularTool $TrustedBasePythonPath $expectedBasePythonPath $TrustedBasePythonSha256 "trusted base Python"
-Assert-RegularTool $TrustedUvPath $expectedUvPath $TrustedUvSha256 "trusted uv"
-Assert-RegularTool $TrustedPdfLatexPath $expectedPdfLatexPath $TrustedPdfLatexSha256 "trusted pdfLaTeX"
+if ($ExecutionStage -in @("candidate", "mutation")) {
+    Assert-RegularTool $TrustedUvPath $expectedUvPath $TrustedUvSha256 "trusted uv"
+}
+if ($ExecutionStage -eq "pdf") {
+    Assert-RegularTool $TrustedPdfLatexPath $expectedPdfLatexPath $TrustedPdfLatexSha256 "trusted pdfLaTeX"
+}
 Assert-RegularTool $TrustedPowerShellPath $expectedPowerShellPath $TrustedPowerShellSha256 "trusted PowerShell"
 if (-not [System.IO.Path]::IsPathFullyQualified($ToolIdentityManifestPath)) {
     throw "tool identity manifest path is not absolute"
@@ -213,15 +238,26 @@ if (
     $toolIdentity.tools.git.path -cne $TrustedGitPath -or
     $toolIdentity.tools.base_python.path -cne $TrustedBasePythonPath -or
     $toolIdentity.tools.base_python.sha256 -cne $TrustedBasePythonSha256 -or
-    $toolIdentity.tools.uv.path -cne $TrustedUvPath -or
-    $toolIdentity.tools.uv.sha256 -cne $TrustedUvSha256 -or
-    $toolIdentity.tools.pdflatex.path -cne $TrustedPdfLatexPath -or
-    $toolIdentity.tools.pdflatex.sha256 -cne $TrustedPdfLatexSha256 -or
     $toolIdentity.tools.powershell.path -cne $TrustedPowerShellPath -or
     $toolIdentity.tools.powershell.sha256 -cne $TrustedPowerShellSha256 -or
     $toolIdentity.tools.git.sha256 -cne $TrustedGitSha256
 ) {
     throw "tool identity manifest differs from explicit runner paths"
+}
+if ($toolIdentity.stage_id -cne $ExecutionStage) {
+    throw "tool identity manifest stage differs from runner stage"
+}
+if ($ExecutionStage -in @("candidate", "mutation") -and (
+    $toolIdentity.tools.uv.path -cne $TrustedUvPath -or
+    $toolIdentity.tools.uv.sha256 -cne $TrustedUvSha256
+)) {
+    throw "uv identity differs from the stage manifest"
+}
+if ($ExecutionStage -eq "pdf" -and (
+    $toolIdentity.tools.pdflatex.path -cne $TrustedPdfLatexPath -or
+    $toolIdentity.tools.pdflatex.sha256 -cne $TrustedPdfLatexSha256
+)) {
+    throw "pdfTeX identity differs from the stage manifest"
 }
 foreach ($name in @("PATH", "PATHEXT", "PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT")) {
     Set-Item -LiteralPath "Env:$name" -Value ""
@@ -232,12 +268,18 @@ Get-ChildItem Env: | Where-Object Name -Like "GIT_*" | ForEach-Object {
 $basePythonText = (& $TrustedBasePythonPath -I -S -c "import sys; print('.'.join(map(str, sys.version_info[:3])))" 2>&1 | Out-String).Trim()
 Assert-Success -ExitCode $LASTEXITCODE -Description "base Python version query"
 if ($basePythonText -cne "3.11.15") { throw "unexpected base Python version: $basePythonText" }
-$uvText = (& $TrustedUvPath --version 2>&1 | Out-String).Trim()
-Assert-Success -ExitCode $LASTEXITCODE -Description "uv version query"
-if ($uvText -cne "uv $UvVersion") { throw "expected uv $UvVersion, observed $uvText" }
-$pdfText = (& $TrustedPdfLatexPath --version 2>&1 | Select-Object -First 1).Trim()
-Assert-Success -ExitCode $LASTEXITCODE -Description "pdflatex version query"
-if ($pdfText -cne $ExpectedPdfEngine) { throw "expected $ExpectedPdfEngine, observed $pdfText" }
+$uvText = "not-used-in-$ExecutionStage-stage"
+if ($ExecutionStage -in @("candidate", "mutation")) {
+    $uvText = (& $TrustedUvPath --version 2>&1 | Out-String).Trim()
+    Assert-Success -ExitCode $LASTEXITCODE -Description "uv version query"
+    if ($uvText -cne "uv $UvVersion") { throw "expected uv $UvVersion, observed $uvText" }
+}
+$pdfText = "not-used-in-$ExecutionStage-stage"
+if ($ExecutionStage -eq "pdf") {
+    $pdfText = (& $TrustedPdfLatexPath --version 2>&1 | Select-Object -First 1).Trim()
+    Assert-Success -ExitCode $LASTEXITCODE -Description "pdflatex version query"
+    if ($pdfText -cne $ExpectedPdfEngine) { throw "expected $ExpectedPdfEngine, observed $pdfText" }
+}
 
 try {
 if (Test-Path -LiteralPath $WorkspaceRoot) {
@@ -255,9 +297,10 @@ $matplotlibCache = Join-Path $workspace.FullName "matplotlib-cache"
 $generalCache = Join-Path $workspace.FullName "general-cache"
 $pdfDirectory = Join-Path $workspace.FullName "pdf"
 $logs = Join-Path $evidence "commands"
+$stageTemp = Join-Path $workspace.FullName "stage-temp"
 foreach ($path in @(
     $evidence, $uvCache, $pythonCache, $ruffCache,
-    $matplotlibCache, $generalCache, $pdfDirectory, $logs
+    $matplotlibCache, $generalCache, $pdfDirectory, $logs, $stageTemp
 )) {
     New-Item -ItemType Directory -Path $path | Out-Null
 }
@@ -267,15 +310,29 @@ foreach ($name in @("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "UV_PROJECT_ENVIR
 }
 
 Copy-Item -LiteralPath $ToolIdentityManifestPath -Destination (Join-Path $evidence "tool-identity-manifest.json")
-& $TrustedBasePythonPath -I -m venv --copies $environment
-Assert-Success -ExitCode $LASTEXITCODE -Description "copied locked environment bootstrap"
-Set-Content -LiteralPath (Join-Path $evidence "pdf-engine-version.txt") `
-    -Value $pdfText -Encoding utf8NoBOM
+if ($ExecutionStage -in @("candidate", "mutation")) {
+    & $TrustedBasePythonPath -I -m venv --copies $environment
+    Assert-Success -ExitCode $LASTEXITCODE -Description "copied locked environment bootstrap"
+}
+if ($ExecutionStage -eq "pdf") {
+    Set-Content -LiteralPath (Join-Path $evidence "pdf-engine-version.txt") `
+        -Value $pdfText -Encoding utf8NoBOM
+}
 
-Invoke-RetainedCommand -Label "001-clone" -ContractId "git-clone" -FilePath $TrustedGitPath `
+$cloneLabel = switch ($ExecutionStage) {
+    "candidate" { "001-clone" }
+    "pdf" { "pdf-source-clone" }
+    "mutation" { "mutation-source-clone" }
+}
+$checkoutLabel = switch ($ExecutionStage) {
+    "candidate" { "002-checkout" }
+    "pdf" { "pdf-source-checkout" }
+    "mutation" { "mutation-source-checkout" }
+}
+Invoke-RetainedCommand -Label $cloneLabel -ContractId "git-clone" -FilePath $TrustedGitPath `
     -Arguments @("clone", "-c", "core.autocrlf=false", "--no-checkout", $RepositoryUrl, $repo) `
     -WorkingDirectory $workspace.FullName -LogDirectory $logs
-Invoke-RetainedCommand -Label "002-checkout" -ContractId "git-checkout" -FilePath $TrustedGitPath `
+Invoke-RetainedCommand -Label $checkoutLabel -ContractId "git-checkout" -FilePath $TrustedGitPath `
     -Arguments @("checkout", "--detach", $CandidateCommit) `
     -WorkingDirectory $repo -LogDirectory $logs
 
@@ -291,6 +348,11 @@ if ($normalStatus -or $ignoredStatus) {
     throw "fresh candidate checkout is not clean, including ignored state"
 }
 
+$environmentDigest = "0" * 64
+$sourceDigest = "0" * 64
+$artifactResults = [ordered]@{}
+$allowed = @()
+if ($ExecutionStage -in @("candidate", "mutation")) {
 $trustedBoundary = Join-Path $evidence "check_reproduction_boundary.py"
 & $TrustedBasePythonPath -I -S -c `
     "import pathlib, subprocess, sys; pathlib.Path(sys.argv[1]).write_bytes(subprocess.run([sys.argv[2],'-C',sys.argv[3],'cat-file','blob',sys.argv[4]],check=True,capture_output=True).stdout)" `
@@ -304,7 +366,8 @@ $env:PYTHONDONTWRITEBYTECODE = "1"
 $env:RUFF_CACHE_DIR = $ruffCache
 $env:MPLCONFIGDIR = $matplotlibCache
 $env:XDG_CACHE_HOME = $generalCache
-Invoke-RetainedCommand -Label "003-sync" -ContractId "uv-sync-frozen-no-editable" -FilePath $TrustedUvPath `
+$syncLabel = if ($ExecutionStage -eq "candidate") { "003-sync" } else { "mutation-source-sync" }
+Invoke-RetainedCommand -Label $syncLabel -ContractId "uv-sync-frozen-no-editable" -FilePath $TrustedUvPath `
     -Arguments @("sync", "--frozen", "--no-editable", "--python", $TrustedBasePythonPath) `
     -WorkingDirectory $repo -LogDirectory $logs
 Remove-Item Env:UV_PROJECT_ENVIRONMENT
@@ -350,6 +413,7 @@ $sourceDigest = (& $TrustedBasePythonPath -I -S $trustedBoundary `
     --output $sourceManifest --base-ref $CandidateCommit).Trim()
 Assert-Success -ExitCode $LASTEXITCODE -Description "source snapshot"
 Set-Content -LiteralPath $sourceDigestPath -Value $sourceDigest -Encoding utf8NoBOM
+}
 
 function Invoke-CheckedModule {
     param(
@@ -381,6 +445,7 @@ function Invoke-CheckedModule {
         -Arguments $arguments -WorkingDirectory $repo -LogDirectory $logs
 }
 
+if ($ExecutionStage -eq "candidate") {
 Invoke-CheckedModule -Label "004-ruff" -ContractId "trusted-python-ruff" -Module "ruff" -ModuleArguments @("check", ".")
 Invoke-CheckedModule -Label "005-check-tex" -ContractId "trusted-python-check-tex" -Module "scripts.check_tex"
 Invoke-CheckedModule -Label "006-pytest" -ContractId "trusted-python-pytest" -Module "pytest" `
@@ -444,7 +509,6 @@ foreach ($line in @($generatedStatus -split "`r?`n" | Where-Object { $_ })) {
 }
 
 $artifactRoot = Join-Path $evidence "artifacts"
-$artifactResults = [ordered]@{}
 foreach ($sourcePath in $allowed) {
     $sourceFile = Join-Path $repo $sourcePath
     if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
@@ -470,20 +534,54 @@ foreach ($sourcePath in $allowed) {
 
 & $TrustedGitPath -C $repo restore --source $CandidateCommit --worktree -- $allowed
 Assert-Success -ExitCode $LASTEXITCODE -Description "restore generated candidate artifacts"
+}
 
+if ($ExecutionStage -eq "pdf") {
+$texRoot = (Get-Item -LiteralPath $TrustedPdfLatexPath -Force).Directory.Parent.Parent.FullName
+$texClosureBefore = Join-Path $evidence "texlive-closure-before.json"
+$texClosureAfter = Join-Path $evidence "texlive-closure-after.json"
+function Write-TexClosure([string]$OutputPath) {
+    $closure = @()
+    foreach ($item in @(Get-ChildItem -LiteralPath $texRoot -File -Recurse -Force | Sort-Object FullName)) {
+        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            throw "TeX closure contains a reparse file"
+        }
+        $closure += [ordered]@{
+            path = [System.IO.Path]::GetRelativePath($texRoot, $item.FullName).Replace("\", "/")
+            byte_count = $item.Length
+            sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $item.FullName).Hash.ToLowerInvariant()
+        }
+    }
+    $closure | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $OutputPath -Encoding utf8NoBOM
+}
+foreach ($name in @(Get-ChildItem Env: | ForEach-Object Name)) {
+    if ($name -like "TEX*" -or $name -like "TEXMF*" -or $name -like "KPATHSEA*" -or
+        $name -like "FONTCONFIG*" -or $name -like "LD_*" -or $name -like "DYLD_*" -or
+        $name -in @("BIBINPUTS", "BSTINPUTS", "INPUTRC")) {
+        Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+    }
+}
+Write-TexClosure $texClosureBefore
 Invoke-RetainedCommand -Label "014-pdflatex-1" -ContractId "pdflatex-pass-1" -FilePath $TrustedPdfLatexPath `
     -Arguments @(
-        "-fmt=pdflatex",
+        "-fmt=pdflatex", "-no-shell-escape", "-cnf-line=shell_escape=f",
         "-interaction=nonstopmode", "-halt-on-error",
         "-output-directory=$pdfDirectory", "docs/framework.tex"
     ) -WorkingDirectory $repo -LogDirectory $logs
 Invoke-RetainedCommand -Label "015-pdflatex-2" -ContractId "pdflatex-pass-2" -FilePath $TrustedPdfLatexPath `
     -Arguments @(
-        "-fmt=pdflatex",
+        "-fmt=pdflatex", "-no-shell-escape", "-cnf-line=shell_escape=f",
         "-interaction=nonstopmode", "-halt-on-error",
         "-output-directory=$pdfDirectory", "docs/framework.tex"
     ) -WorkingDirectory $repo -LogDirectory $logs
+Write-TexClosure $texClosureAfter
+if ((Get-FileHash -Algorithm SHA256 -LiteralPath $texClosureBefore).Hash -cne
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $texClosureAfter).Hash) {
+    throw "TeX executable/config/format/font/input closure changed during PDF production"
+}
+}
 
+if ($ExecutionStage -eq "candidate") {
 Invoke-RetainedCommand -Label "016-environment-verify" -ContractId "trusted-python-environment-verify" -FilePath $TrustedBasePythonPath `
     -Arguments @(
         "-I", "-S", $trustedBoundary,
@@ -491,6 +589,7 @@ Invoke-RetainedCommand -Label "016-environment-verify" -ContractId "trusted-pyth
         "verify", "--manifest", $environmentManifest,
         "--expected-sha256", $environmentDigest
     ) -WorkingDirectory $repo -LogDirectory $logs
+}
 
 $finalStatus = (& $TrustedGitPath -C $repo status --short --ignored --untracked-files=all | Out-String)
 [System.IO.File]::WriteAllText(
@@ -504,7 +603,7 @@ if ($finalStatus) {
 
 $evidenceEntries = @()
 foreach ($file in @(Get-ChildItem -LiteralPath $evidence, $pdfDirectory -File -Recurse | Sort-Object FullName)) {
-    if ($file.Name -in @("evidence-manifest.json", "platform-summary.json")) {
+    if ($file.Name -in @("evidence-manifest.json", "stage-summary.json")) {
         continue
     }
     $relative = [System.IO.Path]::GetRelativePath($workspace.FullName, $file.FullName).Replace("\", "/")
@@ -524,6 +623,10 @@ foreach ($file in @(Get-ChildItem -LiteralPath $evidence, $pdfDirectory -File -R
     elseif ($relative -eq "evidence/source-manifest.json") { $role = "source-manifest" }
     elseif ($relative -eq "evidence/tool-identity-manifest.json") { $role = "tool-identity-manifest" }
     elseif ($relative -eq "evidence/pdf-engine-version.txt") { $role = "pdf-engine" }
+    elseif ($relative -in @(
+        "evidence/texlive-closure-before.json",
+        "evidence/texlive-closure-after.json"
+    )) { $role = "texlive-closure" }
     elseif ($relative -in @(
         "evidence/generated-status-with-ignored.txt",
         "evidence/final-status-with-ignored.txt"
@@ -574,6 +677,7 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
     campaign_id = "POPGP-VIABILITY-R3-2026-08"
     packet_id = "VIA-000"
     platform_family = $PlatformFamily
+    stage_id = $ExecutionStage
     candidate_commit = $head
     candidate_tree = $tree
     protocol_source_commit = $ProtocolSourceCommit
@@ -594,7 +698,7 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
         source_commit = $ProtocolSourceCommit
         bundle_path = "evidence/producer-attestation.sigstore.json"
         subject_paths = @(
-            "evidence/platform-summary.json",
+            "evidence/stage-summary.json",
             "evidence/evidence-manifest.json"
         )
     }
@@ -605,28 +709,30 @@ foreach ($recordFile in @(Get-ChildItem -LiteralPath $logs -Filter "*.result.jso
     command_results = $commandResults
     artifact_results = $artifactResults
     mutation_results = @()
-    test_count = 366
-    example_count = 6
-    visual_count = 12
+    test_count = $(if ($ExecutionStage -eq "candidate") { 366 } else { 0 })
+    example_count = $(if ($ExecutionStage -eq "candidate") { 6 } else { 0 })
+    visual_count = $(if ($ExecutionStage -eq "candidate") { 12 } else { 0 })
     mutation_count = 0
-    commands_passed = $true
-    semantic_contract_passed = $true
-    visual_contract_passed = $true
-    source_boundary_passed = $true
-    environment_boundary_passed = $true
-    pdf_passed = $true
+    commands_passed = ($ExecutionStage -eq "candidate")
+    semantic_contract_passed = ($ExecutionStage -eq "candidate")
+    visual_contract_passed = ($ExecutionStage -eq "candidate")
+    source_boundary_passed = ($ExecutionStage -eq "candidate")
+    environment_boundary_passed = ($ExecutionStage -in @("candidate", "mutation"))
+    pdf_passed = ($ExecutionStage -eq "pdf")
     mutations_rejected = $false
     overall_passed = $false
     evidence_paths = @($evidenceEntries | ForEach-Object { $_.path })
     environment_manifest_sha256 = $environmentDigest
     source_manifest_sha256 = $sourceDigest
-    pdf_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $pdfDirectory "framework.pdf")).Hash.ToLowerInvariant()
-    pdf_page_count = 11
+    pdf_sha256 = $(if ($ExecutionStage -eq "pdf") {
+        (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $pdfDirectory "framework.pdf")).Hash.ToLowerInvariant()
+    } else { "0" * 64 })
+    pdf_page_count = $(if ($ExecutionStage -eq "pdf") { 11 } else { 0 })
     completed_at = [DateTimeOffset]::UtcNow.ToString("O")
 } | ConvertTo-Json -Depth 8 | Set-Content `
-    -LiteralPath (Join-Path $evidence "platform-summary.json") -Encoding utf8NoBOM
+    -LiteralPath (Join-Path $evidence "stage-summary.json") -Encoding utf8NoBOM
 
-Write-Host "VIA-000 R3 trusted boundary sequence passed for $PlatformFamily."
+Write-Host "VIA-000 R3 $ExecutionStage stage passed for $PlatformFamily."
 } catch {
     if (Test-Path -LiteralPath $WorkspaceRoot) {
         Remove-Item -LiteralPath $WorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue

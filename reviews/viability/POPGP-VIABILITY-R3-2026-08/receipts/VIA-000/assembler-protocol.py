@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -37,9 +38,7 @@ GIT_EXECUTABLE = _trusted_program("git")
 
 def _git_environment() -> dict[str, str]:
     environment = {
-        name: value
-        for name, value in os.environ.items()
-        if not name.upper().startswith("GIT_")
+        name: value for name, value in os.environ.items() if not name.upper().startswith("GIT_")
     }
     environment.update(
         {
@@ -116,7 +115,13 @@ def _write_json(path: Path, document: Any) -> None:
 def _safe_source(root: Path, relative: str) -> Path:
     if not isinstance(relative, str) or not relative or "\\" in relative:
         raise ValueError(f"unsafe evidence path {relative!r}")
-    candidate = (root / relative).resolve()
+    lexical = root / relative
+    info = lexical.lstat()
+    if stat.S_ISLNK(info.st_mode) or (
+        getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    ):
+        raise ValueError(f"evidence path is a link or reparse point: {relative}")
+    candidate = lexical.resolve()
     candidate.relative_to(root.resolve())
     if not candidate.is_file():
         raise ValueError(f"evidence file is missing: {relative}")
@@ -135,8 +140,8 @@ def _parse_bindings(values: list[str], label: str) -> dict[str, Path]:
     return result
 
 
-def _prefixed(platform: str, relative: str) -> str:
-    return f"evidence/{platform}/{relative}"
+def _prefixed(platform: str, stage: str, relative: str) -> str:
+    return f"evidence/{platform}/{stage}/{relative}"
 
 
 def _git_output(repo_root: Path, *arguments: str) -> bytes:
@@ -152,23 +157,23 @@ def _git_output(repo_root: Path, *arguments: str) -> bytes:
     return completed.stdout
 
 
-def _verify_protocol_identity(
-    args: argparse.Namespace, protocol: dict[str, Any]
-) -> dict[str, Any]:
+def _verify_protocol_identity(args: argparse.Namespace, protocol: dict[str, Any]) -> dict[str, Any]:
     repo_root = args.repo_root.resolve()
     if not args.protocol_source_ref.startswith(SNAPSHOT_REF_PREFIX):
         raise ValueError("protocol source ref is not an R3 snapshot tag")
     protocol_source_commit = args.protocol_source_ref.removeprefix(SNAPSHOT_REF_PREFIX)
     if re.fullmatch(r"[0-9a-f]{40}", protocol_source_commit) is None:
         raise ValueError("protocol source ref does not end in a full Git commit")
-    object_type = _git_output(repo_root, "cat-file", "-t", args.protocol_source_ref).decode(
-        "ascii"
-    ).strip()
+    object_type = (
+        _git_output(repo_root, "cat-file", "-t", args.protocol_source_ref).decode("ascii").strip()
+    )
     if object_type != "commit":
         raise ValueError("protocol source ref must be a lightweight commit tag")
-    resolved = _git_output(repo_root, "rev-parse", "--verify", args.protocol_source_ref).decode(
-        "ascii"
-    ).strip()
+    resolved = (
+        _git_output(repo_root, "rev-parse", "--verify", args.protocol_source_ref)
+        .decode("ascii")
+        .strip()
+    )
     if resolved != protocol_source_commit:
         raise ValueError("protocol source ref resolves to a different commit")
 
@@ -177,9 +182,7 @@ def _verify_protocol_identity(
             relative = path.relative_to(repo_root).as_posix()
         except ValueError as exc:
             raise ValueError(f"protocol artifact is outside repository: {path}") from exc
-        frozen = _git_output(
-            repo_root, "cat-file", "blob", f"{protocol_source_commit}:{relative}"
-        )
+        frozen = _git_output(repo_root, "cat-file", "blob", f"{protocol_source_commit}:{relative}")
         if path.read_bytes() != frozen:
             raise ValueError(f"protocol artifact differs from snapshot bytes: {relative}")
 
@@ -195,9 +198,7 @@ def _verify_protocol_identity(
     )
     for path_field, hash_field in artifacts:
         relative = parameters[path_field]
-        frozen = _git_output(
-            repo_root, "cat-file", "blob", f"{protocol_source_commit}:{relative}"
-        )
+        frozen = _git_output(repo_root, "cat-file", "blob", f"{protocol_source_commit}:{relative}")
         observed = hashlib.sha256(frozen).hexdigest()
         if observed != parameters[hash_field]:
             raise ValueError(f"frozen protocol artifact hash mismatch: {relative}")
@@ -206,9 +207,11 @@ def _verify_protocol_identity(
     guard_blob = _git_output(
         repo_root, "cat-file", "blob", f"{protocol_source_commit}:{guard_path}"
     )
-    captured_authorization_tag_oid = _git_output(
-        repo_root, "rev-parse", "--verify", args.authorization_ref
-    ).decode("ascii").strip()
+    captured_authorization_tag_oid = (
+        _git_output(repo_root, "rev-parse", "--verify", args.authorization_ref)
+        .decode("ascii")
+        .strip()
+    )
     if re.fullmatch(r"[0-9a-f]{40}", captured_authorization_tag_oid) is None:
         raise ValueError("authorization ref did not resolve to a full Git object")
     with tempfile.TemporaryDirectory(prefix="via000-r3-guard-") as temporary:
@@ -279,9 +282,7 @@ def _verify_attestation(
     predicate_type: str,
     minimum_gh_version: str,
 ) -> None:
-    version = subprocess.run(
-        ["gh", "--version"], capture_output=True, text=True, check=False
-    )
+    version = subprocess.run(["gh", "--version"], capture_output=True, text=True, check=False)
     match = re.search(r"(?m)^gh version (\d+)\.(\d+)\.(\d+)", version.stdout)
     expected = tuple(int(item) for item in minimum_gh_version.split("."))
     if version.returncode != 0 or match is None or tuple(map(int, match.groups())) < expected:
@@ -327,6 +328,7 @@ def _verify_attestation(
 
 def _copy_manifest_evidence(
     platform: str,
+    stage: str,
     workspace: Path,
     destination: Path,
     attestation_contract: dict[str, Any],
@@ -334,28 +336,30 @@ def _copy_manifest_evidence(
     dispatch_identity: dict[str, Any],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     evidence_root = workspace / "evidence"
-    summary_path = evidence_root / "platform-summary.json"
+    summary_path = evidence_root / "stage-summary.json"
     manifest_path = evidence_root / "evidence-manifest.json"
     if not summary_path.is_file() or not manifest_path.is_file():
-        raise ValueError(f"{platform}: platform summary or evidence manifest is missing")
+        raise ValueError(f"{platform}/{stage}: stage summary or evidence manifest is missing")
     summary = _load_json(summary_path)
     manifest = _load_json(manifest_path)
     if not isinstance(summary, dict) or not isinstance(manifest, list):
-        raise ValueError(f"{platform}: malformed platform evidence documents")
+        raise ValueError(f"{platform}/{stage}: malformed stage evidence documents")
     producer = summary.get("producer_attestation")
     expected_producer = {
         "repository": attestation_contract["repository"],
         "signer_workflow": attestation_contract["signer_workflow"],
         "source_commit": protocol_source_commit,
         "bundle_path": attestation_contract["bundle_path"],
-        "subject_paths": attestation_contract["subject_paths"],
+        "subject_paths": ["evidence/stage-summary.json", "evidence/evidence-manifest.json"],
     }
     if (
         summary.get("protocol_source_commit") != protocol_source_commit
+        or summary.get("stage_id") != stage
+        or summary.get("platform_family") != platform
         or summary.get("dispatch_identity") != dispatch_identity
         or producer != expected_producer
     ):
-        raise ValueError(f"{platform}: producer-attestation identity differs from frozen contract")
+        raise ValueError(f"{platform}/{stage}: producer-attestation identity differs from contract")
     bundle_path = _safe_source(workspace, producer["bundle_path"])
     _verify_attestation(
         summary_path,
@@ -380,17 +384,34 @@ def _copy_manifest_evidence(
     rewritten_manifest: list[dict[str, Any]] = []
     for entry in manifest:
         if not isinstance(entry, dict):
-            raise ValueError(f"{platform}: malformed evidence entry")
+            raise ValueError(f"{platform}/{stage}: malformed evidence entry")
         relative = entry.get("path")
         if relative in observed_paths:
-            raise ValueError(f"{platform}: duplicate evidence path {relative!r}")
+            raise ValueError(f"{platform}/{stage}: duplicate evidence path {relative!r}")
         observed_paths.add(relative)
         source = _safe_source(workspace, relative)
         if source.stat().st_size != entry.get("byte_count") or _sha256(source) != entry.get(
             "sha256"
         ):
-            raise ValueError(f"{platform}: evidence bytes disagree with manifest: {relative}")
-        target_relative = _prefixed(platform, relative)
+            raise ValueError(
+                f"{platform}/{stage}: evidence bytes disagree with manifest: {relative}"
+            )
+        if Path(relative).suffix.lower() in {
+            ".exe",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".cmd",
+            ".bat",
+            ".ps1",
+            ".py",
+            ".pth",
+            ".cfg",
+            ".cnf",
+            ".ini",
+        }:
+            raise ValueError(f"{platform}/{stage}: executable or configuration state is forbidden")
+        target_relative = _prefixed(platform, stage, relative)
         target = destination / target_relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
@@ -398,26 +419,39 @@ def _copy_manifest_evidence(
         rewritten["path"] = target_relative
         rewritten_manifest.append(rewritten)
 
+    declared_files = observed_paths | {
+        "evidence/stage-summary.json",
+        "evidence/evidence-manifest.json",
+        producer["bundle_path"],
+    }
+    actual_files = {
+        path.relative_to(workspace).as_posix()
+        for path in workspace.rglob("*")
+        if path.is_file() or path.is_symlink()
+    }
+    if actual_files != declared_files:
+        raise ValueError(f"{platform}/{stage}: stage artifact contains undeclared or missing files")
+
     if set(summary.get("evidence_paths", [])) != observed_paths:
-        raise ValueError(f"{platform}: summary paths differ from evidence manifest")
+        raise ValueError(f"{platform}/{stage}: summary paths differ from evidence manifest")
 
     rewritten_summary = dict(summary)
     rewritten_summary["evidence_paths"] = sorted(
-        _prefixed(platform, path) for path in observed_paths
+        _prefixed(platform, stage, path) for path in observed_paths
     )
     for command in rewritten_summary.get("command_results", {}).values():
         for field in ("result_path", "stdout_path", "stderr_path"):
-            command[field] = _prefixed(platform, command[field])
+            command[field] = _prefixed(platform, stage, command[field])
     for artifact in rewritten_summary.get("artifact_results", {}).values():
-        artifact["evidence_path"] = _prefixed(platform, artifact["evidence_path"])
+        artifact["evidence_path"] = _prefixed(platform, stage, artifact["evidence_path"])
     for mutation in rewritten_summary.get("mutation_results", []):
         mutation["evidence_paths"] = [
-            _prefixed(platform, path) for path in mutation["evidence_paths"]
+            _prefixed(platform, stage, path) for path in mutation["evidence_paths"]
         ]
-    provenance_root = destination / "evidence" / platform / "provenance"
+    provenance_root = destination / "evidence" / platform / stage / "provenance"
     provenance_root.mkdir(parents=True, exist_ok=True)
     provenance_sources = (
-        (summary_path, "platform-summary.json", "producer-summary", "application/json"),
+        (summary_path, "stage-summary.json", "producer-summary", "application/json"),
         (manifest_path, "evidence-manifest.json", "producer-manifest", "application/json"),
         (
             bundle_path,
@@ -448,7 +482,7 @@ def _copy_manifest_evidence(
         "source_commit": protocol_source_commit,
         "bundle_path": provenance_paths["producer-attestation.sigstore.json"],
         "subject_paths": [
-            provenance_paths["platform-summary.json"],
+            provenance_paths["stage-summary.json"],
             provenance_paths["evidence-manifest.json"],
         ],
     }
@@ -469,14 +503,10 @@ def _run_frozen_precommit_validator(
     manifest_bytes = _git_output(
         repo_root, "cat-file", "blob", f"{authorization_commit}:{manifest_path}"
     )
-    if hashlib.sha256(manifest_bytes).hexdigest() != authorization[
-        "protocol_manifest_sha256"
-    ]:
+    if hashlib.sha256(manifest_bytes).hexdigest() != authorization["protocol_manifest_sha256"]:
         raise ValueError("authorized protocol manifest differs before validation")
     manifest = _load_json_bytes(manifest_bytes, manifest_path)
-    manifest_hashes = {
-        item["path"]: item["sha256"] for item in manifest.get("contract_files", [])
-    }
+    manifest_hashes = {item["path"]: item["sha256"] for item in manifest.get("contract_files", [])}
     if len(manifest_hashes) != len(manifest.get("contract_files", [])):
         raise ValueError("authorized protocol manifest has duplicate contract paths")
 
@@ -510,9 +540,7 @@ def _run_frozen_precommit_validator(
             ):
                 raise ValueError("unsafe or duplicate frozen validator bundle path")
             bundle_paths.add(bundle_path)
-            frozen = _git_output(
-                repo_root, "cat-file", "blob", f"{protocol_commit}:{source_path}"
-            )
+            frozen = _git_output(repo_root, "cat-file", "blob", f"{protocol_commit}:{source_path}")
             observed = hashlib.sha256(frozen).hexdigest()
             if observed != item["sha256"] or manifest_hashes.get(source_path) != observed:
                 raise ValueError(f"validator dependency is not manifest-bound: {source_path}")
@@ -582,8 +610,7 @@ def _run_frozen_precommit_validator(
             result = json.loads(completed.stdout)
         except (json.JSONDecodeError, TypeError) as exc:
             raise ValueError(
-                "frozen precommit validator returned invalid JSON: "
-                + completed.stderr.strip()
+                "frozen precommit validator returned invalid JSON: " + completed.stderr.strip()
             ) from exc
         errors = result.get("errors") if isinstance(result, dict) else None
         if completed.returncode != 0 or errors != []:
@@ -599,6 +626,7 @@ def assemble(args: argparse.Namespace) -> None:
     dispatch_identity = _expected_dispatch_identity(args, authorization)
     contract = protocol["parameters"]["raw_results_contract"]
     required_platforms = contract["required_platforms"]
+    required_stages = contract["required_stages"]
     platform_roots = _parse_bindings(args.platform_root, "platform root")
     if set(platform_roots) != set(required_platforms):
         raise ValueError("platform inputs must exactly match frozen platforms")
@@ -613,50 +641,102 @@ def assemble(args: argparse.Namespace) -> None:
         manifest: list[dict[str, Any]] = []
         expected_mutations = set(contract["required_mutation_ids"])
         for platform in required_platforms:
-            summary, platform_manifest = _copy_manifest_evidence(
-                platform,
-                platform_roots[platform],
-                temporary,
-                contract["producer_attestation"],
-                args.protocol_source_commit,
-                dispatch_identity,
+            stages: dict[str, dict[str, Any]] = {}
+            for stage in required_stages:
+                stage_root = platform_roots[platform] / stage
+                summary, stage_manifest = _copy_manifest_evidence(
+                    platform,
+                    stage,
+                    stage_root,
+                    temporary,
+                    contract["producer_attestation"],
+                    args.protocol_source_commit,
+                    dispatch_identity,
+                )
+                if summary.get("candidate_commit") != protocol["parameters"]["candidate_commit"]:
+                    raise ValueError(f"{platform}/{stage}: candidate commit mismatch")
+                if summary.get("candidate_tree") != protocol["parameters"]["candidate_tree"]:
+                    raise ValueError(f"{platform}/{stage}: candidate tree mismatch")
+                stages[stage] = summary
+                manifest.extend(stage_manifest)
+            identity_fields = (
+                "campaign_id",
+                "packet_id",
+                "platform_family",
+                "candidate_commit",
+                "candidate_tree",
+                "protocol_source_commit",
+                "dispatch_identity",
             )
-            if summary.get("candidate_commit") != protocol["parameters"]["candidate_commit"]:
-                raise ValueError(f"{platform}: candidate commit mismatch")
-            if summary.get("candidate_tree") != protocol["parameters"]["candidate_tree"]:
-                raise ValueError(f"{platform}: candidate tree mismatch")
-            if set(summary.get("command_results", {})) != set(
-                contract["required_command_contracts"]
+            if any(
+                stages[stage].get(field) != stages["candidate"].get(field)
+                for stage in required_stages
+                for field in identity_fields
             ):
-                raise ValueError(f"{platform}: incomplete command set")
-            if any(item.get("exit_code") != 0 for item in summary["command_results"].values()):
+                raise ValueError(f"{platform}: cross-stage identity mismatch")
+            candidate = stages["candidate"]
+            pdf = stages["pdf"]
+            mutation = stages["mutation"]
+            candidate_commands = set(contract["required_command_contracts"]) - {
+                "014-pdflatex-1",
+                "015-pdflatex-2",
+            }
+            pdf_commands = {"014-pdflatex-1", "015-pdflatex-2"}
+            if not candidate_commands.issubset(candidate.get("command_results", {})):
+                raise ValueError(f"{platform}: candidate stage command set is incomplete")
+            if not pdf_commands.issubset(pdf.get("command_results", {})):
+                raise ValueError(f"{platform}: PDF stage command set is incomplete")
+            command_results = {key: candidate["command_results"][key] for key in candidate_commands}
+            command_results.update({key: pdf["command_results"][key] for key in pdf_commands})
+            if any(item.get("exit_code") != 0 for item in command_results.values()):
                 raise ValueError(f"{platform}: nonzero command result")
-            if set(summary.get("artifact_results", {})) != set(contract["required_artifact_paths"]):
-                raise ValueError(f"{platform}: incomplete artifact set")
-            mutation_results = summary.get("mutation_results", [])
-            if (
-                {item["mutation_id"] for item in mutation_results} != expected_mutations
-                or any(item.get("rejected") is not True for item in mutation_results)
+            if set(candidate.get("artifact_results", {})) != set(
+                contract["required_artifact_paths"]
+            ):
+                raise ValueError(f"{platform}: incomplete candidate artifact set")
+            mutation_results = mutation.get("mutation_results", [])
+            if {item["mutation_id"] for item in mutation_results} != expected_mutations or any(
+                item.get("rejected") is not True for item in mutation_results
             ):
                 raise ValueError(f"{platform}: incomplete mutation set")
-            if summary.get("mutation_count") != len(mutation_results):
+            if mutation.get("mutation_count") != len(mutation_results):
                 raise ValueError(f"{platform}: mutation count differs from retained results")
-            if summary.get("mutations_rejected") is not True:
+            if mutation.get("mutations_rejected") is not True:
                 raise ValueError(f"{platform}: mutation rejection was not derived as true")
+            summary = dict(candidate)
+            summary.pop("stage_id", None)
+            summary.pop("producer_attestation", None)
+            summary.pop("tool_identity_manifest_sha256", None)
+            summary["stage_attestations"] = {
+                stage: stages[stage]["producer_attestation"] for stage in required_stages
+            }
+            summary["stage_tool_identity_manifest_sha256"] = {
+                stage: stages[stage]["tool_identity_manifest_sha256"] for stage in required_stages
+            }
+            summary["command_results"] = command_results
+            summary["mutation_results"] = mutation_results
+            summary["mutation_count"] = len(mutation_results)
+            summary["mutations_rejected"] = True
+            summary["pdf_engine"] = pdf["pdf_engine"]
+            summary["pdf_sha256"] = pdf["pdf_sha256"]
+            summary["pdf_page_count"] = pdf["pdf_page_count"]
+            summary["pdf_passed"] = pdf["pdf_passed"]
+            summary["evidence_paths"] = sorted(
+                path for stage in required_stages for path in stages[stage]["evidence_paths"]
+            )
             summary["overall_passed"] = all(
-                summary[field]
-                for field in (
-                    "commands_passed",
-                    "semantic_contract_passed",
-                    "visual_contract_passed",
-                    "source_boundary_passed",
-                    "environment_boundary_passed",
-                    "pdf_passed",
-                    "mutations_rejected",
+                (
+                    candidate["commands_passed"],
+                    candidate["semantic_contract_passed"],
+                    candidate["visual_contract_passed"],
+                    candidate["source_boundary_passed"],
+                    candidate["environment_boundary_passed"],
+                    pdf["pdf_passed"],
+                    mutation["environment_boundary_passed"],
+                    mutation["mutations_rejected"],
                 )
             )
             platforms[platform] = summary
-            manifest.extend(platform_manifest)
 
         raw_document = {
             "schema_version": 1,

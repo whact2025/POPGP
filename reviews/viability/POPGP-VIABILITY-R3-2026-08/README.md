@@ -59,6 +59,20 @@ replacement object or injected Git environment/config, mutable validator source,
 workflow-expression, setup-output/executable identity injection, wrong-source attestation, or cross-run
 mixture fails before output commitment.
 
+Each platform now consists of three independently hosted jobs: `candidate`, `pdf`,
+and `mutation`. GitHub provisions a fresh VM for every matrix entry, so candidate
+Python, caches, temporary files, configuration, and surviving processes cannot be
+observed by the later PDF or mutation stages. The PDF stage clones the exact candidate
+without creating a candidate Python environment, sanitizes TeX/kpathsea/font/native
+loader state, disables shell escape, and retains byte-identical before/after manifests
+of the complete pinned TeX Live tree. The mutation stage independently clones and
+builds its environment after the candidate job has ended. Each stage signs its own
+summary and evidence manifest while binding the same repository, workflow, source,
+run, attempt, platform, and authorization identity. Uploaded artifacts contain only
+declared evidence bytes; executables, configuration state, links/reparse points, and
+undeclared files are rejected. The assembler requires all six stage attestations and
+merges only their stage-authorized scientific contributions.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

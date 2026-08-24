@@ -68,9 +68,22 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    clears PATH/PATHEXT and child injection state, and passes explicit paths to every
    child. Any missing/substituted/shadowed tool aborts before experiment workspace or
    output; failure removes the entire platform workspace and no artifact is uploaded.
-9. Both matrix jobs must share `github.run_id` and `github.run_attempt`; all signed
-   summaries and manifests must bind that run and the exact source commit.
-10. The runner invokes the frozen assembler with the same protocol and authorization
+9. Six matrix jobs run: candidate, PDF, and mutation on each supported platform.
+   Every entry is a fresh GitHub-hosted VM and all six must share `github.run_id` and
+   `github.run_attempt`. No stage consumes another stage's environment, cache, temp
+   directory, tool tree, configuration, or process state. Candidate stages upload
+   generated evidence only. PDF stages create no candidate Python environment, scrub
+   all TeX/kpathsea/font/native-loader variables, use `-no-shell-escape`, and retain
+   identical before/after SHA-256 manifests of the complete TeX Live tree. Mutation
+   stages independently clone and build the frozen test environment. Each stage signs
+   its own summary and manifest; all uploaded bytes must be declared evidence, never
+   executable/configuration state.
+10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
+    `mutation/` evidence roots for each platform. It requires and verifies all six
+    stage attestations, rejects missing/cross-run/cross-platform/substituted stages and
+    undeclared or executable/configuration artifacts, then combines only the candidate
+    scientific results, PDF proof, and mutation proof into each final platform record.
+    Invoke it with the same protocol and authorization
     refs, run ID, and attempt. The assembler derives the commit only from authorized
     immutable bytes, independently pins the authorization tag object, and runs a
     manifest-verified validator bundle extracted through no-replacement Git reads

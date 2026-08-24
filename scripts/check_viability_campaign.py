@@ -1462,12 +1462,14 @@ def _environment_manifest_errors(document: Any, label: str) -> list[str]:
     return errors
 
 
-def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> list[str]:
+def _tool_identity_manifest_errors(
+    document: Any, platform: str, label: str, stage: str | None = None
+) -> list[str]:
     expected_platform = {
         "windows-x86_64": ("windows-2025", "win25"),
         "ubuntu-latest-x86_64": ("ubuntu-24.04", "ubuntu24"),
     }
-    if not isinstance(document, Mapping) or set(document) != {
+    expected_envelope = {
         "schema_version",
         "platform_family",
         "runner_label",
@@ -1475,7 +1477,10 @@ def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> 
         "image_version",
         "runner_arch",
         "tools",
-    }:
+    }
+    if stage is not None:
+        expected_envelope.add("stage_id")
+    if not isinstance(document, Mapping) or set(document) != expected_envelope:
         return [f"{label} has malformed tool-identity manifest envelope"]
     if platform not in expected_platform:
         return [f"{label} has an unsupported tool-identity platform"]
@@ -1486,20 +1491,25 @@ def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> 
         or document["runner_label"] != runner_label
         or document["image_os"] != image_os
         or document["runner_arch"] != "X64"
+        or (stage is not None and document["stage_id"] != stage)
         or not isinstance(document["image_version"], str)
         or re.fullmatch(r"[0-9]{8}\.[0-9]+(?:\.[0-9]+)?", document["image_version"]) is None
     ):
         return [f"{label} tool-identity hosted image differs from the frozen family"]
     tools = document["tools"]
-    expected_tools = {
+    common_tools = {
         "git",
         "ssh_keygen",
         "base_python",
-        "uv",
-        "pdflatex",
         "powershell",
-        "environment_python",
     }
+    expected_tools = (
+        common_tools | {"uv", "environment_python"}
+        if stage in {"candidate", "mutation"}
+        else common_tools | {"pdflatex"}
+        if stage == "pdf"
+        else common_tools | {"uv", "pdflatex", "environment_python"}
+    )
     if not isinstance(tools, Mapping) or set(tools) != expected_tools:
         return [f"{label} tool-identity executable set is incomplete"]
     errors: list[str] = []
@@ -1541,7 +1551,11 @@ def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> 
             "powershell": "c:/program files/powershell/7/pwsh.exe",
         }
         pdf_suffix = "/via000-r3-texlive/2026/bin/windows/pdftex.exe"
-        environment_suffix = "/via000-r3-platform/python-environment/scripts/python.exe"
+        environment_suffix = (
+            f"/via000-r3-{stage}-stage/python-environment/scripts/python.exe"
+            if stage is not None
+            else "/via000-r3-platform/python-environment/scripts/python.exe"
+        )
     else:
         exact_paths = {
             "git": "/usr/bin/git",
@@ -1551,27 +1565,35 @@ def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> 
             "powershell": "/opt/microsoft/powershell/7/pwsh",
         }
         pdf_suffix = "/via000-r3-texlive/2026/bin/x86_64-linux/pdftex"
-        environment_suffix = "/via000-r3-platform/python-environment/bin/python"
+        environment_suffix = (
+            f"/via000-r3-{stage}-stage/python-environment/bin/python"
+            if stage is not None
+            else "/via000-r3-platform/python-environment/bin/python"
+        )
     for name, expected in exact_paths.items():
         if tools[name]["path"].replace("\\", "/").lower() != expected:
             errors.append(f"{label} tool-identity path differs for {name!r}")
-    if not tools["pdflatex"]["path"].replace("\\", "/").lower().endswith(pdf_suffix):
+    if "pdflatex" in tools and not tools["pdflatex"]["path"].replace("\\", "/").lower().endswith(
+        pdf_suffix
+    ):
         errors.append(f"{label} canonical pdfTeX path differs from frozen TeX root")
-    if (
+    if "environment_python" in tools and (
         not tools["environment_python"]["path"]
         .replace("\\", "/")
         .lower()
         .endswith(environment_suffix)
     ):
         errors.append(f"{label} environment Python path differs from runner workspace")
-    if (
-        tools["base_python"]["version"] != "3.11.15"
-        or tools["environment_python"]["version"] != "3.11.15"
+    if tools["base_python"]["version"] != "3.11.15" or (
+        "environment_python" in tools and tools["environment_python"]["version"] != "3.11.15"
     ):
         errors.append(f"{label} Python tool versions differ from 3.11.15")
-    if tools["uv"]["version"] != "uv 0.11.11":
+    if "uv" in tools and tools["uv"]["version"] != "uv 0.11.11":
         errors.append(f"{label} uv tool version differs from 0.11.11")
-    if tools["pdflatex"]["version"] != "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)":
+    if (
+        "pdflatex" in tools
+        and tools["pdflatex"]["version"] != "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)"
+    ):
         errors.append(f"{label} pdfTeX banner differs from frozen engine")
     if (
         re.fullmatch(
@@ -1582,7 +1604,10 @@ def _tool_identity_manifest_errors(document: Any, platform: str, label: str) -> 
         errors.append(f"{label} Git banner is malformed")
     if re.fullmatch(r"7\.[0-9]+\.[0-9]+", tools["powershell"]["version"]) is None:
         errors.append(f"{label} PowerShell banner is malformed")
-    if tools["environment_python"]["sha256"] != tools["base_python"]["sha256"]:
+    if (
+        "environment_python" in tools
+        and tools["environment_python"]["sha256"] != tools["base_python"]["sha256"]
+    ):
         errors.append(f"{label} copied environment Python bytes differ from trusted base")
     return errors
 
@@ -1650,34 +1675,46 @@ def _passed_pytest_nodes(stdout: str) -> list[str]:
     return nodes
 
 
-def _prefixed_platform_path(platform: str, relative: str) -> str:
-    return f"evidence/{platform}/{relative}"
+def _prefixed_platform_path(platform: str, relative: str, stage: str | None = None) -> str:
+    middle = f"{platform}/{stage}" if stage is not None else platform
+    return f"evidence/{middle}/{relative}"
 
 
 def _rewrite_attested_platform_summary(
-    summary: Mapping[str, Any], platform: str, producer_contract: Mapping[str, Any]
+    summary: Mapping[str, Any],
+    platform: str,
+    producer_contract: Mapping[str, Any],
+    stage: str | None = None,
 ) -> dict[str, Any]:
     rewritten = copy.deepcopy(dict(summary))
     rewritten["evidence_paths"] = sorted(
-        _prefixed_platform_path(platform, path) for path in summary["evidence_paths"]
+        _prefixed_platform_path(platform, path, stage) for path in summary["evidence_paths"]
     )
     for command in rewritten["command_results"].values():
         for field in ("result_path", "stdout_path", "stderr_path"):
-            command[field] = _prefixed_platform_path(platform, command[field])
+            command[field] = _prefixed_platform_path(platform, command[field], stage)
     for artifact in rewritten["artifact_results"].values():
-        artifact["evidence_path"] = _prefixed_platform_path(platform, artifact["evidence_path"])
+        artifact["evidence_path"] = _prefixed_platform_path(
+            platform, artifact["evidence_path"], stage
+        )
     for mutation in rewritten["mutation_results"]:
         mutation["evidence_paths"] = [
-            _prefixed_platform_path(platform, path) for path in mutation["evidence_paths"]
+            _prefixed_platform_path(platform, path, stage) for path in mutation["evidence_paths"]
         ]
-    provenance_root = f"evidence/{platform}/provenance"
+    provenance_root = (
+        f"evidence/{platform}/{stage}/provenance"
+        if stage is not None
+        else f"evidence/{platform}/provenance"
+    )
     rewritten["producer_attestation"] = {
         "repository": producer_contract["repository"],
         "signer_workflow": producer_contract["signer_workflow"],
         "source_commit": summary["protocol_source_commit"],
         "bundle_path": f"{provenance_root}/producer-attestation.sigstore.json",
         "subject_paths": [
-            f"{provenance_root}/platform-summary.json",
+            f"{provenance_root}/stage-summary.json"
+            if stage is not None
+            else f"{provenance_root}/platform-summary.json",
             f"{provenance_root}/evidence-manifest.json",
         ],
     }
@@ -1709,6 +1746,7 @@ def _validate_raw_evidence_contract(
         "raw_results_receipt_id",
         "evidence_manifest_pointer",
         "required_platforms",
+        "required_stages",
         "required_command_contracts",
         "required_artifact_paths",
         "required_mutation_ids",
@@ -1726,6 +1764,7 @@ def _validate_raw_evidence_contract(
             f"{sorted(required_fields)} with only the optional dispatch_identity extension"
         ]
     required_platforms = contract["required_platforms"]
+    required_stages = contract["required_stages"]
     command_contracts = contract["required_command_contracts"]
     artifact_paths = contract["required_artifact_paths"]
     mutation_ids = contract["required_mutation_ids"]
@@ -1762,12 +1801,16 @@ def _validate_raw_evidence_contract(
         "require_workflow_sha_match": True,
         "require_checkout_head_match": True,
         "require_single_producer_run": True,
+        "require_fresh_stage_jobs": True,
+        "require_evidence_only_stage_transport": True,
+        "require_texlive_closure_manifest": True,
     }
     if (
         not isinstance(required_platforms, list)
         or not required_platforms
         or len(required_platforms) != len(set(required_platforms))
         or required_platforms != parameters.get("platform_families")
+        or required_stages != ["candidate", "pdf", "mutation"]
         or not isinstance(command_contracts, Mapping)
         or not command_contracts
         or any(
@@ -1817,7 +1860,7 @@ def _validate_raw_evidence_contract(
         or re.fullmatch(r"\d+\.\d+\.\d+", producer_contract["minimum_gh_version"]) is None
         or producer_contract["bundle_path"] != "evidence/producer-attestation.sigstore.json"
         or producer_contract["subject_paths"]
-        != ["evidence/platform-summary.json", "evidence/evidence-manifest.json"]
+        != ["evidence/stage-summary.json", "evidence/evidence-manifest.json"]
         or parameters.get("required_mutation_count") != len(mutation_ids)
         or type(contract["required_pdf_page_count"]) is not int
         or contract["required_pdf_page_count"] < 1
@@ -1964,63 +2007,193 @@ def _validate_raw_evidence_contract(
         if dispatch_contract is not None and platform.get("dispatch_identity") != expected_dispatch:
             errors.append(f"{label} dispatch/run identity differs from assembled raw results")
 
-        provenance_root = f"evidence/{platform_name}/provenance"
-        expected_producer = {
-            "repository": producer_contract["repository"],
-            "signer_workflow": producer_contract["signer_workflow"],
-            "source_commit": protocol_commit,
-            "bundle_path": f"{provenance_root}/producer-attestation.sigstore.json",
-            "subject_paths": [
-                f"{provenance_root}/platform-summary.json",
-                f"{provenance_root}/evidence-manifest.json",
-            ],
-        }
-        producer = platform.get("producer_attestation")
-        provenance_ok = producer == expected_producer
-        if not provenance_ok:
-            errors.append(f"{label} producer-attestation envelope differs from frozen contract")
-        else:
-            expected_roles = {
-                expected_producer["bundle_path"]: "producer-attestation",
-                expected_producer["subject_paths"][0]: "producer-summary",
-                expected_producer["subject_paths"][1]: "producer-manifest",
+        if dispatch_contract is None:
+            provenance_root = f"evidence/{platform_name}/provenance"
+            expected_producer = {
+                "repository": producer_contract["repository"],
+                "signer_workflow": producer_contract["signer_workflow"],
+                "source_commit": protocol_commit,
+                "bundle_path": f"{provenance_root}/producer-attestation.sigstore.json",
+                "subject_paths": [
+                    f"{provenance_root}/platform-summary.json",
+                    f"{provenance_root}/evidence-manifest.json",
+                ],
             }
-            provenance_entries_ok = all(
-                path in evidence_files
-                and evidence_by_path.get(path, {}).get("platform_family") == platform_name
-                and evidence_by_path.get(path, {}).get("role") == role
-                for path, role in expected_roles.items()
-            )
-            if not provenance_entries_ok:
-                provenance_ok = False
-                errors.append(f"{label} producer-attestation subjects are missing or mistyped")
+            producer = platform.get("producer_attestation")
+            provenance_ok = producer == expected_producer
+            if not provenance_ok:
+                errors.append(f"{label} producer-attestation envelope differs from frozen contract")
             else:
+                expected_roles = {
+                    expected_producer["bundle_path"]: "producer-attestation",
+                    expected_producer["subject_paths"][0]: "producer-summary",
+                    expected_producer["subject_paths"][1]: "producer-manifest",
+                }
+                provenance_entries_ok = all(
+                    path in evidence_files
+                    and evidence_by_path.get(path, {}).get("platform_family") == platform_name
+                    and evidence_by_path.get(path, {}).get("role") == role
+                    for path, role in expected_roles.items()
+                )
+                if not provenance_entries_ok:
+                    provenance_ok = False
+                    errors.append(f"{label} producer-attestation subjects are missing or mistyped")
+                else:
+                    bundle_file = evidence_files[expected_producer["bundle_path"]]
+                    summary_subject = evidence_files[expected_producer["subject_paths"][0]]
+                    manifest_subject = evidence_files[expected_producer["subject_paths"][1]]
+                    summary_attestation_errors = _github_attestation_errors(
+                        summary_subject,
+                        bundle_file,
+                        repository=producer_contract["repository"],
+                        signer_workflow=producer_contract["signer_workflow"],
+                        source_commit=protocol_commit,
+                        predicate_type=producer_contract["predicate_type"],
+                        minimum_gh_version=producer_contract["minimum_gh_version"],
+                        label=label,
+                    )
+                    manifest_attestation_errors = _github_attestation_errors(
+                        manifest_subject,
+                        bundle_file,
+                        repository=producer_contract["repository"],
+                        signer_workflow=producer_contract["signer_workflow"],
+                        source_commit=protocol_commit,
+                        predicate_type=producer_contract["predicate_type"],
+                        minimum_gh_version=producer_contract["minimum_gh_version"],
+                        label=label,
+                    )
+                    errors.extend(summary_attestation_errors)
+                    errors.extend(manifest_attestation_errors)
+                    provenance_ok = (
+                        not summary_attestation_errors and not manifest_attestation_errors
+                    )
+                    try:
+                        original_summary = _load_json(summary_subject)
+                        original_manifest = _load_json(manifest_subject)
+                        original_producer = {
+                            "repository": producer_contract["repository"],
+                            "signer_workflow": producer_contract["signer_workflow"],
+                            "source_commit": protocol_commit,
+                            "bundle_path": producer_contract["bundle_path"],
+                            "subject_paths": producer_contract["subject_paths"],
+                        }
+                        if (
+                            not isinstance(original_summary, Mapping)
+                            or original_summary.get("producer_attestation") != original_producer
+                            or original_summary.get("protocol_source_commit") != protocol_commit
+                            or _rewrite_attested_platform_summary(
+                                original_summary, platform_name, producer_contract
+                            )
+                            != platform
+                        ):
+                            provenance_ok = False
+                            errors.append(
+                                f"{label} raw platform record differs from attested summary"
+                            )
+                        if not isinstance(original_manifest, list):
+                            raise ValueError("attested evidence manifest is not an array")
+                        expected_manifest = sorted(
+                            [
+                                {
+                                    **dict(entry),
+                                    "path": _prefixed_platform_path(platform_name, entry["path"]),
+                                }
+                                for entry in original_manifest
+                            ],
+                            key=lambda entry: entry["path"],
+                        )
+                        observed_manifest = sorted(
+                            [
+                                dict(entry)
+                                for entry in evidence_manifest
+                                if entry.get("platform_family") == platform_name
+                                and entry.get("role")
+                                not in {
+                                    "producer-attestation",
+                                    "producer-summary",
+                                    "producer-manifest",
+                                }
+                            ],
+                            key=lambda entry: entry["path"],
+                        )
+                        if expected_manifest != observed_manifest:
+                            provenance_ok = False
+                            errors.append(f"{label} raw evidence differs from attested manifest")
+                    except (
+                        OSError,
+                        UnicodeDecodeError,
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                        json.JSONDecodeError,
+                    ):
+                        provenance_ok = False
+                        errors.append(f"{label} attested subjects cannot be reconciled")
+
+        else:
+            provenance_ok = True
+            stage_summaries: dict[str, dict[str, Any]] = {}
+            expected_stage_attestations: dict[str, dict[str, Any]] = {}
+            expected_stage_tool_hashes: dict[str, str] = {}
+            for stage in required_stages:
+                stage_label = f"{label}/{stage}"
+                provenance_root = f"evidence/{platform_name}/{stage}/provenance"
+                expected_producer = {
+                    "repository": producer_contract["repository"],
+                    "signer_workflow": producer_contract["signer_workflow"],
+                    "source_commit": protocol_commit,
+                    "bundle_path": f"{provenance_root}/producer-attestation.sigstore.json",
+                    "subject_paths": [
+                        f"{provenance_root}/stage-summary.json",
+                        f"{provenance_root}/evidence-manifest.json",
+                    ],
+                }
+                expected_stage_attestations[stage] = expected_producer
+                if platform.get("stage_attestations", {}).get(stage) != expected_producer:
+                    provenance_ok = False
+                    errors.append(f"{stage_label} attestation envelope differs from contract")
+                    continue
+                expected_roles = {
+                    expected_producer["bundle_path"]: "producer-attestation",
+                    expected_producer["subject_paths"][0]: "producer-summary",
+                    expected_producer["subject_paths"][1]: "producer-manifest",
+                }
+                if not all(
+                    path in evidence_files
+                    and evidence_by_path.get(path, {}).get("platform_family") == platform_name
+                    and evidence_by_path.get(path, {}).get("role") == role
+                    for path, role in expected_roles.items()
+                ):
+                    provenance_ok = False
+                    errors.append(f"{stage_label} attestation subjects are missing or mistyped")
+                    continue
                 bundle_file = evidence_files[expected_producer["bundle_path"]]
                 summary_subject = evidence_files[expected_producer["subject_paths"][0]]
                 manifest_subject = evidence_files[expected_producer["subject_paths"][1]]
-                summary_attestation_errors = _github_attestation_errors(
-                    summary_subject,
-                    bundle_file,
-                    repository=producer_contract["repository"],
-                    signer_workflow=producer_contract["signer_workflow"],
-                    source_commit=protocol_commit,
-                    predicate_type=producer_contract["predicate_type"],
-                    minimum_gh_version=producer_contract["minimum_gh_version"],
-                    label=label,
-                )
-                manifest_attestation_errors = _github_attestation_errors(
-                    manifest_subject,
-                    bundle_file,
-                    repository=producer_contract["repository"],
-                    signer_workflow=producer_contract["signer_workflow"],
-                    source_commit=protocol_commit,
-                    predicate_type=producer_contract["predicate_type"],
-                    minimum_gh_version=producer_contract["minimum_gh_version"],
-                    label=label,
-                )
-                errors.extend(summary_attestation_errors)
-                errors.extend(manifest_attestation_errors)
-                provenance_ok = not summary_attestation_errors and not manifest_attestation_errors
+                stage_errors = [
+                    *_github_attestation_errors(
+                        summary_subject,
+                        bundle_file,
+                        repository=producer_contract["repository"],
+                        signer_workflow=producer_contract["signer_workflow"],
+                        source_commit=protocol_commit,
+                        predicate_type=producer_contract["predicate_type"],
+                        minimum_gh_version=producer_contract["minimum_gh_version"],
+                        label=stage_label,
+                    ),
+                    *_github_attestation_errors(
+                        manifest_subject,
+                        bundle_file,
+                        repository=producer_contract["repository"],
+                        signer_workflow=producer_contract["signer_workflow"],
+                        source_commit=protocol_commit,
+                        predicate_type=producer_contract["predicate_type"],
+                        minimum_gh_version=producer_contract["minimum_gh_version"],
+                        label=stage_label,
+                    ),
+                ]
+                errors.extend(stage_errors)
+                provenance_ok = provenance_ok and not stage_errors
                 try:
                     original_summary = _load_json(summary_subject)
                     original_manifest = _load_json(manifest_subject)
@@ -2033,40 +2206,51 @@ def _validate_raw_evidence_contract(
                     }
                     if (
                         not isinstance(original_summary, Mapping)
+                        or original_summary.get("stage_id") != stage
+                        or original_summary.get("platform_family") != platform_name
                         or original_summary.get("producer_attestation") != original_producer
                         or original_summary.get("protocol_source_commit") != protocol_commit
-                        or _rewrite_attested_platform_summary(
-                            original_summary, platform_name, producer_contract
-                        )
-                        != platform
+                        or original_summary.get("dispatch_identity") != expected_dispatch
                     ):
-                        provenance_ok = False
-                        errors.append(f"{label} raw platform record differs from attested summary")
+                        raise ValueError("stage identity differs")
+                    rewritten_stage = _rewrite_attested_platform_summary(
+                        original_summary, platform_name, producer_contract, stage
+                    )
+                    stage_summaries[stage] = rewritten_stage
+                    expected_stage_tool_hashes[stage] = original_summary[
+                        "tool_identity_manifest_sha256"
+                    ]
                     if not isinstance(original_manifest, list):
-                        raise ValueError("attested evidence manifest is not an array")
+                        raise ValueError("stage manifest is not an array")
                     expected_manifest = sorted(
                         [
                             {
                                 **dict(entry),
-                                "path": _prefixed_platform_path(platform_name, entry["path"]),
+                                "path": _prefixed_platform_path(
+                                    platform_name, entry["path"], stage
+                                ),
                             }
                             for entry in original_manifest
                         ],
                         key=lambda entry: entry["path"],
                     )
+                    prefix = f"evidence/{platform_name}/{stage}/"
                     observed_manifest = sorted(
                         [
                             dict(entry)
                             for entry in evidence_manifest
-                            if entry.get("platform_family") == platform_name
+                            if str(entry.get("path", "")).startswith(prefix)
                             and entry.get("role")
-                            not in {"producer-attestation", "producer-summary", "producer-manifest"}
+                            not in {
+                                "producer-attestation",
+                                "producer-summary",
+                                "producer-manifest",
+                            }
                         ],
                         key=lambda entry: entry["path"],
                     )
                     if expected_manifest != observed_manifest:
-                        provenance_ok = False
-                        errors.append(f"{label} raw evidence differs from attested manifest")
+                        raise ValueError("stage evidence differs from attested manifest")
                 except (
                     OSError,
                     UnicodeDecodeError,
@@ -2076,8 +2260,45 @@ def _validate_raw_evidence_contract(
                     json.JSONDecodeError,
                 ):
                     provenance_ok = False
-                    errors.append(f"{label} attested subjects cannot be reconciled")
-
+                    errors.append(f"{stage_label} attested subjects cannot be reconciled")
+            if set(stage_summaries) == set(required_stages):
+                candidate_stage = stage_summaries["candidate"]
+                pdf_stage = stage_summaries["pdf"]
+                mutation_stage = stage_summaries["mutation"]
+                candidate_commands = set(command_contracts) - {
+                    "014-pdflatex-1",
+                    "015-pdflatex-2",
+                }
+                expected_commands = {
+                    key: candidate_stage["command_results"][key] for key in candidate_commands
+                }
+                expected_commands.update(
+                    {
+                        key: pdf_stage["command_results"][key]
+                        for key in ("014-pdflatex-1", "015-pdflatex-2")
+                    }
+                )
+                expected_paths = sorted(
+                    path
+                    for stage in required_stages
+                    for path in stage_summaries[stage]["evidence_paths"]
+                )
+                if (
+                    platform.get("stage_attestations") != expected_stage_attestations
+                    or platform.get("stage_tool_identity_manifest_sha256")
+                    != expected_stage_tool_hashes
+                    or platform.get("command_results") != expected_commands
+                    or platform.get("artifact_results") != candidate_stage.get("artifact_results")
+                    or platform.get("mutation_results") != mutation_stage.get("mutation_results")
+                    or platform.get("pdf_sha256") != pdf_stage.get("pdf_sha256")
+                    or platform.get("pdf_page_count") != pdf_stage.get("pdf_page_count")
+                    or platform.get("pdf_engine") != pdf_stage.get("pdf_engine")
+                    or platform.get("evidence_paths") != expected_paths
+                ):
+                    provenance_ok = False
+                    errors.append(f"{label} assembled platform differs from attested stages")
+            else:
+                provenance_ok = False
         command_results = platform["command_results"]
         if set(command_results) != set(command_contracts):
             errors.append(f"{label} command set differs from frozen contract")
@@ -2237,31 +2458,49 @@ def _validate_raw_evidence_contract(
             for path, entry in evidence_by_path.items()
             if entry.get("platform_family") == platform_name
         ]
+        candidate_prefix = f"evidence/{platform_name}/candidate/"
+        pdf_prefix = f"evidence/{platform_name}/pdf/"
+        mutation_prefix = f"evidence/{platform_name}/mutation/"
         environment_matches = [
             (path, entry)
             for path, entry in role_entries
             if entry.get("role") == "environment-manifest"
+            and (dispatch_contract is None or path.startswith(candidate_prefix))
         ]
         source_matches = [
-            (path, entry) for path, entry in role_entries if entry.get("role") == "source-manifest"
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "source-manifest"
+            and (dispatch_contract is None or path.startswith(candidate_prefix))
         ]
         tool_identity_matches = [
             (path, entry)
             for path, entry in role_entries
             if entry.get("role") == "tool-identity-manifest"
         ]
-        pdf_matches = [(path, entry) for path, entry in role_entries if entry.get("role") == "pdf"]
+        pdf_matches = [
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "pdf"
+            and (dispatch_contract is None or path.startswith(pdf_prefix))
+        ]
         pdf_engine_matches = [
-            (path, entry) for path, entry in role_entries if entry.get("role") == "pdf-engine"
+            (path, entry)
+            for path, entry in role_entries
+            if entry.get("role") == "pdf-engine"
+            and (dispatch_contract is None or path.startswith(pdf_prefix))
         ]
         status_matches = [
             (path, entry)
             for path, entry in role_entries
             if entry.get("role") == "repository-status"
+            and (dispatch_contract is None or path.startswith(candidate_prefix))
         ]
         environment_ok = len(environment_matches) == 1
         source_ok = len(source_matches) == 1
-        tool_identity_ok = len(tool_identity_matches) == 1
+        tool_identity_ok = len(tool_identity_matches) == (
+            len(required_stages) if dispatch_contract is not None else 1
+        )
         pdf_ok = len(pdf_matches) == 1
         pdf_engine_ok = len(pdf_engine_matches) == 1
         status_ok = len(status_matches) == 2
@@ -2298,20 +2537,34 @@ def _validate_raw_evidence_contract(
                 errors.append(f"{label} source manifest cannot be validated: {exc}")
         tool_identity_document: Mapping[str, Any] | None = None
         if tool_identity_ok:
-            path, entry = tool_identity_matches[0]
-            tool_identity_ok = entry["sha256"] == platform["tool_identity_manifest_sha256"]
-            try:
-                loaded_tool_identity = _load_json(evidence_files[path])
-                tool_identity_errors = _tool_identity_manifest_errors(
-                    loaded_tool_identity, platform_name, label
+            for path, entry in tool_identity_matches:
+                stage = (
+                    next(
+                        item
+                        for item in required_stages
+                        if path.startswith(f"evidence/{platform_name}/{item}/")
+                    )
+                    if dispatch_contract is not None
+                    else None
                 )
-                tool_identity_ok = tool_identity_ok and not tool_identity_errors
-                if isinstance(loaded_tool_identity, Mapping):
-                    tool_identity_document = loaded_tool_identity
-                errors.extend(tool_identity_errors)
-            except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
-                tool_identity_ok = False
-                errors.append(f"{label} tool identity manifest cannot be validated: {exc}")
+                expected_tool_sha = (
+                    platform["stage_tool_identity_manifest_sha256"][stage]
+                    if stage is not None
+                    else platform["tool_identity_manifest_sha256"]
+                )
+                tool_identity_ok = tool_identity_ok and entry["sha256"] == expected_tool_sha
+                try:
+                    loaded_tool_identity = _load_json(evidence_files[path])
+                    tool_identity_errors = _tool_identity_manifest_errors(
+                        loaded_tool_identity, platform_name, label, stage
+                    )
+                    tool_identity_ok = tool_identity_ok and not tool_identity_errors
+                    if isinstance(loaded_tool_identity, Mapping) and stage in {None, "mutation"}:
+                        tool_identity_document = loaded_tool_identity
+                    errors.extend(tool_identity_errors)
+                except (OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+                    tool_identity_ok = False
+                    errors.append(f"{label} tool identity manifest cannot be validated: {exc}")
         if pdf_ok:
             path, entry = pdf_matches[0]
             pdf_file = evidence_files[path]
@@ -2349,6 +2602,25 @@ def _validate_raw_evidence_contract(
                 and engine_file.read_text(encoding="utf-8", errors="strict").strip()
                 == expected_pdf_banner
             )
+        if dispatch_contract is not None:
+            tex_closure_matches = [
+                (path, entry)
+                for path, entry in role_entries
+                if entry.get("role") == "texlive-closure" and path.startswith(pdf_prefix)
+            ]
+            tex_closure_ok = len(tex_closure_matches) == 2
+            if tex_closure_ok:
+                closure_files = {
+                    Path(path).name: evidence_files[path] for path, _entry in tex_closure_matches
+                }
+                before = closure_files.get("texlive-closure-before.json")
+                after = closure_files.get("texlive-closure-after.json")
+                tex_closure_ok = (
+                    before is not None
+                    and after is not None
+                    and before.read_bytes() == after.read_bytes()
+                )
+            pdf_ok = pdf_ok and tex_closure_ok
         pdf_ok = pdf_ok and pdf_engine_ok
         if not environment_ok:
             errors.append(f"{label} environment evidence is incomplete or invalid")
@@ -2395,16 +2667,19 @@ def _validate_raw_evidence_contract(
             (path, entry)
             for path, entry in role_entries
             if entry.get("role") == "mutation-suite-stdout"
+            and (dispatch_contract is None or path.startswith(mutation_prefix))
         ]
         suite_stderr_matches = [
             (path, entry)
             for path, entry in role_entries
             if entry.get("role") == "mutation-suite-stderr"
+            and (dispatch_contract is None or path.startswith(mutation_prefix))
         ]
         suite_result_matches = [
             (path, entry)
             for path, entry in role_entries
             if entry.get("role") == "mutation-suite-result"
+            and (dispatch_contract is None or path.startswith(mutation_prefix))
         ]
         passed_nodes: list[str] = []
         suite_result: Mapping[str, Any] = {}

@@ -22,17 +22,17 @@
     "pdf_engine_banner": "pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)",
     "pdf_pass_count": 2,
     "runner_protocol_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1",
-    "runner_protocol_sha256": "21a6b8a2391155ad55310d80c494d5ff28c5e210dc74c3a9caf59ac667fae476",
+    "runner_protocol_sha256": "74839816bd58cb1fb7a6db6bd6c50b91ab5469c0c78b531498eba580b88b5f58",
     "raw_results_schema_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json",
-    "raw_results_schema_sha256": "a1932b290560e3060c241c944400477223df7db8670bef5ceacba6d6e3d7dfb2",
+    "raw_results_schema_sha256": "eed30d1adc9d0510b8c5d9da3de6306e36695db022e92331e7e92c2d71cf36a7",
     "assembler_protocol_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py",
-    "assembler_protocol_sha256": "68913a9e9e29274e0e6b7231e0dbd098a55313396a3f554a46f954b1a5065961",
+    "assembler_protocol_sha256": "e62a949fc922c7311902506ef50ee820e06e10658fb3c953e7937efeb36a2c23",
     "mutation_runner_protocol_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-MUTATION-RUNNER.py",
-    "mutation_runner_protocol_sha256": "670bb553e9bd2a5adfd70a23de7bf2896d9fc507a533b778f473107e7135c361",
+    "mutation_runner_protocol_sha256": "2915ba2fd907b4d51ec85362d2f481e730f520185845153d1eb9178fc6b60a22",
     "dispatch_guard_protocol_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-DISPATCH-GUARD.py",
     "dispatch_guard_protocol_sha256": "4bc8e1046d044999fc774447e1823952f9557938f19aa147923bef76809da6c1",
     "workflow_protocol_path": ".github/workflows/via000-r3-protocol.yml",
-    "workflow_protocol_sha256": "791ebd1959fa67ecba4c5b1f32bc0f652fc84fa910cfd7751c58a8e967bd2aea",
+    "workflow_protocol_sha256": "6af3ea5e5c38538c2d406422ffa0a44b778725e5ccaa87997832788a8de39aa6",
     "validator_package_init_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-VALIDATOR-PACKAGE-INIT.py",
     "validator_package_init_sha256": "9d8059d7d655894958e03be4eb8a7dd89b45caa639651545bb3950abcd65880c",
     "authorization_contract": {
@@ -51,7 +51,7 @@
         {
           "source_path": "scripts/check_viability_campaign.py",
           "bundle_path": "check_viability_campaign.py",
-          "sha256": "9520a5f467e9f6555b8a21324d1d5e064871666c1c135702ab857250f1b0f732"
+          "sha256": "7cc641b9702816d426e8d552dbf7566f5a73228d30fe3d3dea7e46c2f72dfc98"
         },
         {
           "source_path": "scripts/check_validation_artifacts.py",
@@ -87,6 +87,11 @@
       "required_platforms": [
         "ubuntu-latest-x86_64",
         "windows-x86_64"
+      ],
+      "required_stages": [
+        "candidate",
+        "pdf",
+        "mutation"
       ],
       "required_command_contracts": {
         "001-clone": "git-clone",
@@ -451,6 +456,14 @@
           {
             "test_prefix": "tests/unit/test_via000_r3_identity.py::test_r3_cross_platform_git_blob_identity_with_autocrlf",
             "expected_passed_count": 2
+          },
+          {
+            "test_prefix": "tests/unit/test_via000_r3_identity.py::test_r3_workflow_separates_candidate_pdf_and_mutation_execution_contexts",
+            "expected_passed_count": 1
+          },
+          {
+            "test_prefix": "tests/unit/test_via000_r3_identity.py::test_r3_stage_isolation_rejects_cross_stage_state_injection",
+            "expected_passed_count": 5
           }
         ],
         "family-18": [
@@ -494,7 +507,10 @@
         "pinned_texlive": "2026",
         "require_workflow_sha_match": true,
         "require_checkout_head_match": true,
-        "require_single_producer_run": true
+        "require_single_producer_run": true,
+        "require_fresh_stage_jobs": true,
+        "require_evidence_only_stage_transport": true,
+        "require_texlive_closure_manifest": true
       },
       "producer_attestation": {
         "repository": "whact2025/POPGP",
@@ -504,7 +520,7 @@
         "minimum_gh_version": "2.97.0",
         "bundle_path": "evidence/producer-attestation.sigstore.json",
         "subject_paths": [
-          "evidence/platform-summary.json",
+          "evidence/stage-summary.json",
           "evidence/evidence-manifest.json"
         ]
       },

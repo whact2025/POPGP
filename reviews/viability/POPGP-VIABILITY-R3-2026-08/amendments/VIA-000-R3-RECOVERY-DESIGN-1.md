@@ -76,6 +76,30 @@ PATH/PATHEXT and child-process injection state are scrubbed, hashes are rechecke
 across step boundaries, and a tool-identity manifest is retained in signed evidence.
 Any failure removes the complete platform workspace and prevents artifact upload.
 
+## RR5 execution-context separation amendment
+
+Candidate execution, PDF production, and frozen mutation verification are separate
+matrix entries and therefore separate fresh GitHub-hosted VMs on both Windows and
+Ubuntu. They share only immutable Git identities and signed evidence bytes; they do
+not share writable tools, caches, temporary directories, configuration, environment,
+or processes. The PDF stage runs directly from the exact candidate Git checkout before
+any candidate Python environment or package installation exists in that VM. It clears
+TeX, TEXMF, kpathsea, font, and native-loader selectors, disables shell escape, and
+hashes every regular byte under the pinned TeX Live 2026 root before and after both
+passes. The mutation stage creates its own clone and locked environment only after the
+candidate job has ended.
+
+Each of the six stage fragments signs `stage-summary.json` plus
+`evidence-manifest.json` and binds the same repository, workflow, protocol source,
+authorization, GitHub run/attempt, candidate, platform, and explicit stage ID. The
+assembler accepts no cross-stage executable/configuration state, link/reparse point,
+or undeclared file. It requires all three stage attestations per platform and derives
+the final platform record only from the candidate results, PDF proof, and mutation
+proof assigned to those stages. Failure cleans the temporary assembly and cannot emit
+an output commitment. This amendment does not claim to close RR4's distinct same-path
+replacement finding inside a single stage; that finding remains for independent
+rereview unless separately proven resolved.
+
 Thus the following identity is single-valued:
 
 ```text
