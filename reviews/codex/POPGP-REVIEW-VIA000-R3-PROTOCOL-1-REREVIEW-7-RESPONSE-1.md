@@ -36,8 +36,8 @@ summary: |-
   GitHub's Windows artifact action cannot discover the four proof files that the
   immediately preceding trusted step verifies byte-for-byte. Implementation commit
   6e1b3beccba3072a861f3452665e85d20f2f4c0f and final content commit
-  fa42dbdb66ad61f774a2d6d33b1592787752019e (tree
-  807219e8b3d507b9bd9108b74e34f1dfebc95548). A separate safe workflow now runs the
+  efda0bc996e54be2668e7b5bedd50b17dffaa972 (tree
+  93dcfdb4fe85649d4a941bf2b8eade31830ce126). A separate safe workflow now runs the
   exact production containment helper against a frozen hostile synthetic fixture in
   six fresh GitHub-hosted cells: candidate, PDF, and mutation labels on Ubuntu 24.04
   and Windows 2025. It is triggered only by pushes to the narrow R3 campaign/review
@@ -257,6 +257,7 @@ finding_responses:
       - "ced3ea24068f77592eae759f48b8e7f25074ed0f"
       - "7d5627435b328ce51d57996e7272881c499e0c76"
       - "fa42dbdb66ad61f774a2d6d33b1592787752019e"
+      - "efda0bc996e54be2668e7b5bedd50b17dffaa972"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
         result: "1 passed in 2.82 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
