@@ -33,8 +33,8 @@ access_declaration:
 summary: |-
   The RR7 proof-path finding is accepted and addressed in implementation commit
   6e1b3beccba3072a861f3452665e85d20f2f4c0f and final content commit
-  5c785e4ce5631ffb8cd0170d4f83f261cd182b47 (tree
-  3ea1b63c789716131f1d483bd6f2f7d4d250e674). A separate safe workflow now runs the
+  d872f09aa91acd35c37d5b266b35bdc0fad19a46 (tree
+  843f37901643f3c7ab109d4f15435a0579494ad8). A separate safe workflow now runs the
   exact production containment helper against a frozen hostile synthetic fixture in
   six fresh GitHub-hosted cells: candidate, PDF, and mutation labels on Ubuntu 24.04
   and Windows 2025. It is triggered only by pushes to the narrow R3 campaign/review
@@ -190,10 +190,10 @@ finding_responses:
       - "bdf3259f39421df57f0390c6d3c6deefb17b3adc"
       - "ce7ce756c6412d06d8aa3aeebb26f063c2f02046"
       - "438728a9b25de5c1c08d6d41e9d70679b063cf1e"
-      - "5c785e4ce5631ffb8cd0170d4f83f261cd182b47"
+      - "d872f09aa91acd35c37d5b266b35bdc0fad19a46"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
-        result: "1 passed in 3.86 seconds after final hash binding; complete six-cell aggregate accepted, missing cell rejected, and helper/hash substitution rejected before workspace/output."
+        result: "1 passed in 2.74 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
       - command: "full R3 identity test file"
         result: "52 passed in 535.74 seconds, preserving all prior authorization, replacement-object, command-boundary, tool-identity, assembly, stage-isolation, and containment controls."
       - command: "Ruff plus PowerShell, JSON, and YAML parsing"
