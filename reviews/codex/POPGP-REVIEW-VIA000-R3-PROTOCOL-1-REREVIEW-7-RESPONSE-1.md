@@ -33,8 +33,8 @@ access_declaration:
 summary: |-
   The RR7 proof-path finding is accepted and addressed in implementation commit
   6e1b3beccba3072a861f3452665e85d20f2f4c0f and final content commit
-  26748521df05dae3fe74cd54b6100ffb79a83d5e (tree
-  2816181c8f535e63a5518f2638ef49729f489b15). A separate safe workflow now runs the
+  ae82e7d060eea722c7cce3f7c799b59df3e37fa7 (tree
+  65f8eaf90d3e2549f2a8eca925ca756beecc1b98). A separate safe workflow now runs the
   exact production containment helper against a frozen hostile synthetic fixture in
   six fresh GitHub-hosted cells: candidate, PDF, and mutation labels on Ubuntu 24.04
   and Windows 2025. It is triggered only by pushes to the narrow R3 campaign/review
@@ -211,6 +211,7 @@ finding_responses:
       - "438728a9b25de5c1c08d6d41e9d70679b063cf1e"
       - "d872f09aa91acd35c37d5b266b35bdc0fad19a46"
       - "26748521df05dae3fe74cd54b6100ffb79a83d5e"
+      - "ae82e7d060eea722c7cce3f7c799b59df3e37fa7"
     verification:
       - command: "exact hosted-proof source/safety/aggregate negative control"
         result: "1 passed in 2.88 seconds after final hash binding; complete six-cell aggregate accepted, stale ephemeral identity rejected, missing cell rejected, and helper/hash substitution rejected before workspace/output."
