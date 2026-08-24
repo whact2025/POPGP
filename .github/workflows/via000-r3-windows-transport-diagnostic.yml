@@ -1,0 +1,235 @@
+name: VIA-000 R3 disposable Windows transport diagnostic
+
+on:
+  push:
+    branches:
+      - experiment/via000-r3-windows-transport-*
+    paths:
+      - .github/workflows/via000-r3-windows-transport-diagnostic.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: via000-r3-windows-transport-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+# Disposable and non-authoritative. This workflow does not execute scientific code,
+# alter lifecycle state, or supply campaign evidence.
+jobs:
+  windows-producer:
+    name: diagnostic / Windows native output and cache producer
+    runs-on: windows-2025
+    timeout-minutes: 10
+    outputs:
+      diagnostic_digest: ${{ steps.native-output.outputs.diagnostic_digest }}
+    steps:
+      - name: Checkout minimal safe diagnostic closure
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-windows-transport-diagnostic.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
+
+      - name: Generate fixed synthetic bytes outside final cache path
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $controlRoot = Join-Path ([string]$env:RUNNER_TEMP) 'via000-r3-windows-transport-control'
+          if (Test-Path -LiteralPath $controlRoot) { throw 'diagnostic control root is not fresh' }
+          [void](New-Item -ItemType Directory -Path $controlRoot)
+          $source = Join-Path $controlRoot 'synthetic.json'
+          $digestFile = Join-Path $controlRoot 'digest.txt'
+          $encoding = New-Object Text.UTF8Encoding($false)
+          $bytes = $encoding.GetBytes("{`"diagnostic`":`"via000-r3-windows-cache-transport-v1`"}`n")
+          if ($bytes.Length -ne 54) { throw 'fixed synthetic byte length differs' }
+          [IO.File]::WriteAllBytes($source, $bytes)
+          $digest = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($digest -cne [string]$env:VIA000_EXPECTED_DIGEST) {
+            throw 'fixed synthetic digest differs'
+          }
+          [IO.File]::WriteAllText($digestFile, "$digest`n", $encoding)
+
+      - name: Emit digest through native cmd control path
+        id: native-output
+        shell: C:\Windows\System32\cmd.exe /D /E:OFF /V:OFF /S /C "CALL "{0}""
+        run: |
+          @echo off
+          setlocal DisableDelayedExpansion
+          set "VIA000_DIGEST_FILE=%RUNNER_TEMP%\via000-r3-windows-transport-control\digest.txt"
+          if not exist "%VIA000_DIGEST_FILE%" exit /b 91
+          set /p "VIA000_DIAGNOSTIC_DIGEST="<"%VIA000_DIGEST_FILE%"
+          if not defined VIA000_DIAGNOSTIC_DIGEST exit /b 92
+          echo diagnostic_digest=%VIA000_DIAGNOSTIC_DIGEST%>>"%GITHUB_OUTPUT%"
+
+      - name: Require native output presence and shape
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_DIAGNOSTIC_DIGEST: ${{ steps.native-output.outputs.diagnostic_digest }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]$env:VIA000_DIAGNOSTIC_DIGEST -cnotmatch '^[0-9a-f]{64}$') {
+            throw 'native diagnostic digest output is missing or malformed'
+          }
+
+      - name: Lookup exact diagnostic cache key before staging
+        id: preflight
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic
+          key: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ steps.native-output.outputs.diagnostic_digest }}
+          enableCrossOsArchive: true
+          lookup-only: true
+          fail-on-cache-miss: false
+
+      - name: Require exact cache miss
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_CACHE_HIT: ${{ steps.preflight.outputs.cache-hit }}
+          VIA000_CACHE_PRIMARY: ${{ steps.preflight.outputs.cache-primary-key }}
+          VIA000_CACHE_MATCHED: ${{ steps.preflight.outputs.cache-matched-key }}
+          VIA000_CACHE_KEY: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ steps.native-output.outputs.diagnostic_digest }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]$env:VIA000_CACHE_KEY -cnotmatch '^via000-r3-win-transport-v1-[1-9][0-9]*-[0-9a-f]{40}-[0-9a-f]{40}-[1-9][0-9]*-[1-9][0-9]*-windows-x86_64-diagnostic-[0-9a-f]{64}$' -or
+              ([string]$env:VIA000_CACHE_KEY).Length -ge 512 -or
+              [string]$env:VIA000_CACHE_PRIMARY -cne [string]$env:VIA000_CACHE_KEY -or
+              [string]$env:VIA000_CACHE_HIT -ne '' -or
+              [string]$env:VIA000_CACHE_MATCHED -ne '') {
+            throw 'diagnostic cache preflight was not an exact miss'
+          }
+
+      - name: Stage one checked file only after cache miss
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workspace = [IO.Path]::GetFullPath([string]$env:GITHUB_WORKSPACE)
+          $protocolRoot = Join-Path $workspace 'protocols/POPGP-VIABILITY-R3-2026-08'
+          $protocolItem = Get-Item -LiteralPath $protocolRoot -Force -ErrorAction Stop
+          if (-not ($protocolItem -is [IO.DirectoryInfo]) -or
+              ($protocolItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'checked-out protocol directory identity differs'
+          }
+          $relative = '.via000-r3-windows-transport/windows-x86_64/diagnostic'
+          $cacheRoot = Join-Path $protocolItem.FullName $relative
+          if (Test-Path -LiteralPath $cacheRoot) { throw 'final diagnostic cache path is not fresh' }
+          [void](New-Item -ItemType Directory -Path $cacheRoot)
+          $source = Join-Path ([string]$env:RUNNER_TEMP) 'via000-r3-windows-transport-control/synthetic.json'
+          $target = Join-Path $cacheRoot 'synthetic.json'
+          [IO.File]::Copy($source, $target, $false)
+          $rootItem = Get-Item -LiteralPath $cacheRoot -Force -ErrorAction Stop
+          $members = @(Get-ChildItem -LiteralPath $cacheRoot -Force -ErrorAction Stop)
+          if (-not ($rootItem -is [IO.DirectoryInfo]) -or
+              ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $members.Count -ne 1 -or $members[0].Name -cne 'synthetic.json' -or
+              -not ($members[0] -is [IO.FileInfo]) -or
+              ($members[0].Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'staged diagnostic cache root is not one ordinary file'
+          }
+          $streams = @(Get-Item -LiteralPath $target -Stream * -ErrorAction Stop)
+          if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA') {
+            throw 'staged diagnostic file has alternate streams'
+          }
+          $links = @(& 'C:\Windows\System32\fsutil.exe' hardlink list $target)
+          if ($LASTEXITCODE -ne 0 -or $links.Count -ne 1) {
+            throw 'staged diagnostic file is not single-link'
+          }
+          if ($members[0].Length -ne 54 -or
+              (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST) {
+            throw 'staged diagnostic bytes differ'
+          }
+
+      - name: Revalidate staged file before cache save
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cacheRoot = Join-Path ([string]$env:GITHUB_WORKSPACE) 'protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic'
+          $members = @(Get-ChildItem -LiteralPath $cacheRoot -Force -ErrorAction Stop)
+          if ($members.Count -ne 1 -or $members[0].Name -cne 'synthetic.json' -or
+              -not ($members[0] -is [IO.FileInfo]) -or
+              ($members[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $members[0].Length -ne 54 -or
+              (Get-FileHash -LiteralPath $members[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST) {
+            throw 'diagnostic file changed before cache save'
+          }
+          $streams = @(Get-Item -LiteralPath $members[0].FullName -Stream * -ErrorAction Stop)
+          $links = @(& 'C:\Windows\System32\fsutil.exe' hardlink list $members[0].FullName)
+          if ($LASTEXITCODE -ne 0 -or $streams.Count -ne 1 -or
+              [string]$streams[0].Stream -cne ':$DATA' -or $links.Count -ne 1) {
+            throw 'diagnostic file metadata changed before cache save'
+          }
+
+      - name: Save exact Windows diagnostic cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic
+          key: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ steps.native-output.outputs.diagnostic_digest }}
+          enableCrossOsArchive: true
+
+  ubuntu-consumer:
+    name: diagnostic / Ubuntu exact cross-OS cache consumer
+    if: ${{ always() }}
+    needs: [windows-producer]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Require green producer and exact digest output
+        shell: /usr/bin/bash --noprofile --norc -euo pipefail {0}
+        env:
+          VIA000_PRODUCER_RESULT: ${{ needs.windows-producer.result }}
+          VIA000_DIAGNOSTIC_DIGEST: ${{ needs.windows-producer.outputs.diagnostic_digest }}
+        run: |
+          [[ "$VIA000_PRODUCER_RESULT" == success ]]
+          [[ "$VIA000_DIAGNOSTIC_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+
+      - name: Checkout minimal safe diagnostic closure
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-windows-transport-diagnostic.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
+
+      - name: Restore exact Windows diagnostic cache
+        id: restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic
+          key: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ needs.windows-producer.outputs.diagnostic_digest }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+
+      - name: Require exact hit and validate fixed bytes
+        shell: /usr/bin/bash --noprofile --norc -euo pipefail {0}
+        env:
+          VIA000_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+          VIA000_CACHE_PRIMARY: ${{ steps.restore.outputs.cache-primary-key }}
+          VIA000_CACHE_MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
+          VIA000_CACHE_KEY: via000-r3-win-transport-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-diagnostic-${{ needs.windows-producer.outputs.diagnostic_digest }}
+          VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+        run: |
+          [[ "$VIA000_CACHE_HIT" == true ]]
+          [[ "$VIA000_CACHE_PRIMARY" == "$VIA000_CACHE_KEY" ]]
+          [[ "$VIA000_CACHE_MATCHED" == "$VIA000_CACHE_KEY" ]]
+          root='protocols/POPGP-VIABILITY-R3-2026-08/.via000-r3-windows-transport/windows-x86_64/diagnostic'
+          target="$root/synthetic.json"
+          [[ -d "$root" && ! -L "$root" ]]
+          [[ "$(/usr/bin/find "$root" -mindepth 1 -maxdepth 1 -printf '%f\n')" == synthetic.json ]]
+          [[ -f "$target" && ! -L "$target" ]]
+          [[ "$(/usr/bin/stat --format='%h' -- "$target")" == 1 ]]
+          [[ "$(/usr/bin/stat --format='%s' -- "$target")" == 54 ]]
+          [[ "$(/usr/bin/sha256sum -- "$target" | /usr/bin/cut -d' ' -f1)" == "$VIA000_EXPECTED_DIGEST" ]]
+          /usr/bin/printf '%s\n' '{"diagnostic":"via000-r3-windows-cache-transport-v1"}' | /usr/bin/cmp --silent - "$target"
