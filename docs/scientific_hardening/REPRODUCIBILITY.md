@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 447 passed |
+| `pytest -q` | about 1200 s | 448 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -253,3 +253,11 @@ appends exactly one `0x0A`, uses exclusive create or explicit replacement with
 write-through flush, and verifies identical read-back bytes and SHA-256. The aggregate
 continues to reject CR/BOM and now also rejects missing, embedded, or doubled LF in
 decoded inner JSON. Run `32767703776` remains a failed, artifact-free predecessor.
+
+RR21 treats the uploader's digest output as one exact representation boundary. A
+trusted post-upload built-in-pwsh step accepts only a bare lowercase 64-hex action
+value, an exact positive decimal artifact ID, and the current repository/run/ID URL;
+it constructs `sha256:<hex>` exactly once and exports only those normalized values.
+The verifier retains its single prefixed grammar and exact URL binding. Hosted run
+`32771982270` is superseded: its six producers, caches, aggregate, upload, and retained
+bytes passed, but its final verifier rejected the unnormalized bare action digest.

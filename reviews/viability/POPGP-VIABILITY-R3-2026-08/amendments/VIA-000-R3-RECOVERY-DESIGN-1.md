@@ -408,6 +408,18 @@ requires identical read-back bytes and hash. Inner aggregation now requires prec
 that terminal-LF shape. Outer envelopes and all earlier security predicates are
 unchanged; a fresh retained 2x3 replay remains mandatory.
 
+## RR21 retained artifact digest canonicalization amendment
+
+RR20's replay produced and retained the exact seven proof-only files, but the final
+verifier rejected before byte validation because upload-artifact exported bare
+lowercase SHA-256 while the verifier deliberately requires the Actions API's
+`sha256:<hex>` representation. RR21 inserts one trusted built-in-pwsh step immediately
+after upload. It rejects noncanonical ID, digest, repository, run, or URL data, accepts
+only bare lowercase 64-hex input, prefixes it exactly once, and exports only the exact
+normalized ID/digest/URL. The verifier remains prefixed-only and independently binds
+the URL to the current repository, run, and artifact ID. All inner/outer bytes,
+containment, cache, aggregation, and pinned download checks remain unchanged.
+
 ## RR16 hosted export-boundary amendment
 
 RR15's hosted run proved that all six frozen runners parse and both containment

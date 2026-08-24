@@ -2109,7 +2109,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     ):
         assert action in workflow_text
-    assert workflow_text.count("shell: pwsh") == 15
+    assert workflow_text.count("shell: pwsh") == 16
     assert "WindowsPowerShell" not in workflow_text
     assert "-NonInteractive -Command \". '{0}'\"" not in workflow_text
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
@@ -3392,7 +3392,7 @@ if ($failed) { exit 1 }
                     step["run"], encoding="utf-8", newline="\n"
                 )
                 workflow_blocks.append(block_path)
-    assert len(workflow_blocks) == 40
+    assert len(workflow_blocks) == 41
     parsed_blocks = subprocess.run(
         [*parser_command, *(str(path) for path in workflow_blocks)],
         check=False,
@@ -4109,6 +4109,151 @@ def test_r3_rr20_canonical_inner_json_bytes(tmp_path: Path) -> None:
     )
     assert nonobject.returncode != 0
     assert not rejected_path.exists()
+
+
+@pytest.mark.negative_control
+def test_r3_rr21_artifact_digest_canonicalization() -> None:
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    receipt_path = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-workflow.yml"
+    )
+    assert workflow_text == receipt_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    aggregate = workflow["jobs"]["aggregate"]
+    assert aggregate["outputs"] == {
+        "artifact_id": "${{ steps.normalize-artifact.outputs.artifact_id }}",
+        "artifact_digest": "${{ steps.normalize-artifact.outputs.artifact_digest }}",
+        "artifact_url": "${{ steps.normalize-artifact.outputs.artifact_url }}",
+    }
+    step_names = [step["name"] for step in aggregate["steps"]]
+    upload_index = step_names.index("Upload one consolidated non-scientific proof")
+    normalize_index = step_names.index("Normalize exact retained artifact identity")
+    assert normalize_index == upload_index + 1
+    normalize = aggregate["steps"][normalize_index]
+    assert normalize["id"] == "normalize-artifact"
+    assert normalize["shell"] == "pwsh"
+    assert normalize["env"] == {
+        "VIA000_RAW_ARTIFACT_ID": "${{ steps.upload.outputs.artifact-id }}",
+        "VIA000_RAW_ARTIFACT_DIGEST": "${{ steps.upload.outputs.artifact-digest }}",
+        "VIA000_RAW_ARTIFACT_URL": "${{ steps.upload.outputs.artifact-url }}",
+        "VIA000_REPOSITORY": "${{ github.repository }}",
+        "VIA000_RUN_ID": "${{ github.run_id }}",
+    }
+    normalizer_source = normalize["run"]
+    for token in (
+        "$observedShell -cne $expectedShell",
+        "[string]$PSHOME -cne $expectedPsHome",
+        "[string]$env:PATH -cne $expectedPath",
+        "$artifactId -cnotmatch '^[1-9][0-9]*$'",
+        "$bareDigest -cnotmatch '^[0-9a-f]{64}$'",
+        "$artifactUrl -cne $expectedUrl",
+        '$canonicalDigest = "sha256:$bareDigest"',
+        "$canonicalDigest -cnotmatch '^sha256:[0-9a-f]{64}$'",
+        "[IO.File]::AppendAllText($githubOutput, $lines, [Text.UTF8Encoding]::new($false))",
+        "normalized artifact output side effect was absent or malformed",
+    ):
+        assert token in normalizer_source
+    assert "ToLower" not in normalizer_source
+    assert "Trim" not in normalizer_source
+    assert "Replace(" not in normalizer_source
+
+    verifier = workflow["jobs"]["verify-retained"]
+    verify_step = next(
+        step
+        for step in verifier["steps"]
+        if step["name"] == "Revalidate retained bytes and recorded artifact identity"
+    )
+    verify_source = verify_step["run"]
+    assert "^sha256:[0-9a-f]{64}$" in verify_source
+    assert "$expectedArtifactUrl" in verify_source
+    assert "VIA000_REPOSITORY" in verify_step["env"]
+    assert "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in workflow_text
+
+    def normalize_identity(
+        artifact_id: str,
+        bare_digest: str,
+        artifact_url: str,
+        *,
+        repository: str = "whact2025/POPGP",
+        run_id: str = "32771982270",
+    ) -> tuple[str, str, str]:
+        if repository != "whact2025/POPGP":
+            raise ValueError("repository")
+        if re.fullmatch(r"[1-9][0-9]*", run_id) is None:
+            raise ValueError("run")
+        if re.fullmatch(r"[1-9][0-9]*", artifact_id) is None:
+            raise ValueError("artifact")
+        if re.fullmatch(r"[0-9a-f]{64}", bare_digest) is None:
+            raise ValueError("digest")
+        expected_url = (
+            f"https://github.com/{repository}/actions/runs/{run_id}/artifacts/{artifact_id}"
+        )
+        if artifact_url != expected_url:
+            raise ValueError("url")
+        return artifact_id, f"sha256:{bare_digest}", artifact_url
+
+    bare = "b791cdde77e43116ff341d4f70fdb9bee74cb440f7c7ca87d26598e270b25595"
+    artifact_id = "9536553478"
+    url = (
+        "https://github.com/whact2025/POPGP/actions/runs/32771982270/artifacts/9536553478"
+    )
+    normalized = normalize_identity(artifact_id, bare, url)
+    api_digest = f"sha256:{bare}"
+    assert normalized == (artifact_id, api_digest, url)
+    assert re.fullmatch(r"sha256:[0-9a-f]{64}", normalized[1])
+    assert normalized[1] == api_digest
+
+    rejected_digests = (
+        bare.upper(),
+        f" {bare}",
+        f"{bare} ",
+        f"{bare}\n",
+        f"sha256:{bare}",
+        f"sha256:sha256:{bare}",
+        bare[:-1],
+        f"{bare}0",
+        f"{bare[:-1]}g",
+        "",
+    )
+    for bad_digest in rejected_digests:
+        with pytest.raises(ValueError):
+            normalize_identity(artifact_id, bad_digest, url)
+    for bad_id in ("", "0", "01", "+1", " 1", "1 ", "1\n"):
+        with pytest.raises(ValueError):
+            normalize_identity(bad_id, bare, url)
+    for bad_url in (
+        url + "/",
+        url.replace("32771982270", "32771982271"),
+        url.replace("9536553478", "9536553479"),
+        url.replace("whact2025/POPGP", "whact2025/other"),
+    ):
+        with pytest.raises(ValueError):
+            normalize_identity(artifact_id, bare, bad_url)
+    with pytest.raises(ValueError):
+        normalize_identity(artifact_id, bare, url, run_id="032771982270")
+    with pytest.raises(ValueError):
+        normalize_identity(artifact_id, bare, url, repository="whact2025/other")
+
+    def api_digest_equal(normalized_digest: str, actions_api_digest: str) -> bool:
+        grammar = r"sha256:[0-9a-f]{64}"
+        return (
+            re.fullmatch(grammar, normalized_digest) is not None
+            and re.fullmatch(grammar, actions_api_digest) is not None
+            and normalized_digest == actions_api_digest
+        )
+
+    assert api_digest_equal(normalized[1], api_digest)
+    for bad_api_digest in (
+        bare,
+        api_digest.upper(),
+        f" {api_digest}",
+        f"{api_digest}\n",
+        f"sha256:{api_digest}",
+        f"sha256:{bare[:-1]}0",
+    ):
+        assert not api_digest_equal(normalized[1], bad_api_digest)
 
 
 @pytest.mark.negative_control

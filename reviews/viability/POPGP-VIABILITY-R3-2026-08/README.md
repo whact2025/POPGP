@@ -194,6 +194,14 @@ proof.json and every final containment-result.json as compact strict UTF-8/no-BO
 objects with exactly one final LF and verified read-back bytes/hash. The outer envelope
 writer and every containment, descriptor, zstd, key, and cache predicate are unchanged.
 
+RR21 supersedes run `32771982270` as lifecycle evidence. That proof retained one exact
+seven-file artifact after all six cells, caches, restores, and aggregation passed, but
+the final verifier failed closed because upload-artifact emitted a bare lowercase
+digest while the verifier accepted only the Actions API's `sha256:<hex>` form. A new
+trusted post-upload step now validates the raw ID/digest/URL exactly, prefixes the
+digest once, and exposes only the canonical values. It does not broaden verifier input
+grammar or change containment, cache, envelope, aggregate, or download semantics.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

@@ -138,6 +138,11 @@ must clean the cell and leave no digest/cache/artifact.
     frozen canonical byte writer: compact strict UTF-8, no BOM/CR, exactly one final
     LF, exclusive create/replace, write-through flush, and byte/hash read-back. Do not
     accept artifact-free run `32767703776` or normalize inner bytes after hashing.
+    After the one retained proof artifact uploads, accept only the upload action's bare
+    lowercase 64-hex digest and exact positive ID/current repository-run-ID URL in a
+    trusted built-in-pwsh step, prefix the digest exactly once as `sha256:<hex>`, and
+    give only those canonical values to the prefixed-only redownload verifier. Do not
+    accept run `32771982270` as lifecycle evidence because its verifier remained red.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

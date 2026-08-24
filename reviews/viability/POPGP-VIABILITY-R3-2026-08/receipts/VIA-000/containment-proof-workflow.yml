@@ -689,9 +689,9 @@ jobs:
     timeout-minutes: 8
     env: {PATH: /usr/bin:/bin}
     outputs:
-      artifact_id: ${{ steps.upload.outputs.artifact-id }}
-      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
-      artifact_url: ${{ steps.upload.outputs.artifact-url }}
+      artifact_id: ${{ steps.normalize-artifact.outputs.artifact_id }}
+      artifact_digest: ${{ steps.normalize-artifact.outputs.artifact_digest }}
+      artifact_url: ${{ steps.normalize-artifact.outputs.artifact_url }}
     steps:
       - name: Require six green jobs and exact distinct digests
         shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
@@ -804,6 +804,60 @@ jobs:
           compression-level: 0
           include-hidden-files: false
           retention-days: 7
+      - name: Normalize exact retained artifact identity
+        id: normalize-artifact
+        shell: pwsh
+        env:
+          VIA000_RAW_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          VIA000_RAW_ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          VIA000_RAW_ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+        run: |
+          $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+          $expectedPsHome = '/opt/microsoft/powershell/7'
+          $expectedPath = '/usr/bin:/bin'
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if ($observedShell -cne $expectedShell -or [string]$PSHOME -cne $expectedPsHome -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw 'trusted Ubuntu built-in pwsh identity, profile, version, or PATH differs'
+          }
+          $artifactId = [string]$env:VIA000_RAW_ARTIFACT_ID
+          $bareDigest = [string]$env:VIA000_RAW_ARTIFACT_DIGEST
+          $artifactUrl = [string]$env:VIA000_RAW_ARTIFACT_URL
+          $repository = [string]$env:VIA000_REPOSITORY
+          $runId = [string]$env:VIA000_RUN_ID
+          if ($repository -cne 'whact2025/POPGP' -or $runId -cnotmatch '^[1-9][0-9]*$' -or
+              $artifactId -cnotmatch '^[1-9][0-9]*$' -or $bareDigest -cnotmatch '^[0-9a-f]{64}$') {
+            throw 'raw retained artifact identity or digest differs'
+          }
+          $expectedUrl = "https://github.com/$repository/actions/runs/$runId/artifacts/$artifactId"
+          if ($artifactUrl -cne $expectedUrl) { throw 'raw retained artifact URL differs' }
+          $canonicalDigest = "sha256:$bareDigest"
+          if ($canonicalDigest -cnotmatch '^sha256:[0-9a-f]{64}$') {
+            throw 'canonical retained artifact digest differs'
+          }
+          $githubOutput = [string]$env:GITHUB_OUTPUT
+          $outputItem = Get-Item -LiteralPath $githubOutput -Force -ErrorAction Stop
+          if (-not ($outputItem -is [IO.FileInfo]) -or
+              ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'GitHub artifact output control file identity differs'
+          }
+          $links = & /usr/bin/stat --format=%h -- $githubOutput
+          if ($LASTEXITCODE -ne 0 -or [string]$links -cne '1') {
+            throw 'GitHub artifact output control file is not single-link'
+          }
+          $before = $outputItem.Length
+          $lines = "artifact_id=$artifactId`nartifact_digest=$canonicalDigest`nartifact_url=$artifactUrl`n"
+          [IO.File]::AppendAllText($githubOutput, $lines, [Text.UTF8Encoding]::new($false))
+          $after = (Get-Item -LiteralPath $githubOutput -Force -ErrorAction Stop).Length
+          if (($after - $before) -ne [Text.Encoding]::UTF8.GetByteCount($lines)) {
+            throw 'normalized artifact output side effect was absent or malformed'
+          }
 
   verify-retained:
     name: redownload and verify retained seven-file proof
@@ -835,6 +889,7 @@ jobs:
           VIA000_ARTIFACT_ID: ${{ needs.aggregate.outputs.artifact_id }}
           VIA000_ARTIFACT_DIGEST: ${{ needs.aggregate.outputs.artifact_digest }}
           VIA000_ARTIFACT_URL: ${{ needs.aggregate.outputs.artifact_url }}
+          VIA000_REPOSITORY: ${{ github.repository }}
           VIA000_SOURCE_REF: ${{ github.ref }}
           VIA000_SOURCE_SHA: ${{ github.sha }}
           VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
@@ -843,8 +898,13 @@ jobs:
         run: |
           if ([string]$env:VIA000_ARTIFACT_ID -cnotmatch '^[1-9][0-9]*$' -or
               [string]$env:VIA000_ARTIFACT_DIGEST -cnotmatch '^sha256:[0-9a-f]{64}$' -or
-              [string]$env:VIA000_ARTIFACT_URL -cnotmatch '^https://github.com/whact2025/POPGP/actions/runs/[1-9][0-9]*/artifacts/[1-9][0-9]*$') {
+              [string]$env:VIA000_REPOSITORY -cne 'whact2025/POPGP' -or
+              [string]$env:VIA000_RUN_ID -cnotmatch '^[1-9][0-9]*$') {
             throw "retained artifact identity or digest is malformed"
+          }
+          $expectedArtifactUrl = "https://github.com/$($env:VIA000_REPOSITORY)/actions/runs/$($env:VIA000_RUN_ID)/artifacts/$($env:VIA000_ARTIFACT_ID)"
+          if ([string]$env:VIA000_ARTIFACT_URL -cne $expectedArtifactUrl) {
+            throw "retained artifact URL is not bound to the current repository, run, and artifact ID"
           }
           $python = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
           if ([string]$env:VIA000_BASE_PYTHON_OUTPUT -cne "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python") {
