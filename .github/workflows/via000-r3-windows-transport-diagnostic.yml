@@ -36,12 +36,27 @@ jobs:
             protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
 
       - name: Generate fixed synthetic bytes outside final cache path
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
+        shell: pwsh
         env:
+          PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
+          VIA000_EXPECTED_PATH: 'C:\Program Files\PowerShell\7;C:\Windows\System32;C:\Windows'
           VIA000_EXPECTED_DIGEST: 02332abe36219e1d511d97cbcaf93df11d7104732f0fc8a9eb7b4267b1dc545a
+          VIA000_EXPECTED_DIGEST_FILE_HASH: b6f794acedcbde6d5bfeedf12d2b242381b1e5105b173230a46e9018ba74504b
           VIA000_CONTROL_ROOT: ${{ runner.temp }}\via000-r3-windows-transport-control
         run: |
           $ErrorActionPreference = 'Stop'
+          $expectedPowerShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+          $processPowerShell = [IO.Path]::GetFullPath(
+            [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+          )
+          if (-not $processPowerShell.Equals($expectedPowerShell, [StringComparison]::OrdinalIgnoreCase) -or
+              -not ([IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))).Equals(
+                $expectedPowerShell, [StringComparison]::OrdinalIgnoreCase
+              ) -or
+              $PSVersionTable.PSVersion.Major -ne 7 -or
+              [string]$env:PATH -cne [string]$env:VIA000_EXPECTED_PATH) {
+            throw 'built-in PowerShell identity, version, or sanitized PATH differs'
+          }
           $controlRoot = [string]$env:VIA000_CONTROL_ROOT
           if ($controlRoot -cnotmatch '^[A-Za-z]:\\' -or
               [IO.Path]::GetFullPath($controlRoot) -cne $controlRoot) {
@@ -60,6 +75,33 @@ jobs:
             throw 'fixed synthetic digest differs'
           }
           [IO.File]::WriteAllText($digestFile, "$digest`n", $encoding)
+          $rootItem = Get-Item -LiteralPath $controlRoot -Force -ErrorAction Stop
+          $members = @(Get-ChildItem -LiteralPath $controlRoot -Force -ErrorAction Stop)
+          $memberNames = @($members.Name | Sort-Object -CaseSensitive)
+          if (-not ($rootItem -is [IO.DirectoryInfo]) -or
+              ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $members.Count -ne 2 -or
+              $memberNames[0] -cne 'digest.txt' -or $memberNames[1] -cne 'synthetic.json') {
+            throw 'same-step diagnostic root identity differs'
+          }
+          foreach ($subject in @($source, $digestFile)) {
+            $item = Get-Item -LiteralPath $subject -Force -ErrorAction Stop
+            $streams = @(Get-Item -LiteralPath $subject -Stream * -ErrorAction Stop)
+            $links = @(& 'C:\Windows\System32\fsutil.exe' hardlink list $subject)
+            $linkExit = $LASTEXITCODE
+            if (-not ($item -is [IO.FileInfo]) -or
+                ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                $streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA' -or
+                $linkExit -ne 0 -or $links.Count -ne 1) {
+              throw 'same-step diagnostic subject metadata differs'
+            }
+          }
+          if ((Get-Item -LiteralPath $source).Length -ne 54 -or
+              (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST -or
+              (Get-Item -LiteralPath $digestFile).Length -ne 65 -or
+              (Get-FileHash -LiteralPath $digestFile -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$env:VIA000_EXPECTED_DIGEST_FILE_HASH) {
+            throw 'same-step diagnostic subject bytes differ'
+          }
 
       - name: Emit digest through native cmd control path
         id: native-output
