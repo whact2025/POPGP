@@ -1,6 +1,7 @@
 reviews/viability/** text eol=lf
 protocols/** text eol=lf
 .github/workflows/via000-r3-protocol.yml text eol=lf
+.github/workflows/via000-r3-containment-proof.yml text eol=lf
 scripts/check_viability_campaign.py text eol=lf
 scripts/check_validation_artifacts.py text eol=lf
 scripts/check_reproduction_boundary.py text eol=lf

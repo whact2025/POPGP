@@ -128,6 +128,27 @@ local regression. Ubuntu enforcement remains a hosted-runner gate and requires f
 independent rereview before activation. These changes are a drafted remediation, not
 an approval, refreeze, or campaign run.
 
+## RR7 hosted containment proof-path amendment
+
+RR7 identified that the production self-test could not be exercised safely before
+campaign authorization because it lived only behind the scientific workflow's manual
+lifecycle and signer guards. This draft adds a separate, non-scientific branch-push
+workflow for the narrow feature/review prefixes. It checks out only the frozen proof
+closure, uses the exact production containment helper with a synthetic hostile
+fixture, and runs all candidate/PDF/mutation labels on both supported hosted OSes.
+It cannot access the scientific candidate or baseline, custody, signer/lifecycle
+state, assemble output, create a commitment, or reveal anything.
+
+Every cell binds the repository, workflow ref, branch ref, source SHA, run/attempt,
+platform, and stage; verifies helper/runner/fixture/schema/aggregator/workflow source
+and receipt hashes before creating its synthetic workspace; establishes a live
+detached child-of-child; and requires protected evidence/tool denial, unchanged
+closure bytes, total teardown, and zero active descendants. The aggregate accepts
+exactly six complete cell artifacts, recomputes containment/transcript hashes, and
+rejects identity mixing or any false predicate. The workflow and all verifier bytes
+are protocol artifacts and receipts. A successful hosted run is evidence for the
+next independent rereview only, never approval or activation.
+
 Thus the following identity is single-valued:
 
 ```text

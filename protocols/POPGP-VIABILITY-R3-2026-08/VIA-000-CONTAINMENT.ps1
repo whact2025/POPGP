@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 
 $script:Via000BlockedEnvironmentPatterns = @(
     "GIT_*", "PIP_*", "UV_*", "TEX*", "TEXMF*", "KPATHSEA*",
-    "FONTCONFIG*", "LD_*", "DYLD_*"
+    "FONTCONFIG*", "LD_*", "DYLD_*", "GITHUB_*", "ACTIONS_*", "RUNNER_*"
 )
 $script:Via000BlockedEnvironmentNames = @(
     "PATH", "PATHEXT", "PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV",

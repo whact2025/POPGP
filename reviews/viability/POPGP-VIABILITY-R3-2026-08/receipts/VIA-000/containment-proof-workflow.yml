@@ -1,0 +1,208 @@
+name: VIA-000 R3 containment proof only
+
+on:
+  push:
+    branches:
+      - campaign/via000-r3-protocol-*
+      - review/via000-r3-protocol-*
+    paths:
+      - .github/workflows/via000-r3-containment-proof.yml
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
+      - protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
+      - reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: via000-r3-containment-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  containment:
+    name: proof / ${{ matrix.platform_family }} / ${{ matrix.stage_id }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform_family: ubuntu-latest-x86_64
+            stage_id: candidate
+            trusted_powershell: /opt/microsoft/powershell/7/pwsh
+          - runner: ubuntu-24.04
+            platform_family: ubuntu-latest-x86_64
+            stage_id: pdf
+            trusted_powershell: /opt/microsoft/powershell/7/pwsh
+          - runner: ubuntu-24.04
+            platform_family: ubuntu-latest-x86_64
+            stage_id: mutation
+            trusted_powershell: /opt/microsoft/powershell/7/pwsh
+          - runner: windows-2025
+            platform_family: windows-x86_64
+            stage_id: candidate
+            trusted_powershell: C:\Program Files\PowerShell\7\pwsh.exe
+          - runner: windows-2025
+            platform_family: windows-x86_64
+            stage_id: pdf
+            trusted_powershell: C:\Program Files\PowerShell\7\pwsh.exe
+          - runner: windows-2025
+            platform_family: windows-x86_64
+            stage_id: mutation
+            trusted_powershell: C:\Program Files\PowerShell\7\pwsh.exe
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 12
+    steps:
+      - name: Checkout frozen proof-only closure
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-containment-proof.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-protocol.ps1
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-runner.ps1
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-hostile.ps1
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof.schema.json
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-aggregator.py
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-workflow.yml
+
+      - name: Exercise production containment boundary
+        shell: ${{ matrix.platform_family == 'windows-x86_64' && '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -File {0}' || '/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}' }}
+        env:
+          VIA000_PLATFORM_FAMILY: ${{ matrix.platform_family }}
+          VIA000_STAGE_ID: ${{ matrix.stage_id }}
+          VIA000_TRUSTED_POWERSHELL: ${{ matrix.trusted_powershell }}
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $root = [string]$env:GITHUB_WORKSPACE
+          $protocol = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
+          $runner = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
+          $cell = "via000-r3-containment-proof-$($env:VIA000_PLATFORM_FAMILY)-$($env:VIA000_STAGE_ID)"
+          $workspace = Join-Path ([string]$env:RUNNER_TEMP) "$cell-workspace"
+          $output = Join-Path ([string]$env:RUNNER_TEMP) $cell
+          & ([string]$env:VIA000_TRUSTED_POWERSHELL) -NoLogo -NoProfile -NonInteractive -File $runner `
+            -PlatformFamily ([string]$env:VIA000_PLATFORM_FAMILY) `
+            -StageId ([string]$env:VIA000_STAGE_ID) -RepoRoot $root `
+            -ProtocolPath $protocol -WorkspaceRoot $workspace -OutputRoot $output `
+            -PowerShellPath ([string]$env:VIA000_TRUSTED_POWERSHELL) `
+            -Repository ([string]$env:VIA000_REPOSITORY) `
+            -EventName ([string]$env:VIA000_EVENT_NAME) -SourceRef ([string]$env:VIA000_SOURCE_REF) `
+            -SourceSha ([string]$env:VIA000_SOURCE_SHA) -WorkflowRef ([string]$env:VIA000_WORKFLOW_REF) `
+            -RunId ([string]$env:VIA000_RUN_ID) -RunAttempt ([string]$env:VIA000_RUN_ATTEMPT)
+          if ($LASTEXITCODE -ne 0) { throw "containment proof cell failed" }
+
+      - name: Upload non-scientific cell proof
+        uses: actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f
+        with:
+          name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
+          path: ${{ runner.temp }}/via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
+          if-no-files-found: error
+          retention-days: 7
+
+  aggregate:
+    name: prove exact 2x3 matrix
+    if: always()
+    needs: containment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every containment cell
+        env:
+          VIA000_MATRIX_RESULT: ${{ needs.containment.result }}
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        run: |
+          if ([string]$env:VIA000_MATRIX_RESULT -cne "success") {
+            throw "one or more containment proof cells failed"
+          }
+
+      - name: Checkout frozen aggregate verifier only
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/via000-r3-containment-proof.yml
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof.schema.json
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-aggregator.py
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-workflow.yml
+
+      - name: Install exact aggregate Python
+        id: aggregate-python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11.15"
+          cache: ""
+
+      - name: Download six non-scientific proof fragments
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: via000-r3-containment-proof-*
+          path: ${{ runner.temp }}/via000-r3-containment-fragments
+
+      - name: Validate and aggregate the exact 2x3 proof
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_BASE_PYTHON_OUTPUT: ${{ steps.aggregate-python.outputs.python-path }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          $expectedOutput = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
+          $python = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
+          if ([string]$env:VIA000_BASE_PYTHON_OUTPUT -cne $expectedOutput) {
+            throw "setup-python output differs from the frozen hosted tool-cache path"
+          }
+          $item = Get-Item -LiteralPath $python -Force -ErrorAction Stop
+          if (-not ($item -is [IO.FileInfo]) -or
+              ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "aggregate Python is not one regular non-reparse executable"
+          }
+          $version = & $python -I -S -c "import platform; print(platform.python_version())"
+          if ($LASTEXITCODE -ne 0 -or $version -cne "3.11.15") {
+            throw "aggregate Python is not exact CPython 3.11.15"
+          }
+          $root = [string]$env:GITHUB_WORKSPACE
+          $aggregator = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
+          $fragments = Join-Path ([string]$env:RUNNER_TEMP) "via000-r3-containment-fragments"
+          $outputRoot = Join-Path ([string]$env:RUNNER_TEMP) "via000-r3-containment-proof-aggregate"
+          $output = Join-Path $outputRoot "aggregate.json"
+          & $python -I -S $aggregator --input-root $fragments --output $output `
+            --source-sha ([string]$env:VIA000_SOURCE_SHA) `
+            --source-ref ([string]$env:VIA000_SOURCE_REF) `
+            --workflow-ref ([string]$env:VIA000_WORKFLOW_REF) `
+            --run-id ([string]$env:VIA000_RUN_ID) `
+            --run-attempt ([string]$env:VIA000_RUN_ATTEMPT)
+          if ($LASTEXITCODE -ne 0) { throw "hosted containment proof aggregate failed" }
+
+      - name: Upload non-scientific exact-matrix proof
+        uses: actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f
+        with:
+          name: via000-r3-containment-proof-aggregate
+          path: ${{ runner.temp }}/via000-r3-containment-proof-aggregate
+          if-no-files-found: error
+          retention-days: 7

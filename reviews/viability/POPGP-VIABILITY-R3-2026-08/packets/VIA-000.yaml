@@ -26,6 +26,7 @@ existing_gates:
 - GATE-NONGEOMETRIC-CONTROLS
 - GATE-PARAMETER-ROBUSTNESS
 - GATE-RTHREE-SNAPSHOT-IDENTITY
+- GATE-RTHREE-HOSTED-CONTAINMENT-PROOF
 declared_evidence_requirement: E3-adversarial-suite
 capabilities:
 - evidence-contract
@@ -98,7 +99,17 @@ preregistration:
     runner_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RUNNER.ps1
     runner_protocol_sha256: 58be203d91fb140f81ce8c24394d617c05a5e029a73e50b3c04e304d4fd9db72
     containment_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
-    containment_protocol_sha256: 0c399a13f841e92f2853b010518ae8aed99b19babec10b68920652acd940e3e3
+    containment_protocol_sha256: 6a2f1a0a07fefc041fa602e53c3950104b87d5ba5e0daa26db25d6e98ae871d0
+    containment_proof_runner_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+    containment_proof_runner_sha256: 0690e57ee4d351252201becb704a0c0013fed22fbb0dc9007793883a7fdc18e6
+    containment_proof_fixture_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+    containment_proof_fixture_sha256: bf3bc6470171d8d93b073de4fd85a87d45694e349de8d56dd8b3a4a4af038ebf
+    containment_proof_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
+    containment_proof_schema_sha256: b0e894fbd0f32e405f9e284a9daaa7b25bcfb7bd36c28999f9e9507c923a318b
+    containment_proof_aggregator_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
+    containment_proof_aggregator_sha256: 470dc11e5f2ff29d104931e4fdf1eeb6e62fb099e0a1e37daae6c32f4c48a18e
+    containment_proof_workflow_path: .github/workflows/via000-r3-containment-proof.yml
+    containment_proof_workflow_sha256: 0bec8bf74517f97d793fc09f36df98847689c834abcae15c6209e540bd549762
     raw_results_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json
     raw_results_schema_sha256: c87331225df75076fc34efb09b595ff71316015ccd6b95002ea5ef9758a36122
     assembler_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py
@@ -126,7 +137,7 @@ preregistration:
       validator_bundle:
       - source_path: scripts/check_viability_campaign.py
         bundle_path: check_viability_campaign.py
-        sha256: fd8c04fe590a21076621941f2972bbe774ec9cc3fb8f7a6b90d734b4e2fc9487
+        sha256: a907c78207f2583d76446dfc69a8e803211e7e3e0b6d61c5752d0fc5421ed731
       - source_path: scripts/check_validation_artifacts.py
         bundle_path: scripts/check_validation_artifacts.py
         sha256: 109c3505480ea3baaecdc1901e0bd78ada3207450141883ed92eeafa263096f7
@@ -379,6 +390,8 @@ preregistration:
           expected_passed_count: 1
         - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_assembler_rejects_forged_execution_boundary
           expected_passed_count: 3
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3
+          expected_passed_count: 1
         family-18:
         - test_prefix: tests/unit/test_via000_r2_assembler.py::test_assembler_commitment_roundtrips_through_custody_reveal
           expected_passed_count: 1
@@ -420,6 +433,9 @@ preregistration:
         require_post_teardown_subject_capture: true
         require_zero_active_descendants: true
         require_production_hostile_containment_gate: true
+        require_safe_hosted_containment_proof_workflow: true
+        required_hosted_containment_proof_cells: 6
+        hosted_containment_proof_trigger: feature-review-branch-push
       producer_attestation:
         repository: whact2025/POPGP
         signer_workflow: whact2025/POPGP/.github/workflows/via000-r3-protocol.yml
@@ -621,7 +637,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-    sha256: 56b80b4ba009d6e648cc5f2881b52e410c22567c357a460aef5d6365c2e9c1d8
+    sha256: dfa59e2085305f427013578ee4eff14fa52b57cbea1cc6767ee4a29d6d31d7ab
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
@@ -633,7 +649,37 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-protocol.ps1
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
-    sha256: 0c399a13f841e92f2853b010518ae8aed99b19babec10b68920652acd940e3e3
+    sha256: 6a2f1a0a07fefc041fa602e53c3950104b87d5ba5e0daa26db25d6e98ae871d0
+    media_type: text/plain
+  - receipt_id: containment-proof-runner
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/containment-proof-runner.ps1
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
+    sha256: 0690e57ee4d351252201becb704a0c0013fed22fbb0dc9007793883a7fdc18e6
+    media_type: text/plain
+  - receipt_id: containment-proof-hostile
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/containment-proof-hostile.ps1
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
+    sha256: bf3bc6470171d8d93b073de4fd85a87d45694e349de8d56dd8b3a4a4af038ebf
+    media_type: text/plain
+  - receipt_id: containment-proof-schema
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/containment-proof.schema.json
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
+    sha256: b0e894fbd0f32e405f9e284a9daaa7b25bcfb7bd36c28999f9e9507c923a318b
+    media_type: application/schema+json
+  - receipt_id: containment-proof-aggregator
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/containment-proof-aggregator.py
+    protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
+    sha256: 470dc11e5f2ff29d104931e4fdf1eeb6e62fb099e0a1e37daae6c32f4c48a18e
+    media_type: text/plain
+  - receipt_id: containment-proof-workflow
+    content_role: supporting
+    campaign_path: ../receipts/VIA-000/containment-proof-workflow.yml
+    protocol_path: .github/workflows/via000-r3-containment-proof.yml
+    sha256: 0bec8bf74517f97d793fc09f36df98847689c834abcae15c6209e540bd549762
     media_type: text/plain
   - receipt_id: raw-results-schema
     content_role: supporting
@@ -881,7 +927,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 56b80b4ba009d6e648cc5f2881b52e410c22567c357a460aef5d6365c2e9c1d8
+  sha256: dfa59e2085305f427013578ee4eff14fa52b57cbea1cc6767ee4a29d6d31d7ab
   media_type: application/json
 - id: runner-protocol
   kind: protocol
@@ -891,7 +937,32 @@ receipts:
 - id: containment-protocol
   kind: protocol
   path: ../receipts/VIA-000/containment-protocol.ps1
-  sha256: 0c399a13f841e92f2853b010518ae8aed99b19babec10b68920652acd940e3e3
+  sha256: 6a2f1a0a07fefc041fa602e53c3950104b87d5ba5e0daa26db25d6e98ae871d0
+  media_type: text/plain
+- id: containment-proof-runner
+  kind: protocol
+  path: ../receipts/VIA-000/containment-proof-runner.ps1
+  sha256: 0690e57ee4d351252201becb704a0c0013fed22fbb0dc9007793883a7fdc18e6
+  media_type: text/plain
+- id: containment-proof-hostile
+  kind: protocol
+  path: ../receipts/VIA-000/containment-proof-hostile.ps1
+  sha256: bf3bc6470171d8d93b073de4fd85a87d45694e349de8d56dd8b3a4a4af038ebf
+  media_type: text/plain
+- id: containment-proof-schema
+  kind: protocol
+  path: ../receipts/VIA-000/containment-proof.schema.json
+  sha256: b0e894fbd0f32e405f9e284a9daaa7b25bcfb7bd36c28999f9e9507c923a318b
+  media_type: application/schema+json
+- id: containment-proof-aggregator
+  kind: protocol
+  path: ../receipts/VIA-000/containment-proof-aggregator.py
+  sha256: 470dc11e5f2ff29d104931e4fdf1eeb6e62fb099e0a1e37daae6c32f4c48a18e
+  media_type: text/plain
+- id: containment-proof-workflow
+  kind: protocol
+  path: ../receipts/VIA-000/containment-proof-workflow.yml
+  sha256: 0bec8bf74517f97d793fc09f36df98847689c834abcae15c6209e540bd549762
   media_type: text/plain
 - id: raw-results-schema
   kind: protocol

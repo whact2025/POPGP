@@ -23,8 +23,8 @@ R3 does not repair, rerun, reveal, or reinterpret either predecessor.
 
 ## Identity-safe hosted execution
 
-R3 removes automatic push execution. The sole hosted workflow is
-`.github/workflows/via000-r3-protocol.yml`, and it accepts only a manual dispatch from
+R3 removes automatic push execution from the scientific campaign workflow.
+`.github/workflows/via000-r3-protocol.yml` accepts only a manual dispatch from
 the lightweight content-addressed tag
 `refs/tags/popgp-via000-r3-protocol-<protocol-snapshot-commit>`. The caller supplies a
 separate SSH-signed annotated authorization tag whose name embeds the SHA-256 of its
@@ -86,6 +86,18 @@ any surviving write, unavailable containment primitive, or incomplete quiescence
 aborts without upload or commitment. The Windows primitive is exercised locally; the
 Ubuntu primitive is enforced by the hosted workflow and remains pending independent
 rereview. This is still a draft, not an activated or frozen protocol.
+
+A separate `.github/workflows/via000-r3-containment-proof.yml` is a non-scientific
+review gate. A tightly scoped push to `campaign/via000-r3-protocol-*` or
+`review/via000-r3-protocol-*` runs the exact frozen production containment helper on
+the synthetic hostile fixture in the full 2-platform × 3-stage matrix. It has only
+read-only repository permission, no secrets or environments, no authorization,
+lifecycle, signer, custody, candidate/baseline execution, assembly, commitment, or
+reveal path. Each cell proves child-of-child teardown, protected evidence/tool
+denial, unchanged closure hashes, a scrubbed control-plane environment, and zero
+descendants. A frozen aggregator rejects a missing, substituted, cross-source, or
+cross-run cell and emits only a small non-scientific aggregate. Hosted output is
+review evidence only; it cannot activate R3 or establish scientific viability.
 
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,

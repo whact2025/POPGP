@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/whact2025/POPGP/protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json",
+  "title": "VIA-000 R3 non-scientific hosted containment proof",
+  "oneOf": [
+    {"$ref": "#/$defs/cell"},
+    {"$ref": "#/$defs/aggregate"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "cellName": {
+      "type": "string",
+      "pattern": "^(ubuntu-latest-x86_64|windows-x86_64)/(candidate|pdf|mutation)$"
+    },
+    "common": {
+      "type": "object",
+      "required": [
+        "schema_version", "non_scientific", "repository", "workflow",
+        "workflow_ref", "event_name", "source_ref", "source_sha", "run_id",
+        "run_attempt", "no_campaign_execution", "no_candidate_checkout",
+        "no_lifecycle_mutation", "no_custody_access", "no_commitment_or_reveal"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "non_scientific": {"const": true},
+        "repository": {"const": "whact2025/POPGP"},
+        "workflow": {"const": ".github/workflows/via000-r3-containment-proof.yml"},
+        "workflow_ref": {"type": "string", "minLength": 1},
+        "event_name": {"const": "push"},
+        "source_ref": {
+          "type": "string",
+          "pattern": "^refs/heads/(campaign|review)/via000-r3-protocol-[A-Za-z0-9._/-]+$"
+        },
+        "source_sha": {"$ref": "#/$defs/commit"},
+        "run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "run_attempt": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "no_campaign_execution": {"const": true},
+        "no_candidate_checkout": {"const": true},
+        "no_lifecycle_mutation": {"const": true},
+        "no_custody_access": {"const": true},
+        "no_commitment_or_reveal": {"const": true}
+      }
+    },
+    "cell": {
+      "allOf": [
+        {"$ref": "#/$defs/common"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version", "proof_kind", "non_scientific", "repository",
+            "workflow", "workflow_ref", "event_name", "source_ref", "source_sha",
+            "run_id", "run_attempt", "platform_family", "stage_id", "cell",
+            "artifact_name", "production_helper_sha256", "proof_runner_sha256",
+            "hostile_fixture_sha256", "proof_schema_sha256",
+            "proof_aggregator_sha256", "proof_workflow_sha256",
+            "receipt_bindings_verified", "primitive", "privilege_separation",
+            "descendants_quiescent", "active_processes_after_teardown",
+            "os_process_tree_empty", "child_of_child_observed_before_direct_exit",
+            "protected_evidence_read_denied", "protected_evidence_write_denied",
+            "protected_tool_write_denied", "replace_restore_denied",
+            "hardlink_substitution_denied", "control_plane_environment_scrubbed",
+            "delayed_descendant_write_absent", "closure_unchanged",
+            "protected_evidence_sha256", "protected_tool_sha256",
+            "containment_result_sha256", "no_campaign_execution",
+            "no_candidate_checkout", "no_lifecycle_mutation", "no_custody_access",
+            "no_commitment_or_reveal"
+          ],
+          "properties": {
+            "schema_version": {"const": 1},
+            "proof_kind": {"const": "via000-r3-hosted-containment-cell"},
+            "non_scientific": {"const": true},
+            "repository": {"const": "whact2025/POPGP"},
+            "workflow": {"const": ".github/workflows/via000-r3-containment-proof.yml"},
+            "workflow_ref": {"type": "string", "minLength": 1},
+            "event_name": {"const": "push"},
+            "source_ref": {"$ref": "#/$defs/common/properties/source_ref"},
+            "source_sha": {"$ref": "#/$defs/commit"},
+            "run_id": {"$ref": "#/$defs/common/properties/run_id"},
+            "run_attempt": {"$ref": "#/$defs/common/properties/run_attempt"},
+            "platform_family": {
+              "enum": ["ubuntu-latest-x86_64", "windows-x86_64"]
+            },
+            "stage_id": {"enum": ["candidate", "pdf", "mutation"]},
+            "cell": {"$ref": "#/$defs/cellName"},
+            "artifact_name": {
+              "type": "string",
+              "pattern": "^via000-r3-containment-proof-(ubuntu-latest-x86_64|windows-x86_64)-(candidate|pdf|mutation)$"
+            },
+            "production_helper_sha256": {"$ref": "#/$defs/sha256"},
+            "proof_runner_sha256": {"$ref": "#/$defs/sha256"},
+            "hostile_fixture_sha256": {"$ref": "#/$defs/sha256"},
+            "proof_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "proof_aggregator_sha256": {"$ref": "#/$defs/sha256"},
+            "proof_workflow_sha256": {"$ref": "#/$defs/sha256"},
+            "receipt_bindings_verified": {"const": true},
+            "primitive": {
+              "enum": [
+                "windows-low-integrity-restricted-token-job-object",
+                "ubuntu-systemd-dynamic-user-control-group"
+              ]
+            },
+            "privilege_separation": {
+              "enum": ["low-integrity-restricted-token", "systemd-dynamic-user"]
+            },
+            "descendants_quiescent": {"const": true},
+            "active_processes_after_teardown": {"const": 0},
+            "os_process_tree_empty": {"const": true},
+            "child_of_child_observed_before_direct_exit": {"const": true},
+            "protected_evidence_read_denied": {"const": true},
+            "protected_evidence_write_denied": {"const": true},
+            "protected_tool_write_denied": {"const": true},
+            "replace_restore_denied": {"const": true},
+            "hardlink_substitution_denied": {"const": true},
+            "control_plane_environment_scrubbed": {"const": true},
+            "delayed_descendant_write_absent": {"const": true},
+            "closure_unchanged": {"const": true},
+            "protected_evidence_sha256": {"$ref": "#/$defs/sha256"},
+            "protected_tool_sha256": {"$ref": "#/$defs/sha256"},
+            "containment_result_sha256": {"$ref": "#/$defs/sha256"},
+            "no_campaign_execution": {"const": true},
+            "no_candidate_checkout": {"const": true},
+            "no_lifecycle_mutation": {"const": true},
+            "no_custody_access": {"const": true},
+            "no_commitment_or_reveal": {"const": true}
+          }
+        }
+      ]
+    },
+    "aggregate": {
+      "allOf": [
+        {"$ref": "#/$defs/common"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version", "proof_kind", "non_scientific", "repository",
+            "workflow", "workflow_ref", "event_name", "source_ref", "source_sha",
+            "run_id", "run_attempt", "cell_count", "cells", "fragment_sha256",
+            "bundle_sha256",
+            "all_cells_passed", "no_campaign_execution", "no_candidate_checkout",
+            "no_lifecycle_mutation", "no_custody_access", "no_commitment_or_reveal"
+          ],
+          "properties": {
+            "schema_version": {"const": 1},
+            "proof_kind": {"const": "via000-r3-hosted-containment-aggregate"},
+            "non_scientific": {"const": true},
+            "repository": {"const": "whact2025/POPGP"},
+            "workflow": {"const": ".github/workflows/via000-r3-containment-proof.yml"},
+            "workflow_ref": {"type": "string", "minLength": 1},
+            "event_name": {"const": "push"},
+            "source_ref": {"$ref": "#/$defs/common/properties/source_ref"},
+            "source_sha": {"$ref": "#/$defs/commit"},
+            "run_id": {"$ref": "#/$defs/common/properties/run_id"},
+            "run_attempt": {"$ref": "#/$defs/common/properties/run_attempt"},
+            "cell_count": {"const": 6},
+            "cells": {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/cellName"}
+            },
+            "fragment_sha256": {
+              "type": "object",
+              "minProperties": 6,
+              "maxProperties": 6,
+              "additionalProperties": {"$ref": "#/$defs/sha256"}
+            },
+            "bundle_sha256": {
+              "type": "object",
+              "required": [
+                "production_helper_sha256", "proof_runner_sha256",
+                "hostile_fixture_sha256", "proof_schema_sha256",
+                "proof_aggregator_sha256", "proof_workflow_sha256"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "production_helper_sha256": {"$ref": "#/$defs/sha256"},
+                "proof_runner_sha256": {"$ref": "#/$defs/sha256"},
+                "hostile_fixture_sha256": {"$ref": "#/$defs/sha256"},
+                "proof_schema_sha256": {"$ref": "#/$defs/sha256"},
+                "proof_aggregator_sha256": {"$ref": "#/$defs/sha256"},
+                "proof_workflow_sha256": {"$ref": "#/$defs/sha256"}
+              }
+            },
+            "all_cells_passed": {"const": true},
+            "no_campaign_execution": {"const": true},
+            "no_candidate_checkout": {"const": true},
+            "no_lifecycle_mutation": {"const": true},
+            "no_custody_access": {"const": true},
+            "no_commitment_or_reveal": {"const": true}
+          }
+        }
+      ]
+    }
+  }
+}

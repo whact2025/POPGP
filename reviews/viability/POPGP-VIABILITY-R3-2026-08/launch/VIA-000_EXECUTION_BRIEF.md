@@ -86,6 +86,11 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    trusted-evidence roots remain protected, and trusted evidence/attestation subjects
    are created only after whole-tree teardown and zero-descendant verification. The
    production hostile self-test must pass before candidate execution.
+   Before activation, independently inspect or replay the separate non-scientific
+   `.github/workflows/via000-r3-containment-proof.yml` branch-push gate. It must show
+   one source/run/attempt and all six platform/stage cells using the exact frozen
+   production helper. This proof workflow has read-only permissions and cannot run or
+   alter the campaign; its result is review evidence, not authorization.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and
@@ -100,6 +105,7 @@ Status: design handoff for independent review only. Do not dispatch or start hol
 12. Fresh statistical, claim, independent-review, and adjudication seats complete the
     frozen governance sequence.
 
-Never dispatch from a campaign branch, activation/handoff commit, or mutable lifecycle
-HEAD. Never substitute calibration output for a campaign result. Never reuse the R2
-invalid output package.
+Never dispatch the scientific workflow from a campaign branch, activation/handoff
+commit, or mutable lifecycle HEAD. The only branch-push exception is the separate
+synthetic containment proof workflow above; never substitute its non-scientific proof
+for a campaign result. Never reuse the R2 invalid output package.

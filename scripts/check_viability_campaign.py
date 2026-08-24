@@ -1822,6 +1822,9 @@ def _validate_raw_evidence_contract(
         "require_post_teardown_subject_capture": True,
         "require_zero_active_descendants": True,
         "require_production_hostile_containment_gate": True,
+        "require_safe_hosted_containment_proof_workflow": True,
+        "required_hosted_containment_proof_cells": 6,
+        "hosted_containment_proof_trigger": "feature-review-branch-push",
     }
     if (
         not isinstance(required_platforms, list)

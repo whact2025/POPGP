@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 import yaml
+from jsonschema import Draft202012Validator
 
 from tests.unit import test_via000_r2_assembler as r2_assembler
 
@@ -24,9 +25,14 @@ ASSEMBLER = PROTOCOL_DIR / "VIA-000-ASSEMBLER.py"
 GUARD = PROTOCOL_DIR / "VIA-000-DISPATCH-GUARD.py"
 RUNNER = PROTOCOL_DIR / "VIA-000-RUNNER.ps1"
 CONTAINMENT = PROTOCOL_DIR / "VIA-000-CONTAINMENT.ps1"
+CONTAINMENT_PROOF_RUNNER = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
+CONTAINMENT_PROOF_FIXTURE = PROTOCOL_DIR / "VIA-000-CONTAINMENT-HOSTILE.ps1"
+CONTAINMENT_PROOF_SCHEMA = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF.schema.json"
+CONTAINMENT_PROOF_AGGREGATOR = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
 MUTATION_RUNNER = PROTOCOL_DIR / "VIA-000-MUTATION-RUNNER.py"
 CAMPAIGN_CHECKER = ROOT / "scripts/check_viability_campaign.py"
 WORKFLOW = ROOT / ".github/workflows/via000-r3-protocol.yml"
+CONTAINMENT_PROOF_WORKFLOW = ROOT / ".github/workflows/via000-r3-containment-proof.yml"
 FAKE_COMMIT = "a" * 40
 FAKE_REF = f"refs/tags/popgp-via000-r3-protocol-{FAKE_COMMIT}"
 FAKE_AUTHORIZATION_SHA256 = "b" * 64
@@ -143,6 +149,7 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
         "set",
         "/.gitattributes",
         "/.github/workflows/via000-r3-protocol.yml",
+        "/.github/workflows/via000-r3-containment-proof.yml",
         "/protocols/POPGP-VIABILITY-R3-2026-08/**",
         "/reviews/viability/POPGP-VIABILITY-R3-2026-08/**",
         "/docs/scientific_hardening/**",
@@ -160,6 +167,7 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
     for relative in (
         Path(".gitattributes"),
         Path(".github/workflows/via000-r3-protocol.yml"),
+        Path(".github/workflows/via000-r3-containment-proof.yml"),
         Path("protocols/POPGP-VIABILITY-R3-2026-08"),
         Path("reviews/viability/POPGP-VIABILITY-R3-2026-08"),
         Path("scripts/check_viability_campaign.py"),
@@ -192,6 +200,11 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
     for path_field, hash_field in (
         ("runner_protocol_path", "runner_protocol_sha256"),
         ("containment_protocol_path", "containment_protocol_sha256"),
+        ("containment_proof_runner_path", "containment_proof_runner_sha256"),
+        ("containment_proof_fixture_path", "containment_proof_fixture_sha256"),
+        ("containment_proof_schema_path", "containment_proof_schema_sha256"),
+        ("containment_proof_aggregator_path", "containment_proof_aggregator_sha256"),
+        ("containment_proof_workflow_path", "containment_proof_workflow_sha256"),
         ("raw_results_schema_path", "raw_results_schema_sha256"),
         ("assembler_protocol_path", "assembler_protocol_sha256"),
         ("mutation_runner_protocol_path", "mutation_runner_protocol_sha256"),
@@ -1953,6 +1966,246 @@ def test_r3_workflow_requires_production_containment_and_atomic_subject_capture(
     assert workflow.index("Capture exact attestation subjects after containment teardown") < (
         workflow.index("Attest exact platform subjects")
     )
+
+
+@pytest.mark.negative_control
+def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
+    tmp_path: Path,
+) -> None:
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    trigger = workflow[True]
+    assert set(trigger) == {"push"}
+    assert trigger["push"]["branches"] == [
+        "campaign/via000-r3-protocol-*",
+        "review/via000-r3-protocol-*",
+    ]
+    assert workflow["permissions"] == {"contents": "read"}
+    assert "workflow_dispatch" not in workflow_text
+    for forbidden in (
+        "id-token:",
+        "secrets.",
+        "environment:",
+        "via-000-assembler",
+        "via-000-dispatch-guard",
+        "authorization",
+        "custody",
+        "output-commitment",
+        "reveal",
+        "5be3c38a0822d49953d0933f14ccab32ca12c896",
+        "9a29e05f803666bf0e3a28417ea399e3e26769fc",
+    ):
+        assert forbidden not in workflow_text.lower()
+    matrix = workflow["jobs"]["containment"]["strategy"]["matrix"]["include"]
+    assert {
+        (item["platform_family"], item["stage_id"], item["runner"])
+        for item in matrix
+    } == {
+        (platform, stage, runner)
+        for platform, runner in (
+            ("ubuntu-latest-x86_64", "ubuntu-24.04"),
+            ("windows-x86_64", "windows-2025"),
+        )
+        for stage in ("candidate", "pdf", "mutation")
+    }
+    for action in (
+        "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+        "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+        "actions/upload-artifact@b7c566a772e6b6fb58ed0dc250532a479d7789f",
+        "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    ):
+        assert action in workflow_text
+    runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
+    fixture_text = CONTAINMENT_PROOF_FIXTURE.read_text(encoding="utf-8")
+    assert "Invoke-Via000ContainedCommand" in runner_text
+    assert "Assert-FrozenProofBundle" in runner_text
+    assert "child-of-child-ready" in runner_text
+    assert "delayed-descendant-survived" in runner_text
+    assert "replace-restore-succeeded" in fixture_text
+    assert "hardlink-substitution-succeeded" in fixture_text
+    assert '"GITHUB_*", "ACTIONS_*", "RUNNER_*"' in CONTAINMENT.read_text(encoding="utf-8")
+    assert "Start-Descendant -ChildMode \"relay\"" in fixture_text
+    assert "Start-Descendant -ChildMode \"writer\"" in fixture_text
+
+    source_sha = "a" * 40
+    source_ref = "refs/heads/campaign/via000-r3-protocol-proof-test"
+    workflow_ref = f"whact2025/POPGP/.github/workflows/via000-r3-containment-proof.yml@{source_ref}"
+    fragments = tmp_path / "fragments"
+    schema = json.loads(CONTAINMENT_PROOF_SCHEMA.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    true_fields = {
+        "non_scientific",
+        "receipt_bindings_verified",
+        "descendants_quiescent",
+        "os_process_tree_empty",
+        "child_of_child_observed_before_direct_exit",
+        "protected_evidence_read_denied",
+        "protected_evidence_write_denied",
+        "protected_tool_write_denied",
+        "replace_restore_denied",
+        "hardlink_substitution_denied",
+        "control_plane_environment_scrubbed",
+        "delayed_descendant_write_absent",
+        "closure_unchanged",
+        "no_campaign_execution",
+        "no_candidate_checkout",
+        "no_lifecycle_mutation",
+        "no_custody_access",
+        "no_commitment_or_reveal",
+    }
+    hash_fields = {
+        "production_helper_sha256",
+        "proof_runner_sha256",
+        "hostile_fixture_sha256",
+        "proof_schema_sha256",
+        "proof_aggregator_sha256",
+        "proof_workflow_sha256",
+        "protected_evidence_sha256",
+        "protected_tool_sha256",
+    }
+    for platform in ("ubuntu-latest-x86_64", "windows-x86_64"):
+        primitive = (
+            "ubuntu-systemd-dynamic-user-control-group"
+            if platform.startswith("ubuntu")
+            else "windows-low-integrity-restricted-token-job-object"
+        )
+        privilege = (
+            "systemd-dynamic-user"
+            if platform.startswith("ubuntu")
+            else "low-integrity-restricted-token"
+        )
+        for stage in ("candidate", "pdf", "mutation"):
+            artifact_name = f"via000-r3-containment-proof-{platform}-{stage}"
+            artifact = fragments / artifact_name
+            artifact.mkdir(parents=True)
+            (artifact / "stdout.txt").write_text("", encoding="utf-8")
+            (artifact / "stderr.txt").write_text("", encoding="utf-8")
+            contained = {
+                "schema_version": 1,
+                "label": f"proof-{stage}",
+                "contract_id": "rr7-hosted-containment-proof",
+                "primitive": primitive,
+                "privilege_separation": privilege,
+                "descendants_quiescent": True,
+                "active_processes_after_teardown": 0,
+                "exit_code": 0,
+                "timed_out": False,
+                "stdout_sha256": _sha(artifact / "stdout.txt"),
+                "stderr_sha256": _sha(artifact / "stderr.txt"),
+            }
+            _write_json(artifact / "containment-result.json", contained)
+            proof = {
+                "schema_version": 1,
+                "proof_kind": "via000-r3-hosted-containment-cell",
+                "repository": "whact2025/POPGP",
+                "workflow": ".github/workflows/via000-r3-containment-proof.yml",
+                "workflow_ref": workflow_ref,
+                "event_name": "push",
+                "source_ref": source_ref,
+                "source_sha": source_sha,
+                "run_id": "424242",
+                "run_attempt": "1",
+                "platform_family": platform,
+                "stage_id": stage,
+                "cell": f"{platform}/{stage}",
+                "artifact_name": artifact_name,
+                "primitive": primitive,
+                "privilege_separation": privilege,
+                "active_processes_after_teardown": 0,
+                "containment_result_sha256": _sha(artifact / "containment-result.json"),
+                **{field: True for field in true_fields},
+                **{field: "b" * 64 for field in hash_fields},
+            }
+            validator.validate(proof)
+            _write_json(artifact / "proof.json", proof)
+
+    output = tmp_path / "aggregate.json"
+    command = [
+        sys.executable,
+        "-I",
+        "-S",
+        str(CONTAINMENT_PROOF_AGGREGATOR),
+        "--input-root",
+        str(fragments),
+        "--output",
+        str(output),
+        "--source-sha",
+        source_sha,
+        "--source-ref",
+        source_ref,
+        "--workflow-ref",
+        workflow_ref,
+        "--run-id",
+        "424242",
+        "--run-attempt",
+        "1",
+    ]
+    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+    aggregate = json.loads(output.read_text(encoding="utf-8"))
+    validator.validate(aggregate)
+    assert aggregate["cell_count"] == 6
+    assert len(aggregate["fragment_sha256"]) == 6
+
+    removed = next(fragments.glob("*/proof.json"))
+    removed.unlink()
+    output.unlink()
+    rejected = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert rejected.returncode != 0
+    assert not output.exists()
+
+    protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
+    protocol["parameters"]["containment_protocol_sha256"] = "0" * 64
+    bad_protocol = tmp_path / "bad-protocol.json"
+    _write_json(bad_protocol, protocol)
+    workspace = tmp_path / "should-not-exist-workspace"
+    proof_output = tmp_path / "should-not-exist-output"
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    bundle_rejection = subprocess.run(
+        [
+            pwsh,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(CONTAINMENT_PROOF_RUNNER),
+            "-PlatformFamily",
+            "windows-x86_64",
+            "-StageId",
+            "candidate",
+            "-RepoRoot",
+            str(ROOT),
+            "-ProtocolPath",
+            str(bad_protocol),
+            "-WorkspaceRoot",
+            str(workspace),
+            "-OutputRoot",
+            str(proof_output),
+            "-PowerShellPath",
+            str(Path(pwsh).resolve()),
+            "-Repository",
+            "whact2025/POPGP",
+            "-EventName",
+            "push",
+            "-SourceRef",
+            source_ref,
+            "-SourceSha",
+            source_sha,
+            "-WorkflowRef",
+            workflow_ref,
+            "-RunId",
+            "424242",
+            "-RunAttempt",
+            "1",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert bundle_rejection.returncode != 0
+    assert not workspace.exists()
+    assert not proof_output.exists()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="exact Windows Job Object control")

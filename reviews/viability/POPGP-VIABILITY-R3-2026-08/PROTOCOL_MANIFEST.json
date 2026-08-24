@@ -14,7 +14,7 @@
   "contract_files": [
     {
       "path": ".gitattributes",
-      "sha256": "ff5ba55e1f657eff8cb81336f1e9af929631dd208784bfa7d329ec93b65a3c41"
+      "sha256": "4b5040895e57add04a24ac83d7ea40a0b50a6ae5be979c88e9c58b8a9efb5ab0"
     },
     {
       "path": "docs/scientific_hardening/CLAIMS_MATRIX.md",
@@ -22,7 +22,7 @@
     },
     {
       "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
-      "sha256": "36751e2cbf0ad4c1f7616e5c678f609bbf7783e3dd7a78aed435c280eb931ada"
+      "sha256": "0c9d4e32a3811d7faaa3143a0c2334eaa917c1ff98d864c6c595c24837243df5"
     },
     {
       "path": "popgp/diagnostics.py",
@@ -74,7 +74,7 @@
     },
     {
       "path": "scripts/check_viability_campaign.py",
-      "sha256": "fd8c04fe590a21076621941f2972bbe774ec9cc3fb8f7a6b90d734b4e2fc9487"
+      "sha256": "a907c78207f2583d76446dfc69a8e803211e7e3e0b6d61c5752d0fc5421ed731"
     }
   ],
   "packet_rule_sha256": {
