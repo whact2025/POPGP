@@ -2015,18 +2015,18 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     ):
         assert forbidden not in workflow_text.lower()
     proof_jobs = {
-        "ubuntu-candidate": ("ubuntu-24.04", "ubuntu_candidate_envelope"),
-        "ubuntu-pdf": ("ubuntu-24.04", "ubuntu_pdf_envelope"),
-        "ubuntu-mutation": ("ubuntu-24.04", "ubuntu_mutation_envelope"),
-        "windows-candidate": ("windows-2025", "windows_candidate_envelope"),
-        "windows-pdf": ("windows-2025", "windows_pdf_envelope"),
-        "windows-mutation": ("windows-2025", "windows_mutation_envelope"),
+        "ubuntu-candidate": ("ubuntu-24.04", "ubuntu_candidate_digest"),
+        "ubuntu-pdf": ("ubuntu-24.04", "ubuntu_pdf_digest"),
+        "ubuntu-mutation": ("ubuntu-24.04", "ubuntu_mutation_digest"),
+        "windows-candidate": ("windows-2025", "windows_candidate_digest"),
+        "windows-pdf": ("windows-2025", "windows_pdf_digest"),
+        "windows-mutation": ("windows-2025", "windows_mutation_digest"),
     }
     for job_name, (runner, output_name) in proof_jobs.items():
         job = workflow["jobs"][job_name]
         assert job["runs-on"] == runner
         assert set(job["outputs"]) == {output_name}
-        assert job["outputs"][output_name] == f"${{{{ steps.proof.outputs.{output_name} }}}}"
+        assert job["outputs"][output_name] == f"${{{{ steps.digest.outputs.{output_name} }}}}"
     assert "strategy" not in workflow_text
     assert set(workflow["jobs"]["aggregate"]["needs"]) == set(proof_jobs)
     for action in (
@@ -2043,15 +2043,13 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
     assert workflow_text.count('$workspace = Join-Path $root "via000-proof-workspace"') == 1
-    assert workflow_text.count(
-        '$output = Join-Path ([string]$env:VIA000_RUNNER_TEMP) "via000-r3-containment-envelope"'
-    ) == 2
-    assert "-OutputName ([string]$env:VIA000_OUTPUT_NAME)" in workflow_text
-    assert "${{ runner.temp }}/via000-r3-containment-envelope/envelope.json" not in workflow_text
+    assert workflow_text.count('$relative = ".via000-r3-proof-cache/') >= 3
+    assert "-OutputName" not in workflow_text
+    assert "VIA000_ENVELOPE_" not in workflow_text
     assert workflow_text.count(
         "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
     ) == 1
-    assert "--collect-job-outputs" in workflow_text
+    assert "--collect-cache-envelopes" in workflow_text
     assert "--verify-retained" in workflow_text
     assert "via000-r3-containment-proof-retained" in workflow_text
     assert "via000-proof-output" not in workflow_text
@@ -2064,7 +2062,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "mutable hostile fixture copy differs from the frozen Git bytes" in runner_text
     assert "synthetic containment diagnostic" not in runner_text
     assert "SerializeToUtf8Bytes" in runner_text
-    assert 'Join-Path $runnerTempItem.FullName "via000-r3-containment-envelope"' in runner_text
+    assert 'Join-Path $repoItem.FullName ".via000-r3-proof-cache"' in runner_text
     assert "live proof subject inner hash binding differs before export" in runner_text
     assert "Get-Item -LiteralPath $full -Stream *" in runner_text
     assert "LinkCount($full)" in runner_text
@@ -2345,7 +2343,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     workspace = tmp_path / "should-not-exist-workspace"
     proof_runner_temp = tmp_path / "proof-runner-temp"
     proof_runner_temp.mkdir()
-    proof_output = proof_runner_temp / "via000-r3-containment-envelope"
+    proof_output = ROOT / ".via000-r3-proof-cache/windows-x86_64/candidate"
     pwsh = shutil.which("pwsh")
     assert pwsh is not None
     bundle_rejection = subprocess.run(
@@ -2386,8 +2384,6 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
             "424242",
             "-RunAttempt",
             "1",
-            "-OutputName",
-            "windows_candidate_envelope",
         ],
         check=False,
         capture_output=True,
@@ -2404,9 +2400,7 @@ def test_r3_rr8_windows_proof_export_is_canonical_and_exact_2x3(tmp_path: Path) 
     test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(tmp_path)
 
 
-@pytest.mark.negative_control
-def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Path) -> None:
-    """TST-VIA000-R3-RR9-CANONICAL-ENVELOPE-TRANSPORT-001."""
+def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(tmp_path)
     module = _load_module(CONTAINMENT_PROOF_AGGREGATOR, "r3_rr9_transport")
     fragments = tmp_path / "fragments"
@@ -2490,16 +2484,20 @@ def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Pat
     }
     (missing / "envelope.json").write_bytes(module.build_envelope(identity, subjects))
 
-    environment = {
-        variable: base64.b64encode(
-            (
-                fragments
-                / f"via000-r3-containment-proof-{cell_platform}-{cell_stage}"
-                / "envelope.json"
-            ).read_bytes()
-        ).decode("ascii")
-        for variable, (cell_platform, cell_stage) in module.TRANSPORTS.items()
-    }
+    cache_root = tmp_path / ".via000-r3-proof-cache"
+    environment: dict[str, str] = {}
+    for variable, (cell_platform, cell_stage) in module.DIGESTS.items():
+        source = (
+            fragments
+            / f"via000-r3-containment-proof-{cell_platform}-{cell_stage}"
+            / "envelope.json"
+        )
+        target_root = cache_root / cell_platform / cell_stage
+        target_root.mkdir(parents=True)
+        target = target_root / "envelope.json"
+        shutil.copyfile(source, target)
+        environment[variable] = hashlib.sha256(target.read_bytes()).hexdigest()
+    monkeypatch.chdir(tmp_path)
     args = SimpleNamespace(
         source_sha="a" * 40,
         source_ref="refs/heads/campaign/via000-r3-protocol-proof-test",
@@ -2511,7 +2509,7 @@ def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Pat
         run_attempt="1",
         output_root=tmp_path / "retained",
     )
-    aggregate = module.collect_job_outputs(args, environment)
+    aggregate = module.collect_cache_envelopes(args, environment)
     assert aggregate["cell_count"] == 6
     assert {path.name for path in args.output_root.iterdir()} == {
         "aggregate.json",
@@ -2536,21 +2534,21 @@ def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Pat
         rejected_args = SimpleNamespace(**vars(args))
         rejected_args.output_root = tmp_path / f"rejected-{label}"
         with pytest.raises(ValueError):
-            module.collect_job_outputs(rejected_args, changed)
+            module.collect_cache_envelopes(rejected_args, changed)
         assert not rejected_args.output_root.exists()
 
-    variables = list(module.TRANSPORTS)
+    variables = list(module.DIGESTS)
     missing_output = dict(environment)
     del missing_output[variables[0]]
     reject_transport("missing", missing_output)
     for label, value in (
         ("empty", ""),
-        ("truncated", environment[variables[0]][:-4]),
+        ("truncated", environment[variables[0]][:-1]),
         ("masked", "***"),
         ("newline", environment[variables[0]] + "\n"),
         ("injected", environment[variables[0]] + ";marker"),
-        ("corrupt", environment[variables[0]][:-1] + "!"),
-        ("oversized", "A" * (module.MAX_ENVELOPE_BASE64_CHARS + 4)),
+        ("nonhex", environment[variables[0]][:-1] + "!"),
+        ("uppercase", environment[variables[0]].upper()),
     ):
         changed = dict(environment)
         changed[variables[0]] = value
@@ -2561,6 +2559,54 @@ def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Pat
     crossed = dict(environment)
     crossed[variables[0]], crossed[variables[-1]] = crossed[variables[-1]], crossed[variables[0]]
     reject_transport("cross-cell", crossed)
+
+    first_platform, first_stage = module.DIGESTS[variables[0]]
+    first_cache = cache_root / first_platform / first_stage / "envelope.json"
+    original_cache = first_cache.read_bytes()
+
+    def reject_cache(label: str, mutate: object, changed: dict[str, str] | None = None) -> None:
+        mutate()
+        try:
+            reject_transport(label, environment if changed is None else changed)
+        finally:
+            if first_cache.is_symlink() or first_cache.exists():
+                first_cache.unlink()
+            first_cache.write_bytes(original_cache)
+
+    reject_cache("corrupt-cache", lambda: first_cache.write_bytes(b"{}\n"))
+    reject_cache("oversized-cache", lambda: first_cache.write_bytes(b"x" * 131073))
+    hardlink_cache_source = tmp_path / "cache-hardlink-source.json"
+    hardlink_cache_source.write_bytes(original_cache)
+
+    def hardlink_cache() -> None:
+        first_cache.unlink()
+        os.link(hardlink_cache_source, first_cache)
+
+    reject_cache("hardlink-cache", hardlink_cache)
+    extra_cache = first_cache.parent / "extra.json"
+
+    def extra_case_collision() -> None:
+        extra_cache.write_bytes(original_cache)
+
+    with pytest.raises(ValueError):
+        extra_case_collision()
+        module.collect_cache_envelopes(
+            SimpleNamespace(**{**vars(args), "output_root": tmp_path / "rejected-case-cache"}),
+            environment,
+        )
+    extra_cache.unlink()
+
+    last_platform, last_stage = module.DIGESTS[variables[-1]]
+    last_cache = cache_root / last_platform / last_stage / "envelope.json"
+    last_bytes = last_cache.read_bytes()
+    first_cache.write_bytes(last_bytes)
+    last_cache.write_bytes(original_cache)
+    swapped = dict(environment)
+    swapped[variables[0]] = hashlib.sha256(last_bytes).hexdigest()
+    swapped[variables[-1]] = hashlib.sha256(original_cache).hexdigest()
+    reject_transport("cache-cross-cell", swapped)
+    first_cache.write_bytes(original_cache)
+    last_cache.write_bytes(last_bytes)
 
     def reject_retained(label: str, mutate: object) -> None:
         root = tmp_path / f"retained-{label}"
@@ -2602,16 +2648,50 @@ def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Pat
     assert workflow_text.count("outputs:\n") == 7
     assert "needs.containment" not in workflow_text
     assert workflow_text.count("actions/upload-artifact@") == 1
-    assert "${{ runner.temp }}/via000-r3-containment-envelope" not in workflow_text
+    assert "VIA000_ENVELOPE_" not in workflow_text
+    assert "ToBase64String($envelope)" not in workflow_text
+    assert workflow_text.count(
+        "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+    ) == 6
+    assert workflow_text.count(
+        "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+    ) == 12
+    assert workflow_text.count("enableCrossOsArchive: true") == 18
+    assert workflow_text.count("lookup-only: true") == 6
+    assert workflow_text.count("fail-on-cache-miss: true") == 6
+    assert "restore-keys:" not in workflow_text
+    assert "cache-primary-key" in workflow_text
+    assert "cache-matched-key" in workflow_text
+    assert "exact digest-bound cache key already exists" in workflow_text
+    assert "six-cache proof consolidation failed" in workflow_text
+    assert "${{ github.workflow_sha }}" in workflow_text
+    assert "${{ github.repository_id }}" in workflow_text
+    assert ".via000-r3-proof-cache/windows-x86_64/candidate" in workflow_text
     assert "[AllowEmptyCollection()]" in runner_text
     assert "$script:MaximumProofEnvelopeBytes = 131072" in runner_text
-    assert "$script:MaximumProofEnvelopeBase64Characters = 174764" in runner_text
-    assert runner_text.index("} finally {") < runner_text.rindex("Write-ProofJobOutput")
-    assert 'GetEnvironmentVariable("GITHUB_OUTPUT")' in runner_text
-    assert "GitHub job-output control is not fresh" in runner_text
+    assert "MaximumProofEnvelopeBase64Characters" not in runner_text
+    assert "Write-ProofJobOutput" not in runner_text
+    assert 'Join-Path $repoItem.FullName ".via000-r3-proof-cache"' in runner_text
+    assert "exact cell-specific workspace-relative path" in runner_text
     assert '"GITHUB_*", "ACTIONS_*", "RUNNER_*"' in CONTAINMENT.read_text(
         encoding="utf-8"
     )
+
+
+@pytest.mark.negative_control
+def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Prior RR9 behavior remains covered through the superseding cache transport."""
+    _exercise_r3_digest_cache_transport(tmp_path, monkeypatch)
+
+
+@pytest.mark.negative_control
+def test_r3_rr10_job_output_cache_transport_is_digest_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TST-VIA000-R3-RR10-JOB-OUTPUT-CACHE-TRANSPORT-001."""
+    _exercise_r3_digest_cache_transport(tmp_path, monkeypatch)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="exact Windows Job Object control")

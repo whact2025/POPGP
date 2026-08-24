@@ -1825,6 +1825,15 @@ def _validate_raw_evidence_contract(
         "require_safe_hosted_containment_proof_workflow": True,
         "required_hosted_containment_proof_cells": 6,
         "hosted_containment_proof_trigger": "feature-review-branch-push",
+        "hosted_containment_proof_transport": "digest-bound-cross-os-cache-v1",
+        "hosted_containment_cache_action_commit": (
+            "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+        ),
+        "hosted_containment_cache_key_namespace": "via000-r3-envelope-v1",
+        "require_cache_miss_preflight": True,
+        "require_exact_cache_key_restore": True,
+        "require_digest_only_job_outputs": True,
+        "require_retained_cache_independent_artifact": True,
     }
     if (
         not isinstance(required_platforms, list)

@@ -17,13 +17,7 @@ param(
     [Parameter(Mandatory = $true)][string]$SourceSha,
     [Parameter(Mandatory = $true)][string]$WorkflowRef,
     [Parameter(Mandatory = $true)][string]$RunId,
-    [Parameter(Mandatory = $true)][string]$RunAttempt,
-    [Parameter(Mandatory = $true)]
-    [ValidateSet(
-        "ubuntu_candidate_envelope", "ubuntu_pdf_envelope", "ubuntu_mutation_envelope",
-        "windows_candidate_envelope", "windows_pdf_envelope", "windows_mutation_envelope"
-    )]
-    [string]$OutputName
+    [Parameter(Mandatory = $true)][string]$RunAttempt
 )
 
 Set-StrictMode -Version Latest
@@ -35,7 +29,6 @@ $script:ProofMemberNames = @(
 $script:MaximumProofMemberBytes = 262144
 $script:MaximumProofDecodedBytes = 524288
 $script:MaximumProofEnvelopeBytes = 131072
-$script:MaximumProofEnvelopeBase64Characters = 174764
 
 function Get-ProofSha256 {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -138,78 +131,6 @@ function Get-ProofBytesSha256 {
     ).ToLowerInvariant()
 }
 
-function Write-ProofJobOutput {
-    param(
-        [Parameter(Mandatory = $true)][string]$EnvelopePath,
-        [Parameter(Mandatory = $true)][string]$TrustedRunnerTemp,
-        [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][hashtable]$SystemTools
-    )
-    $expectedName = if ($PlatformFamily -eq "ubuntu-latest-x86_64") {
-        "ubuntu_$($StageId)_envelope"
-    } else {
-        "windows_$($StageId)_envelope"
-    }
-    if ($Name -cne $expectedName) { throw "proof job output name differs from the cell" }
-    $controlPath = [string][Environment]::GetEnvironmentVariable("GITHUB_OUTPUT")
-    if (-not $controlPath -or -not [IO.Path]::IsPathFullyQualified($controlPath)) {
-        throw "trusted GitHub job-output control path is absent or not absolute"
-    }
-    $control = Assert-SingleLinkProofFile -Path $controlPath `
-        -Description "trusted GitHub job-output control" -SystemTools $SystemTools
-    $controlParent = Get-Item -LiteralPath ([IO.Path]::GetDirectoryName($control)) `
-        -Force -ErrorAction Stop
-    if (-not ($controlParent -is [IO.DirectoryInfo]) -or
-        ($controlParent.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-        throw "trusted GitHub job-output parent is not an ordinary directory"
-    }
-    $temp = (Get-Item -LiteralPath $TrustedRunnerTemp -Force -ErrorAction Stop).FullName
-    $comparison = if ($IsWindows) {
-        [StringComparison]::OrdinalIgnoreCase
-    } else {
-        [StringComparison]::Ordinal
-    }
-    $prefix = $temp.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
-    if (-not $control.StartsWith($prefix, $comparison)) {
-        throw "trusted GitHub job-output control is outside runner temp"
-    }
-    $envelope = [IO.File]::ReadAllBytes((Assert-SingleLinkProofFile `
-        -Path $EnvelopePath -Description "canonical proof job output" -SystemTools $SystemTools))
-    if ($envelope.Length -le 0 -or $envelope.Length -gt $script:MaximumProofEnvelopeBytes -or
-        $envelope[0] -eq 0xef -or $envelope[$envelope.Length - 1] -ne 10 -or
-        [Array]::IndexOf($envelope, [byte]13) -ge 0) {
-        throw "canonical proof job output bytes differ from the frozen transport bounds"
-    }
-    $encoded = [Convert]::ToBase64String($envelope)
-    if ($encoded.Length -le 0 -or
-        $encoded.Length -gt $script:MaximumProofEnvelopeBase64Characters -or
-        $encoded -cnotmatch '^[A-Za-z0-9+/]*={0,2}$' -or
-        $encoded.Contains("`r") -or $encoded.Contains("`n") -or
-        (Get-ProofBytesSha256 -Bytes ([Convert]::FromBase64String($encoded))) -cne
-            (Get-ProofBytesSha256 -Bytes $envelope)) {
-        throw "canonical proof job output base64 differs from the frozen transport form"
-    }
-    $line = [Text.Encoding]::ASCII.GetBytes("$Name=$encoded`n")
-    $stream = [IO.FileStream]::new(
-        $control, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None
-    )
-    try {
-        if ($stream.Length -ne 0) { throw "GitHub job-output control is not fresh" }
-        $stream.Write($line, 0, $line.Length)
-        $stream.Flush($true)
-        $stream.Position = 0
-        $observed = [byte[]]::new($line.Length)
-        $read = $stream.Read($observed, 0, $observed.Length)
-        if ($read -ne $line.Length -or $stream.ReadByte() -ne -1 -or
-            (Get-ProofBytesSha256 -Bytes $observed) -cne
-                (Get-ProofBytesSha256 -Bytes $line)) {
-            throw "GitHub job-output control truncated or transformed the envelope"
-        }
-    } finally {
-        $stream.Dispose()
-    }
-}
-
 function Assert-FrozenProofBundle {
     param(
         [Parameter(Mandatory = $true)][hashtable]$Parameters,
@@ -273,11 +194,18 @@ if (-not ($runnerTempItem -is [IO.DirectoryInfo]) -or
     throw "trusted runner temp is not one ordinary directory"
 }
 $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
-$expectedOutput = Join-Path $runnerTempItem.FullName "via000-r3-containment-envelope"
-if (-not $OutputRoot.Equals($expectedOutput, $comparison)) {
-    throw "proof envelope output is not the exact trusted runner-temp path"
+$repoItem = Get-Item -LiteralPath $RepoRoot -Force -ErrorAction Stop
+if (-not ($repoItem -is [IO.DirectoryInfo]) -or
+    ($repoItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw "trusted repository root is not one ordinary directory"
 }
-if ((Test-Path -LiteralPath $WorkspaceRoot) -or (Test-Path -LiteralPath $OutputRoot)) {
+$cacheBase = Join-Path $repoItem.FullName ".via000-r3-proof-cache"
+$cachePlatform = Join-Path $cacheBase $PlatformFamily
+$expectedOutput = Join-Path $cachePlatform $StageId
+if (-not $OutputRoot.Equals($expectedOutput, $comparison)) {
+    throw "proof envelope output is not the exact cell-specific workspace-relative path"
+}
+if ((Test-Path -LiteralPath $WorkspaceRoot) -or (Test-Path -LiteralPath $cacheBase)) {
     throw "containment proof workspace or output already exists"
 }
 
@@ -506,16 +434,18 @@ try {
         throw "live proof subject inner hash binding differs before export"
     }
 
-    New-Item -ItemType Directory -Path $OutputRoot -ErrorAction Stop | Out-Null
+    foreach ($path in @($cacheBase, $cachePlatform, $OutputRoot)) {
+        New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
+    }
     $outputItem = Get-Item -LiteralPath $OutputRoot -Force -ErrorAction Stop
     if (-not ($outputItem -is [IO.DirectoryInfo]) -or
         ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
-        -not $outputItem.Parent.FullName.Equals($runnerTempItem.FullName, $comparison)) {
-        throw "proof envelope export root is not one fresh direct runner-temp directory"
+        -not $outputItem.Parent.FullName.Equals($cachePlatform, $comparison)) {
+        throw "proof envelope export root is not one fresh cell-specific cache directory"
     }
     if ($IsWindows) {
         Set-Via000RootIntegrity -Path $OutputRoot -Kind traverse -SystemTools $systemTools
-        $parentAcl = Get-Acl -LiteralPath $runnerTempItem.FullName -ErrorAction Stop
+        $parentAcl = Get-Acl -LiteralPath $cachePlatform -ErrorAction Stop
         $outputAcl = Get-Acl -LiteralPath $OutputRoot -ErrorAction Stop
         $explicitRules = @($outputAcl.Access | Where-Object { -not $_.IsInherited })
         if ($outputAcl.AreAccessRulesProtected -or $explicitRules.Count -ne 0 -or
@@ -592,10 +522,7 @@ try {
     if (Test-Path -LiteralPath $WorkspaceRoot) {
         Remove-Item -LiteralPath $WorkspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
-    if (-not $success -and (Test-Path -LiteralPath $OutputRoot)) {
-        Remove-Item -LiteralPath $OutputRoot -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not $success -and (Test-Path -LiteralPath $cacheBase)) {
+        Remove-Item -LiteralPath $cacheBase -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
-
-Write-ProofJobOutput -EnvelopePath (Join-Path $OutputRoot "envelope.json") `
-    -TrustedRunnerTemp $RunnerTemp -Name $OutputName -SystemTools $systemTools

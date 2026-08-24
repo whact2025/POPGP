@@ -6,7 +6,7 @@ candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
 protocol_commit: 3e7b75313660fa79c166f7558ca91101a8a4f3f9
-protocol_rule_sha256: 1f3098799925ba0f922135e03dba36b730b0dad8c1fe43e44a2585fb5a1e4f16
+protocol_rule_sha256: 23e2541b9ba8a58c59507ce5caf57ea8bec5daf40048453677cd63a25f60d7aa
 lifecycle_phase: drafted
 claims:
 - C03
@@ -101,7 +101,7 @@ preregistration:
     containment_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT.ps1
     containment_protocol_sha256: 44908f2529876865a88ac0ae82c5da7d38089ccd0159def4e2dbf2f55f43500d
     containment_proof_runner_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1
-    containment_proof_runner_sha256: fd624b459f72d0bf0045ee96e011a1f3513e77592cc43a3bf7e85e2658312649
+    containment_proof_runner_sha256: 520fd7cbf8197c9304deaf43d3b51d4493a5212d8e00e3790398ad0c968f6ad4
     containment_proof_fixture_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-HOSTILE.ps1
     containment_proof_fixture_sha256: bf3bc6470171d8d93b073de4fd85a87d45694e349de8d56dd8b3a4a4af038ebf
     containment_proof_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF.schema.json
@@ -109,9 +109,9 @@ preregistration:
     containment_proof_envelope_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-ENVELOPE.schema.json
     containment_proof_envelope_schema_sha256: 524902f004da5ce6f02576fcbf0e5f23ad21d52ac435cf863b8ec6a86e7be10a
     containment_proof_aggregator_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
-    containment_proof_aggregator_sha256: 8e50bd61cfdd5900cbdbd9f25d6cc00f8cac5b960fe7511667cce8836d28cdbe
+    containment_proof_aggregator_sha256: 939b98aa26e94a7f9077f5589253dcb6a27d06a02e0ce45d3d1e9e047d049279
     containment_proof_workflow_path: .github/workflows/via000-r3-containment-proof.yml
-    containment_proof_workflow_sha256: cd9da2eb59915c4cdb1dd5e316aad85251261962680d35b53a7ae6784c7b7d47
+    containment_proof_workflow_sha256: a3afdd6b1ab3baef0c859be741fab1e3ea4d82570365ced940918b49449764cc
     raw_results_schema_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json
     raw_results_schema_sha256: 00f36c7f90e00fe0021843175a5fc86c970b5aa9007070486aaae5a4837ce7eb
     assembler_protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py
@@ -396,6 +396,8 @@ preregistration:
           expected_passed_count: 1
         - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_rr9_canonical_envelope_transport_is_exact_and_retained
           expected_passed_count: 1
+        - test_prefix: tests/unit/test_via000_r3_identity.py::test_r3_rr10_job_output_cache_transport_is_digest_bound
+          expected_passed_count: 1
         family-18:
         - test_prefix: tests/unit/test_via000_r2_assembler.py::test_assembler_commitment_roundtrips_through_custody_reveal
           expected_passed_count: 1
@@ -440,6 +442,13 @@ preregistration:
         require_safe_hosted_containment_proof_workflow: true
         required_hosted_containment_proof_cells: 6
         hosted_containment_proof_trigger: feature-review-branch-push
+        hosted_containment_proof_transport: digest-bound-cross-os-cache-v1
+        hosted_containment_cache_action_commit: 55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        hosted_containment_cache_key_namespace: via000-r3-envelope-v1
+        require_cache_miss_preflight: true
+        require_exact_cache_key_restore: true
+        require_digest_only_job_outputs: true
+        require_retained_cache_independent_artifact: true
       producer_attestation:
         repository: whact2025/POPGP
         signer_workflow: whact2025/POPGP/.github/workflows/via000-r3-protocol.yml

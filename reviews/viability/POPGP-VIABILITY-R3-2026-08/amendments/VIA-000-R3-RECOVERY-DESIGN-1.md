@@ -207,6 +207,40 @@ single-link metadata, sizes, identities, envelope hashes, inner hashes, and aggr
 bytes. Hosted success and fresh independent rereview remain required before the RR4,
 RR6, RR8, or RR9 blockers may be considered closed.
 
+## RR10 digest-bound cache transport amendment
+
+Hosted run 32714269336 demonstrated that all six containment cells were green but the
+three Windows large job outputs were empty at the `needs` boundary, while GitHub printed
+the three Ubuntu base64 values in the aggregate step environment preamble. RR10 removes
+envelope bytes from job outputs and environments entirely.
+
+Each explicit cell now stages one canonical envelope beneath the fixed relative path
+`.via000-r3-proof-cache/<platform>/<stage>`. The untrusted identity has already been
+retired and cannot write that path. A distinct trusted outer step rechecks the ordinary,
+single-link, non-reparse/ADS-free subject and exact cell/run/source identity, computes
+its SHA-256, and writes only the lowercase 64-hex digest to GitHub output control. It
+preflights an exact key and rejects any pre-existing entry, then invokes pinned
+`actions/cache/save` v6.1.0 at commit
+`55cc8345863c7cc4c66a329aec7e433d2d1c52a9`. Cache-save success is explicitly not
+evidence because the action can turn collision/upload failures into warnings.
+
+The key is shorter than 512 characters and binds the fixed namespace/schema,
+repository ID, workflow SHA, source SHA, run ID, run attempt, platform, stage, and full
+envelope digest. No prefix or restore key exists. The Ubuntu aggregate reconstructs six
+keys from six distinct digest outputs, restores to the identical six relative paths
+with cross-OS archives enabled, and requires `cache-hit=true` plus byte-identical
+primary and matched keys. The frozen aggregator rejects extra/missing/case-colliding,
+linked, oversized, corrupt, stale, cross-cell, or digest-mismatched restored state before
+creating retained output. The consolidated seven-file artifact and its dependent
+redownload verification remain authoritative; cache retention is transport only.
+
+This closure assumes the already-reviewed trusted GitHub control plane and pinned action
+principals and admits no additional hostile trusted job with a cache runtime token. If
+that excluded principal is added to the threat model, standard cache save cannot prove
+producer provenance and requires a separately reviewed reservation-identity protocol.
+Fresh hosted completion and independent rereview remain required before RR4, RR6, RR7,
+RR8, RR9, or RR10 may be considered closed.
+
 Thus the following identity is single-valued:
 
 ```text

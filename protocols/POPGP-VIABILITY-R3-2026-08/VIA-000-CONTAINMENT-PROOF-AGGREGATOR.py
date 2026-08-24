@@ -26,14 +26,16 @@ MEMBER_NAMES = (
 MAX_MEMBER_BYTES = 262_144
 MAX_TOTAL_DECODED_BYTES = 524_288
 MAX_ENVELOPE_BYTES = 131_072
-MAX_ENVELOPE_BASE64_CHARS = ((MAX_ENVELOPE_BYTES + 2) // 3) * 4
-TRANSPORTS = {
-    "VIA000_ENVELOPE_UBUNTU_CANDIDATE": ("ubuntu-latest-x86_64", "candidate"),
-    "VIA000_ENVELOPE_UBUNTU_PDF": ("ubuntu-latest-x86_64", "pdf"),
-    "VIA000_ENVELOPE_UBUNTU_MUTATION": ("ubuntu-latest-x86_64", "mutation"),
-    "VIA000_ENVELOPE_WINDOWS_CANDIDATE": ("windows-x86_64", "candidate"),
-    "VIA000_ENVELOPE_WINDOWS_PDF": ("windows-x86_64", "pdf"),
-    "VIA000_ENVELOPE_WINDOWS_MUTATION": ("windows-x86_64", "mutation"),
+MAX_CACHE_KEY_CHARACTERS = 511
+CACHE_NAMESPACE = "via000-r3-envelope-v1"
+CACHE_ROOT = Path(".via000-r3-proof-cache")
+DIGESTS = {
+    "VIA000_DIGEST_UBUNTU_CANDIDATE": ("ubuntu-latest-x86_64", "candidate"),
+    "VIA000_DIGEST_UBUNTU_PDF": ("ubuntu-latest-x86_64", "pdf"),
+    "VIA000_DIGEST_UBUNTU_MUTATION": ("ubuntu-latest-x86_64", "mutation"),
+    "VIA000_DIGEST_WINDOWS_CANDIDATE": ("windows-x86_64", "candidate"),
+    "VIA000_DIGEST_WINDOWS_PDF": ("windows-x86_64", "pdf"),
+    "VIA000_DIGEST_WINDOWS_MUTATION": ("windows-x86_64", "mutation"),
 }
 TRUE_FIELDS = {
     "non_scientific",
@@ -464,34 +466,67 @@ def _retained_name(platform: str, stage: str) -> str:
     return f"envelope-{platform}-{stage}.json"
 
 
-def _decode_transport(value: str, name: str) -> bytes:
-    if not value or len(value) > MAX_ENVELOPE_BASE64_CHARS or len(value) % 4:
-        raise ValueError(f"job output size is outside the frozen limit: {name}")
-    if re.fullmatch(r"[A-Za-z0-9+/]*={0,2}", value) is None:
-        raise ValueError(f"job output is not single-line standard base64: {name}")
-    try:
-        content = base64.b64decode(value, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError(f"job output is not valid base64: {name}") from exc
-    if not content or len(content) > MAX_ENVELOPE_BYTES:
-        raise ValueError(f"decoded job output size differs: {name}")
-    if base64.b64encode(content).decode("ascii") != value:
-        raise ValueError(f"job output base64 is noncanonical: {name}")
-    return content
+def _load_cache_envelope(root: Path, platform: str, stage: str) -> bytes:
+    cell_root = root / platform / stage
+    if not cell_root.is_dir() or cell_root.is_symlink():
+        raise ValueError(f"cache cell root is not one ordinary directory: {platform}/{stage}")
+    children = list(cell_root.iterdir())
+    if (
+        len(children) != 1
+        or children[0].name != "envelope.json"
+        or len({child.name.casefold() for child in children}) != 1
+    ):
+        raise ValueError(f"cache cell root differs from one exact envelope: {platform}/{stage}")
+    envelope = children[0]
+    stat = envelope.lstat()
+    if (
+        not envelope.is_file()
+        or envelope.is_symlink()
+        or stat.st_nlink != 1
+        or stat.st_size <= 0
+        or stat.st_size > MAX_ENVELOPE_BYTES
+        or stat.st_mode & 0o111
+    ):
+        raise ValueError(f"cache envelope metadata differs: {platform}/{stage}")
+    return envelope.read_bytes()
 
 
-def collect_job_outputs(
+def collect_cache_envelopes(
     args: argparse.Namespace, environment: dict[str, str] | os._Environ[str]
 ) -> dict[str, Any]:
     identity = _expected_identity(args)
-    encoded_values: set[str] = set()
+    cache_root = Path.cwd() / CACHE_ROOT
+    if not cache_root.is_dir() or cache_root.is_symlink():
+        raise ValueError("cache transport root is not one ordinary workspace-relative directory")
+    platform_entries = list(cache_root.iterdir())
+    if (
+        {entry.name for entry in platform_entries} != set(PLATFORMS)
+        or len(platform_entries) != 2
+        or len({entry.name.casefold() for entry in platform_entries}) != 2
+        or any(not entry.is_dir() or entry.is_symlink() for entry in platform_entries)
+    ):
+        raise ValueError("cache platform root set differs")
+    for platform_root in platform_entries:
+        stage_entries = list(platform_root.iterdir())
+        if (
+            {entry.name for entry in stage_entries} != set(STAGES)
+            or len(stage_entries) != 3
+            or len({entry.name.casefold() for entry in stage_entries}) != 3
+            or any(not entry.is_dir() or entry.is_symlink() for entry in stage_entries)
+        ):
+            raise ValueError(f"cache stage root set differs: {platform_root.name}")
+    observed_digests: set[str] = set()
     retained: list[tuple[Path, bytes]] = []
-    for variable, (platform, stage) in TRANSPORTS.items():
-        encoded = environment.get(variable, "")
-        if encoded in encoded_values:
-            raise ValueError(f"duplicate or overwritten job output: {variable}")
-        encoded_values.add(encoded)
-        content = _decode_transport(encoded, variable)
+    for variable, (platform, stage) in DIGESTS.items():
+        digest = environment.get(variable, "")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ValueError(f"cache digest output differs: {variable}")
+        if digest in observed_digests:
+            raise ValueError(f"duplicate or overwritten cache digest: {variable}")
+        observed_digests.add(digest)
+        content = _load_cache_envelope(cache_root, platform, stage)
+        if _sha256_bytes(content) != digest:
+            raise ValueError(f"cache envelope digest differs from job output: {variable}")
         artifact = f"via000-r3-containment-proof-{platform}-{stage}"
         retained.append((Path(artifact) / "envelope.json", content))
     aggregate_document = _aggregate_envelopes(retained, identity)
@@ -500,7 +535,7 @@ def collect_job_outputs(
     args.output_root.mkdir(mode=0o700, parents=False)
     try:
         for logical_path, content in retained:
-            envelope = _parse_json(content, f"transport {logical_path}")
+            envelope = _parse_json(content, f"cache transport {logical_path}")
             platform = envelope["identity"]["platform_family"]
             stage = envelope["identity"]["stage_id"]
             output = args.output_root / _retained_name(platform, stage)
@@ -585,7 +620,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--input-root", type=Path)
-    modes.add_argument("--collect-job-outputs", action="store_true")
+    modes.add_argument("--collect-cache-envelopes", action="store_true")
     modes.add_argument("--verify-retained", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--output-root", type=Path)
@@ -596,10 +631,10 @@ def main() -> int:
     parser.add_argument("--run-attempt", required=True)
     args = parser.parse_args()
     try:
-        if args.collect_job_outputs:
+        if args.collect_cache_envelopes:
             if args.output_root is None:
                 raise ValueError("collect mode requires --output-root")
-            collect_job_outputs(args, os.environ)
+            collect_cache_envelopes(args, os.environ)
         elif args.verify_retained is not None:
             verify_retained(args.verify_retained, _expected_identity(args))
         else:

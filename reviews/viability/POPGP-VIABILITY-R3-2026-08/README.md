@@ -110,13 +110,18 @@ cross-run cell and emits only a small non-scientific aggregate. RR8 adds a post-
 transport boundary: each cell serializes the exact four validated proof subjects into
 one canonical UTF-8/LF/no-BOM JSON envelope in a fresh ordinary directory directly
 under trusted runner temp. Each exact case-sensitive member carries its byte length,
-SHA-256, and base64 bytes. RR9 replaces the failed per-cell artifact discovery with six
-explicit, uniquely named, bounded single-line job outputs written only after teardown
-and envelope validation. One Ubuntu job strictly decodes all six in memory, writes the
-six exact envelopes plus one aggregate manifest, uploads that single seven-file tree,
-and a dependent Ubuntu job downloads and revalidates the retained bytes. Missing,
-duplicate, masked, truncated, newline-injected, oversized, corrupt, or cross-cell job
-outputs and retained file/link/hash substitutions fail closed.
+SHA-256, and base64 bytes. RR10 supersedes the failed RR9 large job-output channel.
+Each of six explicit cells stages exactly one envelope at the same frozen workspace-
+relative path used by a pinned `actions/cache` v6.1.0 save/restore pair. A separate
+trusted outer step transports only the envelope's lowercase SHA-256. The full cache key
+binds repository, workflow/source SHA, run/attempt, platform, stage, schema namespace,
+and digest; a pre-existing exact key is rejected and no restore prefix is allowed.
+Ubuntu requires six exact cache hits and primary/matched-key equality, then validates
+all six envelopes in memory, writes the six exact envelopes plus one aggregate manifest,
+uploads that seven-file tree, and a dependent job redownloads and revalidates it. Cache
+save success is not evidence: only exact restore, byte validation, retained upload, and
+redownload verification establish the synthetic proof. Missing, duplicate, nonhex,
+stale, fallback, corrupt, linked, cross-cell, or cross-run bytes fail closed.
 Hosted output is
 review evidence only; it cannot activate R3 or establish scientific viability.
 

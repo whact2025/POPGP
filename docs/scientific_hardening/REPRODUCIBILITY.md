@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 433 passed |
+| `pytest -q` | about 1200 s | 434 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -206,15 +206,17 @@ hosted platforms launches a detached delayed writer against the live evidence an
 paths and requires containment plus byte identity; the Windows primitive also has a
 local executable regression.
 
-The separate non-scientific proof workflow uses six explicit jobs and six distinct
-post-quiescence output names. Each canonical envelope is limited to 131072 bytes and
-174764 single-line base64 characters before it is appended to the fresh protected
-GitHub output control without logging. Ubuntu strictly validates all six outputs in
-memory, retains exactly six envelope files plus one aggregate manifest in one artifact,
-then downloads and revalidates the exact retained seven-file set. Empty stdout/stderr
-remain valid evidence with the standard SHA-256 of the empty byte string; missing,
-duplicate, masked, truncated, newline-injected, oversized, corrupt, cross-cell, or
-retained link/file/hash substitutions fail closed.
+The separate non-scientific proof workflow uses six explicit jobs. Each post-quiescence
+canonical envelope is capped at 131072 bytes and staged as the sole regular file at a
+fixed cell-specific workspace-relative path. A separate trusted outer step emits only
+its lowercase SHA-256. Pinned cache v6.1.0 steps use an exact key binding repository,
+workflow/source SHA, run/attempt, platform, stage, namespace, and digest; pre-existing
+keys, prefix restore, cache misses, and primary/matched-key differences fail. Ubuntu
+validates the six exact restored bytes in memory, retains exactly six envelopes plus
+one aggregate manifest in one artifact, then downloads and revalidates that seven-file
+set. Empty stdout/stderr retain the standard SHA-256 of the empty byte string. Cache
+save warnings cannot establish success; missing, duplicate, nonhex, stale, fallback,
+oversized, corrupt, cross-cell, or retained link/file/hash substitutions fail closed.
 
 The hosted Ubuntu proof explicitly disables `PrivateTmp`, `ProtectSystem`, and
 `ProtectHome` because that runner rejects the corresponding mount namespace. It makes
