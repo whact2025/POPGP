@@ -1,0 +1,209 @@
+name: VIA-000 R3 Ubuntu PowerShell identity diagnostic only
+
+on:
+  push:
+    branches:
+      - experiment/via000-r3-ubuntu-pwsh-identity-1
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-pwsh-identity-diagnostic:
+    name: diagnostic / ubuntu-24.04 / literal-pwsh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PATH: /usr/bin:/bin
+    steps:
+      - name: Observe literal PowerShell identity and emit synthetic outputs
+        id: identity
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+          $expectedPsHome = '/opt/microsoft/powershell/7'
+          $expectedPath = '/usr/bin:/bin'
+
+          function Get-Rr23Stat([string]$Path) {
+            $line = & /usr/bin/stat --format='%F|%u|%g|%U|%G|%a|%h|%s' -- $Path
+            $exit = $LASTEXITCODE
+            if ($exit -ne 0 -or [string]::IsNullOrEmpty([string]$line)) {
+              throw "stat failed for $Path"
+            }
+            $parts = ([string]$line).Split('|')
+            if ($parts.Count -ne 8) { throw "stat shape differs for $Path" }
+            [ordered]@{
+              type = $parts[0]
+              uid = $parts[1]
+              gid = $parts[2]
+              owner = $parts[3]
+              group = $parts[4]
+              mode = $parts[5]
+              links = $parts[6]
+              length = $parts[7]
+            }
+          }
+
+          function Assert-Rr23TrustedPath([string]$Path, [bool]$Directory) {
+            $stat = Get-Rr23Stat -Path $Path
+            $mode = [Convert]::ToInt32([string]$stat.mode, 8)
+            if ([string]$stat.uid -cne '0' -or [string]$stat.gid -cne '0' -or
+                ($mode -band 18) -ne 0) {
+              throw "trusted path owner or mode differs for $Path"
+            }
+            if ($Directory) {
+              if ([string]$stat.type -cne 'directory') {
+                throw "trusted ancestor is not an ordinary directory: $Path"
+              }
+            } elseif ([string]$stat.type -cne 'regular file') {
+              throw "trusted executable is not a regular file: $Path"
+            }
+            Write-Host ('RR23_TRUST ' + ([ordered]@{path=$Path;type=$stat.type;uid=$stat.uid;gid=$stat.gid;owner=$stat.owner;group=$stat.group;mode=$stat.mode;links=$stat.links;length=$stat.length} | ConvertTo-Json -Compress))
+            $stat
+          }
+
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $mainModule = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath([string]$processModule.FileName) }
+          $procExe = & /usr/bin/readlink -f -- /proc/self/exe
+          $readlinkExit = $LASTEXITCODE
+          if ($readlinkExit -ne 0) { throw '/proc/self/exe canonicalization failed' }
+          $procExe = [string]$procExe
+          $psHomeObserved = [string]$PSHOME
+          $psVersionObserved = $PSVersionTable.PSVersion.ToString()
+          $pathObserved = [string]$env:PATH
+
+          $cmdlineBytes = [IO.File]::ReadAllBytes('/proc/self/cmdline')
+          $argv = @([Text.Encoding]::UTF8.GetString($cmdlineBytes).Split([char]0) | Where-Object { $_.Length -gt 0 })
+          $normalizedArgv = @($argv)
+          if ($normalizedArgv.Count -ge 6) { $normalizedArgv[5] = '<runner-script>' }
+
+          Write-Host ('RR23_MAIN_MODULE ' + ([ordered]@{value=$mainModule;pass=($mainModule -ceq $expectedShell)} | ConvertTo-Json -Compress))
+          Write-Host ('RR23_PROC_EXE ' + ([ordered]@{value=$procExe;pass=($procExe -ceq $expectedShell)} | ConvertTo-Json -Compress))
+          Write-Host ('RR23_PSHOME ' + ([ordered]@{value=$psHomeObserved;pass=($psHomeObserved -ceq $expectedPsHome)} | ConvertTo-Json -Compress))
+          Write-Host ('RR23_PSVERSION ' + ([ordered]@{value=$psVersionObserved;pass=($psVersionObserved -cmatch '^7\.[0-9]+\.[0-9]+$')} | ConvertTo-Json -Compress))
+          Write-Host ('RR23_PATH ' + ([ordered]@{value=$pathObserved;pass=($pathObserved -ceq $expectedPath)} | ConvertTo-Json -Compress))
+          Write-Host ('RR23_ARGV ' + ([ordered]@{value=$normalizedArgv;pass=($argv.Count -eq 6 -and $argv[0] -ceq $expectedShell -and $argv[1] -ceq '-NoLogo' -and $argv[2] -ceq '-NoProfile' -and $argv[3] -ceq '-NonInteractive' -and $argv[4] -ceq '-File')} | ConvertTo-Json -Compress -Depth 4))
+
+          $trustedPaths = @('/', '/opt', '/opt/microsoft', '/opt/microsoft/powershell', '/opt/microsoft/powershell/7')
+          foreach ($trustedPath in $trustedPaths) {
+            $null = Assert-Rr23TrustedPath -Path $trustedPath -Directory $true
+          }
+          $executableStat = Assert-Rr23TrustedPath -Path $expectedShell -Directory $false
+          $executableHash = (Get-FileHash -LiteralPath $expectedShell -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host ('RR23_EXECUTABLE ' + ([ordered]@{path=$expectedShell;sha256=$executableHash;type=$executableStat.type;uid=$executableStat.uid;gid=$executableStat.gid;mode=$executableStat.mode;links=$executableStat.links} | ConvertTo-Json -Compress))
+
+          $profiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if ($profiles.Count -ne 4) { throw 'PowerShell profile path set differs' }
+          $existingProfiles = 0
+          foreach ($profilePathValue in $profiles) {
+            $profilePath = [IO.Path]::GetFullPath([string]$profilePathValue)
+            $exists = Test-Path -LiteralPath $profilePath
+            if (-not $exists) {
+              Write-Host ('RR23_PROFILE ' + ([ordered]@{path=$profilePath;exists=$false;type=$null;canonical_target=$null;uid=$null;gid=$null;owner=$null;group=$null;mode=$null;links=$null;length=$null;sha256=$null} | ConvertTo-Json -Compress))
+              continue
+            }
+            $existingProfiles += 1
+            $item = Get-Item -LiteralPath $profilePath -Force -ErrorAction Stop
+            $profileStat = Get-Rr23Stat -Path $profilePath
+            $canonicalTarget = & /usr/bin/readlink -f -- $profilePath
+            $profileReadlinkExit = $LASTEXITCODE
+            if ($profileReadlinkExit -ne 0) { throw "profile canonicalization failed for $profilePath" }
+            $profileHash = if ($item -is [IO.FileInfo]) {
+              (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            } else { $null }
+            Write-Host ('RR23_PROFILE ' + ([ordered]@{path=$profilePath;exists=$true;type=$profileStat.type;canonical_target=[string]$canonicalTarget;uid=$profileStat.uid;gid=$profileStat.gid;owner=$profileStat.owner;group=$profileStat.group;mode=$profileStat.mode;links=$profileStat.links;length=$profileStat.length;sha256=$profileHash} | ConvertTo-Json -Compress))
+          }
+
+          $currentSentinel = -not [string]::IsNullOrEmpty([string]$env:VIA000_RR23_PROFILE_SENTINEL)
+          $currentModule = @((Get-Module -Name VIA000RR23ProfileSentinel -ErrorAction SilentlyContinue)).Count -ne 0
+          Write-Host ('RR23_PROFILE_LOAD_STATE ' + ([ordered]@{environment_sentinel_loaded=$currentSentinel;module_sentinel_loaded=$currentModule;existing_profile_count=$existingProfiles} | ConvertTo-Json -Compress))
+          if ($currentSentinel -or $currentModule) { throw 'unexpected profile sentinel is loaded' }
+
+          $syntheticHome = Join-Path ([IO.Path]::GetFullPath([string]$env:RUNNER_TEMP)) 'via000-rr23-synthetic-home'
+          if (Test-Path -LiteralPath $syntheticHome) { throw 'synthetic profile root is not fresh' }
+          $syntheticConfig = Join-Path $syntheticHome '.config'
+          $syntheticPwsh = Join-Path $syntheticConfig 'powershell'
+          [void](New-Item -ItemType Directory -Path $syntheticPwsh)
+          $syntheticProfile = Join-Path $syntheticPwsh 'Microsoft.PowerShell_profile.ps1'
+          $syntheticBytes = [Text.UTF8Encoding]::new($false).GetBytes("`$env:VIA000_RR23_PROFILE_SENTINEL='loaded'; New-Module -Name VIA000RR23ProfileSentinel -ScriptBlock {} | Import-Module`n")
+          [IO.File]::WriteAllBytes($syntheticProfile, $syntheticBytes)
+          $savedHome = [string]$env:HOME
+          $savedXdg = [string]$env:XDG_CONFIG_HOME
+          try {
+            $env:HOME = $syntheticHome
+            $env:XDG_CONFIG_HOME = $syntheticConfig
+            $nested = & $expectedShell -NoLogo -NoProfile -NonInteractive -Command "if (`$env:VIA000_RR23_PROFILE_SENTINEL -or (Get-Module -Name VIA000RR23ProfileSentinel)) { exit 23 }; 'suppressed'"
+            $nestedExit = $LASTEXITCODE
+          } finally {
+            $env:HOME = $savedHome
+            $env:XDG_CONFIG_HOME = $savedXdg
+          }
+          if ($nestedExit -ne 0 -or [string]$nested -cne 'suppressed') {
+            throw 'synthetic -NoProfile suppression proof failed'
+          }
+          Write-Host 'RR23_SYNTHETIC_NOPROFILE pass=true'
+          Remove-Item -LiteralPath $syntheticProfile -Force
+          Remove-Item -LiteralPath $syntheticPwsh -Force
+          Remove-Item -LiteralPath $syntheticConfig -Force
+          Remove-Item -LiteralPath $syntheticHome -Force
+
+          $argvPass = ($argv.Count -eq 6 -and $argv[0] -ceq $expectedShell -and $argv[1] -ceq '-NoLogo' -and $argv[2] -ceq '-NoProfile' -and $argv[3] -ceq '-NonInteractive' -and $argv[4] -ceq '-File')
+          if ($mainModule -cne $expectedShell -or $procExe -cne $expectedShell -or
+              $psHomeObserved -cne $expectedPsHome -or $psVersionObserved -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              $pathObserved -cne $expectedPath -or -not $argvPass) {
+            throw 'one or more independently logged PowerShell trust predicates differ'
+          }
+
+          $artifactId = '987654321'
+          $runId = '123456789'
+          $repository = 'whact2025/POPGP'
+          $bareDigest = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+          $artifactUrl = "https://github.com/$repository/actions/runs/$runId/artifacts/$artifactId"
+          if ($artifactId -cnotmatch '^[1-9][0-9]*$' -or $runId -cnotmatch '^[1-9][0-9]*$' -or
+              $bareDigest -cnotmatch '^[0-9a-f]{64}$' -or
+              $artifactUrl -cne 'https://github.com/whact2025/POPGP/actions/runs/123456789/artifacts/987654321') {
+            throw 'synthetic artifact identity grammar differs'
+          }
+          $canonicalDigest = "sha256:$bareDigest"
+          $githubOutput = [IO.Path]::GetFullPath([string]$env:GITHUB_OUTPUT)
+          $outputItem = Get-Item -LiteralPath $githubOutput -Force -ErrorAction Stop
+          if (-not ($outputItem -is [IO.FileInfo]) -or ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'GITHUB_OUTPUT is not an ordinary file'
+          }
+          $outputLinks = & /usr/bin/stat --format='%h' -- $githubOutput
+          $outputStatExit = $LASTEXITCODE
+          if ($outputStatExit -ne 0 -or [string]$outputLinks -cne '1') { throw 'GITHUB_OUTPUT is not single-link' }
+          $before = $outputItem.Length
+          $lines = "artifact_id=$artifactId`nartifact_digest=$canonicalDigest`nartifact_url=$artifactUrl`n"
+          [IO.File]::AppendAllText($githubOutput, $lines, [Text.UTF8Encoding]::new($false))
+          $after = (Get-Item -LiteralPath $githubOutput -Force -ErrorAction Stop).Length
+          if (($after - $before) -ne [Text.Encoding]::UTF8.GetByteCount($lines)) {
+            throw 'GITHUB_OUTPUT append size differs'
+          }
+          Write-Host 'RR23_SYNTHETIC_NORMALIZER pass=true'
+
+      - name: Verify synthetic output propagation
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_ARTIFACT_ID: ${{ steps.identity.outputs.artifact_id }}
+          VIA000_ARTIFACT_DIGEST: ${{ steps.identity.outputs.artifact_digest }}
+          VIA000_ARTIFACT_URL: ${{ steps.identity.outputs.artifact_url }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+          $module = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observed = if ($null -eq $module) { '' } else { [IO.Path]::GetFullPath([string]$module.FileName) }
+          $procExe = & /usr/bin/readlink -f -- /proc/self/exe
+          if ($LASTEXITCODE -ne 0 -or $observed -cne $expectedShell -or [string]$procExe -cne $expectedShell -or
+              [string]$PSHOME -cne '/opt/microsoft/powershell/7' -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              [string]$env:PATH -cne '/usr/bin:/bin') {
+            throw 'cross-step trusted PowerShell identity differs'
+          }
+          if ([string]$env:VIA000_ARTIFACT_ID -cne '987654321' -or
+              [string]$env:VIA000_ARTIFACT_DIGEST -cne 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' -or
+              [string]$env:VIA000_ARTIFACT_URL -cne 'https://github.com/whact2025/POPGP/actions/runs/123456789/artifacts/987654321') {
+            throw 'synthetic output propagation differs'
+          }
+          Write-Host 'RR23_OUTPUT_PROPAGATION pass=true'
