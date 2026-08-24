@@ -89,11 +89,12 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    production hostile self-test must pass before candidate execution.
    Before activation, independently inspect or replay the separate non-scientific
    `.github/workflows/via000-r3-containment-proof.yml` branch-push gate. It must show
-    one source/run/attempt and all six platform/stage cells using the exact frozen
-    production helper. Each retained cell must be exactly one canonical envelope under
-    trusted runner temp containing the exact four case-sensitive validated subjects;
-    the aggregate must revalidate all hashes/identities in memory and accept exactly
-    the complete 2×3 set. This proof workflow has read-only permissions and cannot run
+    one source/run/attempt and all six explicit platform/stage jobs using the exact
+    frozen production helper. Each job must write one uniquely named, bounded canonical
+    envelope output only after teardown and validation. The Ubuntu aggregate must
+    revalidate all six outputs in memory, retain exactly six envelopes plus one
+    aggregate manifest, upload that single tree, and then download and revalidate all
+    seven retained files. This proof workflow has read-only permissions and cannot run
     or alter the campaign; its result is review evidence, not authorization.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six

@@ -110,9 +110,13 @@ cross-run cell and emits only a small non-scientific aggregate. RR8 adds a post-
 transport boundary: each cell serializes the exact four validated proof subjects into
 one canonical UTF-8/LF/no-BOM JSON envelope in a fresh ordinary directory directly
 under trusted runner temp. Each exact case-sensitive member carries its byte length,
-SHA-256, and base64 bytes. The aggregate accepts exactly six one-file artifacts,
-decodes only in memory, and rejects noncanonical/ambiguous JSON, link or file-set
-substitution, expansion-limit violations, inner hash disagreement, or identity mixing.
+SHA-256, and base64 bytes. RR9 replaces the failed per-cell artifact discovery with six
+explicit, uniquely named, bounded single-line job outputs written only after teardown
+and envelope validation. One Ubuntu job strictly decodes all six in memory, writes the
+six exact envelopes plus one aggregate manifest, uploads that single seven-file tree,
+and a dependent Ubuntu job downloads and revalidates the retained bytes. Missing,
+duplicate, masked, truncated, newline-injected, oversized, corrupt, or cross-cell job
+outputs and retained file/link/hash substitutions fail closed.
 Hosted output is
 review evidence only; it cannot activate R3 or establish scientific viability.
 

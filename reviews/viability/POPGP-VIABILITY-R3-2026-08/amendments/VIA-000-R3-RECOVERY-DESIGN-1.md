@@ -182,6 +182,31 @@ expansion excess, member/inner hash disagreement, and cross-cell identity. It de
 members only in memory; no archive or extraction path exists. A hosted 2×3 replay and
 fresh independent rereview remain required before RR4/RR6/RR8 can be considered closed.
 
+## RR9 canonical envelope transport amendment
+
+RR9 records that the RR8 envelope was valid inside each Windows trusted step but the
+per-cell artifact action could not discover it, while Ubuntu rejected legitimate empty
+stdout/stderr at PowerShell parameter binding. The byte hasher now explicitly accepts
+an empty byte array and retains the standard empty SHA-256 identity.
+
+The proof workflow now has six explicit jobs rather than matrix-output collision
+semantics. After containment teardown, workspace cleanup, and canonical-envelope
+validation, each trusted runner caps the envelope at 131072 decoded bytes and 174764
+single-line base64 characters, checks its fresh regular single-link GitHub output
+control beneath runner temp, and writes exactly one cell-specific output without
+logging it. The contained environment still omits all GitHub and runner control-plane
+variables and paths.
+
+One Ubuntu job receives six statically distinct outputs, rejects missing, equal,
+overwritten, masked, truncated, newline/control-injected, oversized, corrupt, or
+cross-cell values, validates every canonical envelope and inner four-member proof in
+memory, then creates exactly six envelope files plus one aggregate manifest in a fresh
+directory. It uploads only that consolidated directory. A dependent Ubuntu job
+downloads the retained artifact and revalidates the exact seven-file set, regular and
+single-link metadata, sizes, identities, envelope hashes, inner hashes, and aggregate
+bytes. Hosted success and fresh independent rereview remain required before the RR4,
+RR6, RR8, or RR9 blockers may be considered closed.
+
 Thus the following identity is single-valued:
 
 ```text

@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 432 passed |
+| `pytest -q` | about 1200 s | 433 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -205,6 +205,16 @@ tree is terminated and zero descendants are proven. A production-hostile gate on
 hosted platforms launches a detached delayed writer against the live evidence and tool
 paths and requires containment plus byte identity; the Windows primitive also has a
 local executable regression.
+
+The separate non-scientific proof workflow uses six explicit jobs and six distinct
+post-quiescence output names. Each canonical envelope is limited to 131072 bytes and
+174764 single-line base64 characters before it is appended to the fresh protected
+GitHub output control without logging. Ubuntu strictly validates all six outputs in
+memory, retains exactly six envelope files plus one aggregate manifest in one artifact,
+then downloads and revalidates the exact retained seven-file set. Empty stdout/stderr
+remain valid evidence with the standard SHA-256 of the empty byte string; missing,
+duplicate, masked, truncated, newline-injected, oversized, corrupt, cross-cell, or
+retained link/file/hash substitutions fail closed.
 
 The hosted Ubuntu proof explicitly disables `PrivateTmp`, `ProtectSystem`, and
 `ProtectHome` because that runner rejects the corresponding mount namespace. It makes

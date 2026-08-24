@@ -24,40 +24,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  containment:
-    name: proof / ${{ matrix.platform_family }} / ${{ matrix.stage_id }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            platform_family: ubuntu-latest-x86_64
-            stage_id: candidate
-            trusted_powershell: /opt/microsoft/powershell/7/pwsh
-          - runner: ubuntu-24.04
-            platform_family: ubuntu-latest-x86_64
-            stage_id: pdf
-            trusted_powershell: /opt/microsoft/powershell/7/pwsh
-          - runner: ubuntu-24.04
-            platform_family: ubuntu-latest-x86_64
-            stage_id: mutation
-            trusted_powershell: /opt/microsoft/powershell/7/pwsh
-          - runner: windows-2025
-            platform_family: windows-x86_64
-            stage_id: candidate
-            trusted_powershell: C:\Program Files\PowerShell\7\pwsh.exe
-          - runner: windows-2025
-            platform_family: windows-x86_64
-            stage_id: pdf
-            trusted_powershell: C:\Program Files\PowerShell\7\pwsh.exe
-          - runner: windows-2025
-            platform_family: windows-x86_64
-            stage_id: mutation
-            trusted_powershell: C:\Program Files\PowerShell\7\pwsh.exe
-    runs-on: ${{ matrix.runner }}
+  ubuntu-candidate:
+    name: proof / ubuntu-latest-x86_64 / candidate
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
+    outputs:
+      ubuntu_candidate_envelope: ${{ steps.proof.outputs.ubuntu_candidate_envelope }}
     steps:
-      - name: Checkout frozen proof-only closure
+      - &proof-checkout
+        name: Checkout frozen proof-only closure
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: ${{ github.sha }}
@@ -80,14 +55,15 @@ jobs:
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-envelope.schema.json
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-aggregator.py
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-workflow.yml
-
-      - name: Exercise production containment boundary on Ubuntu
-        if: matrix.platform_family == 'ubuntu-latest-x86_64'
+      -
+        name: Prove contained Ubuntu candidate and emit one protected output
+        id: proof
         shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
         env:
-          VIA000_PLATFORM_FAMILY: ${{ matrix.platform_family }}
-          VIA000_STAGE_ID: ${{ matrix.stage_id }}
-          VIA000_TRUSTED_POWERSHELL: ${{ matrix.trusted_powershell }}
+          VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64
+          VIA000_STAGE_ID: candidate
+          VIA000_OUTPUT_NAME: ubuntu_candidate_envelope
+          VIA000_TRUSTED_POWERSHELL: /opt/microsoft/powershell/7/pwsh
           VIA000_REPOSITORY: ${{ github.repository }}
           VIA000_EVENT_NAME: ${{ github.event_name }}
           VIA000_SOURCE_REF: ${{ github.ref }}
@@ -96,41 +72,41 @@ jobs:
           VIA000_RUN_ID: ${{ github.run_id }}
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
-        run: |
+        run: &ubuntu-proof-run |
           $root = [string]$env:GITHUB_WORKSPACE
           $protocol = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
           $runner = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
           $workspace = "/tmp/via000-proof-workspace"
-          $runnerTemp = [string]$env:VIA000_RUNNER_TEMP
-          $output = Join-Path $runnerTemp "via000-r3-containment-envelope"
+          $output = Join-Path ([string]$env:VIA000_RUNNER_TEMP) "via000-r3-containment-envelope"
           & ([string]$env:VIA000_TRUSTED_POWERSHELL) -NoLogo -NoProfile -NonInteractive -File $runner `
             -PlatformFamily ([string]$env:VIA000_PLATFORM_FAMILY) `
             -StageId ([string]$env:VIA000_STAGE_ID) -RepoRoot $root `
-            -ProtocolPath $protocol -WorkspaceRoot $workspace -RunnerTemp $runnerTemp `
-            -OutputRoot $output `
+            -ProtocolPath $protocol -WorkspaceRoot $workspace `
+            -RunnerTemp ([string]$env:VIA000_RUNNER_TEMP) -OutputRoot $output `
             -PowerShellPath ([string]$env:VIA000_TRUSTED_POWERSHELL) `
             -Repository ([string]$env:VIA000_REPOSITORY) `
             -EventName ([string]$env:VIA000_EVENT_NAME) -SourceRef ([string]$env:VIA000_SOURCE_REF) `
             -SourceSha ([string]$env:VIA000_SOURCE_SHA) -WorkflowRef ([string]$env:VIA000_WORKFLOW_REF) `
-            -RunId ([string]$env:VIA000_RUN_ID) -RunAttempt ([string]$env:VIA000_RUN_ATTEMPT)
+            -RunId ([string]$env:VIA000_RUN_ID) -RunAttempt ([string]$env:VIA000_RUN_ATTEMPT) `
+            -OutputName ([string]$env:VIA000_OUTPUT_NAME)
           if ($LASTEXITCODE -ne 0) { throw "containment proof cell failed" }
-          if (-not (Test-Path -LiteralPath $output -PathType Container)) {
-            throw "containment proof output is absent after successful runner exit"
-          }
-          $subjects = @(Get-ChildItem -LiteralPath $output -Force -ErrorAction Stop)
-          if ($subjects.Count -ne 1 -or $subjects[0].Name -cne 'envelope.json' -or
-              -not ($subjects[0] -is [IO.FileInfo]) -or
-              ($subjects[0].Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-            throw "containment proof output is not exactly one regular envelope"
-          }
 
-      - name: Exercise production containment boundary on Windows
-        if: matrix.platform_family == 'windows-x86_64'
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
+  ubuntu-pdf:
+    name: proof / ubuntu-latest-x86_64 / pdf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    outputs:
+      ubuntu_pdf_envelope: ${{ steps.proof.outputs.ubuntu_pdf_envelope }}
+    steps:
+      - *proof-checkout
+      - name: Prove contained Ubuntu pdf and emit one protected output
+        id: proof
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
         env:
-          VIA000_PLATFORM_FAMILY: ${{ matrix.platform_family }}
-          VIA000_STAGE_ID: ${{ matrix.stage_id }}
-          VIA000_TRUSTED_POWERSHELL: ${{ matrix.trusted_powershell }}
+          VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64
+          VIA000_STAGE_ID: pdf
+          VIA000_OUTPUT_NAME: ubuntu_pdf_envelope
+          VIA000_TRUSTED_POWERSHELL: /opt/microsoft/powershell/7/pwsh
           VIA000_REPOSITORY: ${{ github.repository }}
           VIA000_EVENT_NAME: ${{ github.event_name }}
           VIA000_SOURCE_REF: ${{ github.ref }}
@@ -139,58 +115,156 @@ jobs:
           VIA000_RUN_ID: ${{ github.run_id }}
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
-        run: |
+        run: *ubuntu-proof-run
+
+  ubuntu-mutation:
+    name: proof / ubuntu-latest-x86_64 / mutation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    outputs:
+      ubuntu_mutation_envelope: ${{ steps.proof.outputs.ubuntu_mutation_envelope }}
+    steps:
+      - *proof-checkout
+      - name: Prove contained Ubuntu mutation and emit one protected output
+        id: proof
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_PLATFORM_FAMILY: ubuntu-latest-x86_64
+          VIA000_STAGE_ID: mutation
+          VIA000_OUTPUT_NAME: ubuntu_mutation_envelope
+          VIA000_TRUSTED_POWERSHELL: /opt/microsoft/powershell/7/pwsh
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_RUNNER_TEMP: ${{ runner.temp }}
+        run: *ubuntu-proof-run
+
+  windows-candidate:
+    name: proof / windows-x86_64 / candidate
+    runs-on: windows-2025
+    timeout-minutes: 12
+    outputs:
+      windows_candidate_envelope: ${{ steps.proof.outputs.windows_candidate_envelope }}
+    steps:
+      - *proof-checkout
+      -
+        name: Prove contained Windows candidate and emit one protected output
+        id: proof
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
+        env:
+          VIA000_PLATFORM_FAMILY: windows-x86_64
+          VIA000_STAGE_ID: candidate
+          VIA000_OUTPUT_NAME: windows_candidate_envelope
+          VIA000_TRUSTED_POWERSHELL: C:\Program Files\PowerShell\7\pwsh.exe
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_RUNNER_TEMP: ${{ runner.temp }}
+        run: &windows-proof-run |
           $root = [string]$env:GITHUB_WORKSPACE
           $protocol = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json"
           $runner = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
           $workspace = Join-Path $root "via000-proof-workspace"
-          $runnerTemp = [string]$env:VIA000_RUNNER_TEMP
-          $output = Join-Path $runnerTemp "via000-r3-containment-envelope"
+          $output = Join-Path ([string]$env:VIA000_RUNNER_TEMP) "via000-r3-containment-envelope"
           & ([string]$env:VIA000_TRUSTED_POWERSHELL) -NoLogo -NoProfile -NonInteractive -File $runner `
             -PlatformFamily ([string]$env:VIA000_PLATFORM_FAMILY) `
             -StageId ([string]$env:VIA000_STAGE_ID) -RepoRoot $root `
-            -ProtocolPath $protocol -WorkspaceRoot $workspace -RunnerTemp $runnerTemp `
-            -OutputRoot $output `
+            -ProtocolPath $protocol -WorkspaceRoot $workspace `
+            -RunnerTemp ([string]$env:VIA000_RUNNER_TEMP) -OutputRoot $output `
             -PowerShellPath ([string]$env:VIA000_TRUSTED_POWERSHELL) `
             -Repository ([string]$env:VIA000_REPOSITORY) `
             -EventName ([string]$env:VIA000_EVENT_NAME) -SourceRef ([string]$env:VIA000_SOURCE_REF) `
             -SourceSha ([string]$env:VIA000_SOURCE_SHA) -WorkflowRef ([string]$env:VIA000_WORKFLOW_REF) `
-            -RunId ([string]$env:VIA000_RUN_ID) -RunAttempt ([string]$env:VIA000_RUN_ATTEMPT)
+            -RunId ([string]$env:VIA000_RUN_ID) -RunAttempt ([string]$env:VIA000_RUN_ATTEMPT) `
+            -OutputName ([string]$env:VIA000_OUTPUT_NAME)
           if ($LASTEXITCODE -ne 0) { throw "containment proof cell failed" }
-          if (-not (Test-Path -LiteralPath $output -PathType Container)) {
-            throw "containment proof output is absent after successful runner exit"
-          }
-          $subjects = @(Get-ChildItem -LiteralPath $output -Force -ErrorAction Stop)
-          if ($subjects.Count -ne 1 -or $subjects[0].Name -cne 'envelope.json' -or
-              -not ($subjects[0] -is [IO.FileInfo]) -or
-              ($subjects[0].Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-            throw "containment proof output is not exactly one regular envelope"
-          }
 
-      - name: Upload one non-scientific canonical cell envelope
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: via000-r3-containment-proof-${{ matrix.platform_family }}-${{ matrix.stage_id }}
-          path: ${{ runner.temp }}/via000-r3-containment-envelope/envelope.json
-          if-no-files-found: error
-          retention-days: 7
+  windows-pdf:
+    name: proof / windows-x86_64 / pdf
+    runs-on: windows-2025
+    timeout-minutes: 12
+    outputs:
+      windows_pdf_envelope: ${{ steps.proof.outputs.windows_pdf_envelope }}
+    steps:
+      - *proof-checkout
+      - name: Prove contained Windows pdf and emit one protected output
+        id: proof
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
+        env:
+          VIA000_PLATFORM_FAMILY: windows-x86_64
+          VIA000_STAGE_ID: pdf
+          VIA000_OUTPUT_NAME: windows_pdf_envelope
+          VIA000_TRUSTED_POWERSHELL: C:\Program Files\PowerShell\7\pwsh.exe
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_RUNNER_TEMP: ${{ runner.temp }}
+        run: *windows-proof-run
+
+  windows-mutation:
+    name: proof / windows-x86_64 / mutation
+    runs-on: windows-2025
+    timeout-minutes: 12
+    outputs:
+      windows_mutation_envelope: ${{ steps.proof.outputs.windows_mutation_envelope }}
+    steps:
+      - *proof-checkout
+      - name: Prove contained Windows mutation and emit one protected output
+        id: proof
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command ". '{0}'"
+        env:
+          VIA000_PLATFORM_FAMILY: windows-x86_64
+          VIA000_STAGE_ID: mutation
+          VIA000_OUTPUT_NAME: windows_mutation_envelope
+          VIA000_TRUSTED_POWERSHELL: C:\Program Files\PowerShell\7\pwsh.exe
+          VIA000_REPOSITORY: ${{ github.repository }}
+          VIA000_EVENT_NAME: ${{ github.event_name }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_RUNNER_TEMP: ${{ runner.temp }}
+        run: *windows-proof-run
 
   aggregate:
-    name: prove exact 2x3 matrix
+    name: consolidate exact six job outputs on Ubuntu
     if: always()
-    needs: containment
+    needs:
+      - ubuntu-candidate
+      - ubuntu-pdf
+      - ubuntu-mutation
+      - windows-candidate
+      - windows-pdf
+      - windows-mutation
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 6
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+      artifact_url: ${{ steps.upload.outputs.artifact-url }}
     steps:
-      - name: Require every containment cell
+      - name: Require all six explicit proof jobs
         env:
-          VIA000_MATRIX_RESULT: ${{ needs.containment.result }}
+          VIA000_JOB_RESULTS: ${{ join(needs.*.result, ',') }}
         shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
         run: |
-          if ([string]$env:VIA000_MATRIX_RESULT -cne "success") {
-            throw "one or more containment proof cells failed"
+          $results = ([string]$env:VIA000_JOB_RESULTS).Split(',')
+          if ($results.Count -ne 6 -or @($results | Where-Object { $_ -cne 'success' }).Count -ne 0) {
+            throw "one or more explicit containment proof jobs failed"
           }
-
       - name: Checkout frozen aggregate verifier only
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -208,21 +282,14 @@ jobs:
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-envelope.schema.json
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-aggregator.py
             reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-workflow.yml
-
-      - name: Install exact aggregate Python
+      -
+        name: Install exact aggregate Python
         id: aggregate-python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: "3.11.15"
           cache: ""
-
-      - name: Download six non-scientific proof fragments
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          pattern: via000-r3-containment-proof-*
-          path: ${{ runner.temp }}/via000-r3-containment-fragments
-
-      - name: Validate and aggregate the exact 2x3 proof
+      - name: Validate six outputs in memory and create seven retained files
         shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
         env:
           VIA000_BASE_PYTHON_OUTPUT: ${{ steps.aggregate-python.outputs.python-path }}
@@ -231,38 +298,90 @@ jobs:
           VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
           VIA000_RUN_ID: ${{ github.run_id }}
           VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+          VIA000_ENVELOPE_UBUNTU_CANDIDATE: ${{ needs.ubuntu-candidate.outputs.ubuntu_candidate_envelope }}
+          VIA000_ENVELOPE_UBUNTU_PDF: ${{ needs.ubuntu-pdf.outputs.ubuntu_pdf_envelope }}
+          VIA000_ENVELOPE_UBUNTU_MUTATION: ${{ needs.ubuntu-mutation.outputs.ubuntu_mutation_envelope }}
+          VIA000_ENVELOPE_WINDOWS_CANDIDATE: ${{ needs.windows-candidate.outputs.windows_candidate_envelope }}
+          VIA000_ENVELOPE_WINDOWS_PDF: ${{ needs.windows-pdf.outputs.windows_pdf_envelope }}
+          VIA000_ENVELOPE_WINDOWS_MUTATION: ${{ needs.windows-mutation.outputs.windows_mutation_envelope }}
         run: |
-          $expectedOutput = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
+          $expected = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
           $python = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
-          if ([string]$env:VIA000_BASE_PYTHON_OUTPUT -cne $expectedOutput) {
-            throw "setup-python output differs from the frozen hosted tool-cache path"
-          }
-          $item = Get-Item -LiteralPath $python -Force -ErrorAction Stop
-          if (-not ($item -is [IO.FileInfo]) -or
-              ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-            throw "aggregate Python is not one regular non-reparse executable"
-          }
+          if ([string]$env:VIA000_BASE_PYTHON_OUTPUT -cne $expected) { throw "aggregate Python path differs" }
           $version = & $python -I -S -c "import platform; print(platform.python_version())"
-          if ($LASTEXITCODE -ne 0 -or $version -cne "3.11.15") {
-            throw "aggregate Python is not exact CPython 3.11.15"
-          }
-          $root = [string]$env:GITHUB_WORKSPACE
-          $aggregator = Join-Path $root "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
-          $fragments = Join-Path ([string]$env:RUNNER_TEMP) "via000-r3-containment-fragments"
-          $outputRoot = Join-Path ([string]$env:RUNNER_TEMP) "via000-r3-containment-proof-aggregate"
-          $output = Join-Path $outputRoot "aggregate.json"
-          & $python -I -S $aggregator --input-root $fragments --output $output `
-            --source-sha ([string]$env:VIA000_SOURCE_SHA) `
-            --source-ref ([string]$env:VIA000_SOURCE_REF) `
-            --workflow-ref ([string]$env:VIA000_WORKFLOW_REF) `
-            --run-id ([string]$env:VIA000_RUN_ID) `
+          if ($LASTEXITCODE -ne 0 -or $version -cne "3.11.15") { throw "aggregate Python differs" }
+          $aggregator = Join-Path ([string]$env:GITHUB_WORKSPACE) "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
+          $output = Join-Path ([string]$env:RUNNER_TEMP) "via000-r3-retained-proof"
+          & $python -I -S $aggregator --collect-job-outputs --output-root $output `
+            --source-sha ([string]$env:VIA000_SOURCE_SHA) --source-ref ([string]$env:VIA000_SOURCE_REF) `
+            --workflow-ref ([string]$env:VIA000_WORKFLOW_REF) --run-id ([string]$env:VIA000_RUN_ID) `
             --run-attempt ([string]$env:VIA000_RUN_ATTEMPT)
-          if ($LASTEXITCODE -ne 0) { throw "hosted containment proof aggregate failed" }
-
-      - name: Upload non-scientific exact-matrix proof
+          if ($LASTEXITCODE -ne 0) { throw "six-output proof consolidation failed" }
+      - name: Upload one consolidated non-scientific proof
+        id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: via000-r3-containment-proof-aggregate
-          path: ${{ runner.temp }}/via000-r3-containment-proof-aggregate
+          name: via000-r3-containment-proof-retained
+          path: ${{ runner.temp }}/via000-r3-retained-proof
           if-no-files-found: error
+          compression-level: 0
+          include-hidden-files: false
           retention-days: 7
+
+  verify-retained:
+    name: redownload and verify retained seven-file proof
+    needs: aggregate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout frozen retained verifier only
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py
+            reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/containment-proof-aggregator.py
+      - name: Install exact verifier Python
+        id: verify-python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11.15"
+          cache: ""
+      - name: Download the exact consolidated proof artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: via000-r3-containment-proof-retained
+          path: ${{ runner.temp }}/via000-r3-retained-proof-download
+      - name: Revalidate retained bytes and recorded artifact identity
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_BASE_PYTHON_OUTPUT: ${{ steps.verify-python.outputs.python-path }}
+          VIA000_ARTIFACT_ID: ${{ needs.aggregate.outputs.artifact_id }}
+          VIA000_ARTIFACT_DIGEST: ${{ needs.aggregate.outputs.artifact_digest }}
+          VIA000_ARTIFACT_URL: ${{ needs.aggregate.outputs.artifact_url }}
+          VIA000_SOURCE_REF: ${{ github.ref }}
+          VIA000_SOURCE_SHA: ${{ github.sha }}
+          VIA000_WORKFLOW_REF: ${{ github.workflow_ref }}
+          VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          if ([string]$env:VIA000_ARTIFACT_ID -cnotmatch '^[1-9][0-9]*$' -or
+              [string]$env:VIA000_ARTIFACT_DIGEST -cnotmatch '^sha256:[0-9a-f]{64}$' -or
+              [string]$env:VIA000_ARTIFACT_URL -cnotmatch '^https://github.com/whact2025/POPGP/actions/runs/[1-9][0-9]*/artifacts/[1-9][0-9]*$') {
+            throw "retained artifact identity or digest is malformed"
+          }
+          $expected = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python"
+          $python = "/opt/hostedtoolcache/Python/3.11.15/x64/bin/python3.11"
+          if ([string]$env:VIA000_BASE_PYTHON_OUTPUT -cne $expected) { throw "verifier Python path differs" }
+          $version = & $python -I -S -c "import platform; print(platform.python_version())"
+          if ($LASTEXITCODE -ne 0 -or $version -cne "3.11.15") { throw "verifier Python differs" }
+          $aggregator = Join-Path ([string]$env:GITHUB_WORKSPACE) "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
+          $retained = Join-Path ([string]$env:RUNNER_TEMP) "via000-r3-retained-proof-download"
+          & $python -I -S $aggregator --verify-retained $retained `
+            --source-sha ([string]$env:VIA000_SOURCE_SHA) --source-ref ([string]$env:VIA000_SOURCE_REF) `
+            --workflow-ref ([string]$env:VIA000_WORKFLOW_REF) --run-id ([string]$env:VIA000_RUN_ID) `
+            --run-attempt ([string]$env:VIA000_RUN_ATTEMPT)
+          if ($LASTEXITCODE -ne 0) { throw "retained seven-file proof validation failed" }

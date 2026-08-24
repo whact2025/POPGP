@@ -2014,18 +2014,21 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "9a29e05f803666bf0e3a28417ea399e3e26769fc",
     ):
         assert forbidden not in workflow_text.lower()
-    matrix = workflow["jobs"]["containment"]["strategy"]["matrix"]["include"]
-    assert {
-        (item["platform_family"], item["stage_id"], item["runner"])
-        for item in matrix
-    } == {
-        (platform, stage, runner)
-        for platform, runner in (
-            ("ubuntu-latest-x86_64", "ubuntu-24.04"),
-            ("windows-x86_64", "windows-2025"),
-        )
-        for stage in ("candidate", "pdf", "mutation")
+    proof_jobs = {
+        "ubuntu-candidate": ("ubuntu-24.04", "ubuntu_candidate_envelope"),
+        "ubuntu-pdf": ("ubuntu-24.04", "ubuntu_pdf_envelope"),
+        "ubuntu-mutation": ("ubuntu-24.04", "ubuntu_mutation_envelope"),
+        "windows-candidate": ("windows-2025", "windows_candidate_envelope"),
+        "windows-pdf": ("windows-2025", "windows_pdf_envelope"),
+        "windows-mutation": ("windows-2025", "windows_mutation_envelope"),
     }
+    for job_name, (runner, output_name) in proof_jobs.items():
+        job = workflow["jobs"][job_name]
+        assert job["runs-on"] == runner
+        assert set(job["outputs"]) == {output_name}
+        assert job["outputs"][output_name] == f"${{{{ steps.proof.outputs.{output_name} }}}}"
+    assert "strategy" not in workflow_text
+    assert set(workflow["jobs"]["aggregate"]["needs"]) == set(proof_jobs)
     for action in (
         "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
         "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
@@ -2041,13 +2044,16 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
     assert workflow_text.count('$workspace = Join-Path $root "via000-proof-workspace"') == 1
     assert workflow_text.count(
-        '$output = Join-Path $runnerTemp "via000-r3-containment-envelope"'
+        '$output = Join-Path ([string]$env:VIA000_RUNNER_TEMP) "via000-r3-containment-envelope"'
     ) == 2
-    assert "containment proof output is absent after successful runner exit" in workflow_text
+    assert "-OutputName ([string]$env:VIA000_OUTPUT_NAME)" in workflow_text
+    assert "${{ runner.temp }}/via000-r3-containment-envelope/envelope.json" not in workflow_text
     assert workflow_text.count(
-        "${{ runner.temp }}/via000-r3-containment-envelope/envelope.json"
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
     ) == 1
-    assert "containment proof output is not exactly one regular envelope" in workflow_text
+    assert "--collect-job-outputs" in workflow_text
+    assert "--verify-retained" in workflow_text
+    assert "via000-r3-containment-proof-retained" in workflow_text
     assert "via000-proof-output" not in workflow_text
     assert "if ((Test-Path -LiteralPath $WorkspaceRoot) -or" in (
         CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
@@ -2380,6 +2386,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
             "424242",
             "-RunAttempt",
             "1",
+            "-OutputName",
+            "windows_candidate_envelope",
         ],
         check=False,
         capture_output=True,
@@ -2394,6 +2402,216 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
 def test_r3_rr8_windows_proof_export_is_canonical_and_exact_2x3(tmp_path: Path) -> None:
     """Stable RR8 entry point for the production-path envelope adversarial suite."""
     test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(tmp_path)
+
+
+@pytest.mark.negative_control
+def test_r3_rr9_canonical_envelope_transport_is_exact_and_retained(tmp_path: Path) -> None:
+    """TST-VIA000-R3-RR9-CANONICAL-ENVELOPE-TRANSPORT-001."""
+    test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(tmp_path)
+    module = _load_module(CONTAINMENT_PROOF_AGGREGATOR, "r3_rr9_transport")
+    fragments = tmp_path / "fragments"
+    missing = next(path for path in fragments.iterdir() if not (path / "envelope.json").exists())
+    donor_path = next(fragments.glob("*/envelope.json"))
+    donor = json.loads(donor_path.read_bytes())
+    platform_stage = missing.name.removeprefix("via000-r3-containment-proof-")
+    if platform_stage.startswith("ubuntu-latest-x86_64-"):
+        platform = "ubuntu-latest-x86_64"
+    else:
+        platform = "windows-x86_64"
+    stage = platform_stage.removeprefix(f"{platform}-")
+    subjects = {
+        name: base64.b64decode(metadata["base64"])
+        for name, metadata in donor["members"].items()
+    }
+    contained = json.loads(subjects["containment-result.json"])
+    contained.update(
+        {
+            "label": f"proof-{stage}",
+            "primitive": (
+                "ubuntu-systemd-ephemeral-user-control-group"
+                if platform.startswith("ubuntu")
+                else "windows-low-integrity-restricted-token-job-object"
+            ),
+            "privilege_separation": (
+                "systemd-ephemeral-user"
+                if platform.startswith("ubuntu")
+                else "low-integrity-restricted-token"
+            ),
+        }
+    )
+    if platform.startswith("ubuntu"):
+        contained.update(
+            {
+                "ephemeral_identity_uid": "999",
+                "ephemeral_identity_processes_empty": True,
+                "ephemeral_identity_removed": True,
+            }
+        )
+    else:
+        for field in (
+            "ephemeral_identity_uid",
+            "ephemeral_identity_processes_empty",
+            "ephemeral_identity_removed",
+        ):
+            contained.pop(field, None)
+    subjects["containment-result.json"] = json.dumps(contained, indent=2).encode() + b"\n"
+    proof = json.loads(subjects["proof.json"])
+    artifact = f"via000-r3-containment-proof-{platform}-{stage}"
+    proof.update(
+        {
+            "artifact_name": artifact,
+            "cell": f"{platform}/{stage}",
+            "platform_family": platform,
+            "stage_id": stage,
+            "primitive": contained["primitive"],
+            "privilege_separation": contained["privilege_separation"],
+            "containment_result_sha256": hashlib.sha256(
+                subjects["containment-result.json"]
+            ).hexdigest(),
+        }
+    )
+    subjects["proof.json"] = json.dumps(proof, indent=2).encode() + b"\n"
+    identity = {
+        field: proof[field]
+        for field in (
+            "artifact_name",
+            "cell",
+            "event_name",
+            "platform_family",
+            "repository",
+            "run_attempt",
+            "run_id",
+            "source_ref",
+            "source_sha",
+            "stage_id",
+            "workflow",
+            "workflow_ref",
+        )
+    }
+    (missing / "envelope.json").write_bytes(module.build_envelope(identity, subjects))
+
+    environment = {
+        variable: base64.b64encode(
+            (
+                fragments
+                / f"via000-r3-containment-proof-{cell_platform}-{cell_stage}"
+                / "envelope.json"
+            ).read_bytes()
+        ).decode("ascii")
+        for variable, (cell_platform, cell_stage) in module.TRANSPORTS.items()
+    }
+    args = SimpleNamespace(
+        source_sha="a" * 40,
+        source_ref="refs/heads/campaign/via000-r3-protocol-proof-test",
+        workflow_ref=(
+            "whact2025/POPGP/.github/workflows/via000-r3-containment-proof.yml@"
+            "refs/heads/campaign/via000-r3-protocol-proof-test"
+        ),
+        run_id="424242",
+        run_attempt="1",
+        output_root=tmp_path / "retained",
+    )
+    aggregate = module.collect_job_outputs(args, environment)
+    assert aggregate["cell_count"] == 6
+    assert {path.name for path in args.output_root.iterdir()} == {
+        "aggregate.json",
+        *{
+            f"envelope-{cell_platform}-{cell_stage}.json"
+            for cell_platform in module.PLATFORMS
+            for cell_stage in module.STAGES
+        },
+    }
+    assert module.verify_retained(args.output_root, module._expected_identity(args)) == aggregate
+    empty_sha256 = hashlib.sha256(b"").hexdigest()
+    for envelope_path in args.output_root.glob("envelope-*.json"):
+        envelope = json.loads(envelope_path.read_bytes())
+        for transcript in ("stdout.txt", "stderr.txt"):
+            assert envelope["members"][transcript] == {
+                "base64": "",
+                "sha256": empty_sha256,
+                "size": 0,
+            }
+
+    def reject_transport(label: str, changed: dict[str, str]) -> None:
+        rejected_args = SimpleNamespace(**vars(args))
+        rejected_args.output_root = tmp_path / f"rejected-{label}"
+        with pytest.raises(ValueError):
+            module.collect_job_outputs(rejected_args, changed)
+        assert not rejected_args.output_root.exists()
+
+    variables = list(module.TRANSPORTS)
+    missing_output = dict(environment)
+    del missing_output[variables[0]]
+    reject_transport("missing", missing_output)
+    for label, value in (
+        ("empty", ""),
+        ("truncated", environment[variables[0]][:-4]),
+        ("masked", "***"),
+        ("newline", environment[variables[0]] + "\n"),
+        ("injected", environment[variables[0]] + ";marker"),
+        ("corrupt", environment[variables[0]][:-1] + "!"),
+        ("oversized", "A" * (module.MAX_ENVELOPE_BASE64_CHARS + 4)),
+    ):
+        changed = dict(environment)
+        changed[variables[0]] = value
+        reject_transport(label, changed)
+    duplicate = dict(environment)
+    duplicate[variables[1]] = duplicate[variables[0]]
+    reject_transport("duplicate", duplicate)
+    crossed = dict(environment)
+    crossed[variables[0]], crossed[variables[-1]] = crossed[variables[-1]], crossed[variables[0]]
+    reject_transport("cross-cell", crossed)
+
+    def reject_retained(label: str, mutate: object) -> None:
+        root = tmp_path / f"retained-{label}"
+        shutil.copytree(args.output_root, root)
+        mutate(root)
+        with pytest.raises(ValueError):
+            module.verify_retained(root, module._expected_identity(args))
+
+    envelope_name = next(args.output_root.glob("envelope-*.json")).name
+    reject_retained("missing", lambda root: (root / envelope_name).unlink())
+    reject_retained("extra", lambda root: (root / "extra.json").write_bytes(b"{}\n"))
+    reject_retained(
+        "case-collision", lambda root: (root / "Aggregate.json").write_bytes(b"{}\n")
+    )
+    reject_retained(
+        "corrupt", lambda root: (root / envelope_name).write_bytes(b"{\"bad\":true}\n")
+    )
+    reject_retained(
+        "oversized", lambda root: (root / envelope_name).write_bytes(b"x" * 131073)
+    )
+    reject_retained(
+        "aggregate-hash",
+        lambda root: (root / "aggregate.json").write_bytes(
+            (root / "aggregate.json").read_bytes() + b" "
+        ),
+    )
+    hardlink_source = tmp_path / "retained-hardlink-source.json"
+    hardlink_source.write_bytes((args.output_root / envelope_name).read_bytes())
+
+    def substitute_hardlink(root: Path) -> None:
+        target = root / envelope_name
+        target.unlink()
+        os.link(hardlink_source, target)
+
+    reject_retained("hardlink", substitute_hardlink)
+
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    runner_text = CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
+    assert workflow_text.count("outputs:\n") == 7
+    assert "needs.containment" not in workflow_text
+    assert workflow_text.count("actions/upload-artifact@") == 1
+    assert "${{ runner.temp }}/via000-r3-containment-envelope" not in workflow_text
+    assert "[AllowEmptyCollection()]" in runner_text
+    assert "$script:MaximumProofEnvelopeBytes = 131072" in runner_text
+    assert "$script:MaximumProofEnvelopeBase64Characters = 174764" in runner_text
+    assert runner_text.index("} finally {") < runner_text.rindex("Write-ProofJobOutput")
+    assert 'GetEnvironmentVariable("GITHUB_OUTPUT")' in runner_text
+    assert "GitHub job-output control is not fresh" in runner_text
+    assert '"GITHUB_*", "ACTIONS_*", "RUNNER_*"' in CONTAINMENT.read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.mark.skipif(os.name != "nt", reason="exact Windows Job Object control")

@@ -25,7 +25,16 @@ MEMBER_NAMES = (
 )
 MAX_MEMBER_BYTES = 262_144
 MAX_TOTAL_DECODED_BYTES = 524_288
-MAX_ENVELOPE_BYTES = 1_048_576
+MAX_ENVELOPE_BYTES = 131_072
+MAX_ENVELOPE_BASE64_CHARS = ((MAX_ENVELOPE_BYTES + 2) // 3) * 4
+TRANSPORTS = {
+    "VIA000_ENVELOPE_UBUNTU_CANDIDATE": ("ubuntu-latest-x86_64", "candidate"),
+    "VIA000_ENVELOPE_UBUNTU_PDF": ("ubuntu-latest-x86_64", "pdf"),
+    "VIA000_ENVELOPE_UBUNTU_MUTATION": ("ubuntu-latest-x86_64", "mutation"),
+    "VIA000_ENVELOPE_WINDOWS_CANDIDATE": ("windows-x86_64", "candidate"),
+    "VIA000_ENVELOPE_WINDOWS_PDF": ("windows-x86_64", "pdf"),
+    "VIA000_ENVELOPE_WINDOWS_MUTATION": ("windows-x86_64", "mutation"),
+}
 TRUE_FIELDS = {
     "non_scientific",
     "receipt_bindings_verified",
@@ -198,6 +207,65 @@ def build_envelope(identity: dict[str, str], subjects: dict[str, bytes]) -> byte
     return content
 
 
+def _decode_envelope(
+    content: bytes, description: str
+) -> tuple[dict[str, Any], dict[str, bytes], str]:
+    if not content or len(content) > MAX_ENVELOPE_BYTES:
+        raise ValueError(f"proof envelope encoded size is outside the frozen limit: {description}")
+    document = _parse_json(content, f"proof envelope {description}")
+    if canonical_envelope_bytes(document) != content:
+        raise ValueError(f"proof envelope is not canonical JSON: {description}")
+    if set(document) != ENVELOPE_FIELDS:
+        raise ValueError(f"proof envelope fields differ: {description}")
+    if document["schema_version"] != 1 or document["envelope_kind"] != (
+        "via000-r3-hosted-containment-envelope"
+    ):
+        raise ValueError(f"proof envelope kind/version differs: {description}")
+    identity = document["identity"]
+    members = document["members"]
+    if not isinstance(identity, dict) or set(identity) != IDENTITY_FIELDS:
+        raise ValueError(f"proof envelope identity fields differ: {description}")
+    if not isinstance(members, dict):
+        raise ValueError(f"proof envelope members are not one object: {description}")
+    member_names = list(members)
+    if set(member_names) != set(MEMBER_NAMES) or len(
+        {name.casefold() for name in member_names}
+    ) != 4:
+        raise ValueError(f"proof envelope member set differs: {description}")
+    decoded: dict[str, bytes] = {}
+    total = 0
+    for name in MEMBER_NAMES:
+        member = members[name]
+        if not isinstance(member, dict) or set(member) != MEMBER_FIELDS:
+            raise ValueError(f"proof envelope metadata differs for {name}: {description}")
+        size = member["size"]
+        digest = member["sha256"]
+        encoded = member["base64"]
+        if (
+            not isinstance(size, int)
+            or isinstance(size, bool)
+            or not (0 <= size <= MAX_MEMBER_BYTES)
+        ):
+            raise ValueError(f"proof envelope size differs for {name}: {description}")
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ValueError(f"proof envelope hash differs for {name}: {description}")
+        if not isinstance(encoded, str) or len(encoded) > ((MAX_MEMBER_BYTES + 2) // 3) * 4:
+            raise ValueError(f"proof envelope base64 size differs for {name}: {description}")
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(f"proof envelope base64 differs for {name}: {description}") from exc
+        if base64.b64encode(raw).decode("ascii") != encoded:
+            raise ValueError(f"proof envelope base64 is noncanonical for {name}: {description}")
+        if len(raw) != size or _sha256_bytes(raw) != digest:
+            raise ValueError(f"proof envelope decoded size/hash differs for {name}: {description}")
+        decoded[name] = raw
+        total += len(raw)
+    if total > MAX_TOTAL_DECODED_BYTES or document["total_decoded_bytes"] != total:
+        raise ValueError(f"proof envelope decoded total differs: {description}")
+    return document, decoded, _sha256_bytes(content)
+
+
 def _load_envelope(path: Path) -> tuple[dict[str, Any], dict[str, bytes], str]:
     parent_items = list(path.parent.iterdir())
     if len(parent_items) != 1 or parent_items[0].name != "envelope.json":
@@ -207,59 +275,7 @@ def _load_envelope(path: Path) -> tuple[dict[str, Any], dict[str, bytes], str]:
         raise ValueError(f"proof envelope is not one regular single-link file: {path}")
     if stat.st_size <= 0 or stat.st_size > MAX_ENVELOPE_BYTES:
         raise ValueError(f"proof envelope encoded size is outside the frozen limit: {path}")
-    content = path.read_bytes()
-    document = _parse_json(content, f"proof envelope {path}")
-    if canonical_envelope_bytes(document) != content:
-        raise ValueError(f"proof envelope is not canonical JSON: {path}")
-    if set(document) != ENVELOPE_FIELDS:
-        raise ValueError(f"proof envelope fields differ: {path}")
-    if document["schema_version"] != 1 or document["envelope_kind"] != (
-        "via000-r3-hosted-containment-envelope"
-    ):
-        raise ValueError(f"proof envelope kind/version differs: {path}")
-    identity = document["identity"]
-    members = document["members"]
-    if not isinstance(identity, dict) or set(identity) != IDENTITY_FIELDS:
-        raise ValueError(f"proof envelope identity fields differ: {path}")
-    if not isinstance(members, dict):
-        raise ValueError(f"proof envelope members are not one object: {path}")
-    member_names = list(members)
-    if set(member_names) != set(MEMBER_NAMES) or len(
-        {name.casefold() for name in member_names}
-    ) != 4:
-        raise ValueError(f"proof envelope member set differs: {path}")
-    decoded: dict[str, bytes] = {}
-    total = 0
-    for name in MEMBER_NAMES:
-        member = members[name]
-        if not isinstance(member, dict) or set(member) != MEMBER_FIELDS:
-            raise ValueError(f"proof envelope metadata differs for {name}: {path}")
-        size = member["size"]
-        digest = member["sha256"]
-        encoded = member["base64"]
-        if (
-            not isinstance(size, int)
-            or isinstance(size, bool)
-            or not (0 <= size <= MAX_MEMBER_BYTES)
-        ):
-            raise ValueError(f"proof envelope size differs for {name}: {path}")
-        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
-            raise ValueError(f"proof envelope hash differs for {name}: {path}")
-        if not isinstance(encoded, str) or len(encoded) > ((MAX_MEMBER_BYTES + 2) // 3) * 4:
-            raise ValueError(f"proof envelope base64 size differs for {name}: {path}")
-        try:
-            raw = base64.b64decode(encoded, validate=True)
-        except (binascii.Error, ValueError) as exc:
-            raise ValueError(f"proof envelope base64 differs for {name}: {path}") from exc
-        if base64.b64encode(raw).decode("ascii") != encoded:
-            raise ValueError(f"proof envelope base64 is noncanonical for {name}: {path}")
-        if len(raw) != size or _sha256_bytes(raw) != digest:
-            raise ValueError(f"proof envelope decoded size/hash differs for {name}: {path}")
-        decoded[name] = raw
-        total += len(raw)
-    if total > MAX_TOTAL_DECODED_BYTES or document["total_decoded_bytes"] != total:
-        raise ValueError(f"proof envelope decoded total differs: {path}")
-    return document, decoded, _sha256_bytes(content)
+    return _decode_envelope(path.read_bytes(), str(path))
 
 
 def _validate_cell(
@@ -363,7 +379,7 @@ def _atomic_write(path: Path, document: dict[str, Any]) -> None:
         raise
 
 
-def aggregate(args: argparse.Namespace) -> dict[str, Any]:
+def _expected_identity(args: argparse.Namespace) -> dict[str, str]:
     if re.fullmatch(r"[0-9a-f]{40}", args.source_sha) is None:
         raise ValueError("aggregate source SHA is not one full commit")
     if re.fullmatch(r"[1-9][0-9]*", args.run_id) is None or re.fullmatch(
@@ -375,7 +391,10 @@ def aggregate(args: argparse.Namespace) -> dict[str, Any]:
         args.source_ref,
     ) is None:
         raise ValueError("aggregate source ref is outside the proof-only branch scope")
-    identity = {
+    expected_workflow_ref = f"whact2025/POPGP/{WORKFLOW}@{args.source_ref}"
+    if args.workflow_ref != expected_workflow_ref:
+        raise ValueError("aggregate workflow ref differs from the exact source ref")
+    return {
         "repository": "whact2025/POPGP",
         "workflow": WORKFLOW,
         "workflow_ref": args.workflow_ref,
@@ -385,17 +404,16 @@ def aggregate(args: argparse.Namespace) -> dict[str, Any]:
         "run_id": args.run_id,
         "run_attempt": args.run_attempt,
     }
-    if not args.input_root.is_dir() or args.input_root.is_symlink():
-        raise ValueError("proof envelope input root is not one ordinary directory")
-    roots = sorted(args.input_root.iterdir())
-    if len(roots) != 6 or any(not root.is_dir() or root.is_symlink() for root in roots):
-        raise ValueError("expected exactly six ordinary hosted proof artifact directories")
-    paths = [root / "envelope.json" for root in roots]
+
+
+def _aggregate_envelopes(
+    items: list[tuple[Path, bytes]], identity: dict[str, str]
+) -> dict[str, Any]:
     cells: set[str] = set()
     hashes: dict[str, str] = {}
     bundle_hashes: dict[str, str] | None = None
-    for path in paths:
-        envelope, subjects, envelope_hash = _load_envelope(path)
+    for path, content in items:
+        envelope, subjects, envelope_hash = _decode_envelope(content, str(path))
         cell = _validate_cell(envelope, subjects, path, identity)
         if cell in cells:
             raise ValueError(f"duplicate hosted containment proof cell: {cell}")
@@ -409,7 +427,7 @@ def aggregate(args: argparse.Namespace) -> dict[str, Any]:
         hashes[cell] = envelope_hash
     if cells != EXPECTED_CELLS:
         raise ValueError(f"hosted containment proof matrix differs: {sorted(cells)}")
-    aggregate_document: dict[str, Any] = {
+    return {
         "schema_version": 1,
         "proof_kind": "via000-r3-hosted-containment-aggregate",
         "non_scientific": True,
@@ -427,14 +445,150 @@ def aggregate(args: argparse.Namespace) -> dict[str, Any]:
         "no_custody_access": True,
         "no_commitment_or_reveal": True,
     }
+
+
+def _aggregate_bytes(document: dict[str, Any]) -> bytes:
+    return (
+        json.dumps(
+            document,
+            allow_nan=False,
+            ensure_ascii=True,
+            indent=2,
+            sort_keys=True,
+        ).encode("ascii")
+        + b"\n"
+    )
+
+
+def _retained_name(platform: str, stage: str) -> str:
+    return f"envelope-{platform}-{stage}.json"
+
+
+def _decode_transport(value: str, name: str) -> bytes:
+    if not value or len(value) > MAX_ENVELOPE_BASE64_CHARS or len(value) % 4:
+        raise ValueError(f"job output size is outside the frozen limit: {name}")
+    if re.fullmatch(r"[A-Za-z0-9+/]*={0,2}", value) is None:
+        raise ValueError(f"job output is not single-line standard base64: {name}")
+    try:
+        content = base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(f"job output is not valid base64: {name}") from exc
+    if not content or len(content) > MAX_ENVELOPE_BYTES:
+        raise ValueError(f"decoded job output size differs: {name}")
+    if base64.b64encode(content).decode("ascii") != value:
+        raise ValueError(f"job output base64 is noncanonical: {name}")
+    return content
+
+
+def collect_job_outputs(
+    args: argparse.Namespace, environment: dict[str, str] | os._Environ[str]
+) -> dict[str, Any]:
+    identity = _expected_identity(args)
+    encoded_values: set[str] = set()
+    retained: list[tuple[Path, bytes]] = []
+    for variable, (platform, stage) in TRANSPORTS.items():
+        encoded = environment.get(variable, "")
+        if encoded in encoded_values:
+            raise ValueError(f"duplicate or overwritten job output: {variable}")
+        encoded_values.add(encoded)
+        content = _decode_transport(encoded, variable)
+        artifact = f"via000-r3-containment-proof-{platform}-{stage}"
+        retained.append((Path(artifact) / "envelope.json", content))
+    aggregate_document = _aggregate_envelopes(retained, identity)
+    if args.output_root.exists():
+        raise ValueError("consolidated proof output root already exists")
+    args.output_root.mkdir(mode=0o700, parents=False)
+    try:
+        for logical_path, content in retained:
+            envelope = _parse_json(content, f"transport {logical_path}")
+            platform = envelope["identity"]["platform_family"]
+            stage = envelope["identity"]["stage_id"]
+            output = args.output_root / _retained_name(platform, stage)
+            with output.open("xb") as stream:
+                stream.write(content)
+        with (args.output_root / "aggregate.json").open("xb") as stream:
+            stream.write(_aggregate_bytes(aggregate_document))
+        verify_retained(args.output_root, identity)
+    except BaseException:
+        for child in args.output_root.iterdir():
+            child.unlink(missing_ok=True)
+        args.output_root.rmdir()
+        raise
+    return aggregate_document
+
+
+def verify_retained(root: Path, identity: dict[str, str]) -> dict[str, Any]:
+    if not root.is_dir() or root.is_symlink():
+        raise ValueError("retained proof root is not one ordinary directory")
+    expected_names = {
+        _retained_name(platform, stage)
+        for platform in PLATFORMS
+        for stage in STAGES
+    } | {"aggregate.json"}
+    children = list(root.iterdir())
+    names = [child.name for child in children]
+    if (
+        set(names) != expected_names
+        or len(names) != 7
+        or len({name.casefold() for name in names}) != 7
+    ):
+        raise ValueError("retained proof file set differs from the exact seven files")
+    items: list[tuple[Path, bytes]] = []
+    aggregate_content = b""
+    for child in children:
+        stat = child.lstat()
+        if (
+            not child.is_file()
+            or child.is_symlink()
+            or stat.st_nlink != 1
+            or stat.st_size <= 0
+            or stat.st_size > MAX_ENVELOPE_BYTES
+        ):
+            raise ValueError(f"retained proof subject metadata differs: {child.name}")
+        content = child.read_bytes()
+        if child.name == "aggregate.json":
+            aggregate_content = content
+            continue
+        match = re.fullmatch(
+            r"envelope-(ubuntu-latest-x86_64|windows-x86_64)-(candidate|pdf|mutation)\.json",
+            child.name,
+        )
+        if match is None:
+            raise ValueError(f"retained envelope name differs: {child.name}")
+        platform, stage = match.groups()
+        artifact = f"via000-r3-containment-proof-{platform}-{stage}"
+        items.append((Path(artifact) / "envelope.json", content))
+    document = _aggregate_envelopes(items, identity)
+    if aggregate_content != _aggregate_bytes(document):
+        raise ValueError("retained aggregate bytes differ from the six exact envelopes")
+    return document
+
+
+def aggregate(args: argparse.Namespace) -> dict[str, Any]:
+    identity = _expected_identity(args)
+    if not args.input_root.is_dir() or args.input_root.is_symlink():
+        raise ValueError("proof envelope input root is not one ordinary directory")
+    roots = sorted(args.input_root.iterdir())
+    if len(roots) != 6 or any(not root.is_dir() or root.is_symlink() for root in roots):
+        raise ValueError("expected exactly six ordinary hosted proof artifact directories")
+    paths = [root / "envelope.json" for root in roots]
+    items: list[tuple[Path, bytes]] = []
+    for path in paths:
+        _load_envelope(path)
+        items.append((path, path.read_bytes()))
+    aggregate_document = _aggregate_envelopes(items, identity)
     _atomic_write(args.output, aggregate_document)
     return aggregate_document
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input-root", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--input-root", type=Path)
+    modes.add_argument("--collect-job-outputs", action="store_true")
+    modes.add_argument("--verify-retained", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--output-root", type=Path)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--source-ref", required=True)
     parser.add_argument("--workflow-ref", required=True)
@@ -442,10 +596,20 @@ def main() -> int:
     parser.add_argument("--run-attempt", required=True)
     args = parser.parse_args()
     try:
-        aggregate(args)
+        if args.collect_job_outputs:
+            if args.output_root is None:
+                raise ValueError("collect mode requires --output-root")
+            collect_job_outputs(args, os.environ)
+        elif args.verify_retained is not None:
+            verify_retained(args.verify_retained, _expected_identity(args))
+        else:
+            if args.output is None:
+                raise ValueError("legacy aggregate mode requires --output")
+            aggregate(args)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"containment proof aggregation failed: {exc}", file=__import__("sys").stderr)
-        args.output.unlink(missing_ok=True)
+        if args.output is not None:
+            args.output.unlink(missing_ok=True)
         return 1
     return 0
 

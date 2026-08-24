@@ -17,7 +17,13 @@ param(
     [Parameter(Mandatory = $true)][string]$SourceSha,
     [Parameter(Mandatory = $true)][string]$WorkflowRef,
     [Parameter(Mandatory = $true)][string]$RunId,
-    [Parameter(Mandatory = $true)][string]$RunAttempt
+    [Parameter(Mandatory = $true)][string]$RunAttempt,
+    [Parameter(Mandatory = $true)]
+    [ValidateSet(
+        "ubuntu_candidate_envelope", "ubuntu_pdf_envelope", "ubuntu_mutation_envelope",
+        "windows_candidate_envelope", "windows_pdf_envelope", "windows_mutation_envelope"
+    )]
+    [string]$OutputName
 )
 
 Set-StrictMode -Version Latest
@@ -28,7 +34,8 @@ $script:ProofMemberNames = @(
 )
 $script:MaximumProofMemberBytes = 262144
 $script:MaximumProofDecodedBytes = 524288
-$script:MaximumProofEnvelopeBytes = 1048576
+$script:MaximumProofEnvelopeBytes = 131072
+$script:MaximumProofEnvelopeBase64Characters = 174764
 
 function Get-ProofSha256 {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -121,10 +128,86 @@ function New-ProofSortedMap {
 }
 
 function Get-ProofBytesSha256 {
-    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [byte[]]$Bytes
+    )
     return [Convert]::ToHexString(
         [Security.Cryptography.SHA256]::HashData($Bytes)
     ).ToLowerInvariant()
+}
+
+function Write-ProofJobOutput {
+    param(
+        [Parameter(Mandatory = $true)][string]$EnvelopePath,
+        [Parameter(Mandatory = $true)][string]$TrustedRunnerTemp,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][hashtable]$SystemTools
+    )
+    $expectedName = if ($PlatformFamily -eq "ubuntu-latest-x86_64") {
+        "ubuntu_$($StageId)_envelope"
+    } else {
+        "windows_$($StageId)_envelope"
+    }
+    if ($Name -cne $expectedName) { throw "proof job output name differs from the cell" }
+    $controlPath = [string][Environment]::GetEnvironmentVariable("GITHUB_OUTPUT")
+    if (-not $controlPath -or -not [IO.Path]::IsPathFullyQualified($controlPath)) {
+        throw "trusted GitHub job-output control path is absent or not absolute"
+    }
+    $control = Assert-SingleLinkProofFile -Path $controlPath `
+        -Description "trusted GitHub job-output control" -SystemTools $SystemTools
+    $controlParent = Get-Item -LiteralPath ([IO.Path]::GetDirectoryName($control)) `
+        -Force -ErrorAction Stop
+    if (-not ($controlParent -is [IO.DirectoryInfo]) -or
+        ($controlParent.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "trusted GitHub job-output parent is not an ordinary directory"
+    }
+    $temp = (Get-Item -LiteralPath $TrustedRunnerTemp -Force -ErrorAction Stop).FullName
+    $comparison = if ($IsWindows) {
+        [StringComparison]::OrdinalIgnoreCase
+    } else {
+        [StringComparison]::Ordinal
+    }
+    $prefix = $temp.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if (-not $control.StartsWith($prefix, $comparison)) {
+        throw "trusted GitHub job-output control is outside runner temp"
+    }
+    $envelope = [IO.File]::ReadAllBytes((Assert-SingleLinkProofFile `
+        -Path $EnvelopePath -Description "canonical proof job output" -SystemTools $SystemTools))
+    if ($envelope.Length -le 0 -or $envelope.Length -gt $script:MaximumProofEnvelopeBytes -or
+        $envelope[0] -eq 0xef -or $envelope[$envelope.Length - 1] -ne 10 -or
+        [Array]::IndexOf($envelope, [byte]13) -ge 0) {
+        throw "canonical proof job output bytes differ from the frozen transport bounds"
+    }
+    $encoded = [Convert]::ToBase64String($envelope)
+    if ($encoded.Length -le 0 -or
+        $encoded.Length -gt $script:MaximumProofEnvelopeBase64Characters -or
+        $encoded -cnotmatch '^[A-Za-z0-9+/]*={0,2}$' -or
+        $encoded.Contains("`r") -or $encoded.Contains("`n") -or
+        (Get-ProofBytesSha256 -Bytes ([Convert]::FromBase64String($encoded))) -cne
+            (Get-ProofBytesSha256 -Bytes $envelope)) {
+        throw "canonical proof job output base64 differs from the frozen transport form"
+    }
+    $line = [Text.Encoding]::ASCII.GetBytes("$Name=$encoded`n")
+    $stream = [IO.FileStream]::new(
+        $control, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None
+    )
+    try {
+        if ($stream.Length -ne 0) { throw "GitHub job-output control is not fresh" }
+        $stream.Write($line, 0, $line.Length)
+        $stream.Flush($true)
+        $stream.Position = 0
+        $observed = [byte[]]::new($line.Length)
+        $read = $stream.Read($observed, 0, $observed.Length)
+        if ($read -ne $line.Length -or $stream.ReadByte() -ne -1 -or
+            (Get-ProofBytesSha256 -Bytes $observed) -cne
+                (Get-ProofBytesSha256 -Bytes $line)) {
+            throw "GitHub job-output control truncated or transformed the envelope"
+        }
+    } finally {
+        $stream.Dispose()
+    }
 }
 
 function Assert-FrozenProofBundle {
@@ -513,3 +596,6 @@ try {
         Remove-Item -LiteralPath $OutputRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
+
+Write-ProofJobOutput -EnvelopePath (Join-Path $OutputRoot "envelope.json") `
+    -TrustedRunnerTemp $RunnerTemp -Name $OutputName -SystemTools $systemTools
