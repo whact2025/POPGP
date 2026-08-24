@@ -156,6 +156,7 @@ namespace Via000Rr13 {
     static Dictionary<string,string> TokenEnvironment(IntPtr token, string mutableTemp, string sentinel, string trustedPath) {
       IntPtr block = IntPtr.Zero;
       var parsed = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+      var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       try {
         Win32(CreateEnvironmentBlock(out block, token, false), "CreateEnvironmentBlock restricted token");
         IntPtr cursor = block;
@@ -178,8 +179,8 @@ namespace Via000Rr13 {
           if (!Regex.IsMatch(name, "^[A-Za-z_][A-Za-z0-9_()]{0,127}$") ||
               value.IndexOfAny(new[] {'\0', '\r', '\n'}) >= 0)
             throw new InvalidOperationException("token environment name or value is noncanonical");
-          if (parsed.ContainsKey(name)) throw new InvalidOperationException("token environment has a duplicate name");
-          if (BlockedName(name)) throw new InvalidOperationException("token environment contains a blocked name");
+          if (!seen.Add(name)) throw new InvalidOperationException("token environment has a duplicate name");
+          if (BlockedName(name)) continue;
           parsed.Add(name, value);
         }
       } finally {
@@ -210,6 +211,8 @@ namespace Via000Rr13 {
       selected["APPDATA"] = roaming;
       selected["LOCALAPPDATA"] = local;
       selected["VIA000_SENTINEL"] = sentinel;
+      foreach (string name in selected.Keys)
+        if (BlockedName(name)) throw new InvalidOperationException("selected token environment contains a blocked name");
       return selected;
     }
     static string VerifyToken(IntPtr token) {
