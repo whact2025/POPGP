@@ -1634,12 +1634,14 @@ def test_r3_complete_execution_toolchain_has_no_path_resolved_commands() -> None
         "windows-2025",
     }
     matrix = document["jobs"]["platform-fragment"]["strategy"]["matrix"]["include"]
-    assert all(item["shell"].startswith(("/opt/", '"C:\\Program Files')) for item in matrix)
-    assert all(
-        step.get("shell") == "${{ matrix.shell }}"
+    assert all("shell" not in item for item in matrix)
+    trusted_runs = [
+        step
         for step in document["jobs"]["platform-fragment"]["steps"]
         if "run" in step
-    )
+    ]
+    assert len(trusted_runs) == 8
+    assert all(step["shell"] == "pwsh" for step in trusted_runs)
     assert 'update-environment: "false"' in workflow
     assert "if: always()" not in workflow
     assert "Validate complete trusted toolchain" in workflow
@@ -2036,11 +2038,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     ):
         assert action in workflow_text
-    assert (
-        r"shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-        in workflow_text
-    )
-    assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
+    assert workflow_text.count("shell: pwsh") == 12
+    assert "WindowsPowerShell" not in workflow_text
+    assert "-NonInteractive -Command \". '{0}'\"" not in workflow_text
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
     assert workflow_text.count('$workspace = Join-Path $root "via000-proof-workspace"') == 1
     assert workflow_text.count('$relative = ".via000-r3-proof-cache/') >= 3
@@ -2665,24 +2665,19 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
     assert "exact digest-bound cache key already exists" in workflow_text
     assert "six-cache proof consolidation failed" in workflow_text
     assert r"shell: C:\Program Files\PowerShell" not in workflow_text
-    trusted_windows_shell = (
-        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe "
-        "-NoLogo -NoProfile -NonInteractive -Command \". '{0}'\""
-    )
+    assert "WindowsPowerShell" not in workflow_text
     workflow_document = yaml.safe_load(workflow_text)
     for job_name in ("windows-candidate", "windows-pdf", "windows-mutation"):
-        outer_steps = [
-            step
-            for step in workflow_document["jobs"][job_name]["steps"]
-            if step.get("id") == "digest"
-            or step.get("name")
-            in {
-                "Assert exact cross-OS archive tools",
-                "Require fresh exact cache key",
-            }
+        trusted_steps = [
+            step for step in workflow_document["jobs"][job_name]["steps"] if "run" in step
         ]
-        assert len(outer_steps) == 3
-        assert all(step["shell"] == trusted_windows_shell for step in outer_steps)
+        assert len(trusted_steps) == 4
+        assert all(step["shell"] == "pwsh" for step in trusted_steps)
+        assert all(
+            "trusted Windows built-in pwsh identity, profile, version, or PATH differs"
+            in step["run"]
+            for step in trusted_steps
+        )
     assert "ConvertFrom-Json -AsHashtable" not in workflow_text
     assert "[Security.Cryptography.SHA256]::HashData" not in workflow_text
     assert workflow_text.index("$tarExit = $LASTEXITCODE") < workflow_text.index(
@@ -2710,18 +2705,33 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
     )
 
     if os.name == "nt":
+        pwsh = shutil.which("pwsh")
+        assert pwsh is not None
+        local_trusted_path = f"{Path(pwsh).parent};C:\\Windows\\System32;C:\\Windows"
         digest_step = next(
             step
             for step in workflow_document["jobs"]["windows-candidate"]["steps"]
             if step.get("id") == "digest"
         )
         digest_script = tmp_path / "rr10-outer-digest.ps1"
-        digest_script.write_text(digest_step["run"], encoding="utf-8", newline="\n")
+        digest_script.write_text(
+            digest_step["run"]
+            .replace(r"C:\Program Files\PowerShell\7\pwsh.exe", pwsh)
+            .replace(
+                r"C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;"
+                r"C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;"
+                r"C:\Windows\System32;C:\Windows",
+                local_trusted_path,
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
         github_output = tmp_path / "rr10-github-output.txt"
         github_output.write_bytes(b"")
         live_environment = os.environ.copy()
         live_environment.update(
             {
+                "PATH": local_trusted_path,
                 "GITHUB_WORKSPACE": str(tmp_path),
                 "GITHUB_OUTPUT": str(github_output),
                 "VIA000_PLATFORM_FAMILY": "windows-x86_64",
@@ -2734,7 +2744,7 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
         )
         completed = subprocess.run(
             [
-                r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+                pwsh,
                 "-NoLogo",
                 "-NoProfile",
                 "-NonInteractive",
@@ -2767,6 +2777,203 @@ def test_r3_rr10_job_output_cache_transport_is_digest_bound(
 ) -> None:
     """TST-VIA000-R3-RR10-JOB-OUTPUT-CACHE-TRANSPORT-001."""
     _exercise_r3_digest_cache_transport(tmp_path, monkeypatch)
+
+
+@pytest.mark.negative_control
+def test_r3_rr12_windows_builtin_pwsh_execution_is_observable_and_persistent(
+    tmp_path: Path,
+) -> None:
+    """TST-VIA000-R3-RR12-WINDOWS-BUILTIN-PWSH-EXECUTION-001."""
+    proof_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    production_text = WORKFLOW.read_text(encoding="utf-8")
+    proof = yaml.safe_load(proof_text)
+    production = yaml.safe_load(production_text)
+    expected_path = (
+        r"C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;"
+        r"C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;"
+        r"C:\Windows\System32;C:\Windows"
+    )
+    forbidden_patterns = (
+        "WindowsPowerShell",
+        r'"C:\Program Files\PowerShell\7\pwsh.exe"',
+        "-ExecutionPolicy Bypass -File {0}",
+        "-NonInteractive -Command \". '{0}'\"",
+    )
+    proof_shell_lines = "\n".join(
+        line for line in proof_text.splitlines() if "shell:" in line
+    )
+    production_shell_lines = "\n".join(
+        line for line in production_text.splitlines() if "shell:" in line
+    )
+    for pattern in forbidden_patterns:
+        assert pattern not in proof_shell_lines
+        assert pattern not in production_shell_lines
+
+    proof_step_names = {
+        "Prove contained Windows candidate and stage one envelope",
+        "Prove contained Windows pdf and stage one envelope",
+        "Prove contained Windows mutation and stage one envelope",
+        "Validate staged envelope and emit digest only",
+        "Assert exact cross-OS archive tools",
+        "Require fresh exact cache key",
+    }
+    proof_step_count = 0
+    for job_name in ("windows-candidate", "windows-pdf", "windows-mutation"):
+        job = proof["jobs"][job_name]
+        assert job["env"]["PATH"] == expected_path
+        trusted_steps = [step for step in job["steps"] if "run" in step]
+        assert len(trusted_steps) == 4
+        for step in trusted_steps:
+            proof_step_count += 1
+            assert step["shell"] == "pwsh"
+            assert step["name"] in proof_step_names
+            assert (
+                "trusted Windows built-in pwsh identity, profile, version, or PATH differs"
+                in step["run"]
+            )
+    assert proof_step_count == 12
+
+    windows_matrix = [
+        entry
+        for entry in production["jobs"]["platform-fragment"]["strategy"]["matrix"][
+            "include"
+        ]
+        if entry["platform"] == "windows-x86_64"
+    ]
+    assert len(windows_matrix) == 3
+    assert all("shell" not in entry for entry in windows_matrix)
+    assert all(entry["trusted_path"] == expected_path for entry in windows_matrix)
+    ubuntu_matrix = [
+        entry
+        for entry in production["jobs"]["platform-fragment"]["strategy"]["matrix"][
+            "include"
+        ]
+        if entry["platform"] == "ubuntu-latest-x86_64"
+    ]
+    assert len(ubuntu_matrix) == 3
+    assert all("shell" not in entry for entry in ubuntu_matrix)
+    assert all(
+        entry["trusted_path"] == "/opt/microsoft/powershell/7:/usr/bin:/bin"
+        for entry in ubuntu_matrix
+    )
+    assert production["jobs"]["platform-fragment"]["env"]["PATH"] == (
+        "${{ matrix.trusted_path }}"
+    )
+    production_step_names = {
+        "Reject non-snapshot lifecycle refs",
+        "Validate complete trusted toolchain",
+        "Prove production containment against detached replacement payload",
+        "Execute frozen clean platform protocol",
+        "Execute frozen mutation-test matrix",
+        "Capture exact attestation subjects after containment teardown",
+        "Retain producer attestation bundle",
+        "Remove rejected platform workspace",
+    }
+    production_steps = [
+        step
+        for step in production["jobs"]["platform-fragment"]["steps"]
+        if step.get("name") in production_step_names
+    ]
+    assert {step["name"] for step in production_steps} == production_step_names
+    assert len(production_steps) == 8
+    assert all(step["shell"] == "pwsh" for step in production_steps)
+    first_material_token = {
+        "Reject non-snapshot lifecycle refs": "$authorizationRef =",
+        "Validate complete trusted toolchain": "if ([string]$env:VIA000_BASE_PYTHON_VERSION",
+        "Prove production containment against detached replacement payload": "$platform =",
+        "Execute frozen clean platform protocol": "$platform =",
+        "Execute frozen mutation-test matrix": "$platform =",
+        "Capture exact attestation subjects after containment teardown": "$evidence =",
+        "Retain producer attestation bundle": "$evidence =",
+        "Remove rejected platform workspace": "$workspace =",
+    }
+    for step in production_steps:
+        run = step["run"]
+        assert "if ($IsWindows)" in run
+        assert "} elseif ($IsLinux) {" in run
+        assert "$expectedShell = '/opt/microsoft/powershell/7/pwsh'" in run
+        assert (
+            "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+            in run
+        )
+        assert run.index("if ($IsWindows)") < run.index(first_material_token[step["name"]])
+        assert run.index("} elseif ($IsLinux) {") < run.index(
+            first_material_token[step["name"]]
+        )
+
+    if os.name != "nt":
+        return
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None
+    sentinel = tmp_path / "rr12-built-in-pwsh-sentinel.txt"
+    payload = b"rr12-built-in-pwsh-executed\n"
+    expected_sha = hashlib.sha256(payload).hexdigest()
+    local_path = f"{Path(pwsh).parent};C:\\Windows\\System32;C:\\Windows"
+    script = tmp_path / "rr12-built-in-pwsh.ps1"
+    script.write_text(
+        r"""
+$ErrorActionPreference = 'Stop'
+$expectedShell = [IO.Path]::GetFullPath([string]$env:VIA000_EXPECTED_SHELL)
+$expectedPath = [string]$env:VIA000_EXPECTED_PATH
+$processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+$observedShell = if ($null -eq $processModule) {
+  ''
+} else {
+  [IO.Path]::GetFullPath($processModule.FileName)
+}
+$psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))
+$profileFiles = @(
+  $PROFILE.AllUsersAllHosts,
+  $PROFILE.AllUsersCurrentHost,
+  $PROFILE.CurrentUserAllHosts,
+  $PROFILE.CurrentUserCurrentHost
+) | Select-Object -Unique
+if (-not $observedShell.Equals($expectedShell, [StringComparison]::OrdinalIgnoreCase) -or
+    -not $psHomeShell.Equals($expectedShell, [StringComparison]::OrdinalIgnoreCase) -or
+    $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+    @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+    [string]$env:PATH -cne $expectedPath) {
+  throw 'trusted Windows built-in pwsh identity, profile, version, or PATH differs'
+}
+$bytes = [Text.UTF8Encoding]::new($false).GetBytes("rr12-built-in-pwsh-executed`n")
+[IO.File]::WriteAllBytes([string]$env:VIA000_SENTINEL, $bytes)
+$item = Get-Item -LiteralPath ([string]$env:VIA000_SENTINEL) -Force -ErrorAction Stop
+if (-not ($item -is [IO.FileInfo]) -or
+    ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+    $item.Length -ne 28 -or
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $item.FullName).Hash.ToLowerInvariant() `
+      -cne [string]$env:VIA000_EXPECTED_SHA256) {
+  throw 'same-step sentinel postcondition failed'
+}
+""".lstrip(),
+        encoding="utf-8",
+        newline="\n",
+    )
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "PATH": local_path,
+            "VIA000_EXPECTED_PATH": local_path,
+            "VIA000_EXPECTED_SHELL": pwsh,
+            "VIA000_EXPECTED_SHA256": expected_sha,
+            "VIA000_SENTINEL": str(sentinel),
+        }
+    )
+    command = [pwsh, "-NoLogo", "-NoProfile", "-NonInteractive", "-File", str(script)]
+    completed = subprocess.run(command, env=environment, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+    assert sentinel.read_bytes() == payload
+    assert hashlib.sha256(sentinel.read_bytes()).hexdigest() == expected_sha
+
+    sentinel.unlink()
+    hostile_path = f"{tmp_path};{local_path}"
+    hostile_environment = dict(environment)
+    hostile_environment["PATH"] = hostile_path
+    rejected = subprocess.run(
+        command, env=hostile_environment, capture_output=True, text=True
+    )
+    assert rejected.returncode != 0
+    assert not sentinel.exists()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="exact Windows Job Object control")

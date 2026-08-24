@@ -122,6 +122,17 @@ uploads that seven-file tree, and a dependent job redownloads and revalidates it
 save success is not evidence: only exact restore, byte validation, retained upload, and
 redownload verification establish the synthetic proof. Missing, duplicate, nonhex,
 stale, fallback, corrupt, linked, cross-cell, or cross-run bytes fail closed.
+RR12 supersedes all earlier hosted Windows scripted evidence that used a custom
+PowerShell template. Every trusted Windows proof step and every trusted production
+PowerShell step now uses GitHub's built-in `shell: pwsh` under an exact sanitized PATH
+and checks the live process path, `$PSHOME`, PowerShell 7 version policy, and absence of
+profile files before acting. The production branch applies the equivalent exact
+`/opt/microsoft/powershell/7/pwsh` and sanitized non-writable PATH assertion on Ubuntu.
+Material files, hashes, outputs, containment teardown,
+attestation subjects, cache staging, bundle retention, and cleanup have same-step
+postconditions plus the next-boundary recheck. The five-run Windows transport
+experiment is non-authoritative diagnostic evidence only; none of its cache or artifact
+state may be reused.
 Hosted output is
 review evidence only; it cannot activate R3 or establish scientific viability.
 

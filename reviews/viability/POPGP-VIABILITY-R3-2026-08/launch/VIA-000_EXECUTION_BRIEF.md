@@ -68,6 +68,16 @@ Status: design handoff for independent review only. Do not dispatch or start hol
    clears PATH/PATHEXT and child injection state, and passes explicit paths to every
    child. Any missing/substituted/shadowed tool aborts before experiment workspace or
    output; failure removes the entire platform workspace and no artifact is uploaded.
+   All trusted PowerShell run steps use GitHub's built-in `shell: pwsh`; custom
+   absolute, `-File {0}`, and dot-source shell templates are forbidden. Each Windows
+   script first requires the canonical `C:\Program Files\PowerShell\7\pwsh.exe`
+   process and `$PSHOME`, the PowerShell 7 version policy, no applicable profile file,
+   and the exact reviewed PATH. Ubuntu production steps require the equivalent exact
+   `/opt/microsoft/powershell/7/pwsh`, PowerShell 7, no-profile-file, and
+   `/opt/microsoft/powershell/7:/usr/bin:/bin` boundary. Every material side effect is checked before the step
+   returns and rechecked at the next trusted consumption boundary. Earlier Windows
+   hosted proof metadata produced through custom shells is invalid and must not be
+   reused.
 9. Six matrix jobs run: candidate, PDF, and mutation on each supported platform.
    Every entry is a fresh GitHub-hosted VM and all six must share `github.run_id` and
    `github.run_attempt`. No stage consumes another stage's environment, cache, temp
@@ -100,6 +110,8 @@ Status: design handoff for independent review only. Do not dispatch or start hol
     Cache-save success alone is never evidence. This proof workflow has read-only
     permissions and cannot run or alter the campaign; its result is review evidence,
     not authorization.
+    Require all twelve Windows proof run steps to resolve through built-in `pwsh` and
+    reject any custom PowerShell shell string before accepting the six-cell result.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

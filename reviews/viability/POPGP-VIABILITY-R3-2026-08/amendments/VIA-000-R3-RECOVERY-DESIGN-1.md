@@ -253,6 +253,44 @@ against nonempty version-bearing banners. No cache key, action, containment, tra
 stage topology, or threat-boundary semantics changed. A fresh hosted completion and
 independent rereview are still required.
 
+## RR12 Windows built-in PowerShell execution amendment
+
+RR12 invalidates every prior hosted Windows conclusion whose material script used a
+custom PowerShell shell template. Runs 32722238480, 32722416771, 32722567809,
+32722822767, and 32723138041 are disposable, non-authoritative diagnostics only. The
+last run proved that GitHub's built-in `shell: pwsh` executes at the expected PowerShell
+7 process, preserves same-step files for a following built-in shell, and propagates a
+digest output. It also proved that the remaining custom dot-source staging steps could
+report green without creating their cache path. No cache or artifact from those runs is
+campaign evidence, and no earlier Windows proof artifact produced through a custom
+shell may be reused.
+
+All twelve trusted Windows run steps in the proof workflow and all eight trusted
+PowerShell step types in the production workflow now use GitHub's built-in
+`shell: pwsh`. The job PATH is constrained to the reviewed PowerShell 7, Git, and
+Windows system roots. Before any material action, every Windows script checks the
+current process module and `$PSHOME` against
+`C:\Program Files\PowerShell\7\pwsh.exe`, enforces the PowerShell 7 version policy,
+requires that no profile file exists at any applicable profile path, and requires the
+exact sanitized PATH. The source regression rejects custom `-File {0}`, dot-source,
+spaced executable, and Windows PowerShell templates. Ubuntu stage logic, the six-job
+topology, cache keys/actions, containment helper, and scientific lifecycle guards are
+unchanged; production steps use the same supported built-in PowerShell boundary on
+both hosted operating systems. Every production step applies the corresponding exact
+Windows or Ubuntu process, `$PSHOME`, version, no-profile-file, and sanitized-PATH
+assertion before material action.
+
+Each material producer now proves its side effect before returning, and the next
+trusted boundary rechecks it before consumption: authorization record and outputs;
+tool manifest, executable hashes, and outputs; containment teardown and result;
+stage summaries/manifests and mutation quiescence; attestation subject outputs and
+subject hashes; one ordinary staged envelope and its digest immediately before cache
+save; retained attestation bundle; and failure cleanup absence. Action success alone
+is not evidence. A fresh exact-source 2×3 proof, six exact cache restores, retained
+seven-file Ubuntu artifact, dependent redownload verification, and independent RR12
+rereview remain mandatory. The production workflow must remain undispatched while the
+campaign is drafted.
+
 Thus the following identity is single-valued:
 
 ```text

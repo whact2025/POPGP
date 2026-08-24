@@ -27,29 +27,31 @@ jobs:
           - os: ubuntu-24.04
             platform: ubuntu-latest-x86_64
             stage: candidate
-            shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
+            trusted_path: /opt/microsoft/powershell/7:/usr/bin:/bin
           - os: windows-2025
             platform: windows-x86_64
             stage: candidate
-            shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
+            trusted_path: 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
           - os: ubuntu-24.04
             platform: ubuntu-latest-x86_64
             stage: pdf
-            shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
+            trusted_path: /opt/microsoft/powershell/7:/usr/bin:/bin
           - os: windows-2025
             platform: windows-x86_64
             stage: pdf
-            shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
+            trusted_path: 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
           - os: ubuntu-24.04
             platform: ubuntu-latest-x86_64
             stage: mutation
-            shell: "/opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}"
+            trusted_path: /opt/microsoft/powershell/7:/usr/bin:/bin
           - os: windows-2025
             platform: windows-x86_64
             stage: mutation
-            shell: '"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}'
+            trusted_path: 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      PATH: ${{ matrix.trusted_path }}
     steps:
       - name: Set up pinned base Python
         id: base-python
@@ -67,7 +69,7 @@ jobs:
 
       - name: Reject non-snapshot lifecycle refs
         id: authorization
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_AUTHORIZATION_REF: ${{ inputs.authorization_ref }}
           VIA000_EVENT_NAME: ${{ github.event_name }}
@@ -78,6 +80,28 @@ jobs:
           VIA000_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $authorizationRef = [string]$env:VIA000_AUTHORIZATION_REF
           $authorizationPrefix = "refs/tags/popgp-via000-r3-authorization-"
           if (
@@ -192,12 +216,34 @@ jobs:
           )
           & $basePython @guardArguments
           if ($LASTEXITCODE -ne 0) { throw "protocol snapshot identity guard failed" }
-          foreach ($entry in [ordered]@{
+          $authorizationItem = Get-Item -LiteralPath $authorizationPath -Force -ErrorAction Stop
+          if (-not ($authorizationItem -is [IO.FileInfo]) -or
+              ($authorizationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $authorizationItem.Length -le 0) {
+            throw "authorization guard did not persist one ordinary nonempty record"
+          }
+          $authorizationRecord = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
+          if ([string]$authorizationRecord.protocol_commit -cne $githubSha -or
+              [string]$authorizationRecord.source_ref -cne $githubRef -or
+              [string]$authorizationRecord.authorization_ref -cne $authorizationRef -or
+              [string]$authorizationRecord.authorization_tag_oid -cne $capturedAuthorizationTagOid[0]) {
+            throw "persisted authorization record identity differs"
+          }
+          $githubOutputItem = Get-Item -LiteralPath $env:GITHUB_OUTPUT -Force -ErrorAction Stop
+          if (-not ($githubOutputItem -is [IO.FileInfo]) -or
+              ($githubOutputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "authorization output control file identity differs"
+          }
+          $outputLengthBefore = $githubOutputItem.Length
+          foreach ($entry in ([ordered]@{
             base_python_sha256 = $basePythonSha256
             git_sha256 = $gitSha256
             ssh_keygen_sha256 = $sshKeygenSha256
-          }.GetEnumerator()) {
+          }).GetEnumerator()) {
             [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false))
+          }
+          if ((Get-Item -LiteralPath $env:GITHUB_OUTPUT -Force).Length -le $outputLengthBefore) {
+            throw "authorization outputs were not persisted"
           }
 
       - name: Set up exact TeX Live 2026
@@ -213,7 +259,7 @@ jobs:
 
       - name: Validate complete trusted toolchain
         id: tools
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_BASE_PYTHON_OUTPUT: ${{ steps.base-python.outputs.python-path }}
           VIA000_BASE_PYTHON_VERSION: ${{ steps.base-python.outputs.python-version }}
@@ -226,6 +272,28 @@ jobs:
           VIA000_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           if ([string]$env:VIA000_BASE_PYTHON_VERSION -cne "3.11.15") {
             throw "setup-python version output differs from 3.11.15"
           }
@@ -238,6 +306,15 @@ jobs:
             throw "R3 requires one x64 runner"
           }
           $platform = [string]$env:VIA000_PLATFORM
+          $authorizationPath = Join-Path $env:RUNNER_TEMP "via000-r3-authorization.json"
+          $authorizationItem = Get-Item -LiteralPath $authorizationPath -Force -ErrorAction Stop
+          $authorizationRecord = Get-Content -LiteralPath $authorizationPath -Raw | ConvertFrom-Json
+          if (-not ($authorizationItem -is [IO.FileInfo]) -or
+              ($authorizationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              [string]$authorizationRecord.protocol_commit -cnotmatch '^[0-9a-f]{40}$' -or
+              [string]$authorizationRecord.authorization_tag_oid -cnotmatch '^[0-9a-f]{40}$') {
+            throw "authorization record disappeared or changed before tool validation"
+          }
           if ($platform -eq "windows-x86_64" -and $IsWindows) {
             if ([string]$env:ImageOS -cne "win25") { throw "unexpected Windows runner image family" }
             $runnerLabel = "windows-2025"
@@ -406,18 +483,59 @@ jobs:
             powershell_path = $powerShellPath; powershell_sha256 = $tools.powershell.sha256
             manifest_path = $manifestPath; manifest_sha256 = $manifestSha
           }
+          $manifestItem = Get-Item -LiteralPath $manifestPath -Force -ErrorAction Stop
+          $manifestRecord = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          if (-not ($manifestItem -is [IO.FileInfo]) -or
+              ($manifestItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $manifestItem.Length -le 0 -or
+              [string]$manifestRecord.platform_family -cne $platform -or
+              [string]$manifestRecord.stage_id -cne $stage -or
+              $manifestSha -cnotmatch '^[0-9a-f]{64}$') {
+            throw "tool identity manifest side effect differs"
+          }
+          $githubOutputItem = Get-Item -LiteralPath $env:GITHUB_OUTPUT -Force -ErrorAction Stop
+          if (-not ($githubOutputItem -is [IO.FileInfo]) -or
+              ($githubOutputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "tool output control file identity differs"
+          }
+          $outputLengthBefore = $githubOutputItem.Length
           foreach ($entry in $outputs.GetEnumerator()) {
             [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$($entry.Key)=$($entry.Value)`n", [Text.UTF8Encoding]::new($false))
           }
+          if ((Get-Item -LiteralPath $env:GITHUB_OUTPUT -Force).Length -le $outputLengthBefore) {
+            throw "toolchain outputs were not persisted"
+          }
 
       - name: Prove production containment against detached replacement payload
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
           VIA000_BASE_PYTHON: ${{ steps.tools.outputs.base_python_path }}
           VIA000_BASE_PYTHON_SHA256: ${{ steps.tools.outputs.base_python_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $platform = [string]$env:VIA000_PLATFORM
           $basePython = [string]$env:VIA000_BASE_PYTHON
           $containment = Join-Path $env:GITHUB_WORKSPACE `
@@ -506,17 +624,27 @@ jobs:
             -StdoutPath (Join-Path $trusted "stdout.txt") -StderrPath (Join-Path $trusted "stderr.txt") `
             -ResultPath (Join-Path $trusted "result.json") -Environment @{} `
             -Closure $closure -SystemTools $systemTools -TimeoutSeconds 60
+          $containmentResultPath = Join-Path $trusted "result.json"
+          $containmentResultItem = Get-Item -LiteralPath $containmentResultPath -Force -ErrorAction Stop
+          $containmentResult = Get-Content -LiteralPath $containmentResultPath -Raw | ConvertFrom-Json
+          if (-not ($containmentResultItem -is [IO.FileInfo]) -or
+              ($containmentResultItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $containmentResult.descendants_quiescent -ne $true -or
+              [int]$containmentResult.active_processes_after_teardown -ne 0) {
+            throw "production containment result did not prove teardown and quiescence"
+          }
           Start-Sleep -Seconds 3
-          if (Test-Path -LiteralPath (Join-Path $trusted "direct-marker") -or
-              Test-Path -LiteralPath (Join-Path $trusted "delayed-marker") -or
+          if ((Test-Path -LiteralPath (Join-Path $trusted "direct-marker")) -or
+              (Test-Path -LiteralPath (Join-Path $trusted "delayed-marker")) -or
               (Get-FileHash -Algorithm SHA256 -LiteralPath $basePython).Hash.ToLowerInvariant() -cne [string]$env:VIA000_BASE_PYTHON_SHA256) {
             throw "hostile replacement or detached descendant escaped containment"
           }
           Remove-Item -LiteralPath $caseRoot -Recurse -Force
+          if (Test-Path -LiteralPath $caseRoot) { throw "production containment self-test root remained" }
 
       - name: Execute frozen clean platform protocol
         id: execution
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
           VIA000_STAGE: ${{ matrix.stage }}
@@ -536,6 +664,28 @@ jobs:
           VIA000_TOOL_MANIFEST_SHA256: ${{ steps.tools.outputs.manifest_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $platform = [string]$env:VIA000_PLATFORM
           $stage = [string]$env:VIA000_STAGE
           $producerRunId = [string]$env:VIA000_RUN_ID
@@ -551,6 +701,24 @@ jobs:
           if (-not [IO.Path]::IsPathFullyQualified($trustedGit)) { throw "trusted Git path is not absolute" }
           if ((Get-FileHash -Algorithm SHA256 -LiteralPath $trustedGit).Hash.ToLowerInvariant() -cne [string]$env:VIA000_GIT_SHA256) {
             throw "trusted Git changed before runner execution"
+          }
+          foreach ($toolBinding in @(
+            @([string]$env:VIA000_BASE_PYTHON_PATH, [string]$env:VIA000_BASE_PYTHON_SHA256),
+            @([string]$env:VIA000_UV_PATH, [string]$env:VIA000_UV_SHA256),
+            @([string]$env:VIA000_PDFLATEX_PATH, [string]$env:VIA000_PDFLATEX_SHA256),
+            @([string]$env:VIA000_POWERSHELL_PATH, [string]$env:VIA000_POWERSHELL_SHA256),
+            @([string]$env:VIA000_TOOL_MANIFEST_PATH, [string]$env:VIA000_TOOL_MANIFEST_SHA256)
+          )) {
+            $boundPath = [string]$toolBinding[0]
+            $boundDigest = [string]$toolBinding[1]
+            if ($boundPath -eq '' -and $boundDigest -eq '') { continue }
+            $boundItem = Get-Item -LiteralPath $boundPath -Force -ErrorAction Stop
+            if (-not ($boundItem -is [IO.FileInfo]) -or
+                ($boundItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                $boundDigest -cnotmatch '^[0-9a-f]{64}$' -or
+                (Get-FileHash -Algorithm SHA256 -LiteralPath $boundPath).Hash.ToLowerInvariant() -cne $boundDigest) {
+              throw "trusted toolchain output disappeared or changed before execution"
+            }
           }
           $env:PATH = ""
           $env:PATHEXT = ""
@@ -648,6 +816,17 @@ jobs:
                   raise SystemExit(f"active descendant retained: {proof.name}")
           '@ | & ([string]$env:VIA000_BASE_PYTHON_PATH) -I -S -
           if ($LASTEXITCODE -ne 0) { throw "trusted fragment integrity validation failed" }
+          foreach ($requiredPath in @(
+            (Join-Path $workspace "evidence/stage-summary.json"),
+            (Join-Path $workspace "evidence/evidence-manifest.json")
+          )) {
+            $requiredItem = Get-Item -LiteralPath $requiredPath -Force -ErrorAction Stop
+            if (-not ($requiredItem -is [IO.FileInfo]) -or
+                ($requiredItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                $requiredItem.Length -le 0) {
+              throw "frozen execution stage side effect differs"
+            }
+          }
           } catch {
             if (Test-Path -LiteralPath $workspace) {
               Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
@@ -657,7 +836,7 @@ jobs:
 
       - name: Execute frozen mutation-test matrix
         if: matrix.stage == 'mutation'
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_PLATFORM: ${{ matrix.platform }}
           VIA000_RUN_ID: ${{ github.run_id }}
@@ -669,6 +848,28 @@ jobs:
           VIA000_ENVIRONMENT_PYTHON_SHA256: ${{ steps.execution.outputs.environment_python_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $platform = [string]$env:VIA000_PLATFORM
           $producerRunId = [string]$env:VIA000_RUN_ID
           $producerRunAttempt = [string]$env:VIA000_RUN_ATTEMPT
@@ -780,6 +981,15 @@ jobs:
           & $env:VIA000_BASE_PYTHON -I -S $mutationRunner finalize @identityArguments `
             --stdout $stdout --stderr $stderr --contained-result $containedResult
           if ($LASTEXITCODE -ne 0) { throw "trusted mutation finalization failed" }
+          $containedItem = Get-Item -LiteralPath $containedResult -Force -ErrorAction Stop
+          $containedRecord = Get-Content -LiteralPath $containedResult -Raw | ConvertFrom-Json
+          if (-not ($containedItem -is [IO.FileInfo]) -or
+              ($containedItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $containedRecord.descendants_quiescent -ne $true -or
+              [int]$containedRecord.active_processes_after_teardown -ne 0 -or
+              -not (Test-Path -LiteralPath (Join-Path $evidence "evidence-manifest.json") -PathType Leaf)) {
+            throw "mutation execution side effects or teardown proof differ"
+          }
           if ((Get-FileHash -Algorithm SHA256 -LiteralPath $candidatePython).Hash.ToLowerInvariant() -cne [string]$env:VIA000_ENVIRONMENT_PYTHON_SHA256) {
             throw "locked environment Python changed after mutation containment"
           }
@@ -792,14 +1002,43 @@ jobs:
 
       - name: Capture exact attestation subjects after containment teardown
         id: subjects
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_STAGE: ${{ matrix.stage }}
+          VIA000_PLATFORM: ${{ matrix.platform }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $evidence = Join-Path $env:RUNNER_TEMP "via000-r3-$([string]$env:VIA000_STAGE)-stage/evidence"
           $summary = Join-Path $evidence "stage-summary.json"
           $manifest = Join-Path $evidence "evidence-manifest.json"
+          $githubOutputItem = Get-Item -LiteralPath $env:GITHUB_OUTPUT -Force -ErrorAction Stop
+          if (-not ($githubOutputItem -is [IO.FileInfo]) -or
+              ($githubOutputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "subject output control file identity differs"
+          }
+          $outputLengthBefore = $githubOutputItem.Length
           foreach ($item in @(
             @("summary_sha256", $summary),
             @("manifest_sha256", $manifest)
@@ -812,6 +1051,9 @@ jobs:
             $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
             [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "$([string]$item[0])=$digest`n", [Text.UTF8Encoding]::new($false))
           }
+          if ((Get-Item -LiteralPath $env:GITHUB_OUTPUT -Force).Length -le $outputLengthBefore) {
+            throw "attestation subject outputs were not persisted"
+          }
 
       - name: Attest exact platform subjects
         id: attest
@@ -822,14 +1064,37 @@ jobs:
             ${{ runner.temp }}/via000-r3-${{ matrix.stage }}-stage/evidence/evidence-manifest.json
 
       - name: Retain producer attestation bundle
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
           VIA000_STAGE: ${{ matrix.stage }}
+          VIA000_PLATFORM: ${{ matrix.platform }}
           VIA000_SUMMARY_SHA256: ${{ steps.subjects.outputs.summary_sha256 }}
           VIA000_MANIFEST_SHA256: ${{ steps.subjects.outputs.manifest_sha256 }}
         run: |
           $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $evidence = Join-Path $env:RUNNER_TEMP "via000-r3-$([string]$env:VIA000_STAGE)-stage/evidence"
           $summary = Join-Path $evidence "stage-summary.json"
           $manifest = Join-Path $evidence "evidence-manifest.json"
@@ -840,7 +1105,10 @@ jobs:
           $destination = Join-Path $evidence "producer-attestation.sigstore.json"
           Copy-Item -LiteralPath $env:VIA000_ATTESTATION_BUNDLE `
             -Destination $destination
-          if (-not (Test-Path -LiteralPath $destination -PathType Leaf)) {
+          $destinationItem = Get-Item -LiteralPath $destination -Force -ErrorAction Stop
+          if (-not ($destinationItem -is [IO.FileInfo]) -or
+              ($destinationItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+              $destinationItem.Length -le 0) {
             throw "producer attestation bundle was not retained"
           }
           if ((Get-FileHash -Algorithm SHA256 -LiteralPath $summary).Hash.ToLowerInvariant() -cne [string]$env:VIA000_SUMMARY_SHA256 -or
@@ -850,14 +1118,39 @@ jobs:
 
       - name: Remove rejected platform workspace
         if: failure()
-        shell: ${{ matrix.shell }}
+        shell: pwsh
         env:
           VIA000_STAGE: ${{ matrix.stage }}
+          VIA000_PLATFORM: ${{ matrix.platform }}
         run: |
+          $ErrorActionPreference = "Stop"
+          if ($IsWindows) {
+            $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $shellComparison = [StringComparison]::OrdinalIgnoreCase
+          } elseif ($IsLinux) {
+            $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+            $expectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+            $shellComparison = [StringComparison]::Ordinal
+          } else {
+            throw "trusted hosted built-in pwsh operating system differs"
+          }
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+          $profileFiles = @($PROFILE.AllUsersAllHosts, $PROFILE.AllUsersCurrentHost, $PROFILE.CurrentUserAllHosts, $PROFILE.CurrentUserCurrentHost) | Select-Object -Unique
+          if (-not $observedShell.Equals($expectedShell, $shellComparison) -or
+              -not $psHomeShell.Equals($expectedShell, $shellComparison) -or
+              $PSVersionTable.PSVersion.ToString() -cnotmatch '^7\.[0-9]+\.[0-9]+$' -or
+              @($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0 -or
+              [string]$env:PATH -cne $expectedPath) {
+            throw "trusted hosted built-in pwsh identity, profile, version, or PATH differs"
+          }
           $workspace = Join-Path $env:RUNNER_TEMP "via000-r3-$([string]$env:VIA000_STAGE)-stage"
           if (Test-Path -LiteralPath $workspace) {
             Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue
           }
+          if (Test-Path -LiteralPath $workspace) { throw "rejected platform workspace cleanup did not persist" }
 
       - name: Retain immutable platform fragment
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
