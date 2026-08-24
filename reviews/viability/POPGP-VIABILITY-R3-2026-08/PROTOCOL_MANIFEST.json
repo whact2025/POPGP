@@ -22,7 +22,7 @@
     },
     {
       "path": "docs/scientific_hardening/GATE_TEST_REGISTRY.md",
-      "sha256": "59922affeb45de49f5c828d6826d7a527821c7efe4e46f96231cb856b6e1c26f"
+      "sha256": "9937a6bb6f3d0937937d5257dc747e0569ee2efdc9803e9a42523f6fd345ee5e"
     },
     {
       "path": "popgp/diagnostics.py",
