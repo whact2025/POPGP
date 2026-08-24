@@ -446,3 +446,22 @@ single inherited envelope before digest output and again before cache save. A li
 integrity regression requires mutable writes to succeed while export create, write,
 rename, delete, reparse, and replace attempts fail. A fresh six-cell hosted proof and
 retained redownload remain mandatory.
+
+## RR24 Ubuntu PowerShell PATH-normalization amendment
+
+The literal RR22 launcher is retained. Diagnostic run `32783816053` established that
+its exact live PATH is `/opt/microsoft/powershell/7:/usr/bin:/bin`, not the already
+sanitized `/usr/bin:/bin`. RR24 first requires that exact trusted runtime prefix, then
+immediately resets PATH to `/usr/bin:/bin` and reasserts it before raw artifact
+identity access, the absolute `stat` call, `GITHUB_OUTPUT` append, and post-append
+verification. Missing, doubled, reordered, alternate, or injected prefixes reject.
+MainModule, PSHOME, PowerShell 7.6.5, and the exact six launch arguments remain fixed.
+Exact `-NoProfile` argv is sufficient to prove profiles were not loaded; the prior
+profile-file-nonexistence assertion is removed because profile files may legitimately
+exist. A fresh six-cell replay remains mandatory.
+
+The campaign validator's shared R2/R3 raw-evidence entry point now preserves the two
+protocol generations explicitly. It accepts exactly the legacy R2 platform contract
+or the complete R3 staged-plus-dispatch contract, rejects partial mixtures, retains
+R2 `platform-summary.json` semantics, and applies staged tool-identity requirements
+only to R3. No R2 protocol, packet, receipt, or evidence byte is reinterpreted.

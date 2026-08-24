@@ -210,6 +210,18 @@ already-proven exact literal `/opt/.../pwsh -NoLogo -NoProfile -NonInteractive -
 {0}` launcher. No process, profile, PATH, digest, URL, output, or verifier predicate
 was broadened; a fresh exact-handoff replay remains mandatory.
 
+RR24 supersedes failed run `32782295879` and uses diagnostic run `32783816053` only
+to identify the literal launcher's actual trusted initial PATH. The normalizer
+requires exactly `/opt/microsoft/powershell/7:/usr/bin:/bin`, then immediately sets
+and repeatedly reasserts `/usr/bin:/bin` before artifact identity, `stat`, or output
+access. MainModule, PSHOME, PowerShell 7.6.5, and the exact six launcher arguments stay
+fixed. Exact `-NoProfile` argv is authoritative; profile-file existence is not.
+
+The shared raw-evidence validator also preserves R2 byte semantics: the legacy
+platform contract and R3 staged contract are two exact accepted shapes, while any
+partial staged/dispatch extension rejects. R2 remains immutable and is not required
+to manufacture R3-only stage summaries or tool-identity manifests.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

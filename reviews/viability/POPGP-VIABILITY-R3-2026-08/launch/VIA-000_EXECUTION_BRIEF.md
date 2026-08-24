@@ -148,6 +148,13 @@ must clean the cell and leave no digest/cache/artifact.
     do not accept built-in `pwsh`, `/usr/bin/pwsh`, alternate targets, or missing flags.
     Do not accept run `32777599858` as lifecycle evidence because its built-in-shell
     launch contradicted the exact process-identity gate and skipped the verifier.
+    Require its initial live PATH to be exactly
+    `/opt/microsoft/powershell/7:/usr/bin:/bin`, reset it immediately to
+    `/usr/bin:/bin`, and reassert the sanitized value before artifact identity/stat or
+    output access. Reject missing, doubled, reordered, alternate, or injected prefixes.
+    The exact six-argument `-NoProfile` launch is the profile no-load invariant; do not
+    require profile files to be absent. Run `32782295879` is failed, superseded, and
+    cannot support lifecycle action.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

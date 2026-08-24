@@ -1754,12 +1754,11 @@ def _validate_raw_evidence_contract(
     contract = parameters.get("raw_results_contract")
     if contract is None:
         return []
-    required_fields = {
+    legacy_required_fields = {
         "schema_receipt_id",
         "raw_results_receipt_id",
         "evidence_manifest_pointer",
         "required_platforms",
-        "required_stages",
         "required_command_contracts",
         "required_artifact_paths",
         "required_mutation_ids",
@@ -1768,16 +1767,21 @@ def _validate_raw_evidence_contract(
         "producer_attestation",
         "required_pdf_page_count",
     }
+    r3_required_fields = legacy_required_fields | {
+        "required_stages",
+        "dispatch_identity",
+    }
     if not isinstance(contract, Mapping) or set(contract) not in (
-        required_fields,
-        required_fields | {"dispatch_identity"},
+        legacy_required_fields,
+        r3_required_fields,
     ):
         return [
-            f"packet {packet_id}: raw_results_contract must contain exactly "
-            f"{sorted(required_fields)} with only the optional dispatch_identity extension"
+            f"packet {packet_id}: raw_results_contract must be exactly the legacy "
+            f"contract {sorted(legacy_required_fields)} or the R3 staged contract "
+            f"{sorted(r3_required_fields)}"
         ]
     required_platforms = contract["required_platforms"]
-    required_stages = contract["required_stages"]
+    required_stages = contract.get("required_stages", [])
     command_contracts = contract["required_command_contracts"]
     artifact_paths = contract["required_artifact_paths"]
     mutation_ids = contract["required_mutation_ids"]
@@ -1789,6 +1793,11 @@ def _validate_raw_evidence_contract(
         "whact2025/POPGP/.github/workflows/via000-r3-protocol.yml"
         if dispatch_contract is not None
         else "whact2025/POPGP/.github/workflows/via000-r2-protocol.yml"
+    )
+    expected_producer_subject_paths = (
+        ["evidence/stage-summary.json", "evidence/evidence-manifest.json"]
+        if dispatch_contract is not None
+        else ["evidence/platform-summary.json", "evidence/evidence-manifest.json"]
     )
     expected_dispatch_contract = {
         "event_name": "workflow_dispatch",
@@ -1846,7 +1855,10 @@ def _validate_raw_evidence_contract(
         or not required_platforms
         or len(required_platforms) != len(set(required_platforms))
         or required_platforms != parameters.get("platform_families")
-        or required_stages != ["candidate", "pdf", "mutation"]
+        or (
+            dispatch_contract is not None
+            and required_stages != ["candidate", "pdf", "mutation"]
+        )
         or not isinstance(command_contracts, Mapping)
         or not command_contracts
         or any(
@@ -1895,8 +1907,7 @@ def _validate_raw_evidence_contract(
         or re.fullmatch(r"[0-9a-f]{40}", producer_contract["action_commit"]) is None
         or re.fullmatch(r"\d+\.\d+\.\d+", producer_contract["minimum_gh_version"]) is None
         or producer_contract["bundle_path"] != "evidence/producer-attestation.sigstore.json"
-        or producer_contract["subject_paths"]
-        != ["evidence/stage-summary.json", "evidence/evidence-manifest.json"]
+        or producer_contract["subject_paths"] != expected_producer_subject_paths
         or parameters.get("required_mutation_count") != len(mutation_ids)
         or type(contract["required_pdf_page_count"]) is not int
         or contract["required_pdf_page_count"] < 1
@@ -2534,8 +2545,10 @@ def _validate_raw_evidence_contract(
         ]
         environment_ok = len(environment_matches) == 1
         source_ok = len(source_matches) == 1
-        tool_identity_ok = len(tool_identity_matches) == (
-            len(required_stages) if dispatch_contract is not None else 1
+        tool_identity_ok = (
+            len(tool_identity_matches) == len(required_stages)
+            if dispatch_contract is not None
+            else True
         )
         pdf_ok = len(pdf_matches) == 1
         pdf_engine_ok = len(pdf_engine_matches) == 1
@@ -2572,7 +2585,7 @@ def _validate_raw_evidence_contract(
                 source_ok = False
                 errors.append(f"{label} source manifest cannot be validated: {exc}")
         tool_identity_document: Mapping[str, Any] | None = None
-        if tool_identity_ok:
+        if dispatch_contract is not None and tool_identity_ok:
             for path, entry in tool_identity_matches:
                 stage = (
                     next(

@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 449 passed |
+| `pytest -q` | about 1200 s | 450 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -268,3 +268,16 @@ but GitHub's built-in shell launched `/usr/bin/pwsh` while the unchanged identit
 required `/opt/microsoft/powershell/7/pwsh`. The normalizer now uses the exact literal
 `-NoLogo -NoProfile -NonInteractive -File {0}` shell already proven elsewhere in the
 same job; all digest, URL, output-control, and verifier predicates remain unchanged.
+
+RR24 follows bounded Ubuntu launch diagnostic run `32783816053`. The literal launcher
+produced the expected MainModule, PSHOME, PowerShell 7.6.5, exact six arguments, and
+initial PATH `/opt/microsoft/powershell/7:/usr/bin:/bin`. The normalizer now requires
+that initial value, immediately sanitizes PATH to `/usr/bin:/bin`, and reasserts it
+before every artifact identity/stat/output operation. Exact `-NoProfile` argv replaces
+the invalid profile-file-nonexistence assumption. Run `32782295879` remains superseded.
+
+The shared raw-evidence validator accepts exactly two non-overlapping contracts: the
+immutable R2 platform contract and the R3 staged contract containing both
+`required_stages` and `dispatch_identity`. Partial extensions reject. Legacy R2 keeps
+its platform-summary provenance and does not inherit R3-only staged tool manifests;
+R3 retains all staged provenance and tool-identity requirements.

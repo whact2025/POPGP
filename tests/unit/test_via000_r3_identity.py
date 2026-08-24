@@ -4148,7 +4148,9 @@ def test_r3_rr21_artifact_digest_canonicalization() -> None:
     for token in (
         "$observedShell -cne $expectedShell",
         "[string]$PSHOME -cne $expectedPsHome",
-        "[string]$env:PATH -cne $expectedPath",
+        "[string]$env:PATH -cne $expectedInitialPath",
+        "$env:PATH = $expectedSanitizedPath",
+        "[string]$env:PATH -cne $expectedSanitizedPath",
         "$artifactId -cnotmatch '^[1-9][0-9]*$'",
         "$bareDigest -cnotmatch '^[0-9a-f]{64}$'",
         "$artifactUrl -cne $expectedUrl",
@@ -4301,9 +4303,12 @@ def test_r3_rr22_ubuntu_pwsh_launch_identity() -> None:
     for invariant in (
         "$expectedShell = '/opt/microsoft/powershell/7/pwsh'",
         "$expectedPsHome = '/opt/microsoft/powershell/7'",
-        "$expectedPath = '/usr/bin:/bin'",
+        "$expectedInitialPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'",
+        "$expectedSanitizedPath = '/usr/bin:/bin'",
         "$observedShell -cne $expectedShell",
-        "@($profileFiles | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0",
+        "$PSVersionTable.PSVersion.ToString() -cne '7.6.5'",
+        "[string]$argv[2] -cne '-NoProfile'",
+        "$env:PATH = $expectedSanitizedPath",
         "$artifactId -cnotmatch '^[1-9][0-9]*$'",
         "$bareDigest -cnotmatch '^[0-9a-f]{64}$'",
         '$canonicalDigest = "sha256:$bareDigest"',
@@ -4311,6 +4316,117 @@ def test_r3_rr22_ubuntu_pwsh_launch_identity() -> None:
         "normalized artifact output side effect was absent or malformed",
     ):
         assert invariant in run
+
+
+@pytest.mark.negative_control
+def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    receipt_text = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-workflow.yml"
+    ).read_text(encoding="utf-8")
+    assert workflow_text == receipt_text
+    workflow = yaml.safe_load(workflow_text)
+    normalize = next(
+        step
+        for step in workflow["jobs"]["aggregate"]["steps"]
+        if step.get("id") == "normalize-artifact"
+    )
+    assert normalize["shell"] == (
+        "/opt/microsoft/powershell/7/pwsh "
+        "-NoLogo -NoProfile -NonInteractive -File {0}"
+    )
+    run = normalize["run"]
+    for token in (
+        "$expectedInitialPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'",
+        "$expectedSanitizedPath = '/usr/bin:/bin'",
+        "$PSVersionTable.PSVersion.ToString() -cne '7.6.5'",
+        "$cmdlineBytes = [IO.File]::ReadAllBytes('/proc/self/cmdline')",
+        "$argv.Count -ne 6",
+        "[string]$argv[0] -cne $expectedShell",
+        "[string]$argv[1] -cne '-NoLogo'",
+        "[string]$argv[2] -cne '-NoProfile'",
+        "[string]$argv[3] -cne '-NonInteractive'",
+        "[string]$argv[4] -cne '-File'",
+        "[IO.Path]::GetDirectoryName($runnerScript) -cne $runnerTemp",
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.ps1$",
+        "$env:PATH = $expectedSanitizedPath",
+        "sanitized PATH assignment differs before artifact identity read",
+        "sanitized PATH differs before output-control stat",
+        "sanitized PATH differs before output append",
+    ):
+        assert token in run
+    assert run.count("[string]$env:PATH -cne $expectedSanitizedPath") == 4
+    assert "$PROFILE" not in run
+    assert "profileFiles" not in run
+    assert run.index("[string]$env:PATH -cne $expectedInitialPath") < run.index(
+        "$env:PATH = $expectedSanitizedPath"
+    )
+    assert run.index("$env:PATH = $expectedSanitizedPath") < run.index(
+        "$artifactId = [string]$env:VIA000_RAW_ARTIFACT_ID"
+    )
+    assert run.index("sanitized PATH differs before output-control stat") < run.index(
+        "$links = & /usr/bin/stat"
+    )
+    assert run.index("sanitized PATH differs before output append") < run.index(
+        "[IO.File]::AppendAllText"
+    )
+
+    initial = "/opt/microsoft/powershell/7:/usr/bin:/bin"
+    sanitized = "/usr/bin:/bin"
+
+    def normalize_path(candidate: str) -> str:
+        if candidate != initial:
+            raise ValueError("initial PATH")
+        result = sanitized
+        if result != sanitized:
+            raise ValueError("sanitized PATH")
+        return result
+
+    assert normalize_path(initial) == sanitized
+    for rejected in (
+        sanitized,
+        f"/opt/microsoft/powershell/7:{initial}",
+        "/opt/microsoft/powershell/7:/bin:/usr/bin",
+        "/opt/microsoft/powershell/7:/usr/local/bin:/usr/bin:/bin",
+        "/opt/microsoft/powershell/7:/usr/bin:/bin:/tmp/shims",
+        "/OPT/microsoft/powershell/7:/usr/bin:/bin",
+        ":/opt/microsoft/powershell/7:/usr/bin:/bin",
+        "",
+    ):
+        with pytest.raises(ValueError):
+            normalize_path(rejected)
+
+    trusted_argv = (
+        "/opt/microsoft/powershell/7/pwsh",
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-File",
+        "/home/runner/work/_temp/01234567-89ab-cdef-0123-456789abcdef.ps1",
+    )
+
+    def require_argv(candidate: tuple[str, ...]) -> None:
+        if candidate[:5] != trusted_argv[:5] or len(candidate) != 6:
+            raise ValueError("argv")
+        if re.fullmatch(
+            r"/home/runner/work/_temp/[0-9a-f]{8}-[0-9a-f]{4}-"
+            r"[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.ps1",
+            candidate[5],
+        ) is None:
+            raise ValueError("script")
+
+    require_argv(trusted_argv)
+    for rejected in (
+        trusted_argv[1:],
+        trusted_argv + ("extra",),
+        trusted_argv[:2] + ("-Profile",) + trusted_argv[3:],
+        trusted_argv[:4] + ("-Command",) + trusted_argv[5:],
+        trusted_argv[:5] + ("/tmp/attacker.ps1",),
+    ):
+        with pytest.raises(ValueError):
+            require_argv(rejected)
 
 
 @pytest.mark.negative_control

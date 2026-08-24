@@ -596,6 +596,24 @@ def test_raw_evidence_contract_accepts_structural_trusted_runner_fixture(tmp_pat
     packet, receipts, context = _fixture(tmp_path)
     assert _validate(packet, receipts, context) == []
 
+    packet, receipts, context = _fixture(tmp_path / "partial-stages")
+    packet["preregistration"]["parameters"]["raw_results_contract"][
+        "required_stages"
+    ] = ["candidate", "pdf", "mutation"]
+    assert any(
+        "must be exactly the legacy contract" in error
+        for error in _validate(packet, receipts, context)
+    )
+
+    packet, receipts, context = _fixture(tmp_path / "partial-dispatch")
+    packet["preregistration"]["parameters"]["raw_results_contract"][
+        "dispatch_identity"
+    ] = {}
+    assert any(
+        "must be exactly the legacy contract" in error
+        for error in _validate(packet, receipts, context)
+    )
+
 
 def test_raw_evidence_contract_requires_verified_producer_attestation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
