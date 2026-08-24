@@ -2020,12 +2020,17 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         in workflow_text
     )
     assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
-    assert 'Join-Path "/tmp" "$cell-$($env:VIA000_RUN_ID)-workspace"' in workflow_text
+    assert (
+        'Join-Path $root "via000-proof-workspace-$cell-$($env:VIA000_RUN_ID)"'
+        in workflow_text
+    )
     assert "containment proof output is absent after successful runner exit" in workflow_text
     windows_upload_root = (
-        "${{ github.workspace }}\\via000-proof-output-via000-r3-containment-proof-"
+        "${{ github.workspace }}/via000-proof-output-via000-r3-containment-proof-"
     )
-    assert windows_upload_root in workflow_text
+    assert workflow_text.count(windows_upload_root) == 4
+    for name in ("containment-result.json", "proof.json", "stderr.txt", "stdout.txt"):
+        assert f"${{{{ matrix.stage_id }}}}/{name}" in workflow_text
     assert "containment proof output is not the exact four-file set" in workflow_text
     assert "containment-result.json,proof.json,stderr.txt,stdout.txt" in workflow_text
     assert "containment proof pre-upload hashes differ" in workflow_text

@@ -116,6 +116,16 @@ summary: |-
   and environment scrub. The Windows output name is no longer dot-prefixed because
   upload-artifact v4 excludes hidden paths. Both OS steps now verify exact filenames
   and recompute containment-result/stdout/stderr SHA-256 bindings before upload.
+  The eighth branch-push attempt, run 32699946004 at handoff
+  cd4ea98eef850e1e5c56a7e65368c305e5e17cf8, proved all three Windows production
+  containment and exact-file/hash pre-upload steps, but the upload action did not
+  discover the verified directory. The Windows upload now names the four exact files
+  individually with portable forward-slash paths. Ubuntu moved beyond namespace
+  setup but reported status 200/CHDIR for the dedicated `/tmp` working tree. Its
+  mutable proof workspace now lives under the runner-owned checkout root, whose
+  traversable workspace directory and world-writable mutable child are explicitly
+  set by the trusted runner; the untrusted identity still cannot create the sibling
+  proof-output directory, which is created only after verified teardown.
 
 finding_responses:
   - finding_id: "VIA000-R3-RR7-HOSTED-CONTAINMENT-PROOF-PATH-001"
