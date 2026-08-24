@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import importlib.util
 import json
@@ -28,6 +29,9 @@ CONTAINMENT = PROTOCOL_DIR / "VIA-000-CONTAINMENT.ps1"
 CONTAINMENT_PROOF_RUNNER = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF-RUNNER.ps1"
 CONTAINMENT_PROOF_FIXTURE = PROTOCOL_DIR / "VIA-000-CONTAINMENT-HOSTILE.ps1"
 CONTAINMENT_PROOF_SCHEMA = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF.schema.json"
+CONTAINMENT_PROOF_ENVELOPE_SCHEMA = (
+    PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF-ENVELOPE.schema.json"
+)
 CONTAINMENT_PROOF_AGGREGATOR = PROTOCOL_DIR / "VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py"
 MUTATION_RUNNER = PROTOCOL_DIR / "VIA-000-MUTATION-RUNNER.py"
 CAMPAIGN_CHECKER = ROOT / "scripts/check_viability_campaign.py"
@@ -203,6 +207,10 @@ def _authorized_repo(tmp_path: Path) -> tuple[Path, str, str, str, str]:
         ("containment_proof_runner_path", "containment_proof_runner_sha256"),
         ("containment_proof_fixture_path", "containment_proof_fixture_sha256"),
         ("containment_proof_schema_path", "containment_proof_schema_sha256"),
+        (
+            "containment_proof_envelope_schema_path",
+            "containment_proof_envelope_schema_sha256",
+        ),
         ("containment_proof_aggregator_path", "containment_proof_aggregator_sha256"),
         ("containment_proof_workflow_path", "containment_proof_workflow_sha256"),
         ("raw_results_schema_path", "raw_results_schema_sha256"),
@@ -2032,13 +2040,15 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "-NonInteractive -Command \". '{0}'\"" in workflow_text
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
     assert workflow_text.count('$workspace = Join-Path $root "via000-proof-workspace"') == 1
-    assert workflow_text.count('$output = Join-Path $root "via000-proof-output"') == 2
+    assert workflow_text.count(
+        '$output = Join-Path $runnerTemp "via000-r3-containment-envelope"'
+    ) == 2
     assert "containment proof output is absent after successful runner exit" in workflow_text
-    assert "/home/runner/work/POPGP/POPGP/via000-proof-output/proof.json" in workflow_text
-    assert "D:/a/POPGP/POPGP/via000-proof-output/proof.json" in workflow_text
-    assert "containment proof output is not the exact four-file set" in workflow_text
-    assert "containment-result.json,proof.json,stderr.txt,stdout.txt" in workflow_text
-    assert "containment proof pre-upload hashes differ" in workflow_text
+    assert workflow_text.count(
+        "${{ runner.temp }}/via000-r3-containment-envelope/envelope.json"
+    ) == 1
+    assert "containment proof output is not exactly one regular envelope" in workflow_text
+    assert "via000-proof-output" not in workflow_text
     assert "if ((Test-Path -LiteralPath $WorkspaceRoot) -or" in (
         CONTAINMENT_PROOF_RUNNER.read_text(encoding="utf-8")
     )
@@ -2047,9 +2057,14 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert "Invoke-Via000ContainedCommand" in runner_text
     assert "mutable hostile fixture copy differs from the frozen Git bytes" in runner_text
     assert "synthetic containment diagnostic" not in runner_text
-    assert "Protect-Via000ReadOnlyClosure -Path $OutputRoot" in runner_text
-    assert "[IO.File]::WriteAllBytes($destination" in runner_text
-    assert workflow_text.count("include-hidden-files: true") == 1
+    assert "SerializeToUtf8Bytes" in runner_text
+    assert 'Join-Path $runnerTempItem.FullName "via000-r3-containment-envelope"' in runner_text
+    assert "live proof subject inner hash binding differs before export" in runner_text
+    assert "Get-Item -LiteralPath $full -Stream *" in runner_text
+    assert "LinkCount($full)" in runner_text
+    assert "inherited medium-user DACL" in runner_text
+    assert "MaximumProofEnvelopeBytes" in runner_text
+    assert "Protect-Via000ReadOnlyClosure -Path $OutputRoot" not in runner_text
     assert "Assert-FrozenProofBundle" in runner_text
     assert "child-of-child-ready" in runner_text
     assert "delayed-descendant-survived" in runner_text
@@ -2083,6 +2098,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     fragments = tmp_path / "fragments"
     schema = json.loads(CONTAINMENT_PROOF_SCHEMA.read_text(encoding="utf-8"))
     validator = Draft202012Validator(schema)
+    envelope_schema = json.loads(CONTAINMENT_PROOF_ENVELOPE_SCHEMA.read_text(encoding="utf-8"))
+    envelope_validator = Draft202012Validator(envelope_schema)
+    aggregator_module = _load_module(CONTAINMENT_PROOF_AGGREGATOR, "r3_proof_aggregator")
     true_fields = {
         "non_scientific",
         "receipt_bindings_verified",
@@ -2110,6 +2128,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "proof_runner_sha256",
         "hostile_fixture_sha256",
         "proof_schema_sha256",
+        "proof_envelope_schema_sha256",
         "proof_aggregator_sha256",
         "proof_workflow_sha256",
         "protected_evidence_sha256",
@@ -2130,8 +2149,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
             artifact_name = f"via000-r3-containment-proof-{platform}-{stage}"
             artifact = fragments / artifact_name
             artifact.mkdir(parents=True)
-            (artifact / "stdout.txt").write_text("", encoding="utf-8")
-            (artifact / "stderr.txt").write_text("", encoding="utf-8")
+            subjects = {"stdout.txt": b"", "stderr.txt": b""}
             contained = {
                 "schema_version": 1,
                 "label": f"proof-{stage}",
@@ -2142,8 +2160,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 "active_processes_after_teardown": 0,
                 "exit_code": 0,
                 "timed_out": False,
-                "stdout_sha256": _sha(artifact / "stdout.txt"),
-                "stderr_sha256": _sha(artifact / "stderr.txt"),
+                "stdout_sha256": hashlib.sha256(subjects["stdout.txt"]).hexdigest(),
+                "stderr_sha256": hashlib.sha256(subjects["stderr.txt"]).hexdigest(),
             }
             if platform.startswith("ubuntu"):
                 contained.update(
@@ -2153,7 +2171,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                         "ephemeral_identity_removed": True,
                     }
                 )
-            _write_json(artifact / "containment-result.json", contained)
+            subjects["containment-result.json"] = (
+                json.dumps(contained, indent=2).encode("utf-8") + b"\n"
+            )
             proof = {
                 "schema_version": 1,
                 "proof_kind": "via000-r3-hosted-containment-cell",
@@ -2172,12 +2192,35 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
                 "primitive": primitive,
                 "privilege_separation": privilege,
                 "active_processes_after_teardown": 0,
-                "containment_result_sha256": _sha(artifact / "containment-result.json"),
+                "containment_result_sha256": hashlib.sha256(
+                    subjects["containment-result.json"]
+                ).hexdigest(),
                 **{field: True for field in true_fields},
                 **{field: "b" * 64 for field in hash_fields},
             }
             validator.validate(proof)
-            _write_json(artifact / "proof.json", proof)
+            subjects["proof.json"] = json.dumps(proof, indent=2).encode("utf-8") + b"\n"
+            identity = {
+                field: proof[field]
+                for field in (
+                    "artifact_name",
+                    "cell",
+                    "event_name",
+                    "platform_family",
+                    "repository",
+                    "run_attempt",
+                    "run_id",
+                    "source_ref",
+                    "source_sha",
+                    "stage_id",
+                    "workflow",
+                    "workflow_ref",
+                )
+            }
+            envelope = aggregator_module.build_envelope(identity, subjects)
+            envelope_document = json.loads(envelope)
+            envelope_validator.validate(envelope_document)
+            (artifact / "envelope.json").write_bytes(envelope)
 
     output = tmp_path / "aggregate.json"
     command = [
@@ -2208,24 +2251,82 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert len(aggregate["fragment_sha256"]) == 6
 
     ubuntu_artifact = fragments / "via000-r3-containment-proof-ubuntu-latest-x86_64-candidate"
-    ubuntu_result_path = ubuntu_artifact / "containment-result.json"
-    ubuntu_proof_path = ubuntu_artifact / "proof.json"
-    ubuntu_result = json.loads(ubuntu_result_path.read_text(encoding="utf-8"))
-    ubuntu_result["ephemeral_identity_removed"] = False
-    _write_json(ubuntu_result_path, ubuntu_result)
-    ubuntu_proof = json.loads(ubuntu_proof_path.read_text(encoding="utf-8"))
-    ubuntu_proof["containment_result_sha256"] = _sha(ubuntu_result_path)
-    _write_json(ubuntu_proof_path, ubuntu_proof)
-    output.unlink()
+    original_envelope = (ubuntu_artifact / "envelope.json").read_bytes()
+
+    def reject_envelope(content: bytes) -> None:
+        (ubuntu_artifact / "envelope.json").write_bytes(content)
+        output.unlink(missing_ok=True)
+        malformed = subprocess.run(command, check=False, capture_output=True, text=True)
+        assert malformed.returncode != 0
+        assert not output.exists()
+        (ubuntu_artifact / "envelope.json").write_bytes(original_envelope)
+
+    reject_envelope(b"{")
+    reject_envelope(b"\xef\xbb\xbf" + original_envelope)
+    reject_envelope(original_envelope.replace(b"\n", b"\r\n"))
+    reject_envelope(original_envelope + b" " * 1_048_576)
+    document = json.loads(original_envelope)
+    reject_envelope((json.dumps(document, indent=2) + "\n").encode())
+    reject_envelope(
+        original_envelope.replace(
+            b'{"envelope_kind":', b'{"schema_version":1,"envelope_kind":', 1
+        )
+    )
+    for mutation in ("extra", "missing", "case", "base64", "size", "hash", "total"):
+        document = json.loads(original_envelope)
+        if mutation == "extra":
+            document["members"]["extra.txt"] = document["members"]["stdout.txt"]
+        elif mutation == "missing":
+            del document["members"]["stderr.txt"]
+        elif mutation == "case":
+            document["members"]["Proof.json"] = document["members"]["proof.json"]
+        elif mutation == "base64":
+            document["members"]["stdout.txt"]["base64"] = "!"
+        elif mutation == "size":
+            document["members"]["stdout.txt"]["size"] = 1
+        elif mutation == "hash":
+            document["members"]["stdout.txt"]["sha256"] = "0" * 64
+        else:
+            document["total_decoded_bytes"] += 1
+        reject_envelope(aggregator_module.canonical_envelope_bytes(document))
+
+    document = json.loads(original_envelope)
+    proof_bytes = base64.b64decode(document["members"]["proof.json"]["base64"])
+    inner_proof = json.loads(proof_bytes)
+    inner_proof["containment_result_sha256"] = "0" * 64
+    bad_proof = json.dumps(inner_proof, indent=2).encode() + b"\n"
+    document["members"]["proof.json"] = {
+        "base64": base64.b64encode(bad_proof).decode(),
+        "sha256": hashlib.sha256(bad_proof).hexdigest(),
+        "size": len(bad_proof),
+    }
+    document["total_decoded_bytes"] += len(bad_proof) - len(proof_bytes)
+    reject_envelope(aggregator_module.canonical_envelope_bytes(document))
+
+    hardlink_source = tmp_path / "hardlink-envelope.json"
+    hardlink_source.write_bytes(original_envelope)
+    (ubuntu_artifact / "envelope.json").unlink()
+    os.link(hardlink_source, ubuntu_artifact / "envelope.json")
+    output.unlink(missing_ok=True)
+    hardlink = subprocess.run(command, check=False, capture_output=True, text=True)
+    assert hardlink.returncode != 0
+    assert not output.exists()
+    (ubuntu_artifact / "envelope.json").unlink()
+    hardlink_source.unlink()
+    (ubuntu_artifact / "envelope.json").write_bytes(original_envelope)
+
+    envelope_document = json.loads(original_envelope)
+    envelope_document["identity"]["source_sha"] = "c" * 40
+    (ubuntu_artifact / "envelope.json").write_bytes(
+        aggregator_module.canonical_envelope_bytes(envelope_document)
+    )
+    output.unlink(missing_ok=True)
     stale_identity = subprocess.run(command, check=False, capture_output=True, text=True)
     assert stale_identity.returncode != 0
     assert not output.exists()
-    ubuntu_result["ephemeral_identity_removed"] = True
-    _write_json(ubuntu_result_path, ubuntu_result)
-    ubuntu_proof["containment_result_sha256"] = _sha(ubuntu_result_path)
-    _write_json(ubuntu_proof_path, ubuntu_proof)
+    (ubuntu_artifact / "envelope.json").write_bytes(original_envelope)
 
-    removed = next(fragments.glob("*/proof.json"))
+    removed = next(fragments.glob("*/envelope.json"))
     removed.unlink()
     rejected = subprocess.run(command, check=False, capture_output=True, text=True)
     assert rejected.returncode != 0
@@ -2236,7 +2337,9 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     bad_protocol = tmp_path / "bad-protocol.json"
     _write_json(bad_protocol, protocol)
     workspace = tmp_path / "should-not-exist-workspace"
-    proof_output = tmp_path / "should-not-exist-output"
+    proof_runner_temp = tmp_path / "proof-runner-temp"
+    proof_runner_temp.mkdir()
+    proof_output = proof_runner_temp / "via000-r3-containment-envelope"
     pwsh = shutil.which("pwsh")
     assert pwsh is not None
     bundle_rejection = subprocess.run(
@@ -2257,6 +2360,8 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
             str(bad_protocol),
             "-WorkspaceRoot",
             str(workspace),
+            "-RunnerTemp",
+            str(proof_runner_temp),
             "-OutputRoot",
             str(proof_output),
             "-PowerShellPath",
@@ -2283,6 +2388,12 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
     assert bundle_rejection.returncode != 0
     assert not workspace.exists()
     assert not proof_output.exists()
+
+
+@pytest.mark.negative_control
+def test_r3_rr8_windows_proof_export_is_canonical_and_exact_2x3(tmp_path: Path) -> None:
+    """Stable RR8 entry point for the production-path envelope adversarial suite."""
+    test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(tmp_path)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="exact Windows Job Object control")

@@ -106,7 +106,14 @@ lifecycle, signer, custody, candidate/baseline execution, assembly, commitment, 
 reveal path. Each cell proves child-of-child teardown, protected evidence/tool
 denial, unchanged closure hashes, a scrubbed control-plane environment, and zero
 descendants. A frozen aggregator rejects a missing, substituted, cross-source, or
-cross-run cell and emits only a small non-scientific aggregate. Hosted output is
+cross-run cell and emits only a small non-scientific aggregate. RR8 adds a post-teardown
+transport boundary: each cell serializes the exact four validated proof subjects into
+one canonical UTF-8/LF/no-BOM JSON envelope in a fresh ordinary directory directly
+under trusted runner temp. Each exact case-sensitive member carries its byte length,
+SHA-256, and base64 bytes. The aggregate accepts exactly six one-file artifacts,
+decodes only in memory, and rejects noncanonical/ambiguous JSON, link or file-set
+substitution, expansion-limit violations, inner hash disagreement, or identity mixing.
+Hosted output is
 review evidence only; it cannot activate R3 or establish scientific viability.
 
 The checked-in allowed-signers file is deliberately comment-only. Activation is

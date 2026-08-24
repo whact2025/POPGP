@@ -8,6 +8,7 @@ param(
     [Parameter(Mandatory = $true)][string]$RepoRoot,
     [Parameter(Mandatory = $true)][string]$ProtocolPath,
     [Parameter(Mandatory = $true)][string]$WorkspaceRoot,
+    [Parameter(Mandatory = $true)][string]$RunnerTemp,
     [Parameter(Mandatory = $true)][string]$OutputRoot,
     [Parameter(Mandatory = $true)][string]$PowerShellPath,
     [Parameter(Mandatory = $true)][string]$Repository,
@@ -21,6 +22,13 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$script:ProofMemberNames = @(
+    "containment-result.json", "proof.json", "stderr.txt", "stdout.txt"
+)
+$script:MaximumProofMemberBytes = 262144
+$script:MaximumProofDecodedBytes = 524288
+$script:MaximumProofEnvelopeBytes = 1048576
 
 function Get-ProofSha256 {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -41,6 +49,84 @@ function Assert-RegularProofFile {
     return $item.FullName
 }
 
+function Initialize-ProofFileIdentity {
+    if (-not $IsWindows -or ("Via000R3Proof.FileIdentity" -as [type])) { return }
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+namespace Via000R3Proof {
+  public static class FileIdentity {
+    [StructLayout(LayoutKind.Sequential)]
+    struct BY_HANDLE_FILE_INFORMATION {
+      public UInt32 FileAttributes;
+      public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
+      public System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
+      public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
+      public UInt32 VolumeSerialNumber;
+      public UInt32 FileSizeHigh;
+      public UInt32 FileSizeLow;
+      public UInt32 NumberOfLinks;
+      public UInt32 FileIndexHigh;
+      public UInt32 FileIndexLow;
+    }
+    [DllImport("kernel32.dll", SetLastError=true)]
+    static extern bool GetFileInformationByHandle(
+      SafeFileHandle handle, out BY_HANDLE_FILE_INFORMATION information);
+    public static UInt32 LinkCount(string path) {
+      using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+          FileShare.Read | FileShare.Write | FileShare.Delete)) {
+        BY_HANDLE_FILE_INFORMATION information;
+        if (!GetFileInformationByHandle(stream.SafeFileHandle, out information))
+          throw new Win32Exception(Marshal.GetLastWin32Error(), "GetFileInformationByHandle");
+        return information.NumberOfLinks;
+      }
+    }
+  }
+}
+'@
+}
+
+function Assert-SingleLinkProofFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Description,
+        [Parameter(Mandatory = $true)][hashtable]$SystemTools
+    )
+    $full = Assert-RegularProofFile -Path $Path -Description $Description
+    if ($IsWindows) {
+        Initialize-ProofFileIdentity
+        if ([Via000R3Proof.FileIdentity]::LinkCount($full) -ne 1) {
+            throw "$Description is not single-link"
+        }
+        $streams = @(Get-Item -LiteralPath $full -Stream * -ErrorAction Stop)
+        if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA') {
+            throw "$Description has an alternate data stream"
+        }
+    } else {
+        $stat = Assert-RegularProofFile -Path ([string]$SystemTools.stat) -Description "stat"
+        $links = (& $stat --format=%h -- $full 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or $links -cne "1") { throw "$Description is not single-link" }
+    }
+    return $full
+}
+
+function New-ProofSortedMap {
+    return [Collections.Generic.SortedDictionary[string, object]]::new(
+        [StringComparer]::Ordinal
+    )
+}
+
+function Get-ProofBytesSha256 {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+    return [Convert]::ToHexString(
+        [Security.Cryptography.SHA256]::HashData($Bytes)
+    ).ToLowerInvariant()
+}
+
 function Assert-FrozenProofBundle {
     param(
         [Parameter(Mandatory = $true)][hashtable]$Parameters,
@@ -54,6 +140,7 @@ function Assert-FrozenProofBundle {
         @("containment_proof_runner_path", "containment_proof_runner_sha256", "containment-proof-runner.ps1"),
         @("containment_proof_fixture_path", "containment_proof_fixture_sha256", "containment-proof-hostile.ps1"),
         @("containment_proof_schema_path", "containment_proof_schema_sha256", "containment-proof.schema.json"),
+        @("containment_proof_envelope_schema_path", "containment_proof_envelope_schema_sha256", "containment-proof-envelope.schema.json"),
         @("containment_proof_aggregator_path", "containment_proof_aggregator_sha256", "containment-proof-aggregator.py"),
         @("containment_proof_workflow_path", "containment_proof_workflow_sha256", "containment-proof-workflow.yml")
     )
@@ -92,8 +179,20 @@ if ($SourceRef -cnotmatch '^refs/heads/(campaign|review)/via000-r3-protocol-[A-Z
 }
 $expectedWorkflowRef = "$Repository/.github/workflows/via000-r3-containment-proof.yml@$SourceRef"
 if ($WorkflowRef -cne $expectedWorkflowRef) { throw "containment proof workflow ref differs" }
-foreach ($path in @($RepoRoot, $ProtocolPath, $WorkspaceRoot, $OutputRoot, $PowerShellPath)) {
+foreach ($path in @(
+    $RepoRoot, $ProtocolPath, $WorkspaceRoot, $RunnerTemp, $OutputRoot, $PowerShellPath
+)) {
     if (-not [IO.Path]::IsPathFullyQualified($path)) { throw "proof path is not absolute: $path" }
+}
+$runnerTempItem = Get-Item -LiteralPath $RunnerTemp -Force -ErrorAction Stop
+if (-not ($runnerTempItem -is [IO.DirectoryInfo]) -or
+    ($runnerTempItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw "trusted runner temp is not one ordinary directory"
+}
+$comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+$expectedOutput = Join-Path $runnerTempItem.FullName "via000-r3-containment-envelope"
+if (-not $OutputRoot.Equals($expectedOutput, $comparison)) {
+    throw "proof envelope output is not the exact trusted runner-temp path"
 }
 if ((Test-Path -LiteralPath $WorkspaceRoot) -or (Test-Path -LiteralPath $OutputRoot)) {
     throw "containment proof workspace or output already exists"
@@ -123,6 +222,7 @@ $systemTools = if ($PlatformFamily -eq "windows-x86_64") {
         useradd = "/usr/sbin/useradd"
         userdel = "/usr/sbin/userdel"
         id = "/usr/bin/id"
+        stat = "/usr/bin/stat"
     }
 }
 Test-Via000ContainmentAvailability -PlatformFamily $PlatformFamily -SystemTools $systemTools
@@ -253,6 +353,7 @@ try {
         proof_runner_sha256 = [string]$parameters.containment_proof_runner_sha256
         hostile_fixture_sha256 = [string]$parameters.containment_proof_fixture_sha256
         proof_schema_sha256 = [string]$parameters.containment_proof_schema_sha256
+        proof_envelope_schema_sha256 = [string]$parameters.containment_proof_envelope_schema_sha256
         proof_aggregator_sha256 = [string]$parameters.containment_proof_aggregator_sha256
         proof_workflow_sha256 = [string]$parameters.containment_proof_workflow_sha256
         receipt_bindings_verified = $true
@@ -283,13 +384,126 @@ try {
     }
     $proofPath = Join-Path $evidence "proof.json"
     $proof | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $proofPath -Encoding utf8NoBOM
-    New-Item -ItemType Directory -Path $OutputRoot -ErrorAction Stop | Out-Null
-    foreach ($path in @($proofPath, $containedResult, $stdout, $stderr)) {
-        $destination = Join-Path $OutputRoot ([IO.Path]::GetFileName($path))
-        [IO.File]::WriteAllBytes($destination, [IO.File]::ReadAllBytes($path))
-        [IO.File]::SetAttributes($destination, [IO.FileAttributes]::Normal)
+
+    $subjectPaths = @{
+        "containment-result.json" = $containedResult
+        "proof.json" = $proofPath
+        "stderr.txt" = $stderr
+        "stdout.txt" = $stdout
     }
-    Protect-Via000ReadOnlyClosure -Path $OutputRoot -SystemTools $systemTools
+    $subjectBytes = @{}
+    $totalDecodedBytes = 0
+    foreach ($name in $script:ProofMemberNames) {
+        $path = Assert-SingleLinkProofFile -Path ([string]$subjectPaths[$name]) `
+            -Description "live proof subject $name" -SystemTools $systemTools
+        if ([IO.Path]::GetFileName($path) -cne $name -or
+            ($IsWindows -and $path.Substring(2).Contains(":"))) {
+            throw "live proof subject has a noncanonical name or alternate-stream path"
+        }
+        $bytes = [IO.File]::ReadAllBytes($path)
+        if ($bytes.Length -gt $script:MaximumProofMemberBytes) {
+            throw "live proof subject exceeds the frozen per-member limit: $name"
+        }
+        $subjectBytes[$name] = $bytes
+        $totalDecodedBytes += $bytes.Length
+    }
+    if ($totalDecodedBytes -gt $script:MaximumProofDecodedBytes) {
+        throw "live proof subjects exceed the frozen decoded-total limit"
+    }
+    $proofCheck = [Text.Encoding]::UTF8.GetString($subjectBytes["proof.json"]) |
+        ConvertFrom-Json -AsHashtable
+    $resultCheck = [Text.Encoding]::UTF8.GetString($subjectBytes["containment-result.json"]) |
+        ConvertFrom-Json -AsHashtable
+    if ([string]$proofCheck.containment_result_sha256 -cne
+            (Get-ProofBytesSha256 -Bytes $subjectBytes["containment-result.json"]) -or
+        [string]$resultCheck.stdout_sha256 -cne
+            (Get-ProofBytesSha256 -Bytes $subjectBytes["stdout.txt"]) -or
+        [string]$resultCheck.stderr_sha256 -cne
+            (Get-ProofBytesSha256 -Bytes $subjectBytes["stderr.txt"])) {
+        throw "live proof subject inner hash binding differs before export"
+    }
+
+    New-Item -ItemType Directory -Path $OutputRoot -ErrorAction Stop | Out-Null
+    $outputItem = Get-Item -LiteralPath $OutputRoot -Force -ErrorAction Stop
+    if (-not ($outputItem -is [IO.DirectoryInfo]) -or
+        ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+        -not $outputItem.Parent.FullName.Equals($runnerTempItem.FullName, $comparison)) {
+        throw "proof envelope export root is not one fresh direct runner-temp directory"
+    }
+    if ($IsWindows) {
+        Set-Via000RootIntegrity -Path $OutputRoot -Kind traverse -SystemTools $systemTools
+        $parentAcl = Get-Acl -LiteralPath $runnerTempItem.FullName -ErrorAction Stop
+        $outputAcl = Get-Acl -LiteralPath $OutputRoot -ErrorAction Stop
+        $explicitRules = @($outputAcl.Access | Where-Object { -not $_.IsInherited })
+        if ($outputAcl.AreAccessRulesProtected -or $explicitRules.Count -ne 0 -or
+            [string]$outputAcl.Owner -cne [string]$parentAcl.Owner) {
+            throw "Windows proof envelope export root is not an inherited medium-user DACL"
+        }
+    } else {
+        $mode = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
+            [IO.UnixFileMode]::UserExecute
+        [IO.File]::SetUnixFileMode($OutputRoot, $mode)
+        if ([IO.File]::GetUnixFileMode($OutputRoot) -ne $mode) {
+            throw "Ubuntu proof envelope export root mode differs"
+        }
+    }
+
+    $identity = New-ProofSortedMap
+    $identity["artifact_name"] = $artifactName
+    $identity["cell"] = "$PlatformFamily/$StageId"
+    $identity["event_name"] = $EventName
+    $identity["platform_family"] = $PlatformFamily
+    $identity["repository"] = $Repository
+    $identity["run_attempt"] = $RunAttempt
+    $identity["run_id"] = $RunId
+    $identity["source_ref"] = $SourceRef
+    $identity["source_sha"] = $SourceSha
+    $identity["stage_id"] = $StageId
+    $identity["workflow"] = ".github/workflows/via000-r3-containment-proof.yml"
+    $identity["workflow_ref"] = $WorkflowRef
+    $members = New-ProofSortedMap
+    foreach ($name in $script:ProofMemberNames) {
+        $metadata = New-ProofSortedMap
+        $metadata["base64"] = [Convert]::ToBase64String($subjectBytes[$name])
+        $metadata["sha256"] = Get-ProofBytesSha256 -Bytes $subjectBytes[$name]
+        $metadata["size"] = [long]$subjectBytes[$name].Length
+        $members[$name] = $metadata
+    }
+    $envelope = New-ProofSortedMap
+    $envelope["envelope_kind"] = "via000-r3-hosted-containment-envelope"
+    $envelope["identity"] = $identity
+    $envelope["members"] = $members
+    $envelope["schema_version"] = 1
+    $envelope["total_decoded_bytes"] = [long]$totalDecodedBytes
+    $options = [Text.Json.JsonSerializerOptions]::new()
+    $payload = [Text.Json.JsonSerializer]::SerializeToUtf8Bytes([object]$envelope, $options)
+    $envelopeBytes = [byte[]]::new($payload.Length + 1)
+    [Array]::Copy($payload, $envelopeBytes, $payload.Length)
+    $envelopeBytes[$payload.Length] = 10
+    if ($envelopeBytes.Length -gt $script:MaximumProofEnvelopeBytes) {
+        throw "canonical proof envelope exceeds the frozen encoded limit"
+    }
+    $envelopePath = Join-Path $OutputRoot "envelope.json"
+    $stream = [IO.FileStream]::new(
+        $envelopePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None
+    )
+    try {
+        $stream.Write($envelopeBytes, 0, $envelopeBytes.Length)
+        $stream.Flush($true)
+    } finally {
+        $stream.Dispose()
+    }
+    [IO.File]::SetAttributes($envelopePath, [IO.FileAttributes]::Normal)
+    $verifiedEnvelope = Assert-SingleLinkProofFile -Path $envelopePath `
+        -Description "canonical proof envelope" -SystemTools $systemTools
+    $observedOutput = @(Get-ChildItem -LiteralPath $OutputRoot -Force -ErrorAction Stop)
+    $writtenBytes = [IO.File]::ReadAllBytes($verifiedEnvelope)
+    if ($observedOutput.Count -ne 1 -or $observedOutput[0].Name -cne "envelope.json" -or
+        $writtenBytes.Length -ne $envelopeBytes.Length -or
+        (Get-ProofBytesSha256 -Bytes $writtenBytes) -cne
+            (Get-ProofBytesSha256 -Bytes $envelopeBytes)) {
+        throw "canonical proof envelope changed after export"
+    }
     $success = $true
 } finally {
     if (Test-Path -LiteralPath $WorkspaceRoot) {

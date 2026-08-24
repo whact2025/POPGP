@@ -1,8 +1,10 @@
-"""Aggregate six non-scientific VIA-000 R3 hosted containment proof cells."""
+"""Validate canonical envelopes and aggregate six VIA-000 R3 containment cells."""
 
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import hashlib
 import json
 import os
@@ -15,6 +17,15 @@ PLATFORMS = ("ubuntu-latest-x86_64", "windows-x86_64")
 STAGES = ("candidate", "pdf", "mutation")
 EXPECTED_CELLS = {f"{platform}/{stage}" for platform in PLATFORMS for stage in STAGES}
 WORKFLOW = ".github/workflows/via000-r3-containment-proof.yml"
+MEMBER_NAMES = (
+    "containment-result.json",
+    "proof.json",
+    "stderr.txt",
+    "stdout.txt",
+)
+MAX_MEMBER_BYTES = 262_144
+MAX_TOTAL_DECODED_BYTES = 524_288
+MAX_ENVELOPE_BYTES = 1_048_576
 TRUE_FIELDS = {
     "non_scientific",
     "receipt_bindings_verified",
@@ -42,6 +53,7 @@ HASH_FIELDS = {
     "proof_runner_sha256",
     "hostile_fixture_sha256",
     "proof_schema_sha256",
+    "proof_envelope_schema_sha256",
     "proof_aggregator_sha256",
     "proof_workflow_sha256",
     "protected_evidence_sha256",
@@ -53,6 +65,7 @@ BUNDLE_HASH_FIELDS = {
     "proof_runner_sha256",
     "hostile_fixture_sha256",
     "proof_schema_sha256",
+    "proof_envelope_schema_sha256",
     "proof_aggregator_sha256",
     "proof_workflow_sha256",
 }
@@ -78,47 +91,210 @@ CELL_FIELDS = {
     "privilege_separation",
     "active_processes_after_teardown",
 }
+ENVELOPE_FIELDS = {
+    "schema_version",
+    "envelope_kind",
+    "identity",
+    "members",
+    "total_decoded_bytes",
+}
+IDENTITY_FIELDS = {
+    "repository",
+    "workflow",
+    "workflow_ref",
+    "event_name",
+    "source_ref",
+    "source_sha",
+    "run_id",
+    "run_attempt",
+    "platform_family",
+    "stage_id",
+    "cell",
+    "artifact_name",
+}
+MEMBER_FIELDS = {"base64", "sha256", "size"}
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _sha256_bytes(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
-def _load(path: Path) -> dict[str, Any]:
-    document = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(document, dict):
-        raise ValueError(f"proof is not one JSON object: {path}")
+def _reject_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON value is forbidden: {value}")
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    document: dict[str, Any] = {}
+    folded: set[str] = set()
+    for key, value in pairs:
+        folded_key = key.casefold()
+        if key in document:
+            raise ValueError(f"duplicate JSON object member: {key}")
+        if folded_key in folded:
+            raise ValueError(f"case-fold-colliding JSON object member: {key}")
+        document[key] = value
+        folded.add(folded_key)
     return document
 
 
-def _validate_cell(document: dict[str, Any], path: Path, identity: dict[str, str]) -> str:
-    expected_files = {"proof.json", "containment-result.json", "stdout.txt", "stderr.txt"}
-    observed_files = {item.name for item in path.parent.iterdir() if item.is_file()}
-    if observed_files != expected_files:
-        raise ValueError(f"proof artifact file set differs: {path.parent}")
+def _parse_json(content: bytes, description: str) -> dict[str, Any]:
+    if content.startswith(b"\xef\xbb\xbf") or b"\r" in content:
+        raise ValueError(f"{description} is not UTF-8/LF/no-BOM JSON")
+    try:
+        document = json.loads(
+            content.decode("utf-8", errors="strict"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+        )
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{description} is not strict UTF-8") from exc
+    if not isinstance(document, dict):
+        raise ValueError(f"{description} is not one JSON object")
+    return document
+
+
+def canonical_envelope_bytes(document: dict[str, Any]) -> bytes:
+    return (
+        json.dumps(
+            document,
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("ascii")
+        + b"\n"
+    )
+
+
+def build_envelope(identity: dict[str, str], subjects: dict[str, bytes]) -> bytes:
+    """Build the frozen envelope form used by tests and the PowerShell producer."""
+    if set(identity) != IDENTITY_FIELDS:
+        raise ValueError("envelope identity fields differ")
+    if set(subjects) != set(MEMBER_NAMES):
+        raise ValueError("envelope subject names differ")
+    total = sum(len(content) for content in subjects.values())
+    if total > MAX_TOTAL_DECODED_BYTES:
+        raise ValueError("envelope decoded total exceeds the frozen limit")
+    members: dict[str, dict[str, str | int]] = {}
+    for name in MEMBER_NAMES:
+        content = subjects[name]
+        if len(content) > MAX_MEMBER_BYTES:
+            raise ValueError(f"envelope member exceeds the frozen limit: {name}")
+        members[name] = {
+            "base64": base64.b64encode(content).decode("ascii"),
+            "sha256": _sha256_bytes(content),
+            "size": len(content),
+        }
+    document: dict[str, Any] = {
+        "envelope_kind": "via000-r3-hosted-containment-envelope",
+        "identity": identity,
+        "members": members,
+        "schema_version": 1,
+        "total_decoded_bytes": total,
+    }
+    content = canonical_envelope_bytes(document)
+    if len(content) > MAX_ENVELOPE_BYTES:
+        raise ValueError("canonical envelope exceeds the frozen encoded limit")
+    return content
+
+
+def _load_envelope(path: Path) -> tuple[dict[str, Any], dict[str, bytes], str]:
+    parent_items = list(path.parent.iterdir())
+    if len(parent_items) != 1 or parent_items[0].name != "envelope.json":
+        raise ValueError(f"proof artifact is not exactly one envelope: {path.parent}")
+    stat = path.lstat()
+    if not path.is_file() or path.is_symlink() or stat.st_nlink != 1:
+        raise ValueError(f"proof envelope is not one regular single-link file: {path}")
+    if stat.st_size <= 0 or stat.st_size > MAX_ENVELOPE_BYTES:
+        raise ValueError(f"proof envelope encoded size is outside the frozen limit: {path}")
+    content = path.read_bytes()
+    document = _parse_json(content, f"proof envelope {path}")
+    if canonical_envelope_bytes(document) != content:
+        raise ValueError(f"proof envelope is not canonical JSON: {path}")
+    if set(document) != ENVELOPE_FIELDS:
+        raise ValueError(f"proof envelope fields differ: {path}")
+    if document["schema_version"] != 1 or document["envelope_kind"] != (
+        "via000-r3-hosted-containment-envelope"
+    ):
+        raise ValueError(f"proof envelope kind/version differs: {path}")
+    identity = document["identity"]
+    members = document["members"]
+    if not isinstance(identity, dict) or set(identity) != IDENTITY_FIELDS:
+        raise ValueError(f"proof envelope identity fields differ: {path}")
+    if not isinstance(members, dict):
+        raise ValueError(f"proof envelope members are not one object: {path}")
+    member_names = list(members)
+    if set(member_names) != set(MEMBER_NAMES) or len(
+        {name.casefold() for name in member_names}
+    ) != 4:
+        raise ValueError(f"proof envelope member set differs: {path}")
+    decoded: dict[str, bytes] = {}
+    total = 0
+    for name in MEMBER_NAMES:
+        member = members[name]
+        if not isinstance(member, dict) or set(member) != MEMBER_FIELDS:
+            raise ValueError(f"proof envelope metadata differs for {name}: {path}")
+        size = member["size"]
+        digest = member["sha256"]
+        encoded = member["base64"]
+        if (
+            not isinstance(size, int)
+            or isinstance(size, bool)
+            or not (0 <= size <= MAX_MEMBER_BYTES)
+        ):
+            raise ValueError(f"proof envelope size differs for {name}: {path}")
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ValueError(f"proof envelope hash differs for {name}: {path}")
+        if not isinstance(encoded, str) or len(encoded) > ((MAX_MEMBER_BYTES + 2) // 3) * 4:
+            raise ValueError(f"proof envelope base64 size differs for {name}: {path}")
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(f"proof envelope base64 differs for {name}: {path}") from exc
+        if base64.b64encode(raw).decode("ascii") != encoded:
+            raise ValueError(f"proof envelope base64 is noncanonical for {name}: {path}")
+        if len(raw) != size or _sha256_bytes(raw) != digest:
+            raise ValueError(f"proof envelope decoded size/hash differs for {name}: {path}")
+        decoded[name] = raw
+        total += len(raw)
+    if total > MAX_TOTAL_DECODED_BYTES or document["total_decoded_bytes"] != total:
+        raise ValueError(f"proof envelope decoded total differs: {path}")
+    return document, decoded, _sha256_bytes(content)
+
+
+def _validate_cell(
+    envelope: dict[str, Any],
+    subjects: dict[str, bytes],
+    path: Path,
+    identity: dict[str, str],
+) -> str:
+    envelope_identity = envelope["identity"]
+    for field, expected in identity.items():
+        if envelope_identity.get(field) != expected:
+            raise ValueError(f"envelope {field} differs across cells: {path}")
+    platform = envelope_identity.get("platform_family")
+    stage = envelope_identity.get("stage_id")
+    if platform not in PLATFORMS or stage not in STAGES:
+        raise ValueError(f"envelope platform/stage is outside the 2x3 matrix: {path}")
+    cell = f"{platform}/{stage}"
+    artifact = f"via000-r3-containment-proof-{platform}-{stage}"
+    if (
+        envelope_identity.get("cell") != cell
+        or envelope_identity.get("artifact_name") != artifact
+        or path.parent.name != artifact
+    ):
+        raise ValueError(f"envelope cell/artifact identity differs: {path}")
+
+    document = _parse_json(subjects["proof.json"], f"inner proof {path}")
     if set(document) != CELL_FIELDS:
         raise ValueError(f"proof fields differ from frozen cell schema: {path}")
     if document["schema_version"] != 1 or document["proof_kind"] != (
         "via000-r3-hosted-containment-cell"
     ):
         raise ValueError(f"proof kind/version differs: {path}")
-    for field, expected in identity.items():
+    for field, expected in envelope_identity.items():
         if document[field] != expected:
-            raise ValueError(f"proof {field} differs across cells: {path}")
-    platform = document["platform_family"]
-    stage = document["stage_id"]
-    if platform not in PLATFORMS or stage not in STAGES:
-        raise ValueError(f"proof platform/stage is outside the 2x3 matrix: {path}")
-    cell = f"{platform}/{stage}"
-    if document["cell"] != cell:
-        raise ValueError(f"proof cell identity differs: {path}")
-    artifact = f"via000-r3-containment-proof-{platform}-{stage}"
-    if document["artifact_name"] != artifact or path.parent.name != artifact:
-        raise ValueError(f"proof artifact directory differs from its cell: {path}")
+            raise ValueError(f"inner proof {field} differs from envelope: {path}")
     if any(document[field] is not True for field in TRUE_FIELDS):
         raise ValueError(f"proof contains a false security predicate: {path}")
     if document["active_processes_after_teardown"] != 0:
@@ -144,10 +320,10 @@ def _validate_cell(document: dict[str, Any], path: Path, identity: dict[str, str
         for field in HASH_FIELDS
     ):
         raise ValueError(f"proof has a malformed SHA-256 binding: {path}")
-    contained_path = path.parent / "containment-result.json"
-    if _sha256(contained_path) != document["containment_result_sha256"]:
+    contained_bytes = subjects["containment-result.json"]
+    if _sha256_bytes(contained_bytes) != document["containment_result_sha256"]:
         raise ValueError(f"containment result hash differs: {path}")
-    contained = _load(contained_path)
+    contained = _parse_json(contained_bytes, f"inner containment result {path}")
     if (
         contained.get("schema_version") != 1
         or contained.get("label") != f"proof-{stage}"
@@ -166,9 +342,9 @@ def _validate_cell(document: dict[str, Any], path: Path, identity: dict[str, str
         or contained.get("ephemeral_identity_removed") is not True
     ):
         raise ValueError(f"ephemeral Ubuntu identity proof differs: {path}")
-    if contained.get("stdout_sha256") != _sha256(path.parent / "stdout.txt") or contained.get(
+    if contained.get("stdout_sha256") != _sha256_bytes(subjects["stdout.txt"]) or contained.get(
         "stderr_sha256"
-    ) != _sha256(path.parent / "stderr.txt"):
+    ) != _sha256_bytes(subjects["stderr.txt"]):
         raise ValueError(f"containment transcript hash differs: {path}")
     return cell
 
@@ -209,24 +385,28 @@ def aggregate(args: argparse.Namespace) -> dict[str, Any]:
         "run_id": args.run_id,
         "run_attempt": args.run_attempt,
     }
-    paths = sorted(args.input_root.glob("*/proof.json"))
-    if len(paths) != 6:
-        raise ValueError(f"expected exactly six hosted proof fragments, observed {len(paths)}")
+    if not args.input_root.is_dir() or args.input_root.is_symlink():
+        raise ValueError("proof envelope input root is not one ordinary directory")
+    roots = sorted(args.input_root.iterdir())
+    if len(roots) != 6 or any(not root.is_dir() or root.is_symlink() for root in roots):
+        raise ValueError("expected exactly six ordinary hosted proof artifact directories")
+    paths = [root / "envelope.json" for root in roots]
     cells: set[str] = set()
     hashes: dict[str, str] = {}
     bundle_hashes: dict[str, str] | None = None
     for path in paths:
-        document = _load(path)
-        cell = _validate_cell(document, path, identity)
+        envelope, subjects, envelope_hash = _load_envelope(path)
+        cell = _validate_cell(envelope, subjects, path, identity)
         if cell in cells:
             raise ValueError(f"duplicate hosted containment proof cell: {cell}")
-        observed_bundle = {field: document[field] for field in BUNDLE_HASH_FIELDS}
+        proof = _parse_json(subjects["proof.json"], f"inner proof {path}")
+        observed_bundle = {field: proof[field] for field in BUNDLE_HASH_FIELDS}
         if bundle_hashes is None:
             bundle_hashes = observed_bundle
         elif observed_bundle != bundle_hashes:
             raise ValueError(f"hosted containment proof bundle hashes differ: {cell}")
         cells.add(cell)
-        hashes[cell] = _sha256(path)
+        hashes[cell] = envelope_hash
     if cells != EXPECTED_CELLS:
         raise ValueError(f"hosted containment proof matrix differs: {sorted(cells)}")
     aggregate_document: dict[str, Any] = {

@@ -54,7 +54,8 @@
             "run_id", "run_attempt", "platform_family", "stage_id", "cell",
             "artifact_name", "production_helper_sha256", "proof_runner_sha256",
             "hostile_fixture_sha256", "proof_schema_sha256",
-            "proof_aggregator_sha256", "proof_workflow_sha256",
+            "proof_envelope_schema_sha256", "proof_aggregator_sha256",
+            "proof_workflow_sha256",
             "receipt_bindings_verified", "primitive", "privilege_separation",
             "descendants_quiescent", "active_processes_after_teardown",
             "os_process_tree_empty", "untrusted_identity_processes_empty",
@@ -93,6 +94,7 @@
             "proof_runner_sha256": {"$ref": "#/$defs/sha256"},
             "hostile_fixture_sha256": {"$ref": "#/$defs/sha256"},
             "proof_schema_sha256": {"$ref": "#/$defs/sha256"},
+            "proof_envelope_schema_sha256": {"$ref": "#/$defs/sha256"},
             "proof_aggregator_sha256": {"$ref": "#/$defs/sha256"},
             "proof_workflow_sha256": {"$ref": "#/$defs/sha256"},
             "receipt_bindings_verified": {"const": true},
@@ -176,7 +178,8 @@
               "required": [
                 "production_helper_sha256", "proof_runner_sha256",
                 "hostile_fixture_sha256", "proof_schema_sha256",
-                "proof_aggregator_sha256", "proof_workflow_sha256"
+                "proof_envelope_schema_sha256", "proof_aggregator_sha256",
+                "proof_workflow_sha256"
               ],
               "additionalProperties": false,
               "properties": {
@@ -184,6 +187,7 @@
                 "proof_runner_sha256": {"$ref": "#/$defs/sha256"},
                 "hostile_fixture_sha256": {"$ref": "#/$defs/sha256"},
                 "proof_schema_sha256": {"$ref": "#/$defs/sha256"},
+                "proof_envelope_schema_sha256": {"$ref": "#/$defs/sha256"},
                 "proof_aggregator_sha256": {"$ref": "#/$defs/sha256"},
                 "proof_workflow_sha256": {"$ref": "#/$defs/sha256"}
               }

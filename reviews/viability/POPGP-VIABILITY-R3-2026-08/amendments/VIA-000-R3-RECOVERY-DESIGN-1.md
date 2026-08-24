@@ -163,6 +163,25 @@ rejects identity mixing or any false predicate. The workflow and all verifier by
 are protocol artifacts and receipts. A successful hosted run is evidence for the
 next independent rereview only, never approval or activation.
 
+## RR8 canonical proof-export amendment
+
+RR8 found that Windows containment and the trusted four-subject checks completed, but
+the artifact action could not discover those files inside the security-labelled output
+tree. This draft leaves containment unchanged. Only after the untrusted descendant tree
+is quiescent and the four live subjects are regular, single-link, bounded, and mutually
+hash-bound, the trusted runner creates a fresh direct child of `RUNNER_TEMP`, applies an
+ordinary medium-integrity/inherited-user boundary on Windows (mode 0700 on Ubuntu), and
+writes one deterministic sorted compact JSON envelope. The envelope has exactly four
+case-sensitive members, exact cell/run/source identity, and base64/length/SHA-256 for
+each byte string. It is UTF-8 with LF and no BOM.
+
+The upload action receives only the exact runner-temp `envelope.json` path. The frozen
+aggregator requires six one-file artifact directories, rejects reparse/symlink/hardlink,
+duplicate or case-fold-colliding keys, malformed/noncanonical JSON/base64, size or
+expansion excess, member/inner hash disagreement, and cross-cell identity. It decodes
+members only in memory; no archive or extraction path exists. A hosted 2×3 replay and
+fresh independent rereview remain required before RR4/RR6/RR8 can be considered closed.
+
 Thus the following identity is single-valued:
 
 ```text
