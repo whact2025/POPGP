@@ -58,7 +58,7 @@ jobs:
 
       - name: Emit digest through native cmd control path
         id: native-output
-        shell: C:\Windows\System32\cmd.exe /D /E:OFF /V:OFF /S /C "CALL "{0}""
+        shell: cmd
         run: |
           @echo off
           setlocal DisableDelayedExpansion
