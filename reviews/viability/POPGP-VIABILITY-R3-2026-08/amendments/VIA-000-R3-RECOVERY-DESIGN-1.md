@@ -384,6 +384,18 @@ state, ACE type/mask/flags, medium label, stream/link identity, and hash must ag
 all three trusted boundaries. No owner, DACL, label, or hostile-operation predicate is
 relaxed. The fresh retained 2x3 hosted proof remains the acceptance gate.
 
+## RR19 Windows cache zstd identity amendment
+
+The RR18 replay reached and passed all six containment, canonical-envelope, and digest
+boundaries, then failed closed because the frozen Windows cache preflight named a zstd
+path absent from the hosted image. RR19 changes only that archive-tool identity to the
+hosted `C:\tools\zstd\zstd.exe` version 1.5.7 contract. Every Windows cell places only
+`C:\tools\zstd` into the already-sanitized PATH, requires unique exact command
+resolution, binds the executable SHA-256, and repeats its path, ancestor, stream,
+hard-link, reparse, version, resolution, and hash predicates immediately before and
+after cache save. Containment, export descriptors, envelope bytes, cache keys, and the
+six-job topology are unchanged. A fresh retained 2x3 replay remains mandatory.
+
 ## RR16 hosted export-boundary amendment
 
 RR15's hosted run proved that all six frozen runners parse and both containment

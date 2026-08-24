@@ -178,6 +178,14 @@ control masks, mandatory labels, link/stream identity, and hash are rechecked at
 creation, digest, and pre-cache-save boundaries. A fresh exact six-cell replay remains
 mandatory and fail-closed.
 
+RR19 supersedes the failed RR18 proof run `32763190366`, in which all six containment,
+envelope, and digest stages passed but the three Windows cache cells failed closed on
+the stale Git-for-Windows zstd path. The replacement is exactly
+`C:\tools\zstd\zstd.exe` version 1.5.7. Its literal path, ordinary non-reparse
+ancestors/file, one data stream, one hard link, unique `Get-Command` resolution,
+version, and SHA-256 are checked under the sanitized PATH before and after cache save.
+No output artifact from the failed run is accepted.
+
 The checked-in allowed-signers file is deliberately comment-only. Activation is
 blocked until a separately reviewed amendment freezes exactly one Ed25519 public key,
 after which an authorized maintainer may create the binding commit and signed tag.

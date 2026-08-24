@@ -97,7 +97,7 @@ jobs:
         run: &digest-run |
           if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
             $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
-            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
             $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
             $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
             $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))
@@ -204,7 +204,7 @@ jobs:
         run: &cache-tools |
           if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
             $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
-            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
             $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
             $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
             $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))
@@ -219,7 +219,40 @@ jobs:
           }
           if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
             $tar = 'C:\Program Files\Git\usr\bin\tar.exe'
-            $zstd = 'C:\Program Files\Git\mingw64\bin\zstd.exe'
+            $zstdRoot = 'C:\tools\zstd'
+            $zstd = 'C:\tools\zstd\zstd.exe'
+            $expectedZstdObjects = @('C:\', 'C:\tools', $zstdRoot, $zstd)
+            for ($index = 0; $index -lt $expectedZstdObjects.Count; $index++) {
+              $path = $expectedZstdObjects[$index]
+              $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+              $expectedType = if ($index -eq ($expectedZstdObjects.Count - 1)) {
+                [IO.FileInfo]
+              } else {
+                [IO.DirectoryInfo]
+              }
+              if (-not ($item -is $expectedType) -or
+                  ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                  -not ([IO.Path]::GetFullPath($item.FullName)).Equals(
+                    [IO.Path]::GetFullPath($path), [StringComparison]::OrdinalIgnoreCase
+                  )) {
+                throw "Windows zstd path or ancestor identity differs"
+              }
+            }
+            $streams = @(Get-Item -LiteralPath $zstd -Stream * -ErrorAction Stop)
+            $fsutil = 'C:\Windows\System32\fsutil.exe'
+            $links = @(& $fsutil hardlink list $zstd | Where-Object {
+              -not [string]::IsNullOrWhiteSpace([string]$_)
+            })
+            $linkExit = $LASTEXITCODE
+            $commands = @(Get-Command zstd.exe -All -CommandType Application -ErrorAction Stop)
+            if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA' -or
+                $linkExit -ne 0 -or $links.Count -ne 1 -or
+                $commands.Count -ne 1 -or
+                -not ([IO.Path]::GetFullPath([string]$commands[0].Path)).Equals(
+                  $zstd, [StringComparison]::OrdinalIgnoreCase
+                )) {
+              throw "Windows zstd stream, link, or PATH resolution differs"
+            }
           } elseif ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'ubuntu-latest-x86_64') {
             $tar = '/usr/bin/tar'
             $zstd = '/usr/bin/zstd'
@@ -243,9 +276,29 @@ jobs:
               $tarBanner -cnotmatch '^tar \(GNU tar\) [0-9]+\.[0-9]+(?:\.[0-9]+)?') {
             throw "cross-OS GNU tar exit or banner differs"
           }
+          $zstdVersions = [regex]::Matches($zstdBanner, '(?<![0-9])v?([0-9]+\.[0-9]+\.[0-9]+)(?![0-9])')
           if ($zstdExit -ne 0 -or [string]::IsNullOrWhiteSpace($zstdBanner) -or
-              $zstdBanner -cnotmatch 'Zstandard.*\bv?[0-9]+\.[0-9]+\.[0-9]+\b') {
+              $zstdBanner -cnotmatch 'Zstandard' -or
+              $zstdVersions.Count -ne 1) {
             throw "cross-OS Zstandard exit or banner differs"
+          }
+          if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
+            if ([string]$zstdVersions[0].Groups[1].Value -cne '1.5.7') {
+              throw "Windows zstd version differs from frozen 1.5.7"
+            }
+            $zstdSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $zstd).Hash.ToLowerInvariant()
+            $githubOutput = Get-Item -LiteralPath ([string]$env:GITHUB_OUTPUT) -Force -ErrorAction Stop
+            if ($zstdSha256 -cnotmatch '^[0-9a-f]{64}$' -or
+                -not ($githubOutput -is [IO.FileInfo]) -or
+                ($githubOutput.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+              throw "Windows zstd digest or GitHub output identity differs"
+            }
+            [IO.File]::AppendAllText(
+              [string]$env:GITHUB_OUTPUT,
+              "windows_zstd_sha256=$zstdSha256`n",
+              [Text.UTF8Encoding]::new($false)
+            )
+            Write-Output "Windows zstd 1.5.7 identity captured from C:\tools\zstd\zstd.exe"
           }
       - name: Reject pre-existing exact cache key
         id: preflight
@@ -269,7 +322,7 @@ jobs:
         run: &preflight-check |
           if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
             $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
-            $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+            $expectedPath = 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
             $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
             $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
             $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))
@@ -287,6 +340,52 @@ jobs:
               [string]$env:VIA000_CACHE_PRIMARY -cne [string]$env:VIA000_CACHE_KEY -or
               [string]$env:VIA000_CACHE_HIT -ne '' -or [string]$env:VIA000_CACHE_MATCHED -ne '') {
             throw "exact digest-bound cache key already exists or preflight differs"
+          }
+          if ([string]$env:VIA000_PLATFORM_FAMILY -ceq 'windows-x86_64') {
+            $zstdRoot = 'C:\tools\zstd'
+            $zstd = 'C:\tools\zstd\zstd.exe'
+            $expectedZstdSha256 = [string]$env:VIA000_ZSTD_SHA256
+            $expectedZstdObjects = @('C:\', 'C:\tools', $zstdRoot, $zstd)
+            for ($index = 0; $index -lt $expectedZstdObjects.Count; $index++) {
+              $path = $expectedZstdObjects[$index]
+              $item = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+              $expectedType = if ($index -eq ($expectedZstdObjects.Count - 1)) {
+                [IO.FileInfo]
+              } else {
+                [IO.DirectoryInfo]
+              }
+              if (-not ($item -is $expectedType) -or
+                  ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                  -not ([IO.Path]::GetFullPath($item.FullName)).Equals(
+                    [IO.Path]::GetFullPath($path), [StringComparison]::OrdinalIgnoreCase
+                  )) {
+                throw "Windows zstd path or ancestor changed before or after cache save"
+              }
+            }
+            $streams = @(Get-Item -LiteralPath $zstd -Stream * -ErrorAction Stop)
+            $fsutil = 'C:\Windows\System32\fsutil.exe'
+            $links = @(& $fsutil hardlink list $zstd | Where-Object {
+              -not [string]::IsNullOrWhiteSpace([string]$_)
+            })
+            $linkExit = $LASTEXITCODE
+            $commands = @(Get-Command zstd.exe -All -CommandType Application -ErrorAction Stop)
+            $zstdOutput = @(& $zstd --version 2>&1)
+            $zstdExit = $LASTEXITCODE
+            $zstdBanner = [string]($zstdOutput | Select-Object -First 1)
+            $zstdVersions = [regex]::Matches($zstdBanner, '(?<![0-9])v?([0-9]+\.[0-9]+\.[0-9]+)(?![0-9])')
+            $observedZstdSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $zstd).Hash.ToLowerInvariant()
+            if ($streams.Count -ne 1 -or [string]$streams[0].Stream -cne ':$DATA' -or
+                $linkExit -ne 0 -or $links.Count -ne 1 -or
+                $commands.Count -ne 1 -or
+                -not ([IO.Path]::GetFullPath([string]$commands[0].Path)).Equals(
+                  $zstd, [StringComparison]::OrdinalIgnoreCase
+                ) -or $zstdExit -ne 0 -or $zstdBanner -cnotmatch 'Zstandard' -or
+                $zstdVersions.Count -ne 1 -or
+                [string]$zstdVersions[0].Groups[1].Value -cne '1.5.7' -or
+                $expectedZstdSha256 -cnotmatch '^[0-9a-f]{64}$' -or
+                $observedZstdSha256 -cne $expectedZstdSha256) {
+              throw "Windows zstd identity changed before or after cache save"
+            }
           }
           $relative = ".via000-r3-proof-cache/$($env:VIA000_PLATFORM_FAMILY)/$($env:VIA000_STAGE_ID)"
           $directory = Join-Path ([IO.Path]::GetFullPath([string]$env:GITHUB_WORKSPACE)) $relative
@@ -412,7 +511,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 12
     env:
-      PATH: 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+      PATH: 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
     outputs:
       windows_candidate_digest: ${{ steps.digest.outputs.windows_candidate_digest }}
     steps:
@@ -435,7 +534,7 @@ jobs:
         run: &windows-proof-run |
           $ErrorActionPreference = "Stop"
           $expectedShell = 'C:\Program Files\PowerShell\7\pwsh.exe'
-          $expectedPath = 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
+          $expectedPath = 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'
           $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
           $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
           $psHomeShell = [IO.Path]::GetFullPath((Join-Path $PSHOME 'pwsh.exe'))
@@ -479,24 +578,28 @@ jobs:
         shell: pwsh
         env: *windows-candidate-env
         run: *digest-run
-      - {name: Assert exact cross-OS archive tools, shell: pwsh, env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
+      - {name: Assert exact cross-OS archive tools, id: archive_tools, shell: pwsh, env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/candidate, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}', enableCrossOsArchive: true, lookup-only: true, fail-on-cache-miss: false}
       - name: Require fresh exact cache key
         shell: pwsh
-        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: candidate, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_candidate_digest }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}'}
+        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: candidate, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_candidate_digest }}', VIA000_ZSTD_SHA256: '${{ steps.archive_tools.outputs.windows_zstd_sha256 }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}'}
         run: *preflight-check
       - name: Save one exact digest-bound envelope cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/candidate, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}', enableCrossOsArchive: true}
+      - name: Recheck archive tool and staged envelope after cache save
+        shell: pwsh
+        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: candidate, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_candidate_digest }}', VIA000_ZSTD_SHA256: '${{ steps.archive_tools.outputs.windows_zstd_sha256 }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-candidate-${{ steps.digest.outputs.windows_candidate_digest }}'}
+        run: *preflight-check
 
   windows-pdf:
     name: proof / windows-x86_64 / pdf
     runs-on: windows-2025
     timeout-minutes: 12
-    env: {PATH: 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'}
+    env: {PATH: 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'}
     outputs:
       windows_pdf_digest: ${{ steps.digest.outputs.windows_pdf_digest }}
     steps:
@@ -518,24 +621,28 @@ jobs:
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
         run: *windows-proof-run
       - {name: Validate staged envelope and emit digest only, id: digest, shell: pwsh, env: *windows-pdf-env, run: *digest-run}
-      - {name: Assert exact cross-OS archive tools, shell: pwsh, env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
+      - {name: Assert exact cross-OS archive tools, id: archive_tools, shell: pwsh, env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/pdf, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}', enableCrossOsArchive: true, lookup-only: true, fail-on-cache-miss: false}
       - name: Require fresh exact cache key
         shell: pwsh
-        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: pdf, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_pdf_digest }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}'}
+        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: pdf, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_pdf_digest }}', VIA000_ZSTD_SHA256: '${{ steps.archive_tools.outputs.windows_zstd_sha256 }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}'}
         run: *preflight-check
       - name: Save one exact digest-bound envelope cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/pdf, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}', enableCrossOsArchive: true}
+      - name: Recheck archive tool and staged envelope after cache save
+        shell: pwsh
+        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: pdf, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_pdf_digest }}', VIA000_ZSTD_SHA256: '${{ steps.archive_tools.outputs.windows_zstd_sha256 }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-pdf-${{ steps.digest.outputs.windows_pdf_digest }}'}
+        run: *preflight-check
 
   windows-mutation:
     name: proof / windows-x86_64 / mutation
     runs-on: windows-2025
     timeout-minutes: 12
-    env: {PATH: 'C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'}
+    env: {PATH: 'C:\Program Files\PowerShell\7;C:\tools\zstd;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows'}
     outputs:
       windows_mutation_digest: ${{ steps.digest.outputs.windows_mutation_digest }}
     steps:
@@ -557,18 +664,22 @@ jobs:
           VIA000_RUNNER_TEMP: ${{ runner.temp }}
         run: *windows-proof-run
       - {name: Validate staged envelope and emit digest only, id: digest, shell: pwsh, env: *windows-mutation-env, run: *digest-run}
-      - {name: Assert exact cross-OS archive tools, shell: pwsh, env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
+      - {name: Assert exact cross-OS archive tools, id: archive_tools, shell: pwsh, env: {VIA000_PLATFORM_FAMILY: windows-x86_64}, run: *cache-tools}
       - name: Reject pre-existing exact cache key
         id: preflight
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/mutation, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}', enableCrossOsArchive: true, lookup-only: true, fail-on-cache-miss: false}
       - name: Require fresh exact cache key
         shell: pwsh
-        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: mutation, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_mutation_digest }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}'}
+        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: mutation, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_mutation_digest }}', VIA000_ZSTD_SHA256: '${{ steps.archive_tools.outputs.windows_zstd_sha256 }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}'}
         run: *preflight-check
       - name: Save one exact digest-bound envelope cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with: {path: .via000-r3-proof-cache/windows-x86_64/mutation, key: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}', enableCrossOsArchive: true}
+      - name: Recheck archive tool and staged envelope after cache save
+        shell: pwsh
+        env: {VIA000_PLATFORM_FAMILY: windows-x86_64, VIA000_STAGE_ID: mutation, VIA000_EXPECTED_DIGEST: '${{ steps.digest.outputs.windows_mutation_digest }}', VIA000_ZSTD_SHA256: '${{ steps.archive_tools.outputs.windows_zstd_sha256 }}', VIA000_CACHE_HIT: '${{ steps.preflight.outputs.cache-hit }}', VIA000_CACHE_PRIMARY: '${{ steps.preflight.outputs.cache-primary-key }}', VIA000_CACHE_MATCHED: '${{ steps.preflight.outputs.cache-matched-key }}', VIA000_CACHE_KEY: 'via000-r3-envelope-v1-${{ github.repository_id }}-${{ github.workflow_sha }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-windows-x86_64-mutation-${{ steps.digest.outputs.windows_mutation_digest }}'}
+        run: *preflight-check
 
   aggregate:
     name: restore and consolidate six digest-bound caches on Ubuntu

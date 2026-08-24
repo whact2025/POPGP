@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 445 passed |
+| `pytest -q` | about 1200 s | 446 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -237,3 +237,11 @@ is closed, its owner is set natively without replacing its one inherited runner 
 its exact control mask is 33796. Creation, digest, and pre-cache-save boundaries
 independently requery native and managed facts. The RR17 experiment remains
 non-authoritative and is not part of the campaign tree.
+
+RR19 binds the proof-only Windows cache transport to the hosted image's exact
+`C:\tools\zstd\zstd.exe` installation and `C:\tools\zstd` PATH entry. Each Windows
+cell rejects missing, alternate, reparse, multi-link, alternate-stream, PATH-shadowed,
+or non-1.5.7 zstd identities, captures its SHA-256, and repeats the complete identity
+and hash check immediately before and after the pinned cache-save action. The failed
+RR18 replay `32763190366` produced no retained aggregate or artifact and is superseded
+only by a fresh exact six-cell RR19 replay.

@@ -130,6 +130,10 @@ must clean the cell and leave no digest/cache/artifact.
     post-teardown cache/export root and envelope must have the exact current-runner SID
     owner/DACL and medium `S-1-16-8192` `NO_WRITE_UP` label, rechecked before digest and
     immediately before cache save; inherited hosted-workspace ACL shape is not evidence.
+    Require each Windows proof cell to resolve zstd uniquely as the ordinary,
+    non-reparse `C:\tools\zstd\zstd.exe` version 1.5.7 under the sanitized PATH,
+    bind its SHA-256, and repeat exact identity/hash checks immediately before and
+    after cache save. Do not accept the failed RR18 run `32763190366` as evidence.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

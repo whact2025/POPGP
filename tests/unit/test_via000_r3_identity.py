@@ -2109,7 +2109,7 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     ):
         assert action in workflow_text
-    assert workflow_text.count("shell: pwsh") == 12
+    assert workflow_text.count("shell: pwsh") == 15
     assert "WindowsPowerShell" not in workflow_text
     assert "-NonInteractive -Command \". '{0}'\"" not in workflow_text
     assert workflow_text.count('$workspace = "/tmp/via000-proof-workspace"') == 1
@@ -2791,7 +2791,7 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
         trusted_steps = [
             step for step in workflow_document["jobs"][job_name]["steps"] if "run" in step
         ]
-        assert len(trusted_steps) == 4
+        assert len(trusted_steps) == 5
         assert all(step["shell"] == "pwsh" for step in trusted_steps)
         assert all(
             "trusted Windows built-in pwsh identity, profile, version, or PATH differs"
@@ -2810,7 +2810,6 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
     zstd_banner = re.compile(r"Zstandard.*\bv?[0-9]+\.[0-9]+\.[0-9]+\b")
     assert tar_banner.search("tar (GNU tar) 1.35")
     assert zstd_banner.search("*** Zstandard CLI (64-bit) v1.5.7, by Yann Collet ***")
-    assert zstd_banner.search("*** Zstandard CLI (64-bit) v1.5.6, by Yann Collet ***")
     assert "${{ github.workflow_sha }}" in workflow_text
     assert "${{ github.repository_id }}" in workflow_text
     assert ".via000-r3-proof-cache/windows-x86_64/candidate" in workflow_text
@@ -2875,7 +2874,8 @@ def _exercise_r3_digest_cache_transport(tmp_path: Path, monkeypatch: pytest.Monk
             digest_step["run"]
             .replace(r"C:\Program Files\PowerShell\7\pwsh.exe", pwsh)
             .replace(
-                r"C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;"
+                r"C:\Program Files\PowerShell\7;C:\tools\zstd;"
+                r"C:\Program Files\Git\usr\bin;"
                 r"C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;"
                 r"C:\Windows\System32;C:\Windows",
                 local_trusted_path,
@@ -2945,7 +2945,13 @@ def test_r3_rr12_windows_builtin_pwsh_execution_is_observable_and_persistent(
     production_text = WORKFLOW.read_text(encoding="utf-8")
     proof = yaml.safe_load(proof_text)
     production = yaml.safe_load(production_text)
-    expected_path = (
+    proof_expected_path = (
+        r"C:\Program Files\PowerShell\7;C:\tools\zstd;"
+        r"C:\Program Files\Git\usr\bin;"
+        r"C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;"
+        r"C:\Windows\System32;C:\Windows"
+    )
+    production_expected_path = (
         r"C:\Program Files\PowerShell\7;C:\Program Files\Git\usr\bin;"
         r"C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\cmd;"
         r"C:\Windows\System32;C:\Windows"
@@ -2973,13 +2979,14 @@ def test_r3_rr12_windows_builtin_pwsh_execution_is_observable_and_persistent(
         "Validate staged envelope and emit digest only",
         "Assert exact cross-OS archive tools",
         "Require fresh exact cache key",
+        "Recheck archive tool and staged envelope after cache save",
     }
     proof_step_count = 0
     for job_name in ("windows-candidate", "windows-pdf", "windows-mutation"):
         job = proof["jobs"][job_name]
-        assert job["env"]["PATH"] == expected_path
+        assert job["env"]["PATH"] == proof_expected_path
         trusted_steps = [step for step in job["steps"] if "run" in step]
-        assert len(trusted_steps) == 4
+        assert len(trusted_steps) == 5
         for step in trusted_steps:
             proof_step_count += 1
             assert step["shell"] == "pwsh"
@@ -2988,7 +2995,7 @@ def test_r3_rr12_windows_builtin_pwsh_execution_is_observable_and_persistent(
                 "trusted Windows built-in pwsh identity, profile, version, or PATH differs"
                 in step["run"]
             )
-    assert proof_step_count == 12
+    assert proof_step_count == 15
 
     windows_matrix = [
         entry
@@ -2999,7 +3006,9 @@ def test_r3_rr12_windows_builtin_pwsh_execution_is_observable_and_persistent(
     ]
     assert len(windows_matrix) == 3
     assert all("shell" not in entry for entry in windows_matrix)
-    assert all(entry["trusted_path"] == expected_path for entry in windows_matrix)
+    assert all(
+        entry["trusted_path"] == production_expected_path for entry in windows_matrix
+    )
     ubuntu_matrix = [
         entry
         for entry in production["jobs"]["platform-fragment"]["strategy"]["matrix"][
@@ -3375,7 +3384,7 @@ if ($failed) { exit 1 }
                     step["run"], encoding="utf-8", newline="\n"
                 )
                 workflow_blocks.append(block_path)
-    assert len(workflow_blocks) == 37
+    assert len(workflow_blocks) == 40
     parsed_blocks = subprocess.run(
         [*parser_command, *(str(path) for path in workflow_blocks)],
         check=False,
@@ -3698,6 +3707,116 @@ def test_r3_rr18_native_root_file_descriptor_and_workspace_hostile_replay(
     assert workflow_text.count("[uint16]$fileSecurity.control_flags -ne 33796") == 2
     if os.name == "nt":
         test_r3_rr16_windows_medium_export_boundary_denies_low_integrity_writes(tmp_path)
+
+
+@pytest.mark.negative_control
+def test_r3_rr19_windows_cache_zstd_identity_is_exact_and_rechecked() -> None:
+    """TST-VIA000-R3-RR19-WINDOWS-CACHE-ZSTD-IDENTITY-001."""
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    receipt_path = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-workflow.yml"
+    )
+    expected_path = (
+        r"C:\Program Files\PowerShell\7;C:\tools\zstd;"
+        r"C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;"
+        r"C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows"
+    )
+    exact_zstd = r"C:\tools\zstd\zstd.exe"
+
+    def assert_contract(source: str) -> None:
+        document = yaml.safe_load(source)
+        assert r"C:\Program Files\Git\mingw64\bin\zstd.exe" not in source
+        assert "$zstd = 'C:\\tools\\zstd\\zstd.exe'" in source
+        assert "$zstdRoot = 'C:\\tools\\zstd'" in source
+        assert "@('C:\\', 'C:\\tools', $zstdRoot, $zstd)" in source
+        assert "[IO.FileAttributes]::ReparsePoint" in source
+        assert "Get-Item -LiteralPath $zstd -Stream *" in source
+        assert "hardlink list $zstd" in source
+        assert "Get-Command zstd.exe -All -CommandType Application" in source
+        assert "$commands.Count -ne 1" in source
+        assert "Groups[1].Value -cne '1.5.7'" in source
+        assert "Get-FileHash -Algorithm SHA256 -LiteralPath $zstd" in source
+        assert "$observedZstdSha256 -cne $expectedZstdSha256" in source
+        assert "windows_zstd_sha256=$zstdSha256" in source
+        assert source.count("C:\\tools\\zstd") >= 12
+        for job_name in ("windows-candidate", "windows-pdf", "windows-mutation"):
+            job = document["jobs"][job_name]
+            assert job["env"]["PATH"] == expected_path
+            steps = job["steps"]
+            archive_index = next(
+                index
+                for index, step in enumerate(steps)
+                if step.get("name") == "Assert exact cross-OS archive tools"
+            )
+            preflight_index = next(
+                index
+                for index, step in enumerate(steps)
+                if step.get("name") == "Require fresh exact cache key"
+            )
+            save_index = next(
+                index
+                for index, step in enumerate(steps)
+                if step.get("name") == "Save one exact digest-bound envelope cache"
+            )
+            post_index = next(
+                index
+                for index, step in enumerate(steps)
+                if step.get("name")
+                == "Recheck archive tool and staged envelope after cache save"
+            )
+            archive = steps[archive_index]
+            preflight = steps[preflight_index]
+            post = steps[post_index]
+            assert archive["id"] == "archive_tools"
+            assert archive["shell"] == "pwsh"
+            assert exact_zstd in archive["run"]
+            assert preflight_index + 1 == save_index
+            assert save_index + 1 == post_index
+            assert archive_index < preflight_index
+            assert preflight["env"]["VIA000_ZSTD_SHA256"] == (
+                "${{ steps.archive_tools.outputs.windows_zstd_sha256 }}"
+            )
+            assert post["env"]["VIA000_ZSTD_SHA256"] == (
+                "${{ steps.archive_tools.outputs.windows_zstd_sha256 }}"
+            )
+            assert "$observedZstdSha256 -cne $expectedZstdSha256" in preflight["run"]
+            assert "$observedZstdSha256 -cne $expectedZstdSha256" in post["run"]
+            assert steps[save_index]["uses"] == (
+                "actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+            )
+
+    assert receipt_path.read_bytes() == CONTAINMENT_PROOF_WORKFLOW.read_bytes()
+    assert_contract(workflow_text)
+
+    mutations = {
+        "missing": workflow_text.replace(exact_zstd, r"C:\missing\zstd.exe"),
+        "wrong-version": workflow_text.replace("1.5.7", "1.5.6"),
+        "changed-hash": workflow_text.replace(
+            "$observedZstdSha256 -cne $expectedZstdSha256", "$false"
+        ),
+        "path-shadow": workflow_text.replace(
+            r"C:\Program Files\PowerShell\7;C:\tools\zstd;",
+            r"C:\shadow;C:\Program Files\PowerShell\7;C:\tools\zstd;",
+        ),
+        "reparse": workflow_text.replace(
+            "[IO.FileAttributes]::ReparsePoint", "[IO.FileAttributes]::Hidden"
+        ),
+        "alias": workflow_text.replace(
+            exact_zstd, r"C:\tools\zstd\..\zstd\zstd.exe"
+        ),
+        "git-relative": workflow_text.replace(
+            exact_zstd, r"C:\Program Files\Git\mingw64\bin\zstd.exe"
+        ),
+        "multi-allowlist": workflow_text.replace(
+            "$zstd = 'C:\\tools\\zstd\\zstd.exe'",
+            "$zstd = @('C:\\tools\\zstd\\zstd.exe','C:\\other\\zstd.exe')[0]",
+        ),
+    }
+    for mutation in mutations.values():
+        with pytest.raises((AssertionError, KeyError, StopIteration, yaml.YAMLError)):
+            assert_contract(mutation)
 
 
 @pytest.mark.negative_control
