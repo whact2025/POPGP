@@ -1,0 +1,162 @@
+name: VIA-000 R3 RR27 setup-python context diagnostic only
+
+on:
+  push:
+    branches:
+      - experiment/via000-r3-ubuntu-setup-python-context-*
+    paths:
+      - .github/workflows/via000-r3-rr27-setup-python-context-diagnostic.yml
+
+permissions: {}
+
+jobs:
+  observe-exact-context:
+    name: observe exact aggregate setup-python and pwsh context
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      PATH: /usr/bin:/bin
+    steps:
+      - name: Install exact aggregate Python context
+        id: setup-python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11.15'
+          cache: ''
+          check-latest: false
+          update-environment: true
+
+      - name: Observe every pre-metadata predicate independently
+        shell: /opt/microsoft/powershell/7/pwsh -NoLogo -NoProfile -NonInteractive -File {0}
+        env:
+          VIA000_SETUP_ACTION_COMMIT: ece7cb06caefa5fff74198d8649806c4678c61a1
+          VIA000_SETUP_PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
+          VIA000_SETUP_PYTHON_VERSION: ${{ steps.setup-python.outputs.python-version }}
+        run: |
+          $expectedShell = '/opt/microsoft/powershell/7/pwsh'
+          $expectedPsHome = '/opt/microsoft/powershell/7'
+          $expectedVersion = '7.6.5'
+          $currentExpectedPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+          $expectedSanitizedPath = '/usr/bin:/bin'
+          $expectedPythonRoot = '/opt/hostedtoolcache/Python/3.11.15/x64'
+          $expectedPythonBin = '/opt/hostedtoolcache/Python/3.11.15/x64/bin'
+          $expectedPythonPath = '/opt/hostedtoolcache/Python/3.11.15/x64/bin/python'
+          $uuidPattern = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+          $records = [Collections.Generic.List[object]]::new()
+
+          function Add-Observation {
+            param(
+              [Parameter(Mandatory)][string]$Name,
+              [AllowNull()][object]$Value,
+              [Parameter(Mandatory)][bool]$Pass,
+              [bool]$CurrentPredicate = $true
+            )
+            $records.Add([ordered]@{
+              name = $Name
+              value = $Value
+              pass = $Pass
+              current_predicate = $CurrentPredicate
+            })
+          }
+
+          $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
+          $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
+          $cmdlineBytes = [IO.File]::ReadAllBytes('/proc/self/cmdline')
+          $argv = @([Text.Encoding]::UTF8.GetString($cmdlineBytes).Split([char]0) | Where-Object { $_.Length -gt 0 })
+          $entryPath = [string]$env:PATH
+          $entryPathComponents = @($entryPath.Split(':'))
+          $runnerTempRaw = [string]$env:RUNNER_TEMP
+          try { $runnerTemp = [IO.Path]::GetFullPath($runnerTempRaw) } catch { $runnerTemp = '' }
+          if ($runnerTemp.EndsWith('/')) { $runnerTemp = $runnerTemp.Substring(0, $runnerTemp.Length - 1) }
+          $runnerScriptArgument = if ($argv.Count -eq 6) { [string]$argv[5] } else { '' }
+          try { $runnerScript = [IO.Path]::GetFullPath($runnerScriptArgument) } catch { $runnerScript = '' }
+          $runnerScriptParent = if ($runnerScript.Length -gt 0) { [IO.Path]::GetDirectoryName($runnerScript) } else { '' }
+          $runnerScriptBase = if ($runnerScript.Length -gt 0) { [IO.Path]::GetFileName($runnerScript) } else { '' }
+
+          Add-Observation -Name 'runner_os' -Value ([string]$env:RUNNER_OS) -Pass ([string]$env:RUNNER_OS -ceq 'Linux') -CurrentPredicate $false
+          Add-Observation -Name 'runner_arch' -Value ([string]$env:RUNNER_ARCH) -Pass ([string]$env:RUNNER_ARCH -ceq 'X64') -CurrentPredicate $false
+          Add-Observation -Name 'image_os' -Value ([string]$env:ImageOS) -Pass ([string]$env:ImageOS -ceq 'ubuntu24') -CurrentPredicate $false
+          Add-Observation -Name 'image_version' -Value ([string]$env:ImageVersion) -Pass ([string]$env:ImageVersion -match '^[0-9]{8}\.\d+$') -CurrentPredicate $false
+          Add-Observation -Name 'setup_action_commit' -Value ([string]$env:VIA000_SETUP_ACTION_COMMIT) -Pass ([string]$env:VIA000_SETUP_ACTION_COMMIT -ceq 'ece7cb06caefa5fff74198d8649806c4678c61a1') -CurrentPredicate $false
+          Add-Observation -Name 'setup_python_output_path' -Value ([string]$env:VIA000_SETUP_PYTHON_PATH) -Pass ([string]$env:VIA000_SETUP_PYTHON_PATH -ceq $expectedPythonPath) -CurrentPredicate $false
+          Add-Observation -Name 'setup_python_output_version' -Value ([string]$env:VIA000_SETUP_PYTHON_VERSION) -Pass ([string]$env:VIA000_SETUP_PYTHON_VERSION -ceq '3.11.15') -CurrentPredicate $false
+          Add-Observation -Name 'pythonLocation' -Value ([string]$env:pythonLocation) -Pass ([string]$env:pythonLocation -ceq $expectedPythonRoot) -CurrentPredicate $false
+          Add-Observation -Name 'Python_ROOT_DIR' -Value ([string]$env:Python_ROOT_DIR) -Pass ([string]$env:Python_ROOT_DIR -ceq $expectedPythonRoot) -CurrentPredicate $false
+          Add-Observation -Name 'Python2_ROOT_DIR' -Value ([string]$env:Python2_ROOT_DIR) -Pass ([string]$env:Python2_ROOT_DIR -ceq $expectedPythonRoot) -CurrentPredicate $false
+          Add-Observation -Name 'Python3_ROOT_DIR' -Value ([string]$env:Python3_ROOT_DIR) -Pass ([string]$env:Python3_ROOT_DIR -ceq $expectedPythonRoot) -CurrentPredicate $false
+          Add-Observation -Name 'PKG_CONFIG_PATH' -Value ([string]$env:PKG_CONFIG_PATH) -Pass ([string]$env:PKG_CONFIG_PATH -ceq "$expectedPythonRoot/lib/pkgconfig") -CurrentPredicate $false
+          Add-Observation -Name 'LD_LIBRARY_PATH' -Value ([string]$env:LD_LIBRARY_PATH) -Pass ([string]$env:LD_LIBRARY_PATH -ceq "$expectedPythonRoot/lib") -CurrentPredicate $false
+          Add-Observation -Name 'main_module' -Value $observedShell -Pass ($observedShell -ceq $expectedShell)
+          Add-Observation -Name 'pshome' -Value ([string]$PSHOME) -Pass ([string]$PSHOME -ceq $expectedPsHome)
+          Add-Observation -Name 'psversion' -Value $PSVersionTable.PSVersion.ToString() -Pass ($PSVersionTable.PSVersion.ToString() -ceq $expectedVersion)
+          Add-Observation -Name 'entry_path' -Value $entryPath -Pass ($entryPath -ceq $currentExpectedPath)
+          Add-Observation -Name 'entry_path_components' -Value $entryPathComponents -Pass ($entryPath -ceq $currentExpectedPath)
+          Add-Observation -Name 'entry_path_pshome_index' -Value ([Array]::IndexOf($entryPathComponents, $expectedPsHome)) -Pass ([Array]::IndexOf($entryPathComponents, $expectedPsHome) -ge 0) -CurrentPredicate $false
+          Add-Observation -Name 'entry_path_python_bin_index' -Value ([Array]::IndexOf($entryPathComponents, $expectedPythonBin)) -Pass ([Array]::IndexOf($entryPathComponents, $expectedPythonBin) -ge 0) -CurrentPredicate $false
+          Add-Observation -Name 'entry_path_python_root_index' -Value ([Array]::IndexOf($entryPathComponents, $expectedPythonRoot)) -Pass ([Array]::IndexOf($entryPathComponents, $expectedPythonRoot) -ge 0) -CurrentPredicate $false
+          Add-Observation -Name 'argc' -Value $argv.Count -Pass ($argv.Count -eq 6)
+          for ($index = 0; $index -lt 6; $index++) {
+            $value = if ($index -lt $argv.Count) { [string]$argv[$index] } else { '' }
+            $expected = switch ($index) {
+              0 { $expectedShell }
+              1 { '-NoLogo' }
+              2 { '-NoProfile' }
+              3 { '-NonInteractive' }
+              4 { '-File' }
+              default { $runnerScriptArgument }
+            }
+            Add-Observation -Name "argv$index" -Value $value -Pass ($value -ceq $expected)
+          }
+          Add-Observation -Name 'runner_temp_raw' -Value $runnerTempRaw -Pass ($runnerTempRaw.Length -gt 0) -CurrentPredicate $false
+          Add-Observation -Name 'runner_temp_full' -Value $runnerTemp -Pass ($runnerTemp.Length -gt 0) -CurrentPredicate $false
+          Add-Observation -Name 'argv5_fullpath' -Value $runnerScript -Pass ($runnerScriptArgument.Length -gt 0 -and $runnerScriptArgument -ceq $runnerScript)
+          Add-Observation -Name 'argv5_parent' -Value $runnerScriptParent -Pass ($runnerScriptParent -ceq $runnerTemp)
+          Add-Observation -Name 'argv5_basename' -Value $runnerScriptBase -Pass ($runnerScriptBase -cmatch $uuidPattern)
+
+          $scriptItem = $null
+          try { $scriptItem = Get-Item -LiteralPath $runnerScript -Force -ErrorAction Stop } catch {}
+          $isFileInfo = $null -ne $scriptItem -and $scriptItem -is [IO.FileInfo]
+          $isNonReparse = $isFileInfo -and -not ($scriptItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+          Add-Observation -Name 'argv5_fileinfo' -Value $isFileInfo -Pass $isFileInfo
+          Add-Observation -Name 'argv5_nonreparse' -Value $isNonReparse -Pass $isNonReparse
+
+          $runnerUidOutput = @(& /usr/bin/id -u)
+          $runnerUidExit = $LASTEXITCODE
+          $runnerGidOutput = @(& /usr/bin/id -g)
+          $runnerGidExit = $LASTEXITCODE
+          $statOutput = @(& /usr/bin/stat '--format=%F|%h|%u|%g|%a' -- $runnerScript)
+          $statExit = $LASTEXITCODE
+          $runnerUid = if ($runnerUidOutput.Count -eq 1) { [string]$runnerUidOutput[0] } else { '' }
+          $runnerGid = if ($runnerGidOutput.Count -eq 1) { [string]$runnerGidOutput[0] } else { '' }
+          $statParts = if ($statOutput.Count -eq 1) { ([string]$statOutput[0]).Split('|') } else { @() }
+          $statType = if ($statParts.Count -eq 5) { [string]$statParts[0] } else { '' }
+          $statLinks = if ($statParts.Count -eq 5) { [string]$statParts[1] } else { '' }
+          $statUid = if ($statParts.Count -eq 5) { [string]$statParts[2] } else { '' }
+          $statGid = if ($statParts.Count -eq 5) { [string]$statParts[3] } else { '' }
+          $statMode = if ($statParts.Count -eq 5) { "0$($statParts[4])" } else { '' }
+          Add-Observation -Name 'runner_uid' -Value $runnerUid -Pass ($runnerUidExit -eq 0 -and $runnerUid -match '^[0-9]+$') -CurrentPredicate $false
+          Add-Observation -Name 'runner_gid' -Value $runnerGid -Pass ($runnerGidExit -eq 0 -and $runnerGid -match '^[0-9]+$') -CurrentPredicate $false
+          Add-Observation -Name 'argv5_regular' -Value $statType -Pass ($statExit -eq 0 -and $statType -ceq 'regular file')
+          Add-Observation -Name 'argv5_link_count' -Value $statLinks -Pass ($statLinks -ceq '1')
+          Add-Observation -Name 'argv5_uid' -Value $statUid -Pass ($statUid.Length -gt 0 -and $statUid -ceq $runnerUid)
+          Add-Observation -Name 'argv5_gid' -Value $statGid -Pass ($statGid.Length -gt 0 -and $statGid -ceq $runnerGid)
+          Add-Observation -Name 'argv5_mode' -Value $statMode -Pass ($statMode -ceq '0644')
+
+          $env:PATH = $expectedSanitizedPath
+          Add-Observation -Name 'sanitized_path' -Value ([string]$env:PATH) -Pass ([string]$env:PATH -ceq $expectedSanitizedPath)
+          Add-Observation -Name 'sanitized_path_components' -Value @(([string]$env:PATH).Split(':')) -Pass ([string]$env:PATH -ceq $expectedSanitizedPath) -CurrentPredicate $false
+
+          foreach ($record in $records) {
+            Write-Output ('VIA000_OBSERVATION ' + ($record | ConvertTo-Json -Compress -Depth 5))
+          }
+          $currentFailures = @($records | Where-Object { $_.current_predicate -and -not $_.pass } | ForEach-Object { $_.name })
+          $overall = [ordered]@{
+            observation_count = $records.Count
+            failed_current_predicates = @($currentFailures)
+            current_predicate_pass = $currentFailures.Count -eq 0
+            sanitized_path_pass = [string]$env:PATH -ceq $expectedSanitizedPath
+          }
+          Write-Output ('VIA000_OVERALL ' + ($overall | ConvertTo-Json -Compress -Depth 5))
+          if ($currentFailures.Count -ne 0) {
+            throw "RR27 diagnostic intentionally rejects differing production predicates: $($currentFailures -join ',')"
+          }
