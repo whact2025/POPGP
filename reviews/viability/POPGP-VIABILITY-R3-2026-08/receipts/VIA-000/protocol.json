@@ -36,7 +36,7 @@
     "containment_proof_aggregator_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-CONTAINMENT-PROOF-AGGREGATOR.py",
     "containment_proof_aggregator_sha256": "03a77df68c86477d6fb74d86b8aa540f6f96c2d8dce8ff26a7326e35d2f439c3",
     "containment_proof_workflow_path": ".github/workflows/via000-r3-containment-proof.yml",
-    "containment_proof_workflow_sha256": "a39ddf87d1348b0b6009ad6fafb1b7b261ff695231ae4aabd4824074b54a0877",
+    "containment_proof_workflow_sha256": "e6747e1bd931ecf8bdaba17fe00fecbf0ccbafe721cf6b7e9e2b0d6dede311c2",
     "raw_results_schema_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-RAW-RESULTS.schema.json",
     "raw_results_schema_sha256": "33a68f59e73af2e79886cec6575641a1d76704204d04d732def5432d65954c3c",
     "assembler_protocol_path": "protocols/POPGP-VIABILITY-R3-2026-08/VIA-000-ASSEMBLER.py",

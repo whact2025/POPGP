@@ -2072,11 +2072,11 @@ def test_r3_safe_hosted_containment_proof_path_is_bound_and_exact_2x3(
         "review/via000-r3-protocol-*",
     ]
     assert workflow["permissions"] == {"contents": "read"}
+    assert all("environment" not in job for job in workflow["jobs"].values())
     assert "workflow_dispatch" not in workflow_text
     for forbidden in (
         "id-token:",
         "secrets.",
-        "environment:",
         "via-000-assembler",
         "via-000-dispatch-guard",
         "authorization",
@@ -4143,12 +4143,16 @@ def test_r3_rr21_artifact_digest_canonicalization() -> None:
         "VIA000_RAW_ARTIFACT_URL": "${{ steps.upload.outputs.artifact-url }}",
         "VIA000_REPOSITORY": "${{ github.repository }}",
         "VIA000_RUN_ID": "${{ github.run_id }}",
+        "VIA000_BASE_PYTHON_OUTPUT": "${{ steps.aggregate-python.outputs.python-path }}",
+        "VIA000_BASE_PYTHON_VERSION_OUTPUT": (
+            "${{ steps.aggregate-python.outputs.python-version }}"
+        ),
     }
     normalizer_source = normalize["run"]
     for token in (
         "$observedShell -cne $expectedShell",
         "[string]$PSHOME -cne $expectedPsHome",
-        "[string]$env:PATH -cne $expectedInitialPath",
+        "$observedInitialPath -cne $expectedInitialPath",
         "$env:PATH = $expectedSanitizedPath",
         "[string]$env:PATH -cne $expectedSanitizedPath",
         "$artifactId -cnotmatch '^[1-9][0-9]*$'",
@@ -4303,7 +4307,9 @@ def test_r3_rr22_ubuntu_pwsh_launch_identity() -> None:
     for invariant in (
         "$expectedShell = '/opt/microsoft/powershell/7/pwsh'",
         "$expectedPsHome = '/opt/microsoft/powershell/7'",
-        "$expectedInitialPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'",
+        "$expectedPythonRoot = '/opt/hostedtoolcache/Python/3.11.15/x64'",
+        "$expectedPythonBin = '/opt/hostedtoolcache/Python/3.11.15/x64/bin'",
+        "$expectedInitialPath = [string]::Join(':', $expectedInitialPathComponents)",
         "$expectedSanitizedPath = '/usr/bin:/bin'",
         "$observedShell -cne $expectedShell",
         "$PSVersionTable.PSVersion.ToString() -cne '7.6.5'",
@@ -4339,7 +4345,9 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
     )
     run = normalize["run"]
     for token in (
-        "$expectedInitialPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'",
+        "$expectedPythonRoot = '/opt/hostedtoolcache/Python/3.11.15/x64'",
+        "$expectedPythonBin = '/opt/hostedtoolcache/Python/3.11.15/x64/bin'",
+        "$expectedInitialPath = [string]::Join(':', $expectedInitialPathComponents)",
         "$expectedSanitizedPath = '/usr/bin:/bin'",
         "$PSVersionTable.PSVersion.ToString() -cne '7.6.5'",
         "$cmdlineBytes = [IO.File]::ReadAllBytes('/proc/self/cmdline')",
@@ -4357,10 +4365,10 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
         "sanitized PATH differs before output append",
     ):
         assert token in run
-    assert run.count("[string]$env:PATH -cne $expectedSanitizedPath") == 9
+    assert run.count("[string]$env:PATH -cne $expectedSanitizedPath") == 12
     assert "$PROFILE" not in run
     assert "profileFiles" not in run
-    assert run.index("[string]$env:PATH -cne $expectedInitialPath") < run.index(
+    assert run.index("$observedInitialPath -cne $expectedInitialPath") < run.index(
         "$env:PATH = $expectedSanitizedPath"
     )
     assert run.index("$env:PATH = $expectedSanitizedPath") < run.index(
@@ -4373,7 +4381,11 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
         "[IO.File]::AppendAllText"
     )
 
-    initial = "/opt/microsoft/powershell/7:/usr/bin:/bin"
+    initial = (
+        "/opt/microsoft/powershell/7:"
+        "/opt/hostedtoolcache/Python/3.11.15/x64/bin:"
+        "/opt/hostedtoolcache/Python/3.11.15/x64:/usr/bin:/bin"
+    )
     sanitized = "/usr/bin:/bin"
 
     def normalize_path(candidate: str) -> str:
@@ -4388,11 +4400,12 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
     for rejected in (
         sanitized,
         f"/opt/microsoft/powershell/7:{initial}",
-        "/opt/microsoft/powershell/7:/bin:/usr/bin",
-        "/opt/microsoft/powershell/7:/usr/local/bin:/usr/bin:/bin",
-        "/opt/microsoft/powershell/7:/usr/bin:/bin:/tmp/shims",
-        "/OPT/microsoft/powershell/7:/usr/bin:/bin",
-        ":/opt/microsoft/powershell/7:/usr/bin:/bin",
+        "/opt/microsoft/powershell/7:/opt/hostedtoolcache/Python/3.11.15/x64/bin:"
+        "/opt/hostedtoolcache/Python/3.11.15/x64:/bin:/usr/bin",
+        f"/usr/local/bin:{initial}",
+        f"{initial}:/tmp/shims",
+        initial.replace("/opt/microsoft", "/OPT/microsoft", 1),
+        f":{initial}",
         "",
     ):
         with pytest.raises(ValueError):
@@ -4539,6 +4552,166 @@ def test_r3_rr26_extensionless_runner_script_identity() -> None:
     for rejected in rejected_cases:
         with pytest.raises(ValueError):
             require_script(**rejected)
+
+
+@pytest.mark.negative_control
+def test_r3_rr28_exact_five_component_path() -> None:
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    receipt_text = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-workflow.yml"
+    ).read_text(encoding="utf-8")
+    assert workflow_text == receipt_text
+    workflow = yaml.safe_load(workflow_text)
+    aggregate_python = next(
+        step
+        for step in workflow["jobs"]["aggregate"]["steps"]
+        if step.get("id") == "aggregate-python"
+    )
+    normalize = next(
+        step
+        for step in workflow["jobs"]["aggregate"]["steps"]
+        if step.get("id") == "normalize-artifact"
+    )
+    assert aggregate_python["uses"] == (
+        "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"
+    )
+    assert aggregate_python["with"] == {
+        "python-version": "3.11.15",
+        "cache": "",
+        "check-latest": "false",
+        "update-environment": "true",
+    }
+    assert normalize["env"]["VIA000_BASE_PYTHON_OUTPUT"] == (
+        "${{ steps.aggregate-python.outputs.python-path }}"
+    )
+    assert normalize["env"]["VIA000_BASE_PYTHON_VERSION_OUTPUT"] == (
+        "${{ steps.aggregate-python.outputs.python-version }}"
+    )
+    run = normalize["run"]
+    for token in (
+        "$expectedPythonRoot = '/opt/hostedtoolcache/Python/3.11.15/x64'",
+        "$expectedPythonBin = '/opt/hostedtoolcache/Python/3.11.15/x64/bin'",
+        "$expectedPythonExecutable = '/opt/hostedtoolcache/Python/3.11.15/x64/bin/python'",
+        "$expectedInitialPathComponents = [string[]]@(",
+        "$expectedPsHome, $expectedPythonBin, $expectedPythonRoot, '/usr/bin', '/bin'",
+        "$expectedInitialPath = [string]::Join(':', $expectedInitialPathComponents)",
+        "$observedInitialPathComponents.Count -eq $expectedInitialPathComponents.Count",
+        "[StringComparison]::Ordinal",
+        "$observedInitialPath -cne $expectedInitialPath",
+        "-not $initialPathComponentsMatch",
+        "[string]$env:VIA000_BASE_PYTHON_OUTPUT -cne $expectedPythonExecutable",
+        "[string]$env:VIA000_BASE_PYTHON_VERSION_OUTPUT -cne '3.11.15'",
+        "[string]$env:pythonLocation -cne $expectedPythonRoot",
+        "[string]$env:Python_ROOT_DIR -cne $expectedPythonRoot",
+        "[string]$env:Python2_ROOT_DIR -cne $expectedPythonRoot",
+        "[string]$env:Python3_ROOT_DIR -cne $expectedPythonRoot",
+        "sanitized PATH differs before raw artifact identity read",
+        "sanitized PATH differs before output-control identity query",
+        "sanitized PATH differs after output-control stat",
+    ):
+        assert token in run
+
+    reset_index = run.index("$env:PATH = $expectedSanitizedPath")
+    assert reset_index < run.index("Assert-RunnerScriptIdentity\n")
+    assert reset_index < run.index("$artifactId = [string]$env:VIA000_RAW_ARTIFACT_ID")
+    assert reset_index < run.index("$githubOutput = [string]$env:GITHUB_OUTPUT")
+    for command in ("/usr/bin/id -u", "/usr/bin/id -g", "/usr/bin/stat"):
+        command_index = run.index(command)
+        before = run.rfind("$env:PATH -cne $expectedSanitizedPath", 0, command_index)
+        after = run.index("$env:PATH -cne $expectedSanitizedPath", command_index)
+        assert reset_index < before < command_index < after
+
+    expected_components = (
+        "/opt/microsoft/powershell/7",
+        "/opt/hostedtoolcache/Python/3.11.15/x64/bin",
+        "/opt/hostedtoolcache/Python/3.11.15/x64",
+        "/usr/bin",
+        "/bin",
+    )
+    expected_path = ":".join(expected_components)
+    expected_root = expected_components[2]
+    expected_python = f"{expected_components[1]}/python"
+
+    def require_context(
+        path: str,
+        *,
+        python_output: str = expected_python,
+        python_version: str = "3.11.15",
+        python_location: str = expected_root,
+        python_root: str = expected_root,
+        python2_root: str = expected_root,
+        python3_root: str = expected_root,
+    ) -> None:
+        observed = tuple(path.split(":"))
+        if (
+            path != expected_path
+            or len(observed) != len(expected_components)
+            or any(left != right for left, right in zip(observed, expected_components))
+            or python_output != expected_python
+            or python_version != "3.11.15"
+            or python_location != expected_root
+            or python_root != expected_root
+            or python2_root != expected_root
+            or python3_root != expected_root
+        ):
+            raise ValueError("exact setup-python-aware PATH context differs")
+
+    require_context(expected_path)
+    rejected_paths = (
+        ":".join(expected_components[:-1]),
+        f"{expected_path}:/usr/local/bin",
+        ":".join(
+            (
+                expected_components[0],
+                expected_components[2],
+                expected_components[1],
+                *expected_components[3:],
+            )
+        ),
+        ":".join(
+            (
+                expected_components[0],
+                "/opt/hostedtoolcache/Python/3.12.0/x64/bin",
+                *expected_components[2:],
+            )
+        ),
+        ":".join(
+            (
+                expected_components[0],
+                "/opt/hostedtoolcache/Python/3.11.15/arm64/bin",
+                *expected_components[2:],
+            )
+        ),
+        ":".join((expected_components[0], "relative/bin", *expected_components[2:])),
+        expected_path.replace("/opt/microsoft", "/OPT/microsoft", 1),
+        f"{expected_path}:",
+        ":".join(
+            (
+                expected_components[0],
+                expected_components[2],
+                expected_components[2],
+                *expected_components[3:],
+            )
+        ),
+        ":".join((expected_components[0], expected_components[0], *expected_components[2:])),
+        "",
+    )
+    for rejected_path in rejected_paths:
+        with pytest.raises(ValueError):
+            require_context(rejected_path)
+    for rejected_fields in (
+        {"python_output": f"{expected_root}/bin/python3.11"},
+        {"python_output": "/tmp/python"},
+        {"python_version": "3.11.16"},
+        {"python_location": "/opt/hostedtoolcache/Python/3.11.15/arm64"},
+        {"python_root": "/tmp/python-root"},
+        {"python2_root": ""},
+        {"python3_root": f"{expected_root}/"},
+    ):
+        with pytest.raises(ValueError):
+            require_context(expected_path, **rejected_fields)
 
 
 @pytest.mark.negative_control

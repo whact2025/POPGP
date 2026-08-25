@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 451 passed |
+| `pytest -q` | about 2400 s | 452 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -290,3 +290,12 @@ ordinary FileInfo/regular-file, non-reparse, single-link, exact runner UID/GID, 
 mode `0644` metadata under `/usr/bin:/bin`. It repeats the full metadata query before
 artifact identity access and immediately around the output append without reading or
 hashing the runner script. The RR25 diagnostic workflow is not in campaign closure.
+
+RR28 follows bounded, non-authoritative diagnostic run `32798221946`, which ran after
+the exact setup-python 3.11.15 action and isolated one remaining mismatch: the live
+normalizer PATH contains, in order, PowerShell home, the fixed Python `x64/bin`, the
+fixed Python `x64` root, `/usr/bin`, and `/bin`. The frozen normalizer now requires
+that exact raw string and five-element ordinal array, independently fixes and checks
+the action's executable/version outputs and all Python root variables, then resets and
+reasserts `/usr/bin:/bin` around all metadata, artifact, external-command, and output
+operations. The RR27 diagnostic workflow is not in campaign closure.

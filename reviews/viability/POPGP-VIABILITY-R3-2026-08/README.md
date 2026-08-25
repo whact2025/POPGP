@@ -225,6 +225,15 @@ normalizer now requires and rechecks that complete identity before raw artifact 
 and immediately before and after output append. It never reads or hashes the runner
 script. The RR25 diagnostic workflow remains outside the campaign tree and closure.
 
+RR28 binds the post-upload normalizer to the exact setup-python-aware live PATH
+observed by bounded diagnostic run `32798221946`: PowerShell home, fixed CPython
+3.11.15 `x64/bin`, fixed CPython root, `/usr/bin`, and `/bin`, in that order. The
+normalizer independently fixes those roots, requires exact setup-python path/version
+outputs and all four exported Python root variables, and compares both the raw PATH
+and its five elements ordinally. It then immediately resets and repeatedly reasserts
+`/usr/bin:/bin` before artifact, runner-script, external metadata, and output-control
+operations. The RR27 diagnostic workflow remains outside the campaign tree and closure.
+
 The shared raw-evidence validator also preserves R2 byte semantics: the legacy
 platform contract and R3 staged contract are two exact accepted shapes, while any
 partial staged/dispatch extension rejects. R2 remains immutable and is not required

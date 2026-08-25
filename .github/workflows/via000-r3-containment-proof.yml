@@ -724,7 +724,7 @@ jobs:
         name: Install exact aggregate Python
         id: aggregate-python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        with: {python-version: '3.11.15', cache: ''}
+        with: {python-version: '3.11.15', cache: '', check-latest: 'false', update-environment: 'true'}
       - name: Restore Ubuntu candidate cache
         id: restore-uc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -813,22 +813,52 @@ jobs:
           VIA000_RAW_ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
           VIA000_REPOSITORY: ${{ github.repository }}
           VIA000_RUN_ID: ${{ github.run_id }}
+          VIA000_BASE_PYTHON_OUTPUT: ${{ steps.aggregate-python.outputs.python-path }}
+          VIA000_BASE_PYTHON_VERSION_OUTPUT: ${{ steps.aggregate-python.outputs.python-version }}
         run: |
           $expectedShell = '/opt/microsoft/powershell/7/pwsh'
           $expectedPsHome = '/opt/microsoft/powershell/7'
-          $expectedInitialPath = '/opt/microsoft/powershell/7:/usr/bin:/bin'
+          $expectedPythonRoot = '/opt/hostedtoolcache/Python/3.11.15/x64'
+          $expectedPythonBin = '/opt/hostedtoolcache/Python/3.11.15/x64/bin'
+          $expectedPythonExecutable = '/opt/hostedtoolcache/Python/3.11.15/x64/bin/python'
+          $expectedInitialPathComponents = [string[]]@(
+            $expectedPsHome, $expectedPythonBin, $expectedPythonRoot, '/usr/bin', '/bin'
+          )
+          $expectedInitialPath = [string]::Join(':', $expectedInitialPathComponents)
           $expectedSanitizedPath = '/usr/bin:/bin'
           $processModule = [Diagnostics.Process]::GetCurrentProcess().MainModule
           $observedShell = if ($null -eq $processModule) { '' } else { [IO.Path]::GetFullPath($processModule.FileName) }
           $cmdlineBytes = [IO.File]::ReadAllBytes('/proc/self/cmdline')
           $argv = @([Text.Encoding]::UTF8.GetString($cmdlineBytes).Split([char]0) | Where-Object { $_.Length -gt 0 })
+          $observedInitialPath = [string]$env:PATH
+          $observedInitialPathComponents = [string[]]$observedInitialPath.Split([char]':', [StringSplitOptions]::None)
+          $initialPathComponentsMatch = $observedInitialPathComponents.Count -eq $expectedInitialPathComponents.Count
+          if ($initialPathComponentsMatch) {
+            for ($index = 0; $index -lt $expectedInitialPathComponents.Count; $index++) {
+              if (-not [string]::Equals(
+                  $observedInitialPathComponents[$index],
+                  $expectedInitialPathComponents[$index],
+                  [StringComparison]::Ordinal
+                )) {
+                $initialPathComponentsMatch = $false
+                break
+              }
+            }
+          }
           $runnerTemp = [IO.Path]::GetFullPath([string]$env:RUNNER_TEMP)
           if ($runnerTemp.EndsWith('/')) { $runnerTemp = $runnerTemp.Substring(0, $runnerTemp.Length - 1) }
           $runnerScriptArgument = if ($argv.Count -eq 6) { [string]$argv[5] } else { '' }
           try { $runnerScript = [IO.Path]::GetFullPath($runnerScriptArgument) } catch { $runnerScript = '' }
           if ($observedShell -cne $expectedShell -or [string]$PSHOME -cne $expectedPsHome -or
               $PSVersionTable.PSVersion.ToString() -cne '7.6.5' -or
-              [string]$env:PATH -cne $expectedInitialPath -or $argv.Count -ne 6 -or
+              $observedInitialPath -cne $expectedInitialPath -or -not $initialPathComponentsMatch -or
+              [string]$env:VIA000_BASE_PYTHON_OUTPUT -cne $expectedPythonExecutable -or
+              [string]$env:VIA000_BASE_PYTHON_VERSION_OUTPUT -cne '3.11.15' -or
+              [string]$env:pythonLocation -cne $expectedPythonRoot -or
+              [string]$env:Python_ROOT_DIR -cne $expectedPythonRoot -or
+              [string]$env:Python2_ROOT_DIR -cne $expectedPythonRoot -or
+              [string]$env:Python3_ROOT_DIR -cne $expectedPythonRoot -or
+              $argv.Count -ne 6 -or
               [string]$argv[0] -cne $expectedShell -or [string]$argv[1] -cne '-NoLogo' -or
               [string]$argv[2] -cne '-NoProfile' -or [string]$argv[3] -cne '-NonInteractive' -or
               [string]$argv[4] -cne '-File' -or
@@ -891,6 +921,9 @@ jobs:
             }
           }
           Assert-RunnerScriptIdentity
+          if ([string]$env:PATH -cne $expectedSanitizedPath) {
+            throw 'sanitized PATH differs before raw artifact identity read'
+          }
           $artifactId = [string]$env:VIA000_RAW_ARTIFACT_ID
           $bareDigest = [string]$env:VIA000_RAW_ARTIFACT_DIGEST
           $artifactUrl = [string]$env:VIA000_RAW_ARTIFACT_URL
@@ -907,6 +940,9 @@ jobs:
             throw 'canonical retained artifact digest differs'
           }
           $githubOutput = [string]$env:GITHUB_OUTPUT
+          if ([string]$env:PATH -cne $expectedSanitizedPath) {
+            throw 'sanitized PATH differs before output-control identity query'
+          }
           $outputItem = Get-Item -LiteralPath $githubOutput -Force -ErrorAction Stop
           if (-not ($outputItem -is [IO.FileInfo]) -or
               ($outputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -916,6 +952,9 @@ jobs:
             throw 'sanitized PATH differs before output-control stat'
           }
           $links = & /usr/bin/stat --format=%h -- $githubOutput
+          if ([string]$env:PATH -cne $expectedSanitizedPath) {
+            throw 'sanitized PATH differs after output-control stat'
+          }
           if ($LASTEXITCODE -ne 0 -or [string]$links -cne '1') {
             throw 'GitHub artifact output control file is not single-link'
           }

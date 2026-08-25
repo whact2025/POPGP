@@ -81,7 +81,8 @@ must clean the cell and leave no digest/cache/artifact.
    process and `$PSHOME`, the PowerShell 7 version policy, no applicable profile file,
    and the exact reviewed PATH. Ubuntu production steps require the equivalent exact
    `/opt/microsoft/powershell/7/pwsh`, PowerShell 7, no-profile-file, and
-   `/opt/microsoft/powershell/7:/usr/bin:/bin` boundary. Every material side effect is checked before the step
+   proof normalizer's exact five-component PowerShell/setup-python/toolcache/system
+   PATH boundary. Every material side effect is checked before the step
    returns and rechecked at the next trusted consumption boundary. Earlier Windows
    hosted proof metadata produced through custom shells is invalid and must not be
    reused.
@@ -149,7 +150,7 @@ must clean the cell and leave no digest/cache/artifact.
     Do not accept run `32777599858` as lifecycle evidence because its built-in-shell
     launch contradicted the exact process-identity gate and skipped the verifier.
     Require its initial live PATH to be exactly
-    `/opt/microsoft/powershell/7:/usr/bin:/bin`, reset it immediately to
+    `/opt/microsoft/powershell/7:/opt/hostedtoolcache/Python/3.11.15/x64/bin:/opt/hostedtoolcache/Python/3.11.15/x64:/usr/bin:/bin`, reset it immediately to
     `/usr/bin:/bin`, and reassert the sanitized value before artifact identity/stat or
     output access. Reject missing, doubled, reordered, alternate, or injected prefixes.
     The exact six-argument `-NoProfile` launch is the profile no-load invariant; do not
@@ -161,6 +162,11 @@ must clean the cell and leave no digest/cache/artifact.
     under `/usr/bin:/bin` before artifact reads and immediately before/after output
     append; never inspect its contents. Diagnostic run `32791645412` is
     non-authoritative and its workflow is outside campaign closure.
+    Require the exact setup-python action pin and 3.11.15 path/version outputs plus
+    `pythonLocation` and every Python root variable to equal the fixed `x64` root;
+    action output text is not an authority. Compare the live PATH as both one exact
+    raw string and five ordinal elements. RR27 diagnostic run `32798221946` is
+    non-authoritative and its workflow remains outside campaign closure.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

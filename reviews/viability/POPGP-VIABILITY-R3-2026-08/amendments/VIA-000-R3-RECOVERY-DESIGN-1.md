@@ -476,3 +476,15 @@ to `/usr/bin:/bin`, the normalizer uses .NET and absolute `/usr/bin/id` and
 exact runner UID/GID ownership, and normalized mode `0644`. It revalidates the exact
 path and metadata before artifact identity access and immediately before and after the
 output append. The script's contents and hash remain outside the observation surface.
+
+## RR28 exact setup-python PATH-binding amendment
+
+The bounded RR27 diagnostic ran the literal normalizer shell after the exact pinned
+setup-python 3.11.15 action and established one five-element live PATH: exact
+PowerShell home, fixed hosted-toolcache Python `x64/bin`, fixed Python `x64` root,
+`/usr/bin`, and `/bin`. RR28 compares both the complete raw string and each element by
+count, order, and ordinal equality. Action outputs and `pythonLocation`,
+`Python_ROOT_DIR`, `Python2_ROOT_DIR`, and `Python3_ROOT_DIR` are independently checked
+against fixed trusted roots, rather than treated as authority. PATH is immediately
+reset to `/usr/bin:/bin` and rechecked around all artifact, script-metadata, external
+tool, and output-control operations. No other containment or lifecycle behavior changes.
