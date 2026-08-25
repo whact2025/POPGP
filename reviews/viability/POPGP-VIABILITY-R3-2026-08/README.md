@@ -217,6 +217,14 @@ and repeatedly reasserts `/usr/bin:/bin` before artifact identity, `stat`, or ou
 access. MainModule, PSHOME, PowerShell 7.6.5, and the exact six launcher arguments stay
 fixed. Exact `-NoProfile` argv is authoritative; profile-file existence is not.
 
+RR26 supersedes RR24's unexecuted `.ps1` basename assumption. Bounded diagnostic run
+`32791645412` showed that the exact literal launcher receives an extensionless
+lowercase-UUID script directly beneath `RUNNER_TEMP`, with ordinary regular-file,
+non-reparse, single-link, runner UID/GID, and mode `0644` metadata. The proof
+normalizer now requires and rechecks that complete identity before raw artifact reads
+and immediately before and after output append. It never reads or hashes the runner
+script. The RR25 diagnostic workflow remains outside the campaign tree and closure.
+
 The shared raw-evidence validator also preserves R2 byte semantics: the legacy
 platform contract and R3 staged contract are two exact accepted shapes, while any
 partial staged/dispatch extension rejects. R2 remains immutable and is not required

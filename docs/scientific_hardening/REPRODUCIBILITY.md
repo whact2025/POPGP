@@ -53,7 +53,7 @@ selection and swept k-NN values before adopting the blind adaptive-gap inference
 
 | Command | Approx. runtime | Result |
 |---|---:|---|
-| `pytest -q` | about 1200 s | 450 passed |
+| `pytest -q` | about 1200 s | 451 passed |
 | chain example | 15 s | contiguous blocks, D*=1, finite spectral peak≈0.84 |
 | grid example | 6 s | 12/12 edges, P=R=1, D*=2; singleton Pi_res inadmissible |
 | gravity diagnostic | 7 s | Green-function checks pass; singleton Pi_res inadmissible |
@@ -281,3 +281,12 @@ immutable R2 platform contract and the R3 staged contract containing both
 `required_stages` and `dispatch_identity`. Partial extensions reject. Legacy R2 keeps
 its platform-summary provenance and does not inherit R3-only staged tool manifests;
 R3 retains all staged provenance and tool-identity requirements.
+
+RR26 follows bounded, non-authoritative diagnostic run `32791645412`, which isolated
+the remaining launch mismatch: GitHub materialized the literal launcher's temporary
+script as an extensionless lowercase UUID directly below `RUNNER_TEMP`, not as a
+`.ps1` file. The frozen normalizer now requires exactly that basename and parent plus
+ordinary FileInfo/regular-file, non-reparse, single-link, exact runner UID/GID, and
+mode `0644` metadata under `/usr/bin:/bin`. It repeats the full metadata query before
+artifact identity access and immediately around the output append without reading or
+hashing the runner script. The RR25 diagnostic workflow is not in campaign closure.

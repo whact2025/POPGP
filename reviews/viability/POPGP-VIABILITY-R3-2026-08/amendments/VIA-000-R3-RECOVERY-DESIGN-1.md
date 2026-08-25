@@ -465,3 +465,14 @@ protocol generations explicitly. It accepts exactly the legacy R2 platform contr
 or the complete R3 staged-plus-dispatch contract, rejects partial mixtures, retains
 R2 `platform-summary.json` semantics, and applies staged tool-identity requirements
 only to R3. No R2 protocol, packet, receipt, or evidence byte is reinterpreted.
+
+## RR26 extensionless runner-script identity amendment
+
+The bounded RR25 diagnostic established that the literal Ubuntu PowerShell launcher
+receives an extensionless lowercase-UUID temporary script immediately below
+`RUNNER_TEMP`. RR26 removes only the invented `.ps1` suffix rule. After resetting PATH
+to `/usr/bin:/bin`, the normalizer uses .NET and absolute `/usr/bin/id` and
+`/usr/bin/stat` calls to require an ordinary non-reparse single-link regular file,
+exact runner UID/GID ownership, and normalized mode `0644`. It revalidates the exact
+path and metadata before artifact identity access and immediately before and after the
+output append. The script's contents and hash remain outside the observation surface.

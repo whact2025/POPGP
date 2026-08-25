@@ -4350,14 +4350,14 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
         "[string]$argv[3] -cne '-NonInteractive'",
         "[string]$argv[4] -cne '-File'",
         "[IO.Path]::GetDirectoryName($runnerScript) -cne $runnerTemp",
-        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.ps1$",
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
         "$env:PATH = $expectedSanitizedPath",
         "sanitized PATH assignment differs before artifact identity read",
         "sanitized PATH differs before output-control stat",
         "sanitized PATH differs before output append",
     ):
         assert token in run
-    assert run.count("[string]$env:PATH -cne $expectedSanitizedPath") == 4
+    assert run.count("[string]$env:PATH -cne $expectedSanitizedPath") == 9
     assert "$PROFILE" not in run
     assert "profileFiles" not in run
     assert run.index("[string]$env:PATH -cne $expectedInitialPath") < run.index(
@@ -4404,7 +4404,7 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
         "-NoProfile",
         "-NonInteractive",
         "-File",
-        "/home/runner/work/_temp/01234567-89ab-cdef-0123-456789abcdef.ps1",
+        "/home/runner/work/_temp/01234567-89ab-cdef-0123-456789abcdef",
     )
 
     def require_argv(candidate: tuple[str, ...]) -> None:
@@ -4412,7 +4412,7 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
             raise ValueError("argv")
         if re.fullmatch(
             r"/home/runner/work/_temp/[0-9a-f]{8}-[0-9a-f]{4}-"
-            r"[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.ps1",
+            r"[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
             candidate[5],
         ) is None:
             raise ValueError("script")
@@ -4423,10 +4423,122 @@ def test_r3_rr24_ubuntu_pwsh_path_normalization() -> None:
         trusted_argv + ("extra",),
         trusted_argv[:2] + ("-Profile",) + trusted_argv[3:],
         trusted_argv[:4] + ("-Command",) + trusted_argv[5:],
-        trusted_argv[:5] + ("/tmp/attacker.ps1",),
+        trusted_argv[:5] + ("/tmp/attacker",),
     ):
         with pytest.raises(ValueError):
             require_argv(rejected)
+
+
+@pytest.mark.negative_control
+def test_r3_rr26_extensionless_runner_script_identity() -> None:
+    workflow_text = CONTAINMENT_PROOF_WORKFLOW.read_text(encoding="utf-8")
+    receipt_text = (
+        ROOT
+        / "reviews/viability/POPGP-VIABILITY-R3-2026-08/receipts/VIA-000/"
+        "containment-proof-workflow.yml"
+    ).read_text(encoding="utf-8")
+    assert workflow_text == receipt_text
+    workflow = yaml.safe_load(workflow_text)
+    normalize = next(
+        step
+        for step in workflow["jobs"]["aggregate"]["steps"]
+        if step.get("id") == "normalize-artifact"
+    )
+    run = normalize["run"]
+    uuid_grammar = (
+        "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+        "[0-9a-f]{4}-[0-9a-f]{12}$"
+    )
+    for token in (
+        "$runnerScriptArgument -cne $runnerScript",
+        uuid_grammar,
+        "function Assert-RunnerScriptIdentity",
+        "$scriptItem -is [IO.FileInfo]",
+        "[IO.FileAttributes]::ReparsePoint",
+        "& /usr/bin/id -u",
+        "& /usr/bin/id -g",
+        "& /usr/bin/stat '--format=%F|%h|%u|%g|%a' -- $runnerScript",
+        "[string]$statParts[0] -cne 'regular file'",
+        "[string]$statParts[1] -cne '1'",
+        "[string]$statParts[2] -cne [string]$runnerUidOutput[0]",
+        "[string]$statParts[3] -cne [string]$runnerGidOutput[0]",
+        "$normalizedMode -cne '0644'",
+    ):
+        assert token in run
+    assert "[0-9a-f]{12}\\.ps1$" not in run
+    assert "ReadAllBytes($runnerScript" not in run
+    assert "Get-FileHash" not in run
+    assert run.count("Assert-RunnerScriptIdentity") == 4  # definition + three calls
+    first_check = run.index("Assert-RunnerScriptIdentity\n")
+    raw_read = run.index("$artifactId = [string]$env:VIA000_RAW_ARTIFACT_ID")
+    append = run.index("[IO.File]::AppendAllText")
+    before_append = run.rfind("Assert-RunnerScriptIdentity", 0, append)
+    after_append = run.index("Assert-RunnerScriptIdentity", append)
+    assert first_check < raw_read
+    assert before_append < append < after_append
+    for command in ("/usr/bin/id -u", "/usr/bin/id -g", "/usr/bin/stat"):
+        command_index = run.index(command)
+        before = run.rfind("$env:PATH -cne $expectedSanitizedPath", 0, command_index)
+        after = run.index("$env:PATH -cne $expectedSanitizedPath", command_index)
+        assert before < command_index < after
+
+    trusted_parent = "/home/runner/work/_temp"
+    trusted_script = f"{trusted_parent}/01234567-89ab-cdef-0123-456789abcdef"
+
+    def require_script(
+        candidate: str,
+        *,
+        runner_temp: str = trusted_parent,
+        item_type: str = "FileInfo",
+        regular: bool = True,
+        reparse: bool = False,
+        links: int = 1,
+        uid: int = 1001,
+        gid: int = 1001,
+        runner_uid: int = 1001,
+        runner_gid: int = 1001,
+        mode: str = "0644",
+        path: str = "/usr/bin:/bin",
+    ) -> None:
+        pattern = re.compile(
+            re.escape(runner_temp)
+            + r"/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+            + r"[0-9a-f]{4}-[0-9a-f]{12}"
+        )
+        if (
+            path != "/usr/bin:/bin"
+            or pattern.fullmatch(candidate) is None
+            or item_type != "FileInfo"
+            or not regular
+            or reparse
+            or links != 1
+            or uid != runner_uid
+            or gid != runner_gid
+            or mode != "0644"
+        ):
+            raise ValueError("runner script identity")
+
+    require_script(trusted_script)
+    rejected_cases = (
+        {"candidate": f"{trusted_script}.ps1"},
+        {"candidate": f"{trusted_script}.tmp"},
+        {"candidate": trusted_script.upper()},
+        {"candidate": f"{trusted_parent}/not-a-uuid"},
+        {"candidate": "/tmp/01234567-89ab-cdef-0123-456789abcdef"},
+        {"candidate": f"{trusted_parent}/nested/01234567-89ab-cdef-0123-456789abcdef"},
+        {"candidate": "01234567-89ab-cdef-0123-456789abcdef"},
+        {"candidate": trusted_script, "item_type": "DirectoryInfo"},
+        {"candidate": trusted_script, "regular": False},
+        {"candidate": trusted_script, "reparse": True},
+        {"candidate": trusted_script, "links": 2},
+        {"candidate": trusted_script, "uid": 0},
+        {"candidate": trusted_script, "gid": 0},
+        {"candidate": trusted_script, "mode": "0600"},
+        {"candidate": trusted_script, "path": "/tmp/shims:/usr/bin:/bin"},
+    )
+    for rejected in rejected_cases:
+        with pytest.raises(ValueError):
+            require_script(**rejected)
 
 
 @pytest.mark.negative_control

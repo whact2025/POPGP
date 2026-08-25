@@ -155,6 +155,12 @@ must clean the cell and leave no digest/cache/artifact.
     The exact six-argument `-NoProfile` launch is the profile no-load invariant; do not
     require profile files to be absent. Run `32782295879` is failed, superseded, and
     cannot support lifecycle action.
+    Require the temporary launcher script to be an extensionless lowercase UUID
+    directly below exact `RUNNER_TEMP`, an ordinary non-reparse single-link regular
+    file owned by the exact runner UID/GID with mode `0644`. Recheck that identity
+    under `/usr/bin:/bin` before artifact reads and immediately before/after output
+    append; never inspect its contents. Diagnostic run `32791645412` is
+    non-authoritative and its workflow is outside campaign closure.
 10. The assembler receives a platform root containing `candidate/`, `pdf/`, and
     `mutation/` evidence roots for each platform. It requires and verifies all six
     stage attestations, rejects missing/cross-run/cross-platform/substituted stages and

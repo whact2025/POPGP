@@ -824,21 +824,73 @@ jobs:
           $argv = @([Text.Encoding]::UTF8.GetString($cmdlineBytes).Split([char]0) | Where-Object { $_.Length -gt 0 })
           $runnerTemp = [IO.Path]::GetFullPath([string]$env:RUNNER_TEMP)
           if ($runnerTemp.EndsWith('/')) { $runnerTemp = $runnerTemp.Substring(0, $runnerTemp.Length - 1) }
-          $runnerScript = if ($argv.Count -eq 6) { [IO.Path]::GetFullPath([string]$argv[5]) } else { '' }
+          $runnerScriptArgument = if ($argv.Count -eq 6) { [string]$argv[5] } else { '' }
+          try { $runnerScript = [IO.Path]::GetFullPath($runnerScriptArgument) } catch { $runnerScript = '' }
           if ($observedShell -cne $expectedShell -or [string]$PSHOME -cne $expectedPsHome -or
               $PSVersionTable.PSVersion.ToString() -cne '7.6.5' -or
               [string]$env:PATH -cne $expectedInitialPath -or $argv.Count -ne 6 -or
               [string]$argv[0] -cne $expectedShell -or [string]$argv[1] -cne '-NoLogo' -or
               [string]$argv[2] -cne '-NoProfile' -or [string]$argv[3] -cne '-NonInteractive' -or
               [string]$argv[4] -cne '-File' -or
+              $runnerScriptArgument -cne $runnerScript -or
               [IO.Path]::GetDirectoryName($runnerScript) -cne $runnerTemp -or
-              [IO.Path]::GetFileName($runnerScript) -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.ps1$') {
+              [IO.Path]::GetFileName($runnerScript) -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
             throw 'trusted Ubuntu literal pwsh identity, argv, version, or initial PATH differs'
           }
           $env:PATH = $expectedSanitizedPath
           if ([string]$env:PATH -cne $expectedSanitizedPath) {
             throw 'sanitized PATH assignment differs before artifact identity read'
           }
+          function Assert-RunnerScriptIdentity {
+            if ([string]$env:PATH -cne $expectedSanitizedPath) {
+              throw 'sanitized PATH differs before runner-script identity query'
+            }
+            $scriptItem = Get-Item -LiteralPath $runnerScript -Force -ErrorAction Stop
+            if (-not ($scriptItem -is [IO.FileInfo]) -or $scriptItem.PSIsContainer -or
+                ($scriptItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+              throw 'trusted Ubuntu runner script is not an ordinary non-reparse FileInfo'
+            }
+            if ([IO.Path]::GetFullPath([string]$scriptItem.FullName) -cne $runnerScript -or
+                [IO.Path]::GetDirectoryName($runnerScript) -cne $runnerTemp -or
+                [IO.Path]::GetFileName($runnerScript) -cnotmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+              throw 'trusted Ubuntu runner script path or extensionless UUID basename differs'
+            }
+            if ([string]$env:PATH -cne $expectedSanitizedPath) {
+              throw 'sanitized PATH differs before runner UID query'
+            }
+            $runnerUidOutput = @(& /usr/bin/id -u)
+            $runnerUidExit = $LASTEXITCODE
+            if ([string]$env:PATH -cne $expectedSanitizedPath) {
+              throw 'sanitized PATH differs after runner UID query'
+            }
+            $runnerGidOutput = @(& /usr/bin/id -g)
+            $runnerGidExit = $LASTEXITCODE
+            if ([string]$env:PATH -cne $expectedSanitizedPath) {
+              throw 'sanitized PATH differs after runner GID query'
+            }
+            $statOutput = @(& /usr/bin/stat '--format=%F|%h|%u|%g|%a' -- $runnerScript)
+            $statExit = $LASTEXITCODE
+            if ([string]$env:PATH -cne $expectedSanitizedPath) {
+              throw 'sanitized PATH differs after runner-script stat'
+            }
+            if ($runnerUidExit -ne 0 -or $runnerUidOutput.Count -ne 1 -or
+                [string]$runnerUidOutput[0] -cnotmatch '^[0-9]+$' -or
+                $runnerGidExit -ne 0 -or $runnerGidOutput.Count -ne 1 -or
+                [string]$runnerGidOutput[0] -cnotmatch '^[0-9]+$' -or
+                $statExit -ne 0 -or $statOutput.Count -ne 1) {
+              throw 'trusted Ubuntu runner identity or metadata query failed'
+            }
+            $statParts = ([string]$statOutput[0]).Split('|')
+            $normalizedMode = if ($statParts.Count -eq 5) { "0$($statParts[4])" } else { '' }
+            if ($statParts.Count -ne 5 -or [string]$statParts[0] -cne 'regular file' -or
+                [string]$statParts[1] -cne '1' -or
+                [string]$statParts[2] -cne [string]$runnerUidOutput[0] -or
+                [string]$statParts[3] -cne [string]$runnerGidOutput[0] -or
+                $normalizedMode -cne '0644') {
+              throw 'trusted Ubuntu runner script type, link count, owner, group, or mode differs'
+            }
+          }
+          Assert-RunnerScriptIdentity
           $artifactId = [string]$env:VIA000_RAW_ARTIFACT_ID
           $bareDigest = [string]$env:VIA000_RAW_ARTIFACT_DIGEST
           $artifactUrl = [string]$env:VIA000_RAW_ARTIFACT_URL
@@ -872,7 +924,9 @@ jobs:
           if ([string]$env:PATH -cne $expectedSanitizedPath) {
             throw 'sanitized PATH differs before output append'
           }
+          Assert-RunnerScriptIdentity
           [IO.File]::AppendAllText($githubOutput, $lines, [Text.UTF8Encoding]::new($false))
+          Assert-RunnerScriptIdentity
           $after = (Get-Item -LiteralPath $githubOutput -Force -ErrorAction Stop).Length
           if ([string]$env:PATH -cne $expectedSanitizedPath -or
               ($after - $before) -ne [Text.Encoding]::UTF8.GetByteCount($lines)) {

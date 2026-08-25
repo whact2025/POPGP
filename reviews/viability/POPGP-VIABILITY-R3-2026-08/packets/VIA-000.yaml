@@ -6,7 +6,7 @@ candidate_commit: 5be3c38a0822d49953d0933f14ccab32ca12c896
 baseline_commit: 9a29e05f803666bf0e3a28417ea399e3e26769fc
 tree_hash: 6ad387f9f4e0bab7f97df1bb54a03177887f0707
 protocol_commit: 21deabc877e6a13a68f8973c333e2a98669680f3
-protocol_rule_sha256: 282cd6768fd8c467aefc762e3179f0d6b1b02325cb312def54fd848be39cea13
+protocol_rule_sha256: 8125ee789181ebbabc46d11a0f3c459f2d6922ecc51348ef7b104144d877498e
 lifecycle_phase: drafted
 claims:
 - C03
@@ -658,7 +658,7 @@ preregistration:
     content_role: primary-protocol
     campaign_path: ../receipts/VIA-000/protocol.json
     protocol_path: protocols/POPGP-VIABILITY-R3-2026-08/VIA-000.json
-    sha256: 75a79620a357361aabff256a66813e353d519b0f9fb3c9c0a65b29d6758cdd79
+    sha256: 0c7587c232e46e0471f8618d04ba046a0ffc20d8b34b356adf70b58fba238ae9
     media_type: application/json
   - receipt_id: runner-protocol
     content_role: supporting
@@ -706,7 +706,7 @@ preregistration:
     content_role: supporting
     campaign_path: ../receipts/VIA-000/containment-proof-workflow.yml
     protocol_path: .github/workflows/via000-r3-containment-proof.yml
-    sha256: f6ba5c352564764d7b0537157fcd0d78594f43fd9e79164fd513c5ddc0d3d3d7
+    sha256: a39ddf87d1348b0b6009ad6fafb1b7b261ff695231ae4aabd4824074b54a0877
     media_type: text/plain
   - receipt_id: raw-results-schema
     content_role: supporting
@@ -954,7 +954,7 @@ receipts:
 - id: protocol
   kind: protocol
   path: ../receipts/VIA-000/protocol.json
-  sha256: 75a79620a357361aabff256a66813e353d519b0f9fb3c9c0a65b29d6758cdd79
+  sha256: 0c7587c232e46e0471f8618d04ba046a0ffc20d8b34b356adf70b58fba238ae9
   media_type: application/json
 - id: runner-protocol
   kind: protocol
@@ -994,7 +994,7 @@ receipts:
 - id: containment-proof-workflow
   kind: protocol
   path: ../receipts/VIA-000/containment-proof-workflow.yml
-  sha256: f6ba5c352564764d7b0537157fcd0d78594f43fd9e79164fd513c5ddc0d3d3d7
+  sha256: a39ddf87d1348b0b6009ad6fafb1b7b261ff695231ae4aabd4824074b54a0877
   media_type: text/plain
 - id: raw-results-schema
   kind: protocol
